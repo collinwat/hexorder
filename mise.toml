@@ -9,14 +9,65 @@ typos = "latest"
 taplo = "latest"
 "cargo:bacon" = "latest"
 
-[tasks."fix:prettier:markdown"]
-description = "Format markdown files with Prettier"
-run = "prettier --write '**/*.md'"
+# --- Fix tasks (auto-fix) ---
+
+[tasks."fix:fmt"]
+description = "Format Rust code"
+run = "cargo fmt --all"
+
+[tasks."fix:taplo"]
+description = "Format TOML files"
+run = "taplo fmt"
 
 [tasks."fix:prettier"]
 description = "Format all files with Prettier"
 run = "prettier --write ."
 
+[tasks."fix:prettier:markdown"]
+description = "Format markdown files with Prettier"
+run = "prettier --write '**/*.md'"
+
+[tasks."fix:typos"]
+description = "Fix typos in source code"
+run = "typos -w"
+
 [tasks.fix]
 description = "Run all fixers"
-depends = [ "fix:prettier" ]
+depends = ["fix:fmt", "fix:taplo", "fix:prettier", "fix:typos"]
+
+# --- Check tasks (lint / verify) ---
+
+[tasks."check:fmt"]
+description = "Check Rust formatting"
+run = "cargo fmt --all -- --check"
+
+[tasks."check:clippy"]
+description = "Run clippy lints"
+run = "cargo clippy --all-targets"
+
+[tasks."check:test"]
+description = "Run all tests"
+run = "cargo test"
+
+[tasks."check:deny"]
+description = "Audit dependencies"
+run = "cargo deny check"
+
+[tasks."check:typos"]
+description = "Check for typos"
+run = "typos"
+
+[tasks."check:taplo"]
+description = "Check TOML formatting"
+run = "taplo fmt --check"
+
+[tasks.check]
+description = "Run all checks"
+depends = [
+  "check:fmt",
+  "check:clippy",
+  "check:test",
+  "check:deny",
+  "check:typos",
+  "check:taplo",
+]
