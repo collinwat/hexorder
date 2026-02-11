@@ -1,0 +1,14 @@
+[files]
+extend-exclude = [
+    "target/",
+    "*.lock",
+    "assets/",
+]
+
+[default.extend-words]
+hexx = "hexx"
+# Substrings in PnP (Print and Play) and PNGs
+Pn = "Pn"
+PN = "PN"
+# Abbreviation for Strategic
+Strat = "Strat"
