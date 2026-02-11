@@ -15,28 +15,18 @@ exported assets for distribution.
 ## Getting Started
 
 ```bash
-# Clone the repository
+# Clone and enter the repository
 git clone <repo-url> hexorder
 cd hexorder
 
-# Install project tools
-mise install
+# Install tools, configure git hooks and LFS
+mise run setup
 
-# Configure git hooks and LFS
-git lfs install
-lefthook install
-
-# Build
-cargo build
-
-# Run tests
+# Verify everything works
 cargo test
 
-# Run the application
+# Run the application (use --features dev for faster rebuilds)
 cargo run
-
-# Run with dynamic linking for faster iteration
-cargo run --features dev
 ```
 
 ## Project Structure
