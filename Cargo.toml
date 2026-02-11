@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.18"
+bevy_egui = "0.39"
+hexx = "0.22"
+uuid = { version = "1", features = ["v4"] }
 
 # Enable optimizations for dependencies in dev builds for playable frame rates
 [profile.dev.package."*"]

@@ -1,0 +1,375 @@
+//! Systems for the hex_grid feature plugin.
+
+use bevy::input::mouse::AccumulatedMouseMotion;
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+use hexx::shapes;
+
+use crate::contracts::editor_ui::{EditorTool, PaintPreview};
+use crate::contracts::hex_grid::{
+    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, SelectedHex, TileBaseMaterial,
+};
+
+use super::components::{
+    HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, SelectIndicator,
+};
+
+/// Creates the hex grid configuration resource with default settings.
+pub fn setup_grid_config(mut commands: Commands) {
+    let layout = hexx::HexLayout {
+        orientation: hexx::HexOrientation::Pointy,
+        ..hexx::HexLayout::default()
+    }
+    .with_hex_size(1.0);
+
+    commands.insert_resource(HexGridConfig {
+        layout,
+        map_radius: 10,
+    });
+
+    commands.insert_resource(SelectedHex::default());
+    commands.insert_resource(HoveredHex::default());
+}
+
+/// Creates the shared default material handle for hex tile rendering.
+pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
+    let hex_materials = HexMaterials {
+        default: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.8, 0.8, 0.8),
+            unlit: true,
+            ..default()
+        }),
+    };
+    commands.insert_resource(hex_materials);
+}
+
+/// Spawns all hex tile entities for the configured grid radius.
+pub fn spawn_grid(
+    mut commands: Commands,
+    config: Res<HexGridConfig>,
+    hex_materials: Res<HexMaterials>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    // Use Bevy's built-in RegularPolygon (6 sides = hexagon) which generates
+    // all required mesh attributes. The mesh is created in the XY plane, so we
+    // rotate each tile -90 degrees around X to lay it flat on the XZ ground plane.
+    let hex_size = config.layout.scale.x.max(config.layout.scale.y);
+    // Shrink slightly (0.95) to leave a thin gap between adjacent tiles.
+    let mesh_handle = meshes.add(RegularPolygon::new(hex_size * 0.95, 6));
+
+    // Rotation to lay the XY-plane polygon flat on the XZ ground plane.
+    let flat_rotation = Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+
+    for hex in shapes::hexagon(hexx::Hex::ZERO, config.map_radius) {
+        let world_pos = config.layout.hex_to_world_pos(hex);
+
+        commands.spawn((
+            HexTile,
+            HexPosition::from_hex(hex),
+            Mesh3d(mesh_handle.clone()),
+            MeshMaterial3d(hex_materials.default.clone()),
+            TileBaseMaterial(hex_materials.default.clone()),
+            Transform::from_xyz(world_pos.x, 0.0, world_pos.y)
+                .with_rotation(flat_rotation),
+        ));
+    }
+}
+
+/// Converts screen-space mouse position to world-space XZ coordinates
+/// using the camera projection.
+fn screen_to_ground(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    cursor_position: Vec2,
+) -> Option<Vec2> {
+    // Cast a ray from the camera through the cursor position.
+    let ray = camera
+        .viewport_to_world(camera_transform, cursor_position)
+        .ok()?;
+
+    // Find where the ray intersects the Y=0 ground plane.
+    // Ray: P = origin + t * direction
+    // Ground plane: y = 0
+    // origin.y + t * direction.y = 0
+    // t = -origin.y / direction.y
+    let direction_y = ray.direction.y;
+    if direction_y.abs() < 1e-6 {
+        // Ray is parallel to ground plane, no intersection.
+        return None;
+    }
+
+    let t = -ray.origin.y / direction_y;
+    if t < 0.0 {
+        // Intersection is behind the camera.
+        return None;
+    }
+
+    let hit = ray.origin + t * *ray.direction;
+    Some(Vec2::new(hit.x, hit.z))
+}
+
+/// Updates the hovered hex based on the current mouse position.
+pub fn update_hover(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    config: Res<HexGridConfig>,
+    mut hovered: ResMut<HoveredHex>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, camera_transform)) = cameras.single() else {
+        return;
+    };
+
+    let Some(cursor_pos) = window.cursor_position() else {
+        // Mouse is outside the window.
+        hovered.position = None;
+        return;
+    };
+
+    let Some(world_pos) = screen_to_ground(camera, camera_transform, cursor_pos) else {
+        hovered.position = None;
+        return;
+    };
+
+    // Convert world XZ position to hex coordinates.
+    let hex = config.layout.world_pos_to_hex(world_pos);
+
+    // Only consider hexes within the grid radius.
+    let distance = hex.unsigned_distance_to(hexx::Hex::ZERO);
+    if distance <= config.map_radius {
+        let pos = HexPosition::from_hex(hex);
+        hovered.position = Some(pos);
+    } else {
+        hovered.position = None;
+    }
+}
+
+/// Pixel distance threshold to distinguish a click from a drag.
+const DRAG_THRESHOLD: f32 = 5.0;
+
+/// Handles mouse click to select a hex tile and fire HexSelectedEvent.
+///
+/// Fires on button *release* rather than press so that left-click drags
+/// (used for panning) are not mistaken for tile selections.
+pub fn handle_click(
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mouse_motion: Res<AccumulatedMouseMotion>,
+    hovered: Res<HoveredHex>,
+    mut selected: ResMut<SelectedHex>,
+    mut commands: Commands,
+    mut drag_acc: Local<f32>,
+) {
+    if mouse_buttons.just_pressed(MouseButton::Left) {
+        *drag_acc = 0.0;
+    }
+
+    if mouse_buttons.pressed(MouseButton::Left) {
+        *drag_acc += mouse_motion.delta.length();
+    }
+
+    if !mouse_buttons.just_released(MouseButton::Left) {
+        return;
+    }
+
+    // If the mouse moved more than the threshold, this was a drag, not a click.
+    if *drag_acc > DRAG_THRESHOLD {
+        return;
+    }
+
+    if let Some(pos) = hovered.position {
+        if selected.position == Some(pos) {
+            selected.position = None;
+        } else {
+            selected.position = Some(pos);
+            commands.trigger(HexSelectedEvent { position: pos });
+        }
+    }
+}
+
+/// Clears the current selection when Escape is pressed.
+pub fn deselect_on_escape(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut selected: ResMut<SelectedHex>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        selected.position = None;
+    }
+}
+
+/// Builds a hexagonal ring (hollow hexagon) mesh in the XY plane.
+/// `outer_radius` is the outer edge radius, `inner_radius` is the inner edge.
+fn build_hex_ring_mesh(outer_radius: f32, inner_radius: f32) -> Mesh {
+    use bevy::asset::RenderAssetUsages;
+    use bevy::mesh::{Indices, PrimitiveTopology};
+
+    const SIDES: usize = 6;
+    let mut positions = Vec::with_capacity(SIDES * 2);
+    let mut normals = Vec::with_capacity(SIDES * 2);
+    let mut uvs = Vec::with_capacity(SIDES * 2);
+    let mut indices = Vec::with_capacity(SIDES * 6);
+
+    let inner_ratio = inner_radius / outer_radius;
+
+    for i in 0..SIDES {
+        // Start at π/2 to match Bevy's RegularPolygon vertex placement.
+        let angle =
+            std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * i as f32 / SIDES as f32;
+        let (sin, cos) = angle.sin_cos();
+
+        // Outer vertex
+        positions.push([outer_radius * cos, outer_radius * sin, 0.0]);
+        normals.push([0.0, 0.0, 1.0]);
+        uvs.push([0.5 + 0.5 * cos, 0.5 + 0.5 * sin]);
+
+        // Inner vertex
+        positions.push([inner_radius * cos, inner_radius * sin, 0.0]);
+        normals.push([0.0, 0.0, 1.0]);
+        uvs.push([
+            0.5 + 0.5 * inner_ratio * cos,
+            0.5 + 0.5 * inner_ratio * sin,
+        ]);
+    }
+
+    for i in 0..SIDES {
+        let next = (i + 1) % SIDES;
+        let o_i = (i * 2) as u32;
+        let i_i = (i * 2 + 1) as u32;
+        let o_next = (next * 2) as u32;
+        let i_next = (next * 2 + 1) as u32;
+
+        indices.extend_from_slice(&[o_i, o_next, i_i]);
+        indices.extend_from_slice(&[i_i, o_next, i_next]);
+    }
+
+    Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    )
+    .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+    .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+    .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+    .with_inserted_indices(Indices::U32(indices))
+}
+
+/// Spawns hover and selection ring overlay entities with indicator materials.
+pub fn setup_indicators(
+    mut commands: Commands,
+    config: Res<HexGridConfig>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let hex_size = config.layout.scale.x.max(config.layout.scale.y);
+    let ring_mesh = meshes.add(build_hex_ring_mesh(hex_size * 0.93, hex_size * 0.82));
+    let flat_rotation = Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+
+    let hover_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(1.0, 1.0, 1.0, 0.6),
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        ..default()
+    });
+    let select_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 1.0, 1.0),
+        unlit: true,
+        ..default()
+    });
+
+    commands.insert_resource(IndicatorMaterials {
+        hover: hover_material.clone(),
+    });
+
+    commands.spawn((
+        HoverIndicator,
+        Mesh3d(ring_mesh.clone()),
+        MeshMaterial3d(hover_material),
+        Transform::from_xyz(0.0, 0.01, 0.0).with_rotation(flat_rotation),
+        Visibility::Hidden,
+    ));
+
+    commands.spawn((
+        SelectIndicator,
+        Mesh3d(ring_mesh),
+        MeshMaterial3d(select_material),
+        Transform::from_xyz(0.0, 0.02, 0.0).with_rotation(flat_rotation),
+        Visibility::Hidden,
+    ));
+}
+
+/// Positions hover and selection ring overlays at the appropriate hex tiles.
+/// Tiles always keep their real cell type color — only the border ring changes.
+///
+/// In **Paint mode**, the hover ring uses the paint preview color so the user
+/// can see which color will be applied before clicking.
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn update_indicators(
+    hovered: Res<HoveredHex>,
+    selected: Res<SelectedHex>,
+    tool: Res<EditorTool>,
+    paint_preview: Option<Res<PaintPreview>>,
+    config: Res<HexGridConfig>,
+    indicator_materials: Res<IndicatorMaterials>,
+    mut hover_q: Query<
+        (
+            &mut Transform,
+            &mut Visibility,
+            &mut MeshMaterial3d<StandardMaterial>,
+        ),
+        (With<HoverIndicator>, Without<SelectIndicator>),
+    >,
+    mut select_q: Query<
+        (&mut Transform, &mut Visibility),
+        (With<SelectIndicator>, Without<HoverIndicator>),
+    >,
+) {
+    let paint_changed = paint_preview.as_ref().is_some_and(|p| p.is_changed());
+    if !hovered.is_changed() && !selected.is_changed() && !tool.is_changed() && !paint_changed {
+        return;
+    }
+
+    if let Ok((mut transform, mut vis, mut mat)) = hover_q.single_mut() {
+        match hovered.position {
+            Some(pos) if selected.position != Some(pos) => {
+                let wp = config.layout.hex_to_world_pos(pos.to_hex());
+                transform.translation.x = wp.x;
+                transform.translation.z = wp.y;
+                *vis = Visibility::Visible;
+
+                let paint_mat = if *tool == EditorTool::Paint {
+                    paint_preview.as_ref().and_then(|p| p.material.clone())
+                } else {
+                    None
+                };
+                mat.0 = paint_mat.unwrap_or_else(|| indicator_materials.hover.clone());
+            }
+            _ => {
+                *vis = Visibility::Hidden;
+            }
+        }
+    }
+
+    if let Ok((mut transform, mut vis)) = select_q.single_mut() {
+        match selected.position {
+            Some(pos) => {
+                let wp = config.layout.hex_to_world_pos(pos.to_hex());
+                transform.translation.x = wp.x;
+                transform.translation.z = wp.y;
+                *vis = Visibility::Visible;
+            }
+            None => {
+                *vis = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+pub fn tile_count_for_radius(radius: u32) -> usize {
+    // A hex grid of radius r has 3*r*(r+1) + 1 tiles.
+    if radius == 0 {
+        1
+    } else {
+        (3 * radius * (radius + 1) + 1) as usize
+    }
+}
