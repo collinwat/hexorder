@@ -1,11 +1,15 @@
 # Contract: game_system
 
 ## Purpose
-Defines the Game System container, the entity-agnostic property system, and the types needed to describe cell type definitions and unit type definitions. The Game System is the root design artifact that holds all user-defined definitions.
+
+Defines the Game System container, the entity-agnostic property system, and the types needed to
+describe cell type definitions and unit type definitions. The Game System is the root design
+artifact that holds all user-defined definitions.
 
 ## Types
 
 ### Identity
+
 ```rust
 /// Unique identifier for cell types, enum definitions, property definitions, etc.
 /// Uses UUID for stability across serialization (M5).
@@ -14,6 +18,7 @@ pub struct TypeId(pub uuid::Uuid);
 ```
 
 ### Game System Container
+
 ```rust
 /// The root design artifact. Holds all definitions for a game system.
 #[derive(Resource, Debug)]
@@ -26,6 +31,7 @@ pub struct GameSystem {
 ```
 
 ### Property Types
+
 ```rust
 /// The data type of a property definition. Extensible for future milestones.
 #[derive(Debug, Clone, PartialEq)]
@@ -68,6 +74,7 @@ pub struct EnumDefinition {
 ```
 
 ### Cell Types
+
 ```rust
 /// Unique identifier for a cell type.
 pub type CellTypeId = TypeId;
@@ -104,6 +111,7 @@ pub struct ActiveCellType {
 ```
 
 ### Unit Types
+
 ```rust
 /// Unique identifier for a unit type.
 pub type UnitTypeId = TypeId;
@@ -159,31 +167,42 @@ pub struct UnitPlacedEvent {
 ```
 
 ## Consumers
+
 - game_system (owns the GameSystem resource, cell type registry, unit type registry, startup logic)
 - cell (reads CellTypeRegistry, CellType, CellData, ActiveCellType)
 - unit (reads UnitTypeRegistry, UnitType, UnitData, ActiveUnitType, SelectedUnit)
-- editor_ui (reads/writes GameSystem, CellTypeRegistry, UnitTypeRegistry, ActiveCellType, ActiveUnitType, SelectedUnit, PropertyDefinition, PropertyValue)
+- editor_ui (reads/writes GameSystem, CellTypeRegistry, UnitTypeRegistry, ActiveCellType,
+  ActiveUnitType, SelectedUnit, PropertyDefinition, PropertyValue)
 
 ## Producers
-- game_system (inserts GameSystem, CellTypeRegistry, ActiveCellType, UnitTypeRegistry, ActiveUnitType, SelectedUnit resources at startup)
+
+- game_system (inserts GameSystem, CellTypeRegistry, ActiveCellType, UnitTypeRegistry,
+  ActiveUnitType, SelectedUnit resources at startup)
 
 ## Invariants
+
 - `GameSystem` is inserted during `Startup` and available for the lifetime of the app
 - `CellTypeRegistry` is inserted during `Startup`; may be empty or contain starter types
-- `ActiveCellType` is inserted during `Startup`; defaults to the first registered cell type (or None if empty)
-- `CellData.cell_type_id` must reference a valid entry in `CellTypeRegistry` (or be handled gracefully if the type was deleted)
+- `ActiveCellType` is inserted during `Startup`; defaults to the first registered cell type (or None
+  if empty)
+- `CellData.cell_type_id` must reference a valid entry in `CellTypeRegistry` (or be handled
+  gracefully if the type was deleted)
 - `UnitTypeRegistry` is inserted during `Startup`; may be empty or contain starter types
-- `ActiveUnitType` is inserted during `Startup`; defaults to the first registered unit type (or None if empty)
+- `ActiveUnitType` is inserted during `Startup`; defaults to the first registered unit type (or None
+  if empty)
 - `SelectedUnit` is inserted during `Startup`; defaults to None
-- `UnitData.unit_type_id` must reference a valid entry in `UnitTypeRegistry` (or be handled gracefully if the type was deleted)
+- `UnitData.unit_type_id` must reference a valid entry in `UnitTypeRegistry` (or be handled
+  gracefully if the type was deleted)
 - `PropertyValue` variant must match the corresponding `PropertyType` variant
 - `PropertyValue::Enum` value must be one of the options in the referenced `EnumDefinition`
 - `TypeId` values are globally unique (UUID-based)
-- Enum definitions are duplicated in both CellTypeRegistry and UnitTypeRegistry (future consolidation planned)
+- Enum definitions are duplicated in both CellTypeRegistry and UnitTypeRegistry (future
+  consolidation planned)
 
 ## Changelog
-| Date | Change | Reason |
-|------|--------|--------|
-| 2026-02-08 | Initial definition | M2 Game System container and property system |
+
+| Date       | Change                          | Reason                                                                                                      |
+| ---------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition              | M2 Game System container and property system                                                                |
 | 2026-02-09 | Renamed Vertex→Cell terminology | Cell is mathematically correct for N-dimensional grid elements; Vertex means hex corner in grid terminology |
-| 2026-02-09 | Added unit types section | M3 — units on the hex grid |
+| 2026-02-09 | Added unit types section        | M3 — units on the hex grid                                                                                  |

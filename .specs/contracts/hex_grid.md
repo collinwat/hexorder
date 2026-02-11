@@ -1,18 +1,22 @@
 # Contract: hex_grid
 
 ## Purpose
-Defines the core hex coordinate types and grid configuration shared by all features
-that interact with the hex map. The grid exists on the 3D ground plane (XZ).
+
+Defines the core hex coordinate types and grid configuration shared by all features that interact
+with the hex map. The grid exists on the 3D ground plane (XZ).
 
 ## Consumers
+
 - (all features that place or query entities on the hex grid)
 
 ## Producers
+
 - hex_grid feature (owns the grid storage and coordinate math)
 
 ## Types
 
 ### Components
+
 ```rust
 /// Marks an entity as occupying a hex tile position.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,6 +39,7 @@ pub struct TileBaseMaterial(pub Handle<StandardMaterial>);
 ```
 
 ### Resources
+
 ```rust
 /// Global grid configuration.
 #[derive(Resource, Debug)]
@@ -53,6 +58,7 @@ pub struct SelectedHex {
 ```
 
 ### Events
+
 ```rust
 /// Fired when an entity moves to a new hex position.
 #[derive(Event, Debug)]
@@ -70,6 +76,7 @@ pub struct HexSelectedEvent {
 ```
 
 ### Utility Types
+
 ```rust
 /// Re-export hexx::Hex for coordinate math.
 pub use hexx::Hex;
@@ -92,6 +99,7 @@ impl HexPosition {
 ```
 
 ## Invariants
+
 - `HexPosition` coordinates are always valid axial coordinates
 - `HexGridConfig` is inserted as a resource during `Startup` by the hex_grid plugin
 - `SelectedHex` is inserted as a resource during `Startup` by the hex_grid plugin
@@ -99,8 +107,9 @@ impl HexPosition {
 - `HexMoveEvent` is only fired for moves that have been validated (target is in bounds)
 
 ## Changelog
-| Date | Change | Reason |
-|------|--------|--------|
-| 2026-02-08 | Initial definition | Foundation for all hex-based features |
-| 2026-02-08 | Added HexTile, SelectedHex | Promoted from hex_grid internals to fix contract boundary violations |
+
+| Date       | Change                           | Reason                                                                    |
+| ---------- | -------------------------------- | ------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition               | Foundation for all hex-based features                                     |
+| 2026-02-08 | Added HexTile, SelectedHex       | Promoted from hex_grid internals to fix contract boundary violations      |
 | 2026-02-10 | Added TileBaseMaterial component | Needed so hover/selection ring overlays can coexist with cell type colors |

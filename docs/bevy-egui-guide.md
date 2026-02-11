@@ -1,7 +1,7 @@
 # bevy_egui 0.39 Developer Guide for Hexorder
 
-> Canonical reference for bevy_egui 0.39 (egui 0.33) patterns, conventions, and pitfalls.
-> Updated: 2026-02-08 | bevy_egui 0.39.1 (Bevy 0.18, egui 0.33)
+> Canonical reference for bevy_egui 0.39 (egui 0.33) patterns, conventions, and pitfalls. Updated:
+> 2026-02-08 | bevy_egui 0.39.1 (Bevy 0.18, egui 0.33)
 
 ---
 
@@ -29,9 +29,9 @@
 
 ### Version Compatibility
 
-| Bevy | bevy_egui | egui |
-|------|-----------|------|
-| 0.18 | 0.39      | 0.33 |
+| Bevy | bevy_egui | egui      |
+| ---- | --------- | --------- |
+| 0.18 | 0.39      | 0.33      |
 | 0.17 | 0.37-0.38 | 0.32-0.33 |
 | 0.16 | 0.34-0.36 | 0.30-0.32 |
 
@@ -74,7 +74,8 @@ fn ui_system(mut contexts: EguiContexts) -> Result {
 
 ### Default Cargo Features
 
-bevy_egui default features: `manage_clipboard`, `open_url`, `default_fonts`, `render`, `bevy_ui`, `picking`.
+bevy_egui default features: `manage_clipboard`, `open_url`, `default_fonts`, `render`, `bevy_ui`,
+`picking`.
 
 ---
 
@@ -90,11 +91,13 @@ app.add_plugins(EguiPlugin::default());
 
 ### Plugin Deduplication
 
-Bevy deduplicates plugins. It is safe to call `add_plugins(EguiPlugin::default())` even if another plugin already added it. Hexorder's `EditorUiPlugin` does this for self-contained registration.
+Bevy deduplicates plugins. It is safe to call `add_plugins(EguiPlugin::default())` even if another
+plugin already added it. Hexorder's `EditorUiPlugin` does this for self-contained registration.
 
 ### Auto-Created Context
 
-By default, bevy_egui automatically creates an `EguiContext` on the first camera spawned. To control this manually:
+By default, bevy_egui automatically creates an `EguiContext` on the first camera spawned. To control
+this manually:
 
 ```rust
 fn setup(mut egui_global_settings: ResMut<EguiGlobalSettings>, mut commands: Commands) {
@@ -160,7 +163,8 @@ fn my_ui(mut contexts: EguiContexts) -> Result {
 }
 ```
 
-**Important:** `ctx_mut()` returns `Result<&mut egui::Context, QuerySingleError>`. Systems using `EguiContexts` should return `Result` and use `?`.
+**Important:** `ctx_mut()` returns `Result<&mut egui::Context, QuerySingleError>`. Systems using
+`EguiContexts` should return `Result` and use `?`.
 
 ### Direct EguiContext Query
 
@@ -206,18 +210,22 @@ All UI systems should run in the `EguiPrimaryContextPass` schedule:
 app.add_systems(EguiPrimaryContextPass, my_ui_system);
 ```
 
-This schedule runs inside Bevy's `PostUpdate` via `run_egui_context_pass_loop_system`. The egui context is properly initialized with input and screen size before your systems run.
+This schedule runs inside Bevy's `PostUpdate` via `run_egui_context_pass_loop_system`. The egui
+context is properly initialized with input and screen size before your systems run.
 
 ### Why Not Update?
 
-Running egui systems in `Update` instead of `EguiPrimaryContextPass` may work in single-pass mode, but:
+Running egui systems in `Update` instead of `EguiPrimaryContextPass` may work in single-pass mode,
+but:
+
 - Single-pass mode is deprecated
 - Multi-pass mode (default) requires `EguiPrimaryContextPass`
 - Using `EguiPrimaryContextPass` is compatible with both modes
 
 ### System Ordering Within EguiPrimaryContextPass
 
-Multiple UI systems in `EguiPrimaryContextPass` can be ordered with `.chain()` or `SystemSet`, just like in other schedules:
+Multiple UI systems in `EguiPrimaryContextPass` can be ordered with `.chain()` or `SystemSet`, just
+like in other schedules:
 
 ```rust
 app.add_systems(
@@ -228,20 +236,21 @@ app.add_systems(
 
 ### Plugin System Sets (for hooking into bevy_egui internals)
 
-| Set | Schedule | Purpose |
-|-----|----------|---------|
-| `EguiStartupSet::InitContexts` | `PreStartup` | Primary context creation |
-| `EguiPreUpdateSet::InitContexts` | `PreUpdate` | Context init for new cameras |
-| `EguiPreUpdateSet::ProcessInput` | `PreUpdate` | Input reading |
-| `EguiPreUpdateSet::BeginPass` | `PreUpdate` | Starts egui pass |
-| `EguiPostUpdateSet::EndPass` | `PostUpdate` | Ends egui pass |
-| `EguiPostUpdateSet::ProcessOutput` | `PostUpdate` | Processes egui output |
+| Set                                | Schedule     | Purpose                      |
+| ---------------------------------- | ------------ | ---------------------------- |
+| `EguiStartupSet::InitContexts`     | `PreStartup` | Primary context creation     |
+| `EguiPreUpdateSet::InitContexts`   | `PreUpdate`  | Context init for new cameras |
+| `EguiPreUpdateSet::ProcessInput`   | `PreUpdate`  | Input reading                |
+| `EguiPreUpdateSet::BeginPass`      | `PreUpdate`  | Starts egui pass             |
+| `EguiPostUpdateSet::EndPass`       | `PostUpdate` | Ends egui pass               |
+| `EguiPostUpdateSet::ProcessOutput` | `PostUpdate` | Processes egui output        |
 
 ---
 
 ## 5. Layout Containers
 
-Egui uses an immediate-mode layout model. Containers are shown in order: panels first, then central panel, then windows.
+Egui uses an immediate-mode layout model. Containers are shown in order: panels first, then central
+panel, then windows.
 
 ### SidePanel
 
@@ -553,7 +562,9 @@ Hexorder uses **both** approaches together:
 1. **Run conditions** on game input systems (pointer and keyboard)
 2. **`enable_absorb_bevy_input_system = true`** for egui text input to work
 
-Run conditions alone are **not sufficient** for text input. They only prevent your custom systems from running — Bevy's internal input systems still consume keyboard events before egui can process them. Without absorb enabled, typing into `text_edit_singleline` fields produces no characters.
+Run conditions alone are **not sufficient** for text input. They only prevent your custom systems
+from running — Bevy's internal input systems still consume keyboard events before egui can process
+them. Without absorb enabled, typing into `text_edit_singleline` fields produces no characters.
 
 ```rust
 // In plugin build():
@@ -579,16 +590,16 @@ app.add_systems(
 
 These run conditions check the `EguiWantsInput` resource (updated in `PostUpdate`):
 
-| Method | Returns true when... |
-|--------|---------------------|
-| `is_pointer_over_area()` | Mouse is over any egui area |
-| `wants_pointer_input()` | Egui is interested in the pointer |
-| `is_using_pointer()` | Egui is actively using pointer (e.g., dragging) |
-| `wants_keyboard_input()` | Egui is listening for text input |
-| `is_popup_open()` | A context menu or popup is open |
-| `wants_any_pointer_input()` | Any of the pointer conditions above |
-| `wants_any_keyboard_input()` | keyboard input OR popup open |
-| `wants_any_input()` | Any input at all |
+| Method                       | Returns true when...                            |
+| ---------------------------- | ----------------------------------------------- |
+| `is_pointer_over_area()`     | Mouse is over any egui area                     |
+| `wants_pointer_input()`      | Egui is interested in the pointer               |
+| `is_using_pointer()`         | Egui is actively using pointer (e.g., dragging) |
+| `wants_keyboard_input()`     | Egui is listening for text input                |
+| `is_popup_open()`            | A context menu or popup is open                 |
+| `wants_any_pointer_input()`  | Any of the pointer conditions above             |
+| `wants_any_keyboard_input()` | keyboard input OR popup open                    |
+| `wants_any_input()`          | Any input at all                                |
 
 ### Option B: Absorb Input (Required for Text Fields)
 
@@ -599,11 +610,14 @@ app.world_mut()
     .enable_absorb_bevy_input_system = true;
 ```
 
-This clears Bevy's input buffers when egui wants input. Must be enabled if your UI has text fields (`text_edit_singleline`, `text_edit_multiline`, `TextEdit`). Without it, Bevy's internal systems consume keyboard events before egui processes them.
+This clears Bevy's input buffers when egui wants input. Must be enabled if your UI has text fields
+(`text_edit_singleline`, `text_edit_multiline`, `TextEdit`). Without it, Bevy's internal systems
+consume keyboard events before egui processes them.
 
 ### Option C: bevy_picking Integration
 
-With the default `picking` feature enabled, `bevy_egui` automatically suppresses `bevy_picking` events when the pointer is over egui windows. No additional code needed.
+With the default `picking` feature enabled, `bevy_egui` automatically suppresses `bevy_picking`
+events when the pointer is over egui windows. No additional code needed.
 
 ### EguiWantsInput Resource (Direct Access)
 
@@ -725,7 +739,8 @@ contexts.add_image(EguiTextureHandle::Strong(handle.clone()));
 contexts.add_image(EguiTextureHandle::Weak(handle.id()));
 ```
 
-Use **weak** when you manage asset lifetime yourself. Use **strong** when the image is only used in egui.
+Use **weak** when you manage asset lifetime yourself. Use **strong** when the image is only used in
+egui.
 
 ### Removing Images
 
@@ -749,7 +764,8 @@ ui.image(egui::load::SizedTexture::new(
 
 ### Premultiplied Alpha
 
-bevy_egui 0.39.1 fixed text AA by no longer re-premultiplying alpha for egui textures. If you load images for display in egui, you may need to premultiply alpha manually:
+bevy_egui 0.39.1 fixed text AA by no longer re-premultiplying alpha for egui textures. If you load
+images for display in egui, you may need to premultiply alpha manually:
 
 ```rust
 fn premultiply(image: &mut Image) {
@@ -769,7 +785,8 @@ fn premultiply(image: &mut Image) {
 
 ## 10. Side Panels with Viewport Adjustment
 
-For editor UIs where side panels should not overlap the 3D viewport, adjust the camera viewport based on panel sizes:
+For editor UIs where side panels should not overlap the 3D viewport, adjust the camera viewport
+based on panel sizes:
 
 ```rust
 fn editor_ui(
@@ -804,7 +821,9 @@ fn editor_ui(
 }
 ```
 
-**Note:** When using a separate egui camera (as in the side_panel example), disable `auto_create_primary_context` and spawn the egui camera with `PrimaryEguiContext` on a separate render layer.
+**Note:** When using a separate egui camera (as in the side_panel example), disable
+`auto_create_primary_context` and spawn the egui camera with `PrimaryEguiContext` on a separate
+render layer.
 
 ---
 
@@ -858,7 +877,8 @@ use bevy_egui::helpers::{
 
 ### Testing State and Resources (Without Rendering)
 
-Egui systems are hard to test with `app.update()` because they require the full render pipeline. Instead, test the **state** that UI systems read and write:
+Egui systems are hard to test with `app.update()` because they require the full render pipeline.
+Instead, test the **state** that UI systems read and write:
 
 ```rust
 #[test]
@@ -927,14 +947,19 @@ Egui rebuilds the entire UI every frame. For most editor UIs this is fine (1-2ms
 
 ### Guidelines
 
-- **Avoid huge scroll areas**: Layout cost is proportional to content, even if not visible. Only lay out what's in view.
-- **Minimize allocations**: Reuse `String` buffers via `Local<T>` instead of creating new strings each frame.
-- **Conditional sections**: Use `CollapsingHeader` or conditionals to skip layout for hidden sections.
-- **egui repaints only on interaction**: In idle state, egui skips repainting. However, Bevy still runs the system each frame.
+- **Avoid huge scroll areas**: Layout cost is proportional to content, even if not visible. Only lay
+  out what's in view.
+- **Minimize allocations**: Reuse `String` buffers via `Local<T>` instead of creating new strings
+  each frame.
+- **Conditional sections**: Use `CollapsingHeader` or conditionals to skip layout for hidden
+  sections.
+- **egui repaints only on interaction**: In idle state, egui skips repainting. However, Bevy still
+  runs the system each frame.
 
 ### Bindless Mode
 
-bevy_egui 0.39 supports bindless rendering (default array size: 16). This reduces bind group switches when multiple textures are used:
+bevy_egui 0.39 supports bindless rendering (default array size: 16). This reduces bind group
+switches when multiple textures are used:
 
 ```rust
 // Configured in EguiPlugin (rarely needs changing)
@@ -967,7 +992,9 @@ pub fn my_panel_system(
 }
 ```
 
-**Note:** Hexorder uses `let Ok(ctx) = contexts.ctx_mut() else { return; }` rather than `-> Result` with `?`. Both patterns are valid. The `else { return }` pattern avoids the `Result` return type on the system.
+**Note:** Hexorder uses `let Ok(ctx) = contexts.ctx_mut() else { return; }` rather than `-> Result`
+with `?`. Both patterns are valid. The `else { return }` pattern avoids the `Result` return type on
+the system.
 
 ### Plugin Registration
 
@@ -1095,7 +1122,8 @@ let panel_width_physical = panel_width_logical * window.scale_factor();
 
 ### 7. Mutable Borrows in Closures
 
-You cannot borrow `EguiContexts` mutably inside an egui closure because the context is already borrowed. Extract the context first:
+You cannot borrow `EguiContexts` mutably inside an egui closure because the context is already
+borrowed. Extract the context first:
 
 ```rust
 // WRONG: double mutable borrow
@@ -1113,18 +1141,23 @@ egui::Window::new("W").show(ctx, |ui| {
 
 ### 8. Bevy Camera Required
 
-bevy_egui requires at least one camera entity to render. If no camera exists, the egui context won't be created and `ctx_mut()` will return `Err`.
+bevy_egui requires at least one camera entity to render. If no camera exists, the egui context won't
+be created and `ctx_mut()` will return `Err`.
 
 ### 9. Feature Flags Affect API
 
 Some API is gated behind features:
+
 - `EguiContexts::add_image` requires `render` feature (default)
 - `capture_pointer_input` in `EguiContextSettings` requires `picking` feature (default)
 - `EguiClipboard` requires `manage_clipboard` feature (default)
 
 ### 10. Text Input Requires Absorb
 
-Egui `text_edit_singleline` and `text_edit_multiline` fields will silently fail to receive keyboard input unless `enable_absorb_bevy_input_system` is `true`. Run conditions (`egui_wants_any_keyboard_input`) only guard your custom systems — Bevy's internal input systems still consume keyboard events. Always enable absorb in any plugin that uses egui text fields:
+Egui `text_edit_singleline` and `text_edit_multiline` fields will silently fail to receive keyboard
+input unless `enable_absorb_bevy_input_system` is `true`. Run conditions
+(`egui_wants_any_keyboard_input`) only guard your custom systems — Bevy's internal input systems
+still consume keyboard events. Always enable absorb in any plugin that uses egui text fields:
 
 ```rust
 app.world_mut()
@@ -1134,7 +1167,9 @@ app.world_mut()
 
 ### 11. Multi-Pass Discards
 
-In multi-pass mode, egui may run your UI closure multiple times per frame (for layout convergence). Don't perform side effects (like sending events) inside egui closures — do them after the `.show()` call based on captured state:
+In multi-pass mode, egui may run your UI closure multiple times per frame (for layout convergence).
+Don't perform side effects (like sending events) inside egui closures — do them after the `.show()`
+call based on captured state:
 
 ```rust
 let mut should_fire_event = false;

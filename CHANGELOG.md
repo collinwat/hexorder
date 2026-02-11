@@ -2,11 +2,13 @@
 
 All notable changes to Hexorder are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
+[Semantic Versioning](https://semver.org/).
 
 ## [0.3.0] — 2026-02-09
+
 ### Added
+
 - Unit type definitions with custom properties (game_system)
 - Unit placement on hex grid with click-to-place (unit)
 - Unit movement via click-to-move (unit)
@@ -21,10 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - UnitPlacedEvent observer event (game_system)
 
 ### Changed
+
 - EditorTool gains Place variant for unit placement mode (editor_ui)
 
 ## [0.2.0] — 2026-02-09
+
 ### Added
+
 - Game System container with id and version (game_system)
 - Property system with 6 data types: Bool, Int, Float, String, Color, Enum (game_system)
 - User-defined cell types with custom properties (game_system)
@@ -37,12 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Hidden-window pattern to prevent white flash on launch (camera)
 
 ### Removed
+
 - Hardcoded TerrainType enum, replaced by dynamic CellTypeId (game_system)
 - Terrain plugin, replaced by Cell plugin (cell)
 - TerrainPalette, TerrainEntry, ActiveTerrain resources (game_system)
 
 ## [0.1.0] — 2026-02-08
+
 ### Added
+
 - Hex grid rendering on XZ ground plane with configurable radius (hex_grid)
 - Axial coordinate system using hexx crate (hex_grid)
 - Hex tile selection via raycast with visual highlight (hex_grid)
