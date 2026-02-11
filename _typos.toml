@@ -1,9 +1,5 @@
 [files]
-extend-exclude = [
-    "target/",
-    "*.lock",
-    "assets/",
-]
+extend-exclude = [ "target/", "*.lock", "assets/" ]
 
 [default.extend-words]
 hexx = "hexx"
