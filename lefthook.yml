@@ -7,7 +7,7 @@ commit-msg:
   commands:
     validate-format:
       run: |
-        msg=$(cat "$1")
+        msg=$(cat "{1}")
         # Validate conventional commit format: type(scope): summary
         if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|refactor|test|docs|chore|style)\((unit|cell|hex_grid|camera|game_system|editor_ui|contracts|project)\): .+$'; then
           echo ""
@@ -22,12 +22,12 @@ commit-msg:
           echo "    - Imperative mood, lowercase, no trailing period"
           echo "    - Max 72 characters on subject line"
           echo ""
-          echo "  Got: $(head -1 "$1")"
+          echo "  Got: $(head -1 "{1}")"
           echo ""
           exit 1
         fi
         # Validate subject line length (max 72 characters)
-        subject=$(head -1 "$1")
+        subject=$(head -1 "{1}")
         if [ ${#subject} -gt 72 ]; then
           echo ""
           echo "ERROR: Subject line exceeds 72 characters (${#subject} chars)."
@@ -39,19 +39,8 @@ commit-msg:
 pre-commit:
   parallel: false
   commands:
-    reject-secrets:
-      run: |
-        # Check staged files for secrets
-        forbidden=$(git diff --cached --name-only | grep -iE '\.env$|credentials|\.secret|\.key$|\.pem$' || true)
-        if [ -n "$forbidden" ]; then
-          echo ""
-          echo "ERROR: Staged files may contain secrets:"
-          echo "$forbidden"
-          echo ""
-          echo "Remove these files from staging before committing."
-          echo ""
-          exit 1
-        fi
+    gitleaks:
+      run: mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
     check-compiles:
       run: cargo build
       tags: slow
