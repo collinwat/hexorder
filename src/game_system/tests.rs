@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    ActiveCellType, ActiveUnitType, EnumDefinition, GameSystem, PropertyType, PropertyValue,
-    SelectedUnit, TypeId, CellTypeRegistry, UnitTypeRegistry,
+    ActiveCellType, ActiveUnitType, CellTypeRegistry, EnumDefinition, GameSystem, PropertyType,
+    PropertyValue, SelectedUnit, TypeId, UnitTypeRegistry,
 };
 
 /// Helper: create a minimal App with the GameSystemPlugin.
@@ -171,7 +171,10 @@ fn property_value_default_for_each_type() {
 fn type_id_generates_unique() {
     let id1 = TypeId::new();
     let id2 = TypeId::new();
-    assert_ne!(id1, id2, "Two TypeId::new() calls should produce different values");
+    assert_ne!(
+        id1, id2,
+        "Two TypeId::new() calls should produce different values"
+    );
 }
 
 #[test]
@@ -189,7 +192,10 @@ fn registry_get_by_id() {
         .expect("Registry should have at least one type");
     let found = registry.get(first.id);
 
-    assert!(found.is_some(), "get() should find the first cell type by id");
+    assert!(
+        found.is_some(),
+        "get() should find the first cell type by id"
+    );
     assert_eq!(
         found.expect("already checked is_some").name,
         first.name,

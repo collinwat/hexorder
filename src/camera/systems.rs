@@ -151,10 +151,7 @@ pub fn mouse_pan(
 ///
 /// Uses `AccumulatedMouseScroll` for the scroll delta. Multiplicative zoom
 /// feels more natural than additive. The target scale is clamped to min/max.
-pub fn scroll_zoom(
-    scroll: Res<AccumulatedMouseScroll>,
-    mut camera_state: ResMut<CameraState>,
-) {
+pub fn scroll_zoom(scroll: Res<AccumulatedMouseScroll>, mut camera_state: ResMut<CameraState>) {
     let scroll_amount = match scroll.unit {
         MouseScrollUnit::Line => scroll.delta.y,
         MouseScrollUnit::Pixel => scroll.delta.y * 0.01,
@@ -261,7 +258,9 @@ pub fn view_shortcuts(
         return;
     };
 
-    if (fit || reset) && let Some(config) = &grid_config {
+    if (fit || reset)
+        && let Some(config) = &grid_config
+    {
         camera_state.target_scale = fit_scale(config, window, &camera_state);
     }
 
@@ -342,10 +341,9 @@ pub fn smooth_camera(
 
     // Enforce the top-down orientation: looking down -Y, up = +Z.
     // This prevents any rotation drift (REQ-LOCK).
-    transform.rotation =
-        Transform::from_xyz(0.0, CAMERA_Y, 0.0)
-            .looking_at(Vec3::ZERO, Vec3::Z)
-            .rotation;
+    transform.rotation = Transform::from_xyz(0.0, CAMERA_Y, 0.0)
+        .looking_at(Vec3::ZERO, Vec3::Z)
+        .rotation;
 
     // Smoothly interpolate projection scale.
     let current_scale = camera_state.current_scale;

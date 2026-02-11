@@ -5,9 +5,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::{EditorTool, PaintPreview};
-use crate::contracts::game_system::{
-    ActiveCellType, PropertyValue, CellData, CellTypeRegistry,
-};
+use crate::contracts::game_system::{ActiveCellType, CellData, CellTypeRegistry, PropertyValue};
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
 
 use super::components::CellMaterials;
@@ -104,7 +102,11 @@ pub fn paint_cell(
 pub fn sync_cell_visuals(
     cell_materials: Res<CellMaterials>,
     mut tiles: Query<
-        (&CellData, &mut MeshMaterial3d<StandardMaterial>, &mut TileBaseMaterial),
+        (
+            &CellData,
+            &mut MeshMaterial3d<StandardMaterial>,
+            &mut TileBaseMaterial,
+        ),
         (With<HexTile>, Changed<CellData>),
     >,
 ) {
@@ -146,8 +148,7 @@ pub fn sync_cell_materials(
     }
 
     // Remove materials for cell types that no longer exist.
-    let valid_ids: std::collections::HashSet<_> =
-        registry.types.iter().map(|vt| vt.id).collect();
+    let valid_ids: std::collections::HashSet<_> = registry.types.iter().map(|vt| vt.id).collect();
     cell_materials
         .materials
         .retain(|id, _| valid_ids.contains(id));

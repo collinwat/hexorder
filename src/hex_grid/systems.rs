@@ -69,8 +69,7 @@ pub fn spawn_grid(
             Mesh3d(mesh_handle.clone()),
             MeshMaterial3d(hex_materials.default.clone()),
             TileBaseMaterial(hex_materials.default.clone()),
-            Transform::from_xyz(world_pos.x, 0.0, world_pos.y)
-                .with_rotation(flat_rotation),
+            Transform::from_xyz(world_pos.x, 0.0, world_pos.y).with_rotation(flat_rotation),
         ));
     }
 }
@@ -189,10 +188,7 @@ pub fn handle_click(
 }
 
 /// Clears the current selection when Escape is pressed.
-pub fn deselect_on_escape(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut selected: ResMut<SelectedHex>,
-) {
+pub fn deselect_on_escape(keyboard: Res<ButtonInput<KeyCode>>, mut selected: ResMut<SelectedHex>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         selected.position = None;
     }
@@ -214,8 +210,7 @@ fn build_hex_ring_mesh(outer_radius: f32, inner_radius: f32) -> Mesh {
 
     for i in 0..SIDES {
         // Start at π/2 to match Bevy's RegularPolygon vertex placement.
-        let angle =
-            std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * i as f32 / SIDES as f32;
+        let angle = std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * i as f32 / SIDES as f32;
         let (sin, cos) = angle.sin_cos();
 
         // Outer vertex
@@ -226,10 +221,7 @@ fn build_hex_ring_mesh(outer_radius: f32, inner_radius: f32) -> Mesh {
         // Inner vertex
         positions.push([inner_radius * cos, inner_radius * sin, 0.0]);
         normals.push([0.0, 0.0, 1.0]);
-        uvs.push([
-            0.5 + 0.5 * inner_ratio * cos,
-            0.5 + 0.5 * inner_ratio * sin,
-        ]);
+        uvs.push([0.5 + 0.5 * inner_ratio * cos, 0.5 + 0.5 * inner_ratio * sin]);
     }
 
     for i in 0..SIDES {

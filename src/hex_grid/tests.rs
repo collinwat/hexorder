@@ -103,7 +103,10 @@ fn grid_spawns_correct_number_of_tiles() {
             .world()
             .get_resource::<HexGridConfig>()
             .expect("config should exist");
-        (config.map_radius, systems::tile_count_for_radius(config.map_radius))
+        (
+            config.map_radius,
+            systems::tile_count_for_radius(config.map_radius),
+        )
     };
 
     let mut query = app.world_mut().query_filtered::<Entity, With<HexTile>>();
@@ -252,9 +255,7 @@ fn click_fires_selected_event() {
         .release(MouseButton::Left);
     app.update();
 
-    let events = received
-        .lock()
-        .expect("mutex should not be poisoned");
+    let events = received.lock().expect("mutex should not be poisoned");
     assert_eq!(events.len(), 1, "Exactly one HexSelectedEvent should fire");
     assert_eq!(events[0], HexPosition::new(-1, 4));
 }
@@ -285,8 +286,6 @@ fn no_click_no_event() {
     // Do NOT press any mouse button.
     app.update();
 
-    let events = received
-        .lock()
-        .expect("mutex should not be poisoned");
+    let events = received.lock().expect("mutex should not be poisoned");
     assert_eq!(events.len(), 0, "No event should fire without a click");
 }

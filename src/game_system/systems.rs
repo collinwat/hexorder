@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    GameSystem, TypeId, CellType, CellTypeRegistry, UnitType, UnitTypeRegistry,
+    CellType, CellTypeRegistry, GameSystem, TypeId, UnitType, UnitTypeRegistry,
 };
 
 /// Creates a new `GameSystem` resource with a fresh UUID and default version.

@@ -32,17 +32,10 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CameraState>()
-            .configure_sets(
-                Update,
-                CameraSet::Apply.after(CameraSet::Input),
-            )
+            .configure_sets(Update, CameraSet::Apply.after(CameraSet::Input))
             .add_systems(
                 Startup,
-                (
-                    systems::spawn_camera,
-                    systems::configure_bounds_from_grid,
-                )
-                    .chain(),
+                (systems::spawn_camera, systems::configure_bounds_from_grid).chain(),
             )
             .add_systems(
                 Update,

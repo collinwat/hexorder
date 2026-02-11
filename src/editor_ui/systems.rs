@@ -1,13 +1,13 @@
 //! Systems for the editor_ui feature plugin.
 
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts};
+use bevy_egui::{EguiContexts, egui};
 
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
-    ActiveCellType, ActiveUnitType, EnumDefinition, GameSystem, PropertyDefinition, PropertyType,
-    PropertyValue, SelectedUnit, TypeId, UnitData, UnitInstance, UnitType, UnitTypeRegistry,
-    CellData, CellType, CellTypeRegistry,
+    ActiveCellType, ActiveUnitType, CellData, CellType, CellTypeRegistry, EnumDefinition,
+    GameSystem, PropertyDefinition, PropertyType, PropertyValue, SelectedUnit, TypeId, UnitData,
+    UnitInstance, UnitType, UnitTypeRegistry,
 };
 use crate::contracts::hex_grid::{HexPosition, HexTile, SelectedHex};
 
@@ -138,20 +138,10 @@ pub fn editor_panel_system(
             }
 
             // -- Cell Type Editor --
-            render_cell_type_editor(
-                ui,
-                &mut registry,
-                &mut editor_state,
-                &mut actions,
-            );
+            render_cell_type_editor(ui, &mut registry, &mut editor_state, &mut actions);
 
             // -- Unit Type Editor --
-            render_unit_type_editor(
-                ui,
-                &mut unit_registry,
-                &mut editor_state,
-                &mut actions,
-            );
+            render_unit_type_editor(ui, &mut unit_registry, &mut editor_state, &mut actions);
 
             ui.separator();
 
@@ -166,13 +156,7 @@ pub fn editor_panel_system(
                 );
             } else {
                 // -- Tile Inspector --
-                render_inspector(
-                    ui,
-                    &selected_hex,
-                    &tile_query,
-                    &mut cell_query,
-                    &registry,
-                );
+                render_inspector(ui, &selected_hex, &tile_query, &mut cell_query, &registry);
             }
         });
 
@@ -198,16 +182,13 @@ fn render_game_system_info(ui: &mut egui::Ui, game_system: &Option<Res<GameSyste
     if let Some(gs) = game_system {
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Hexorder").strong().size(15.0));
-            ui.with_layout(
-                egui::Layout::right_to_left(egui::Align::Center),
-                |ui| {
-                    ui.label(
-                        egui::RichText::new(format!("v{}", gs.version))
-                            .small()
-                            .color(egui::Color32::GRAY),
-                    );
-                },
-            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(
+                    egui::RichText::new(format!("v{}", gs.version))
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+            });
         });
         let id_short = if gs.id.len() > 8 {
             format!("{}...", &gs.id[..8])
@@ -431,10 +412,7 @@ fn render_cell_type_editor(
                                     });
                                 }
                                 if let Some(prop_id) = remove_prop_id {
-                                    actions.push(EditorAction::RemoveProperty {
-                                        type_id,
-                                        prop_id,
-                                    });
+                                    actions.push(EditorAction::RemoveProperty { type_id, prop_id });
                                 }
                             }
 
@@ -448,9 +426,7 @@ fn render_cell_type_editor(
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Type:");
-                                    let types = [
-                                        "Bool", "Int", "Float", "String", "Color", "Enum",
-                                    ];
+                                    let types = ["Bool", "Int", "Float", "String", "Color", "Enum"];
                                     egui::ComboBox::from_id_salt(format!("pt_{i}"))
                                         .selected_text(types[editor_state.new_prop_type_index])
                                         .show_ui(ui, |ui| {
@@ -528,9 +504,7 @@ fn render_inspector(
         .default_open(true)
         .show(ui, |ui| {
             let Some(pos) = selected_hex.position else {
-                ui.label(
-                    egui::RichText::new("No tile selected").color(egui::Color32::GRAY),
-                );
+                ui.label(egui::RichText::new("No tile selected").color(egui::Color32::GRAY));
                 return;
             };
 
@@ -711,19 +685,13 @@ fn render_unit_type_editor(
                                 ui.label(egui::RichText::new("Add Property").small());
                                 ui.horizontal(|ui| {
                                     ui.label("Name:");
-                                    ui.text_edit_singleline(
-                                        &mut editor_state.new_unit_prop_name,
-                                    );
+                                    ui.text_edit_singleline(&mut editor_state.new_unit_prop_name);
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Type:");
-                                    let types = [
-                                        "Bool", "Int", "Float", "String", "Color", "Enum",
-                                    ];
+                                    let types = ["Bool", "Int", "Float", "String", "Color", "Enum"];
                                     egui::ComboBox::from_id_salt(format!("upt_{i}"))
-                                        .selected_text(
-                                            types[editor_state.new_unit_prop_type_index],
-                                        )
+                                        .selected_text(types[editor_state.new_unit_prop_type_index])
                                         .show_ui(ui, |ui| {
                                             for (idx, name) in types.iter().enumerate() {
                                                 ui.selectable_value(
@@ -747,8 +715,7 @@ fn render_unit_type_editor(
                                             .color(egui::Color32::GRAY),
                                     );
                                 }
-                                let prop_valid =
-                                    !editor_state.new_unit_prop_name.trim().is_empty();
+                                let prop_valid = !editor_state.new_unit_prop_name.trim().is_empty();
                                 ui.add_enabled_ui(prop_valid, |ui| {
                                     if ui.button("+ Add").clicked() && prop_valid {
                                         let prop_type = index_to_property_type(
@@ -806,9 +773,7 @@ fn render_unit_inspector(
         .default_open(true)
         .show(ui, |ui| {
             let Some(entity) = selected_unit.entity else {
-                ui.label(
-                    egui::RichText::new("No unit selected").color(egui::Color32::GRAY),
-                );
+                ui.label(egui::RichText::new("No unit selected").color(egui::Color32::GRAY));
                 return;
             };
 
@@ -848,9 +813,7 @@ fn render_unit_inspector(
                         let value = unit_data
                             .properties
                             .entry(prop_def.id)
-                            .or_insert_with(|| {
-                                PropertyValue::default_for(&prop_def.property_type)
-                            });
+                            .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
 
                         render_property_value_editor(
                             ui,
@@ -867,8 +830,7 @@ fn render_unit_inspector(
             // Delete unit button
             if ui
                 .button(
-                    egui::RichText::new("Delete Unit")
-                        .color(egui::Color32::from_rgb(200, 80, 80)),
+                    egui::RichText::new("Delete Unit").color(egui::Color32::from_rgb(200, 80, 80)),
                 )
                 .clicked()
             {
@@ -958,8 +920,7 @@ fn apply_actions(
             }
             EditorAction::DeleteCellType { id } => {
                 if let Some(registry) = registry.as_mut() {
-                    let fallback_id =
-                        registry.types.iter().find(|vt| vt.id != id).map(|vt| vt.id);
+                    let fallback_id = registry.types.iter().find(|vt| vt.id != id).map(|vt| vt.id);
                     if let Some(fallback) = fallback_id {
                         for mut cd in cell_query.iter_mut() {
                             if cd.cell_type_id == id {
@@ -1033,8 +994,7 @@ fn apply_actions(
             }
             EditorAction::DeleteUnitType { id } => {
                 if let Some(registry) = unit_registry.as_mut() {
-                    let fallback_id =
-                        registry.types.iter().find(|ut| ut.id != id).map(|ut| ut.id);
+                    let fallback_id = registry.types.iter().find(|ut| ut.id != id).map(|ut| ut.id);
                     if let Some(fallback) = fallback_id
                         && active_unit.unit_type_id == Some(id)
                     {

@@ -228,7 +228,9 @@ pub fn sync_unit_materials(
     }
 
     let valid_ids: HashSet<_> = registry.types.iter().map(|ut| ut.id).collect();
-    unit_materials.materials.retain(|id, _| valid_ids.contains(id));
+    unit_materials
+        .materials
+        .retain(|id, _| valid_ids.contains(id));
 }
 
 /// Syncs unit material when UnitData changes (change detection).

@@ -118,11 +118,9 @@ fn place_unit_creates_entity() {
 
     app.add_observer(systems::handle_unit_placement);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(0, 0),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
     app.update();
 
     let mut query = app
@@ -152,11 +150,9 @@ fn place_unit_skipped_in_select_mode() {
 
     app.add_observer(systems::handle_unit_placement);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(0, 0),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
     app.update();
 
     let mut query = app
@@ -174,8 +170,7 @@ fn select_unit_sets_selected() {
     app.update();
 
     app.world_mut().insert_resource(EditorTool::Select);
-    app.world_mut()
-        .insert_resource(SelectedUnit::default());
+    app.world_mut().insert_resource(SelectedUnit::default());
 
     // Manually spawn a unit at (1, 1).
     let registry = app.world().resource::<UnitTypeRegistry>();
@@ -196,11 +191,9 @@ fn select_unit_sets_selected() {
 
     app.add_observer(systems::handle_unit_interaction);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(1, 1),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 1),
+    });
     app.update();
 
     let selected = app.world().resource::<SelectedUnit>();
@@ -243,11 +236,9 @@ fn move_unit_updates_position() {
     app.add_observer(systems::handle_unit_interaction);
 
     // Click a different tile to move the unit.
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(2, 1),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(2, 1),
+    });
     app.update();
 
     let pos = app
@@ -255,7 +246,11 @@ fn move_unit_updates_position() {
         .entity(unit_entity)
         .get::<HexPosition>()
         .expect("Unit should have HexPosition");
-    assert_eq!(*pos, HexPosition::new(2, 1), "Unit should have moved to (2, 1)");
+    assert_eq!(
+        *pos,
+        HexPosition::new(2, 1),
+        "Unit should have moved to (2, 1)"
+    );
 
     let selected = app.world().resource::<SelectedUnit>();
     assert!(
@@ -295,11 +290,9 @@ fn move_unit_respects_grid_bounds() {
     app.add_observer(systems::handle_unit_interaction);
 
     // Try to move to a position outside the grid (radius 5).
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(10, 10),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(10, 10),
+    });
     app.update();
 
     let pos = app
@@ -369,11 +362,7 @@ fn sync_unit_materials_adds_new_type() {
     setup_unit_resources(&mut app);
     app.update();
 
-    let initial_count = app
-        .world()
-        .resource::<UnitMaterials>()
-        .materials
-        .len();
+    let initial_count = app.world().resource::<UnitMaterials>().materials.len();
     assert_eq!(initial_count, 2);
 
     // Add a new unit type to the registry.

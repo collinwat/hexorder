@@ -5,9 +5,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::EditorTool;
-use crate::contracts::game_system::{
-    ActiveCellType, TypeId, CellData, CellType, CellTypeRegistry,
-};
+use crate::contracts::game_system::{ActiveCellType, CellData, CellType, CellTypeRegistry, TypeId};
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
 
 use super::components::CellMaterials;
@@ -127,9 +125,7 @@ fn assign_default_cell_data_adds_to_tiles() {
     let registry = app.world().resource::<CellTypeRegistry>();
     let first_id = registry.first().unwrap().id;
 
-    let mut query = app
-        .world_mut()
-        .query_filtered::<&CellData, With<HexTile>>();
+    let mut query = app.world_mut().query_filtered::<&CellData, With<HexTile>>();
     let cell_data: Vec<_> = query.iter(app.world()).collect();
 
     assert_eq!(cell_data.len(), 3, "All 3 tiles should have CellData");
@@ -166,11 +162,9 @@ fn paint_cell_changes_tile_type() {
 
     app.add_observer(systems::paint_cell);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(2, 3),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(2, 3),
+    });
     app.update();
 
     let cell_data = app
@@ -213,11 +207,9 @@ fn paint_does_not_affect_other_tiles() {
 
     app.add_observer(systems::paint_cell);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(0, 0),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
     app.update();
 
     let cd_a = app.world().entity(tile_a).get::<CellData>().unwrap();
@@ -253,11 +245,9 @@ fn paint_skipped_in_select_mode() {
 
     app.add_observer(systems::paint_cell);
 
-    app.world_mut()
-        .commands()
-        .trigger(HexSelectedEvent {
-            position: HexPosition::new(0, 0),
-        });
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
     app.update();
 
     let cell_data = app.world().entity(tile_entity).get::<CellData>().unwrap();
@@ -327,11 +317,7 @@ fn sync_cell_materials_adds_new_type() {
     setup_cell_resources(&mut app);
     app.update();
 
-    let initial_count = app
-        .world()
-        .resource::<CellMaterials>()
-        .materials
-        .len();
+    let initial_count = app.world().resource::<CellMaterials>().materials.len();
     assert_eq!(initial_count, 3);
 
     // Add a new cell type to the registry.

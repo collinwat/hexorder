@@ -94,8 +94,7 @@ mod architecture_tests {
                 continue;
             }
 
-            let content =
-                fs::read_to_string(&mod_file).expect("failed to read mod.rs");
+            let content = fs::read_to_string(&mod_file).expect("failed to read mod.rs");
 
             for (line_num, line) in content.lines().enumerate() {
                 let trimmed = line.trim();
@@ -155,10 +154,7 @@ mod architecture_tests {
         ];
 
         // Named constants that are allowed
-        let approved_named: &[&str] = &[
-            "Color32::GRAY",
-            "Color32::WHITE",
-        ];
+        let approved_named: &[&str] = &["Color32::GRAY", "Color32::WHITE"];
 
         let mut violations = Vec::new();
 
@@ -183,8 +179,7 @@ mod architecture_tests {
                 continue;
             }
 
-            let content =
-                fs::read_to_string(&path).expect("failed to read editor_ui file");
+            let content = fs::read_to_string(&path).expect("failed to read editor_ui file");
 
             // Track whether we are inside a color conversion utility function.
             let mut in_conversion_fn = false;
@@ -234,14 +229,11 @@ mod architecture_tests {
                 if let Some(start) = trimmed.find("from_rgb(") {
                     let after = &trimmed[start + "from_rgb(".len()..];
                     if let Some(end) = after.find(')') {
-                        let parts: Vec<&str> =
-                            after[..end].split(',').map(|s| s.trim()).collect();
+                        let parts: Vec<&str> = after[..end].split(',').map(|s| s.trim()).collect();
                         if parts.len() == 3 {
                             let parsed: Vec<Option<u8>> =
                                 parts.iter().map(|s| s.parse::<u8>().ok()).collect();
-                            if let (Some(r), Some(g), Some(b)) =
-                                (parsed[0], parsed[1], parsed[2])
-                            {
+                            if let (Some(r), Some(g), Some(b)) = (parsed[0], parsed[1], parsed[2]) {
                                 if !approved_rgb.contains(&(r, g, b)) {
                                     violations.push(format!(
                                         "{}:{}: `from_rgb({}, {}, {})` is not in the brand palette. \
@@ -265,12 +257,9 @@ mod architecture_tests {
                     if let Some(paren) = after.find('(') {
                         if let Some(end) = after[paren..].find(')') {
                             let args_str = &after[paren + 1..paren + end];
-                            let parts: Vec<&str> =
-                                args_str.split(',').map(|s| s.trim()).collect();
+                            let parts: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
                             let all_numeric = parts.len() >= 3
-                                && parts[..3]
-                                    .iter()
-                                    .all(|s| s.parse::<u8>().is_ok());
+                                && parts[..3].iter().all(|s| s.parse::<u8>().is_ok());
                             if all_numeric {
                                 let r: u8 = parts[0].parse().unwrap_or(0);
                                 let g: u8 = parts[1].parse().unwrap_or(0);
@@ -342,8 +331,8 @@ mod integration_tests {
 
     use crate::contracts::editor_ui::EditorTool;
     use crate::contracts::game_system::{
-        ActiveCellType, ActiveUnitType, GameSystem, SelectedUnit, UnitData, UnitInstance,
-        UnitTypeRegistry, CellData, CellTypeRegistry,
+        ActiveCellType, ActiveUnitType, CellData, CellTypeRegistry, GameSystem, SelectedUnit,
+        UnitData, UnitInstance, UnitTypeRegistry,
     };
     use crate::contracts::hex_grid::{
         HexGridConfig, HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial,
@@ -443,12 +432,14 @@ mod integration_tests {
         let registry = app.world().resource::<CellTypeRegistry>();
         let first_id = registry.first().expect("registry should have types").id;
 
-        let mut query = app
-            .world_mut()
-            .query_filtered::<&CellData, With<HexTile>>();
+        let mut query = app.world_mut().query_filtered::<&CellData, With<HexTile>>();
         let cell_data: Vec<_> = query.iter(app.world()).collect();
 
-        assert_eq!(cell_data.len(), 3, "All tiles should have CellData after update");
+        assert_eq!(
+            cell_data.len(),
+            3,
+            "All tiles should have CellData after update"
+        );
         for cd in &cell_data {
             assert_eq!(
                 cd.cell_type_id, first_id,
@@ -487,7 +478,10 @@ mod integration_tests {
 
         // Verify unit types are registered and materials exist.
         let registry = app.world().resource::<UnitTypeRegistry>();
-        assert!(!registry.types.is_empty(), "Unit types should be registered");
+        assert!(
+            !registry.types.is_empty(),
+            "Unit types should be registered"
+        );
     }
 
     /// Placing a unit via HexSelectedEvent in Place mode creates an entity.
@@ -506,10 +500,9 @@ mod integration_tests {
             .expect("ActiveUnitType should have a type selected");
 
         // Trigger placement at (0, 0).
-        app.world_mut()
-            .trigger(HexSelectedEvent {
-                position: HexPosition::new(0, 0),
-            });
+        app.world_mut().trigger(HexSelectedEvent {
+            position: HexPosition::new(0, 0),
+        });
 
         app.update(); // Process any deferred commands
 
@@ -532,10 +525,9 @@ mod integration_tests {
 
         // Place a unit first.
         *app.world_mut().resource_mut::<EditorTool>() = EditorTool::Place;
-        app.world_mut()
-            .trigger(HexSelectedEvent {
-                position: HexPosition::new(0, 0),
-            });
+        app.world_mut().trigger(HexSelectedEvent {
+            position: HexPosition::new(0, 0),
+        });
         app.update();
 
         // Find the unit entity.
@@ -549,10 +541,9 @@ mod integration_tests {
         app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
 
         // Click a different position to trigger movement.
-        app.world_mut()
-            .trigger(HexSelectedEvent {
-                position: HexPosition::new(1, 0),
-            });
+        app.world_mut().trigger(HexSelectedEvent {
+            position: HexPosition::new(1, 0),
+        });
         app.update();
 
         // Verify the unit moved.
