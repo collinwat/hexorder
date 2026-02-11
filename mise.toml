@@ -6,6 +6,7 @@ lefthook = "latest"
 prettier = "latest"
 "aqua:EmbarkStudios/cargo-deny" = "latest"
 typos = "latest"
+taplo = "latest"
 
 [tasks."fix:prettier:markdown"]
 description = "Format markdown files with Prettier"
@@ -17,4 +18,4 @@ run = "prettier --write ."
 
 [tasks.fix]
 description = "Run all fixers"
-depends = ["fix:prettier"]
+depends = [ "fix:prettier" ]
