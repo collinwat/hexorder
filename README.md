@@ -16,7 +16,7 @@ exported assets for distribution.
 
 ```bash
 # Clone and enter the repository
-git clone <repo-url> hexorder
+git clone git@github.com:collinwat/hexorder.git hexorder
 cd hexorder
 
 # Install tools, configure git hooks and LFS

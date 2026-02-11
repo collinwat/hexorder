@@ -15,6 +15,7 @@ regexes = [
   '''@example\.com''',
   '''@example\.org''',
   '''@users\.noreply\.github\.com''',
+  '''git@github\.com''',
 ]
 
 [[rules]]
