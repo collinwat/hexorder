@@ -1,0 +1,7 @@
+edition = "2024"
+
+# Match project line width (consistent with .prettierrc and .editorconfig).
+max_width = 100
+
+# Unix line endings everywhere.
+newline_style = "Unix"
