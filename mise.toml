@@ -2,3 +2,16 @@
 lefthook = "latest"
 "git-lfs" = "latest"
 "git-cliff" = "latest"
+prettier = "latest"
+
+[tasks."fix:prettier:markdown"]
+description = "Format markdown files with Prettier"
+run = "prettier --write '**/*.md'"
+
+[tasks."fix:prettier"]
+description = "Format all files with Prettier"
+run = "prettier --write ."
+
+[tasks.fix]
+description = "Run all fixers"
+depends = ["fix:prettier"]

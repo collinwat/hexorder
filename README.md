@@ -1,8 +1,11 @@
 # Hexorder
 
-A **game system design tool** built with Bevy 0.18 and Rust. Hexorder is a 3D turn-based hex simulation workbench for designing tabletop war board games set in historical settings.
+A **game system design tool** built with Bevy 0.18 and Rust. Hexorder is a 3D turn-based hex
+simulation workbench for designing tabletop war board games set in historical settings.
 
-Hexorder is not a consumer game — it is a design tool and simulator. Users define rules, develop aesthetics, run experiments, and export game system definitions. A separate application consumes the exported assets for distribution.
+Hexorder is not a consumer game — it is a design tool and simulator. Users define rules, develop
+aesthetics, run experiments, and export game system definitions. A separate application consumes the
+exported assets for distribution.
 
 ## Prerequisites
 
@@ -60,7 +63,7 @@ docs/
 
 # Project root config
 CLAUDE.md              # Agent workflow and architecture rules
-mise.toml              # Project tool declarations (lefthook, git-lfs, git-cliff)
+mise.toml              # Project tool declarations (lefthook, git-lfs, git-cliff, prettier)
 lefthook.yml           # Git hook definitions
 cliff.toml             # Changelog generation config
 Cargo.toml             # Rust package manifest
@@ -68,21 +71,25 @@ Cargo.toml             # Rust package manifest
 
 ## Development
 
-Every feature is a Bevy Plugin in its own module under `src/`. Shared types live in `src/contracts/` and are specified in `.specs/contracts/`. Cross-feature communication uses Events only.
+Every feature is a Bevy Plugin in its own module under `src/`. Shared types live in `src/contracts/`
+and are specified in `.specs/contracts/`. Cross-feature communication uses Events only.
 
 ### Common commands
 
-| Command | Purpose |
-|---------|---------|
-| `cargo build` | Compile the project |
-| `cargo test` | Run all unit and integration tests |
+| Command                       | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
+| `cargo build`                 | Compile the project                       |
+| `cargo test`                  | Run all unit and integration tests        |
 | `cargo clippy -- -D warnings` | Lint check (must pass with zero warnings) |
-| `cargo test --lib <feature>` | Run tests for a specific feature |
-| `cargo run` | Launch the application |
+| `cargo test --lib <feature>`  | Run tests for a specific feature          |
+| `cargo run`                   | Launch the application                    |
+| `mise run fix`                | Run all fixers (formatting, etc.)         |
+| `mise run fix:prettier`       | Format all files with Prettier            |
 
 ### Git workflow
 
-This project uses trunk-based development with git worktrees. See `docs/git-guide.md` for the full workflow, including:
+This project uses trunk-based development with git worktrees. See `docs/git-guide.md` for the full
+workflow, including:
 
 - Branch naming and worktree setup
 - Conventional commit message format
@@ -92,12 +99,13 @@ This project uses trunk-based development with git worktrees. See `docs/git-guid
 
 ### Key tools
 
-| Tool | Purpose | Config |
-|------|---------|--------|
-| [mise](https://mise.jdx.dev/) | Project tool manager | `mise.toml` |
-| [lefthook](https://github.com/evilmartians/lefthook) | Git hooks (commit message validation, build check) | `lefthook.yml` |
-| [git-lfs](https://git-lfs.com/) | Large file storage for binary assets | `.gitattributes` |
-| [git-cliff](https://git-cliff.org/) | Changelog generation from conventional commits | `cliff.toml` |
+| Tool                                                 | Purpose                                            | Config           |
+| ---------------------------------------------------- | -------------------------------------------------- | ---------------- |
+| [mise](https://mise.jdx.dev/)                        | Project tool manager                               | `mise.toml`      |
+| [lefthook](https://github.com/evilmartians/lefthook) | Git hooks (commit message validation, build check) | `lefthook.yml`   |
+| [git-lfs](https://git-lfs.com/)                      | Large file storage for binary assets               | `.gitattributes` |
+| [git-cliff](https://git-cliff.org/)                  | Changelog generation from conventional commits     | `cliff.toml`     |
+| [prettier](https://prettier.io/)                     | Code formatter (Markdown, etc.)                    | `.prettierrc`    |
 
 ## Contributing
 
