@@ -97,3 +97,44 @@ depends = [
   "check:boundary",
   "check:unwrap",
 ]
+
+[tasks."check:audit"]
+description = "Full constitution audit (all automated checks)"
+depends = ["check"]
+
+# --- Workflow tasks ---
+
+[tasks.changelog]
+description = "Preview unreleased changelog"
+run = "git cliff --unreleased"
+
+[tasks."changelog:generate"]
+description = "Regenerate CHANGELOG.md from all tags"
+run = "git cliff --output CHANGELOG.md"
+
+[tasks.setup]
+description = "First-time project setup (tools, hooks, LFS)"
+run = """
+mise install
+git lfs install
+lefthook install
+"""
+
+[tasks.handoff]
+description = "Session handoff — dump context for resuming work"
+run = """
+echo "=== Worktrees ==="
+git worktree list
+echo ""
+echo "=== Current Branch ==="
+git branch --show-current
+echo ""
+echo "=== Working Tree Status ==="
+git status --short
+echo ""
+echo "=== Branch Commits (since main) ==="
+git log --oneline main..HEAD 2>/dev/null || echo "(on main — no feature branch commits)"
+echo ""
+echo "=== Changed Files (since main) ==="
+git diff main..HEAD --stat 2>/dev/null || echo "(on main — no diff)"
+"""
