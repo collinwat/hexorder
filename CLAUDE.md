@@ -64,13 +64,12 @@ game system assets.
 2. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
 3. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
 4. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
-5. **Test**: Run `cargo test` and `cargo clippy -- -D warnings`; update spec success criteria
+5. **Test**: Run `mise run check` (or individually: `cargo test`, `cargo clippy --all-targets`);
+   update spec success criteria
 6. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
    the feature branch
-7. **Boundary check**: Verify no cross-feature internal imports — all shared types must go through
-   `src/contracts/`. Run:
-   `grep -rn 'use crate::' src/ --include='*.rs' | grep -v contracts | grep -v 'mod tests' | grep -v tests.rs`
-   and confirm every import either references the feature's own module or `crate::contracts::`
+7. **Boundary check**: Run `mise run check:boundary` — verifies no cross-feature internal imports.
+   All shared types must go through `src/contracts/`
 8. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
 9. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
 10. **Merge**: When the feature is complete, follow the Pre-Merge Checklist in `docs/git-guide.md` —
@@ -80,23 +79,27 @@ game system assets.
 
 ## Milestone Completion Gate
 
-Before a milestone is marked complete, run a **constitution audit** across the full codebase:
+Before a milestone is marked complete, run a **constitution audit** across the full codebase.
+
+**Automated checks** — run `mise run check:audit` to verify all of these at once:
 
 1. `cargo test` — all tests pass
-2. `cargo clippy -- -D warnings` — zero warnings
+2. `cargo clippy --all-targets` — zero warnings (pedantic lints via `[lints.clippy]` in Cargo.toml)
 3. `cargo build` — clean compilation
-4. **No `unwrap()` in production code** (test files exempt)
-5. **No `unsafe` without documented justification**
-6. **All public types derive `Debug`**
-7. **No cross-feature internal imports** — every `use crate::<feature>::` in production code
-   (non-test) must go through `crate::contracts::`, never `crate::<feature>::components::` or
-   similar
-8. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
+4. **No `unwrap()` in production code** (test files exempt) — `mise run check:unwrap`
+5. **No cross-feature internal imports** — `mise run check:boundary`
+6. Formatting, typos, TOML, dependency audit — all covered by `mise run check`
+
+**Manual checks** — these require human judgment and cannot be automated:
+
+7. **No `unsafe` without documented justification**
+8. **All public types derive `Debug`**
+9. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
    `.specs/contracts/`, and vice versa
-9. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
-   passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
-   test and documented in `.specs/brand.md`
-10. Record audit results in `.specs/coordination.md` under "Integration Test Checkpoints"
+10. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
+    passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
+    test and documented in `.specs/brand.md`
+11. Record audit results in `.specs/coordination.md` under "Integration Test Checkpoints"
 
 This gate applies even if all individual features pass their own success criteria. Constitution
 violations that only emerge at the cross-feature level (like import boundary violations) are caught
@@ -107,10 +110,13 @@ milestone version and record it in coordination.md.
 
 ## Testing Commands
 
+- `mise run check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
+- `mise run check:audit` — full constitution audit (same as `check`, used at milestone gates)
 - `cargo test` — all unit and integration tests
-- `cargo clippy -- -D warnings` — lint check
-- `cargo build` — compilation check (catches type mismatches across features)
+- `cargo clippy --all-targets` — lint check (pedantic, configured in Cargo.toml)
 - `cargo test --lib <feature_name>` — feature-specific tests
+- `mise run check:boundary` — cross-feature import boundary check
+- `mise run check:unwrap` — no unwrap() in production code
 
 ## Shared Contracts Protocol
 

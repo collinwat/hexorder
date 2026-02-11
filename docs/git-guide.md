@@ -20,6 +20,12 @@ Project tooling is managed by [mise](https://mise.jdx.dev/). Git hooks are manag
 ### First-time setup
 
 ```bash
+mise run setup      # installs tools, configures git-lfs and hooks
+```
+
+Or manually:
+
+```bash
 mise install        # installs lefthook, git-lfs, and any other project tools
 git lfs install     # configures git-lfs for this user (once per machine)
 lefthook install    # installs git hooks into .git/hooks/
@@ -325,12 +331,9 @@ Every merge to `main` must pass all of these in order:
 
 1. **Merge lock claimed?** Confirm your row is in the Merge Lock table with status `merging` and no
    other row is also `merging`. If you skipped the lock protocol above, stop and go back.
-2. **Tests pass?** Run `cargo test`. All tests must pass.
-3. **Lint clean?** Run `cargo clippy -- -D warnings`. Zero warnings.
-4. **Compiles clean?** Run `cargo build`. No warnings or errors.
-5. **Constitution audit?** Run the boundary check from CLAUDE.md Development Workflow step 7. Zero
-   violations.
-6. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
+2. **Quality gate?** Run `mise run check:audit`. This runs all automated checks: tests, clippy,
+   formatting, dependency audit, typos, boundary check, and unwrap check. All must pass.
+3. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
    these categories:
    - Your feature's module: `src/<feature>/**`
    - Your feature's specs: `.specs/features/<feature>/**`
@@ -339,33 +342,33 @@ Every merge to `main` must pass all of these in order:
      registration)
    - If any file falls outside these categories, investigate. Either remove the change or justify it
      in the commit body.
-7. **Spec criteria met?** Open `.specs/features/<name>/spec.md`. Every success criterion is
+4. **Spec criteria met?** Open `.specs/features/<name>/spec.md`. Every success criterion is
    satisfied.
-8. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
+5. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
    `main` tip. If not, rebase first: `git rebase main`. If the rebase produces conflicts, follow the
    Conflict Resolution rules below.
-9. **Re-test after rebase?** Run `cargo test` and `cargo clippy -- -D warnings` again. The rebase
-   may have introduced conflicts or breakage not caught earlier. Both must pass before proceeding.
-10. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
-    the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
-    `0.4.0`).
-11. **Merge.** From `main`: `git merge <branch>`.
-12. **Generate changelog.** Run `git cliff --output CHANGELOG.md`. Review the generated output to
-    confirm it's accurate. Make manual edits only if a commit message was unclear.
-13. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
+6. **Re-test after rebase?** Run `mise run check:audit` again. The rebase may have introduced
+   conflicts or breakage not caught earlier. All checks must pass before proceeding.
+7. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
+   the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
+   `0.4.0`).
+8. **Merge.** From `main`: `git merge <branch>`.
+9. **Generate changelog.** Run `mise run changelog:generate`. Review the generated output to confirm
+   it's accurate. Make manual edits only if a commit message was unclear.
+10. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
     `chore(project): bump version to <version>`.
-14. **Tag.** Create annotated tag: `git tag -a v<version> -m "<milestone>: <milestone title>"`.
-15. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
+11. **Tag.** Create annotated tag: `git tag -a v<version> -m "<milestone>: <milestone title>"`.
+12. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
     are correct.
-16. **Release lock.** Update your Merge Lock row in `.specs/coordination.md` to status `done`.
+13. **Release lock.** Update your Merge Lock row in `.specs/coordination.md` to status `done`.
 
 ### Milestone final merge
 
 When the last feature of a milestone merges, also:
 
-17. **Milestone checkpoint audit.** Run the full Milestone Completion Gate from CLAUDE.md (all 10
-    checks).
-18. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
+14. **Milestone checkpoint audit.** Run `mise run check:audit` plus the manual checks from the
+    Milestone Completion Gate in CLAUDE.md.
+15. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
     Integration Test Checkpoints.
 
 ### Conflict Resolution
@@ -518,9 +521,9 @@ messages. Configuration lives in `cliff.toml` at the project root.
 ### Generation
 
 ```bash
-git cliff --output CHANGELOG.md          # regenerate full changelog from all tags
+mise run changelog:generate              # regenerate full changelog from all tags
+mise run changelog                       # preview unreleased changes (stdout)
 git cliff --latest --output CHANGELOG.md # regenerate only the latest version
-git cliff --unreleased                   # preview unreleased changes (stdout)
 ```
 
 The generated format follows [Keep a Changelog](https://keepachangelog.com/):
@@ -565,7 +568,7 @@ habitually hand-editing.
 ### Rules
 
 - Never hand-write changelog entries from scratch — always generate first, then review
-- The changelog is regenerated on every merge to `main` (Pre-Merge Checklist step 12)
+- The changelog is regenerated on every merge to `main` (Pre-Merge Checklist step 9)
 - Versions are listed in reverse chronological order (newest first)
 
 ---
@@ -573,7 +576,10 @@ habitually hand-editing.
 ## Session Handoff Protocol
 
 When a new Claude Code session picks up work on an existing feature branch, run these steps before
-doing anything else:
+doing anything else.
+
+**Quick start**: Run `mise run handoff` to get a snapshot of worktrees, branch, status, commits, and
+changed files. Then continue with the detailed steps below for anything that needs attention.
 
 1. **Check for orphaned worktrees.** Run `git worktree list`. If there are worktrees from a prior
    session that is no longer active:

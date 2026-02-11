@@ -79,16 +79,20 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 
 ### Common commands
 
-| Command                        | Purpose                                      |
-| ------------------------------ | -------------------------------------------- |
-| `cargo build`                  | Compile the project                          |
-| `cargo test`                   | Run all unit and integration tests           |
+| Command                        | Purpose                                             |
+| ------------------------------ | --------------------------------------------------- |
+| `cargo build`                  | Compile the project                                 |
+| `cargo test`                   | Run all unit and integration tests                  |
 | `cargo clippy --all-targets`   | Lint check (pedantic, must pass with zero warnings) |
-| `cargo run`                    | Launch the application                       |
-| `cargo run --features dev`     | Launch with dynamic linking (faster rebuilds) |
-| `mise run fix`                 | Run all fixers (fmt, taplo, prettier, typos) |
-| `mise run check`               | Run all checks (fmt, clippy, test, deny, typos, taplo) |
-| `bacon`                        | Watch mode — continuous check/clippy/test    |
+| `cargo run`                    | Launch the application                              |
+| `cargo run --features dev`     | Launch with dynamic linking (faster rebuilds)       |
+| `mise run fix`                 | Run all fixers (fmt, taplo, prettier, typos)        |
+| `mise run check`               | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
+| `mise run check:audit`         | Full constitution audit (pre-merge / milestone)     |
+| `mise run changelog`           | Preview unreleased changelog                        |
+| `mise run handoff`             | Session handoff — dump context for resuming work    |
+| `mise run setup`               | First-time project setup (tools, hooks, LFS)        |
+| `bacon`                        | Watch mode — continuous check/clippy/test           |
 
 ### Git workflow
 
