@@ -1,0 +1,4 @@
+[tools]
+lefthook = "latest"
+"git-lfs" = "latest"
+"git-cliff" = "latest"

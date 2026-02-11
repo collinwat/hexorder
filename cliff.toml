@@ -1,0 +1,50 @@
+# Hexorder — git-cliff configuration
+# Generates CHANGELOG.md from conventional commit messages.
+# See docs/git-guide.md for commit message conventions.
+#
+# Usage:
+#   git cliff --output CHANGELOG.md          # regenerate full changelog
+#   git cliff --latest --output CHANGELOG.md # append latest version only
+#   git cliff --unreleased                   # preview unreleased changes
+
+[changelog]
+header = """# Changelog
+
+All notable changes to Hexorder are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).\n
+"""
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | trim }} ({{ commit.scope | default(value="project") }})
+{%- endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+tag_pattern = "v[0-9].*"
+sort_commits = "oldest"
+
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^style", group = "Changed" },
+    { message = "^test", group = "Added" },
+    { message = "^docs", group = "Added" },
+    { message = "^chore", group = "Changed" },
+]

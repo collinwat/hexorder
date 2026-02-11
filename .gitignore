@@ -1,1 +1,22 @@
+# Rust build artifacts
 /target
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Local overrides
+*.local.*
