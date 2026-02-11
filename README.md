@@ -19,7 +19,7 @@ exported assets for distribution.
 git clone <repo-url> hexorder
 cd hexorder
 
-# Install project tools (lefthook, git-lfs, git-cliff)
+# Install project tools
 mise install
 
 # Configure git hooks and LFS
@@ -34,6 +34,9 @@ cargo test
 
 # Run the application
 cargo run
+
+# Run with dynamic linking for faster iteration
+cargo run --features dev
 ```
 
 ## Project Structure
@@ -63,10 +66,10 @@ docs/
 
 # Project root config
 CLAUDE.md              # Agent workflow and architecture rules
-mise.toml              # Project tool declarations (lefthook, git-lfs, git-cliff, prettier)
-lefthook.yml           # Git hook definitions
-cliff.toml             # Changelog generation config
-Cargo.toml             # Rust package manifest
+Cargo.toml             # Rust package manifest, lint configuration
+mise.toml              # Project tools and task definitions
+lefthook.yml           # Git hook definitions (fmt, build, secrets)
+.github/workflows/     # CI pipeline (fmt, clippy, test, deny, typos, taplo)
 ```
 
 ## Development
@@ -76,15 +79,16 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 
 ### Common commands
 
-| Command                       | Purpose                                   |
-| ----------------------------- | ----------------------------------------- |
-| `cargo build`                 | Compile the project                       |
-| `cargo test`                  | Run all unit and integration tests        |
-| `cargo clippy -- -D warnings` | Lint check (must pass with zero warnings) |
-| `cargo test --lib <feature>`  | Run tests for a specific feature          |
-| `cargo run`                   | Launch the application                    |
-| `mise run fix`                | Run all fixers (formatting, etc.)         |
-| `mise run fix:prettier`       | Format all files with Prettier            |
+| Command                        | Purpose                                      |
+| ------------------------------ | -------------------------------------------- |
+| `cargo build`                  | Compile the project                          |
+| `cargo test`                   | Run all unit and integration tests           |
+| `cargo clippy --all-targets`   | Lint check (pedantic, must pass with zero warnings) |
+| `cargo run`                    | Launch the application                       |
+| `cargo run --features dev`     | Launch with dynamic linking (faster rebuilds) |
+| `mise run fix`                 | Run all fixers (fmt, taplo, prettier, typos) |
+| `mise run check`               | Run all checks (fmt, clippy, test, deny, typos, taplo) |
+| `bacon`                        | Watch mode — continuous check/clippy/test    |
 
 ### Git workflow
 
@@ -99,13 +103,31 @@ workflow, including:
 
 ### Key tools
 
-| Tool                                                 | Purpose                                            | Config           |
-| ---------------------------------------------------- | -------------------------------------------------- | ---------------- |
-| [mise](https://mise.jdx.dev/)                        | Project tool manager                               | `mise.toml`      |
-| [lefthook](https://github.com/evilmartians/lefthook) | Git hooks (commit message validation, build check) | `lefthook.yml`   |
-| [git-lfs](https://git-lfs.com/)                      | Large file storage for binary assets               | `.gitattributes` |
-| [git-cliff](https://git-cliff.org/)                  | Changelog generation from conventional commits     | `cliff.toml`     |
-| [prettier](https://prettier.io/)                     | Code formatter (Markdown, etc.)                    | `.prettierrc`    |
+| Tool                                                         | Purpose                                        | Config         |
+| ------------------------------------------------------------ | ---------------------------------------------- | -------------- |
+| [mise](https://mise.jdx.dev/)                                | Project tool manager and task runner           | `mise.toml`    |
+| [lefthook](https://github.com/evilmartians/lefthook)         | Git hooks (fmt check, build, secrets)          | `lefthook.yml` |
+| [git-lfs](https://git-lfs.com/)                              | Large file storage for binary assets           | `.gitattributes` |
+| [git-cliff](https://git-cliff.org/)                          | Changelog generation from conventional commits | `cliff.toml`   |
+| [prettier](https://prettier.io/)                             | Markdown formatter                             | `.prettierrc`  |
+| [taplo](https://taplo.tamasfe.dev/)                          | TOML formatter                                 | `taplo.toml`   |
+| [typos](https://crates.io/crates/typos-cli)                  | Source code spell checker                      | `_typos.toml`  |
+| [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)    | Dependency audit (vulnerabilities, licenses)   | `deny.toml`    |
+| [bacon](https://crates.io/crates/bacon)                      | Background code checker (watch mode)           | `bacon.toml`   |
+
+### Code quality
+
+| Layer          | What it enforces                                    | When it runs       |
+| -------------- | --------------------------------------------------- | ------------------ |
+| `rustfmt`      | Rust formatting (100-char width, Unix line endings) | Pre-commit hook    |
+| `clippy`       | Pedantic lints with Bevy-specific overrides         | CI, `mise run check` |
+| `cargo test`   | 71 unit, integration, and architecture tests        | CI, `mise run check` |
+| `cargo-deny`   | Vulnerability, license, and source auditing         | CI, `mise run check` |
+| `typos`        | Spell checking across code and docs                 | CI, `mise run check` |
+| `taplo`        | TOML file formatting                                | CI, `mise run check` |
+| `prettier`     | Markdown formatting (100-char width)                | `mise run fix`     |
+| `.editorconfig`| Cross-editor indent, charset, line ending defaults  | Editor-level       |
+| GitHub Actions | All of the above, automated on push/PR              | Push to main, PRs  |
 
 ## Contributing
 
