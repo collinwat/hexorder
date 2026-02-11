@@ -1,0 +1,8 @@
+# Application, not a library — enable all lints regardless of API breakage
+avoid-breaking-exported-api = false
+
+# Bevy systems should be focused; complex logic belongs in helper functions
+cognitive-complexity-threshold = 20
+
+# Bevy system params count toward this; 6 is a reasonable ceiling
+too-many-arguments-threshold = 6

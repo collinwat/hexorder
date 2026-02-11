@@ -2,7 +2,7 @@
 //!
 //! Replaces the M1 terrain plugin. Handles painting user-defined cell types
 //! onto hex tiles and syncing their visual appearance. Cell type definitions
-//! come from the game_system plugin's registry.
+//! come from the `game_system` plugin's registry.
 
 use bevy::prelude::*;
 

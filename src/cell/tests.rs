@@ -47,7 +47,7 @@ fn test_registry() -> CellTypeRegistry {
     }
 }
 
-/// Helper: insert a test registry and run setup_cell_materials.
+/// Helper: insert a test registry and run `setup_cell_materials`.
 fn setup_cell_resources(app: &mut App) {
     let registry = test_registry();
     app.insert_resource(registry);

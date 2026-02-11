@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-/// Re-export hexx::Hex for coordinate math.
+/// Re-export `hexx::Hex` for coordinate math.
 pub use hexx::Hex;
 
 /// Marks an entity as occupying a hex tile position.
@@ -17,12 +17,12 @@ impl HexPosition {
         Self { q, r }
     }
 
-    /// Convert to hexx::Hex for math operations.
+    /// Convert to `hexx::Hex` for math operations.
     pub fn to_hex(self) -> Hex {
         Hex::new(self.q, self.r)
     }
 
-    /// Convert from hexx::Hex.
+    /// Convert from `hexx::Hex`.
     pub fn from_hex(hex: Hex) -> Self {
         Self {
             q: hex.x(),

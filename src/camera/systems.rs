@@ -39,7 +39,7 @@ pub fn spawn_camera(mut commands: Commands) {
 }
 
 /// Startup system: adjusts camera state bounds based on `HexGridConfig` if available.
-/// Also sets the initial view to fit+center the grid. Runs after spawn_camera via `.chain()`.
+/// Also sets the initial view to fit+center the grid. Runs after `spawn_camera` via `.chain()`.
 pub fn configure_bounds_from_grid(
     grid_config: Option<Res<HexGridConfig>>,
     windows: Query<&Window, With<PrimaryWindow>>,

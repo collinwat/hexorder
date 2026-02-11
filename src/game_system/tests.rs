@@ -1,4 +1,4 @@
-//! Unit tests for the game_system feature plugin.
+//! Unit tests for the `game_system` feature plugin.
 
 use std::collections::HashSet;
 
@@ -9,7 +9,7 @@ use crate::contracts::game_system::{
     PropertyValue, SelectedUnit, TypeId, UnitTypeRegistry,
 };
 
-/// Helper: create a minimal App with the GameSystemPlugin.
+/// Helper: create a minimal App with the `GameSystemPlugin`.
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
@@ -131,7 +131,7 @@ fn property_type_variants_are_distinct() {
     for (i, a) in variants.iter().enumerate() {
         for (j, b) in variants.iter().enumerate() {
             if i != j {
-                assert_ne!(a, b, "Variants at indices {} and {} should differ", i, j);
+                assert_ne!(a, b, "Variants at indices {i} and {j} should differ");
             }
         }
     }

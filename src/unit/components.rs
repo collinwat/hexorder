@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::contracts::game_system::UnitTypeId;
 
-/// Pre-created material handles for each unit type, keyed by UnitTypeId.
+/// Pre-created material handles for each unit type, keyed by `UnitTypeId`.
 #[derive(Resource, Debug)]
 pub struct UnitMaterials {
     pub materials: HashMap<UnitTypeId, Handle<StandardMaterial>>,

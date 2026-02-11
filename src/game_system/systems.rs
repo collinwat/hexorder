@@ -1,4 +1,4 @@
-//! Systems and factory functions for the game_system feature plugin.
+//! Systems and factory functions for the `game_system` feature plugin.
 
 use bevy::prelude::*;
 

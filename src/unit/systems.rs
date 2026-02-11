@@ -191,7 +191,7 @@ pub fn handle_unit_interaction(
 /// The editor UI sets a `DeleteUnitRequested` resource flag; this system
 /// checks it and despawns the entity.
 /// Clears the `SelectedUnit` resource if the selected entity no longer exists.
-/// Actual unit deletion is performed by the editor_ui via `commands.entity().despawn()`.
+/// Actual unit deletion is performed by the `editor_ui` via `commands.entity().despawn()`.
 pub fn delete_selected_unit(
     mut selected_unit: ResMut<SelectedUnit>,
     units: Query<Entity, With<UnitInstance>>,
@@ -203,7 +203,7 @@ pub fn delete_selected_unit(
     }
 }
 
-/// Updates material colors when the UnitTypeRegistry changes.
+/// Updates material colors when the `UnitTypeRegistry` changes.
 pub fn sync_unit_materials(
     registry: Res<UnitTypeRegistry>,
     mut unit_materials: ResMut<UnitMaterials>,
@@ -233,7 +233,7 @@ pub fn sync_unit_materials(
         .retain(|id, _| valid_ids.contains(id));
 }
 
-/// Syncs unit material when UnitData changes (change detection).
+/// Syncs unit material when `UnitData` changes (change detection).
 #[allow(clippy::type_complexity)]
 pub fn sync_unit_visuals(
     unit_materials: Res<UnitMaterials>,

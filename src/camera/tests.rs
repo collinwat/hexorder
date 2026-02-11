@@ -125,16 +125,14 @@ fn camera_looks_down_negative_y() {
     let forward = transform.forward();
     assert!(
         forward.y < -0.99,
-        "camera forward should be approximately -Y, got {:?}",
-        forward
+        "camera forward should be approximately -Y, got {forward:?}"
     );
 
     // The camera's up direction should be +Z.
     let up = transform.up();
     assert!(
         up.z > 0.99,
-        "camera up should be approximately +Z, got {:?}",
-        up
+        "camera up should be approximately +Z, got {up:?}"
     );
 }
 
@@ -270,7 +268,6 @@ fn smooth_camera_enforces_rotation_lock() {
     let forward = transform.forward();
     assert!(
         forward.y < -0.99,
-        "rotation should be reset to look down -Y, got forward {:?}",
-        forward
+        "rotation should be reset to look down -Y, got forward {forward:?}"
     );
 }

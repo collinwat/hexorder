@@ -1,4 +1,4 @@
-//! Systems for the editor_ui feature plugin.
+//! Systems for the `editor_ui` feature plugin.
 
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
@@ -528,8 +528,7 @@ fn render_inspector(
             let type_name = registry
                 .as_ref()
                 .and_then(|r| r.get(cell_data.cell_type_id))
-                .map(|vt| vt.name.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
+                .map_or_else(|| "Unknown".to_string(), |vt| vt.name.clone());
             ui.label(format!("Type: {type_name}"));
 
             // Property value editors
@@ -786,8 +785,7 @@ fn render_unit_inspector(
             let type_name = unit_registry
                 .as_ref()
                 .and_then(|r| r.get(unit_data.unit_type_id))
-                .map(|ut| ut.name.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
+                .map_or_else(|| "Unknown".to_string(), |ut| ut.name.clone());
             ui.label(format!("Unit Type: {type_name}"));
 
             // Property value editors
@@ -1075,7 +1073,6 @@ fn format_property_type(pt: &PropertyType) -> &'static str {
 
 fn index_to_property_type(index: usize) -> PropertyType {
     match index {
-        0 => PropertyType::Bool,
         1 => PropertyType::Int,
         2 => PropertyType::Float,
         3 => PropertyType::String,

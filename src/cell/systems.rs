@@ -89,7 +89,7 @@ pub fn paint_cell(
     for (pos, mut cell_data) in &mut tiles {
         if *pos == event.position {
             cell_data.cell_type_id = active_id;
-            cell_data.properties = default_properties.clone();
+            cell_data.properties.clone_from(&default_properties);
         }
     }
 }
@@ -97,7 +97,7 @@ pub fn paint_cell(
 /// Syncs the visual material of hex tiles to match their current cell type.
 /// Updates both the rendered material and `TileBaseMaterial` so that
 /// hover/selection highlighting can restore the correct cell color.
-/// Uses change detection to only update tiles whose CellData has changed.
+/// Uses change detection to only update tiles whose `CellData` has changed.
 #[allow(clippy::type_complexity)]
 pub fn sync_cell_visuals(
     cell_materials: Res<CellMaterials>,
@@ -118,7 +118,7 @@ pub fn sync_cell_visuals(
     }
 }
 
-/// Updates the CellMaterials resource when cell types are added, removed,
+/// Updates the `CellMaterials` resource when cell types are added, removed,
 /// or have their colors changed in the registry. Only runs when the registry
 /// resource has been mutated.
 pub fn sync_cell_materials(

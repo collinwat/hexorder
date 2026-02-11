@@ -20,7 +20,7 @@ use uuid::Uuid;
 pub struct TypeId(pub Uuid);
 
 impl TypeId {
-    /// Generate a new random TypeId.
+    /// Generate a new random `TypeId`.
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -52,7 +52,7 @@ pub struct GameSystem {
 // ---------------------------------------------------------------------------
 
 /// The data type of a property definition.
-/// Extensible — future milestones will add EntityRef, List, Map, Struct, etc.
+/// Extensible — future milestones will add `EntityRef`, List, Map, Struct, etc.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyType {
     Bool,
@@ -103,7 +103,7 @@ pub struct PropertyDefinition {
 }
 
 /// A named set of string options for Enum-type properties.
-/// For example: "Movement Mode" with options ["Foot", "Wheeled", "Tracked"].
+/// For example: "Movement Mode" with options `["Foot", "Wheeled", "Tracked"]`.
 #[derive(Debug, Clone)]
 pub struct EnumDefinition {
     pub id: TypeId,
@@ -129,7 +129,7 @@ pub struct CellType {
 }
 
 /// Registry of all defined cell types and enum definitions in the
-/// current Game System. This is a resource managed by the game_system plugin.
+/// current Game System. This is a resource managed by the `game_system` plugin.
 #[derive(Resource, Debug, Default)]
 pub struct CellTypeRegistry {
     pub types: Vec<CellType>,
@@ -158,7 +158,7 @@ impl CellTypeRegistry {
 #[derive(Component, Debug, Clone)]
 pub struct CellData {
     pub cell_type_id: CellTypeId,
-    /// Per-instance property values, keyed by PropertyDefinition ID.
+    /// Per-instance property values, keyed by `PropertyDefinition` ID.
     /// Painted tiles get default values from the cell type; users can
     /// override individual values via the inspector.
     pub properties: HashMap<TypeId, PropertyValue>,
@@ -188,7 +188,7 @@ pub struct UnitType {
 }
 
 /// Registry of all defined unit types and their enum definitions in the
-/// current Game System. This is a resource managed by the game_system plugin.
+/// current Game System. This is a resource managed by the `game_system` plugin.
 #[derive(Resource, Debug, Default)]
 pub struct UnitTypeRegistry {
     pub types: Vec<UnitType>,
@@ -217,7 +217,7 @@ impl UnitTypeRegistry {
 #[derive(Component, Debug, Clone)]
 pub struct UnitData {
     pub unit_type_id: UnitTypeId,
-    /// Per-instance property values, keyed by PropertyDefinition ID.
+    /// Per-instance property values, keyed by `PropertyDefinition` ID.
     /// Placed units get default values from the unit type; users can
     /// override individual values via the inspector.
     pub properties: HashMap<TypeId, PropertyValue>,

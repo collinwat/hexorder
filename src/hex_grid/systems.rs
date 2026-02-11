@@ -1,4 +1,4 @@
-//! Systems for the hex_grid feature plugin.
+//! Systems for the `hex_grid` feature plugin.
 
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
@@ -148,7 +148,7 @@ pub fn update_hover(
 /// Pixel distance threshold to distinguish a click from a drag.
 const DRAG_THRESHOLD: f32 = 5.0;
 
-/// Handles mouse click to select a hex tile and fire HexSelectedEvent.
+/// Handles mouse click to select a hex tile and fire `HexSelectedEvent`.
 ///
 /// Fires on button *release* rather than press so that left-click drags
 /// (used for panning) are not mistaken for tile selections.
@@ -315,7 +315,9 @@ pub fn update_indicators(
         (With<SelectIndicator>, Without<HoverIndicator>),
     >,
 ) {
-    let paint_changed = paint_preview.as_ref().is_some_and(|p| p.is_changed());
+    let paint_changed = paint_preview
+        .as_ref()
+        .is_some_and(bevy::prelude::DetectChanges::is_changed);
     if !hovered.is_changed() && !selected.is_changed() && !tool.is_changed() && !paint_changed {
         return;
     }

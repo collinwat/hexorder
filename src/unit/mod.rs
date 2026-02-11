@@ -2,7 +2,7 @@
 //!
 //! Handles placing user-defined unit types onto hex tiles, unit selection,
 //! movement, deletion, and visual sync. Unit type definitions come from
-//! the game_system plugin's registry.
+//! the `game_system` plugin's registry.
 
 use bevy::prelude::*;
 

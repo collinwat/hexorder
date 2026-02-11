@@ -1,7 +1,7 @@
 //! Shared types between feature plugins.
 //! Each module here corresponds to a contract in .specs/contracts/.
 //!
-//! Contract types are defined ahead of their consumers. Allow dead_code
+//! Contract types are defined ahead of their consumers. Allow `dead_code`
 //! since not all types are used by all features at every point in development.
 
 #[allow(dead_code)]

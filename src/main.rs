@@ -118,7 +118,7 @@ mod architecture_tests {
         );
     }
 
-    /// Scans editor_ui source files for color literals and verifies each one
+    /// Scans `editor_ui` source files for color literals and verifies each one
     /// is in the approved brand palette (`.specs/brand.md`). Catches ad-hoc
     /// colors that drift from the design system.
     ///
@@ -211,16 +211,16 @@ mod architecture_tests {
                     let after = &trimmed[start + "from_gray(".len()..];
                     if let Some(end) = after.find(')') {
                         let num_str = &after[..end];
-                        if let Ok(val) = num_str.trim().parse::<u8>() {
-                            if !approved_grays.contains(&val) {
-                                violations.push(format!(
-                                    "{}:{}: `from_gray({})` is not in the brand palette. \
+                        if let Ok(val) = num_str.trim().parse::<u8>()
+                            && !approved_grays.contains(&val)
+                        {
+                            violations.push(format!(
+                                "{}:{}: `from_gray({})` is not in the brand palette. \
                                      See .specs/brand.md for approved colors.",
-                                    path.display(),
-                                    line_num + 1,
-                                    val,
-                                ));
-                            }
+                                path.display(),
+                                line_num + 1,
+                                val,
+                            ));
                         }
                     }
                 }
@@ -229,20 +229,22 @@ mod architecture_tests {
                 if let Some(start) = trimmed.find("from_rgb(") {
                     let after = &trimmed[start + "from_rgb(".len()..];
                     if let Some(end) = after.find(')') {
-                        let parts: Vec<&str> = after[..end].split(',').map(|s| s.trim()).collect();
+                        let parts: Vec<&str> = after[..end].split(',').map(str::trim).collect();
                         if parts.len() == 3 {
                             let parsed: Vec<Option<u8>> =
                                 parts.iter().map(|s| s.parse::<u8>().ok()).collect();
-                            if let (Some(r), Some(g), Some(b)) = (parsed[0], parsed[1], parsed[2]) {
-                                if !approved_rgb.contains(&(r, g, b)) {
-                                    violations.push(format!(
-                                        "{}:{}: `from_rgb({}, {}, {})` is not in the brand palette. \
+                            if let (Some(r), Some(g), Some(b)) = (parsed[0], parsed[1], parsed[2])
+                                && !approved_rgb.contains(&(r, g, b))
+                            {
+                                violations.push(format!(
+                                    "{}:{}: `from_rgb({}, {}, {})` is not in the brand palette. \
                                          See .specs/brand.md for approved colors.",
-                                        path.display(),
-                                        line_num + 1,
-                                        r, g, b,
-                                    ));
-                                }
+                                    path.display(),
+                                    line_num + 1,
+                                    r,
+                                    g,
+                                    b,
+                                ));
                             }
                             // If parsing fails (variables, not literals), skip — it's dynamic.
                         }
@@ -254,25 +256,25 @@ mod architecture_tests {
                 if let Some(start) = trimmed.find("from_rgba") {
                     // Only flag if all args are numeric literals.
                     let after = &trimmed[start..];
-                    if let Some(paren) = after.find('(') {
-                        if let Some(end) = after[paren..].find(')') {
-                            let args_str = &after[paren + 1..paren + end];
-                            let parts: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
-                            let all_numeric = parts.len() >= 3
-                                && parts[..3].iter().all(|s| s.parse::<u8>().is_ok());
-                            if all_numeric {
-                                let r: u8 = parts[0].parse().unwrap_or(0);
-                                let g: u8 = parts[1].parse().unwrap_or(0);
-                                let b: u8 = parts[2].parse().unwrap_or(0);
-                                if !approved_rgb.contains(&(r, g, b)) {
-                                    violations.push(format!(
+                    if let Some(paren) = after.find('(')
+                        && let Some(end) = after[paren..].find(')')
+                    {
+                        let args_str = &after[paren + 1..paren + end];
+                        let parts: Vec<&str> = args_str.split(',').map(str::trim).collect();
+                        let all_numeric =
+                            parts.len() >= 3 && parts[..3].iter().all(|s| s.parse::<u8>().is_ok());
+                        if all_numeric {
+                            let r: u8 = parts[0].parse().unwrap_or(0);
+                            let g: u8 = parts[1].parse().unwrap_or(0);
+                            let b: u8 = parts[2].parse().unwrap_or(0);
+                            if !approved_rgb.contains(&(r, g, b)) {
+                                violations.push(format!(
                                         "{}:{}: `from_rgba*({}, {}, {}, ...)` is not in the brand palette. \
                                          See .specs/brand.md for approved colors.",
                                         path.display(),
                                         line_num + 1,
                                         r, g, b,
                                     ));
-                                }
                             }
                         }
                     }
@@ -293,7 +295,7 @@ mod architecture_tests {
                         && name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
                     {
                         // Ignore lowercase-starting (method calls like .r(), .g()).
-                        let full = format!("Color32::{}", name);
+                        let full = format!("Color32::{name}");
                         if !approved_named.contains(&full.as_str()) {
                             violations.push(format!(
                                 "{}:{}: `{}` is not in the brand palette. \
@@ -322,7 +324,7 @@ mod architecture_tests {
 /// ordering issues. These tests assemble real plugins in a headless Bevy
 /// app and verify they cooperate correctly.
 ///
-/// Plugins that require rendering (HexGridPlugin, CameraPlugin, EditorUiPlugin)
+/// Plugins that require rendering (`HexGridPlugin`, `CameraPlugin`, `EditorUiPlugin`)
 /// are excluded — their dependencies (egui context, window) are unavailable in
 /// headless mode. We manually provide the resources and entities they would create.
 #[cfg(test)]
@@ -338,9 +340,9 @@ mod integration_tests {
         HexGridConfig, HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial,
     };
 
-    /// Build a headless app with GameSystemPlugin + CellPlugin + UnitPlugin.
-    /// Manually provides EditorTool, HexGridConfig (normally from EditorUiPlugin/HexGridPlugin)
-    /// and asset stores (normally from DefaultPlugins).
+    /// Build a headless app with `GameSystemPlugin` + `CellPlugin` + `UnitPlugin`.
+    /// Manually provides `EditorTool`, `HexGridConfig` (normally from EditorUiPlugin/HexGridPlugin)
+    /// and asset stores (normally from `DefaultPlugins`).
     fn headless_app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -361,7 +363,7 @@ mod integration_tests {
         app
     }
 
-    /// Spawn a minimal hex tile entity (simulates what HexGridPlugin does).
+    /// Spawn a minimal hex tile entity (simulates what `HexGridPlugin` does).
     fn spawn_test_tile(app: &mut App, q: i32, r: i32) -> Entity {
         let material = app
             .world_mut()
@@ -383,7 +385,7 @@ mod integration_tests {
             .id()
     }
 
-    /// Resources inserted in build() must be available before the first update.
+    /// Resources inserted in `build()` must be available before the first update.
     /// This catches the deferred-vs-immediate class of bugs.
     #[test]
     fn game_system_resources_available_immediately() {
@@ -406,7 +408,7 @@ mod integration_tests {
         );
     }
 
-    /// GameSystemPlugin + CellPlugin must start without panicking.
+    /// `GameSystemPlugin` + `CellPlugin` must start without panicking.
     /// This is the exact test that would have caught the original crash.
     #[test]
     fn game_system_and_cell_startup_succeeds() {
@@ -415,8 +417,8 @@ mod integration_tests {
         app.update(); // First Update runs
     }
 
-    /// Tiles spawned between Startup and Update get default CellData
-    /// from the cell plugin's assign_default_cell_data system.
+    /// Tiles spawned between Startup and Update get default `CellData`
+    /// from the cell plugin's `assign_default_cell_data` system.
     #[test]
     fn cell_assigns_default_data_to_new_tiles() {
         let mut app = headless_app();
@@ -448,7 +450,7 @@ mod integration_tests {
         }
     }
 
-    /// Unit resources inserted in build() must be available before the first update.
+    /// Unit resources inserted in `build()` must be available before the first update.
     #[test]
     fn game_system_unit_resources_available_immediately() {
         let mut app = App::new();
@@ -469,7 +471,7 @@ mod integration_tests {
         );
     }
 
-    /// GameSystemPlugin + UnitPlugin must start without panicking.
+    /// `GameSystemPlugin` + `UnitPlugin` must start without panicking.
     #[test]
     fn game_system_and_unit_startup_succeeds() {
         let mut app = headless_app();
@@ -484,7 +486,7 @@ mod integration_tests {
         );
     }
 
-    /// Placing a unit via HexSelectedEvent in Place mode creates an entity.
+    /// Placing a unit via `HexSelectedEvent` in Place mode creates an entity.
     #[test]
     fn unit_placement_creates_entity_on_grid() {
         let mut app = headless_app();
@@ -517,7 +519,7 @@ mod integration_tests {
         assert_eq!(*units[0].1, HexPosition::new(0, 0));
     }
 
-    /// Moving a unit via HexSelectedEvent in Select mode updates its position.
+    /// Moving a unit via `HexSelectedEvent` in Select mode updates its position.
     #[test]
     fn unit_movement_updates_position() {
         let mut app = headless_app();
@@ -559,8 +561,8 @@ mod integration_tests {
         );
     }
 
-    /// The full assign -> sync_materials -> sync_visuals chain works across
-    /// plugin boundaries: tiles get CellData and their material is updated.
+    /// The full assign -> `sync_materials` -> `sync_visuals` chain works across
+    /// plugin boundaries: tiles get `CellData` and their material is updated.
     #[test]
     fn cell_visual_sync_after_data_assignment() {
         let mut app = headless_app();

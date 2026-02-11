@@ -55,7 +55,7 @@ fn test_grid_config() -> HexGridConfig {
     }
 }
 
-/// Helper: insert test registry, grid config, and run setup_unit_visuals.
+/// Helper: insert test registry, grid config, and run `setup_unit_visuals`.
 fn setup_unit_resources(app: &mut App) {
     let registry = test_registry();
     app.insert_resource(registry);

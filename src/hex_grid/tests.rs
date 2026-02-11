@@ -1,4 +1,4 @@
-//! Unit tests for the hex_grid feature plugin.
+//! Unit tests for the `hex_grid` feature plugin.
 
 use std::sync::{Arc, Mutex};
 
@@ -11,7 +11,7 @@ use crate::contracts::hex_grid::{
 use super::components::{HexMaterials, HoveredHex};
 use super::systems;
 
-/// Helper: create a minimal App with resources needed for hex_grid testing.
+/// Helper: create a minimal App with resources needed for `hex_grid` testing.
 fn test_app() -> App {
     let mut app = App::new();
     // MinimalPlugins provides the basic scheduler without rendering.
@@ -114,8 +114,7 @@ fn grid_spawns_correct_number_of_tiles() {
 
     assert_eq!(
         actual, expected,
-        "Grid with radius {} should have {} tiles, got {}",
-        map_radius, expected, actual
+        "Grid with radius {map_radius} should have {expected} tiles, got {actual}"
     );
 }
 
@@ -145,8 +144,7 @@ fn all_tiles_have_hex_position() {
     assert_eq!(
         results.len(),
         expected,
-        "All {} tiles should have HexPosition",
-        expected
+        "All {expected} tiles should have HexPosition"
     );
 }
 

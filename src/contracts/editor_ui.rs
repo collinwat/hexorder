@@ -17,7 +17,7 @@ pub enum EditorTool {
 
 /// Holds the material handle for the currently active paint color.
 /// Updated by the cell plugin when the active cell type changes.
-/// Read by hex_grid to show a paint preview on hover in Paint mode.
+/// Read by `hex_grid` to show a paint preview on hover in Paint mode.
 #[derive(Resource, Debug, Default)]
 pub struct PaintPreview {
     pub material: Option<Handle<StandardMaterial>>,
