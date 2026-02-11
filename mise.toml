@@ -61,6 +61,30 @@ run = "typos"
 description = "Check TOML formatting"
 run = "taplo fmt --check"
 
+[tasks."check:boundary"]
+description = "Check no cross-feature internal imports"
+run = """
+violations=$(grep -rn 'use crate::' src/ --include='*.rs' | grep -v contracts | grep -v 'mod tests' | grep -v tests.rs | grep -v 'use crate::contracts' || true)
+if [ -n "$violations" ]; then
+  echo "ERROR: Cross-feature import boundary violations found:"
+  echo "$violations"
+  exit 1
+fi
+echo "No boundary violations found."
+"""
+
+[tasks."check:unwrap"]
+description = "Check no unwrap() in production code"
+run = """
+violations=$(grep -rn '\\.unwrap()' src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\\[cfg(test)\\]' | grep -v '#\\[test\\]' || true)
+if [ -n "$violations" ]; then
+  echo "ERROR: unwrap() found in production code (test files exempt):"
+  echo "$violations"
+  exit 1
+fi
+echo "No unwrap() in production code."
+"""
+
 [tasks.check]
 description = "Run all checks"
 depends = [
@@ -70,4 +94,6 @@ depends = [
   "check:deny",
   "check:typos",
   "check:taplo",
+  "check:boundary",
+  "check:unwrap",
 ]
