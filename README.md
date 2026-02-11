@@ -20,7 +20,7 @@ git clone <repo-url> hexorder
 cd hexorder
 
 # Install tools, configure git hooks and LFS
-mise run setup
+mise setup
 
 # Verify everything works
 cargo test
@@ -76,12 +76,12 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 | `cargo clippy --all-targets`   | Lint check (pedantic, must pass with zero warnings) |
 | `cargo run`                    | Launch the application                              |
 | `cargo run --features dev`     | Launch with dynamic linking (faster rebuilds)       |
-| `mise run fix`                 | Run all fixers (fmt, taplo, prettier, typos)        |
-| `mise run check`               | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
-| `mise run check:audit`         | Full constitution audit (pre-merge / milestone)     |
-| `mise run changelog`           | Preview unreleased changelog                        |
-| `mise run handoff`             | Session handoff — dump context for resuming work    |
-| `mise run setup`               | First-time project setup (tools, hooks, LFS)        |
+| `mise fix`                 | Run all fixers (fmt, taplo, prettier, typos)        |
+| `mise check`               | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
+| `mise check:audit`         | Full constitution audit (pre-merge / milestone)     |
+| `mise changelog`           | Preview unreleased changelog                        |
+| `mise handoff`             | Session handoff — dump context for resuming work    |
+| `mise setup`               | First-time project setup (tools, hooks, LFS)        |
 | `bacon`                        | Watch mode — continuous check/clippy/test           |
 
 ### Git workflow
@@ -114,12 +114,12 @@ workflow, including:
 | Layer          | What it enforces                                    | When it runs       |
 | -------------- | --------------------------------------------------- | ------------------ |
 | `rustfmt`      | Rust formatting (100-char width, Unix line endings) | Pre-commit hook    |
-| `clippy`       | Pedantic lints with Bevy-specific overrides         | CI, `mise run check` |
-| `cargo test`   | 71 unit, integration, and architecture tests        | CI, `mise run check` |
-| `cargo-deny`   | Vulnerability, license, and source auditing         | CI, `mise run check` |
-| `typos`        | Spell checking across code and docs                 | CI, `mise run check` |
-| `taplo`        | TOML file formatting                                | CI, `mise run check` |
-| `prettier`     | Markdown formatting (100-char width)                | `mise run fix`     |
+| `clippy`       | Pedantic lints with Bevy-specific overrides         | CI, `mise check` |
+| `cargo test`   | 71 unit, integration, and architecture tests        | CI, `mise check` |
+| `cargo-deny`   | Vulnerability, license, and source auditing         | CI, `mise check` |
+| `typos`        | Spell checking across code and docs                 | CI, `mise check` |
+| `taplo`        | TOML file formatting                                | CI, `mise check` |
+| `prettier`     | Markdown formatting (100-char width)                | `mise fix`     |
 | `.editorconfig`| Cross-editor indent, charset, line ending defaults  | Editor-level       |
 | GitHub Actions | All of the above, automated on push/PR              | Push to main, PRs  |
 

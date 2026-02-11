@@ -20,7 +20,7 @@ Project tooling is managed by [mise](https://mise.jdx.dev/). Git hooks are manag
 ### First-time setup
 
 ```bash
-mise run setup      # installs tools, configures git-lfs and hooks
+mise setup      # installs tools, configures git-lfs and hooks
 ```
 
 Or manually:
@@ -331,7 +331,7 @@ Every merge to `main` must pass all of these in order:
 
 1. **Merge lock claimed?** Confirm your row is in the Merge Lock table with status `merging` and no
    other row is also `merging`. If you skipped the lock protocol above, stop and go back.
-2. **Quality gate?** Run `mise run check:audit`. This runs all automated checks: tests, clippy,
+2. **Quality gate?** Run `mise check:audit`. This runs all automated checks: tests, clippy,
    formatting, dependency audit, typos, boundary check, and unwrap check. All must pass.
 3. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
    these categories:
@@ -347,13 +347,13 @@ Every merge to `main` must pass all of these in order:
 5. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
    `main` tip. If not, rebase first: `git rebase main`. If the rebase produces conflicts, follow the
    Conflict Resolution rules below.
-6. **Re-test after rebase?** Run `mise run check:audit` again. The rebase may have introduced
+6. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced
    conflicts or breakage not caught earlier. All checks must pass before proceeding.
 7. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
    `0.4.0`).
 8. **Merge.** From `main`: `git merge <branch>`.
-9. **Generate changelog.** Run `mise run changelog:generate`. Review the generated output to confirm
+9. **Generate changelog.** Run `mise changelog:generate`. Review the generated output to confirm
    it's accurate. Make manual edits only if a commit message was unclear.
 10. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
     `chore(project): bump version to <version>`.
@@ -366,7 +366,7 @@ Every merge to `main` must pass all of these in order:
 
 When the last feature of a milestone merges, also:
 
-14. **Milestone checkpoint audit.** Run `mise run check:audit` plus the manual checks from the
+14. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the
     Milestone Completion Gate in CLAUDE.md.
 15. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
     Integration Test Checkpoints.
@@ -521,8 +521,8 @@ messages. Configuration lives in `cliff.toml` at the project root.
 ### Generation
 
 ```bash
-mise run changelog:generate              # regenerate full changelog from all tags
-mise run changelog                       # preview unreleased changes (stdout)
+mise changelog:generate              # regenerate full changelog from all tags
+mise changelog                       # preview unreleased changes (stdout)
 git cliff --latest --output CHANGELOG.md # regenerate only the latest version
 ```
 
@@ -578,7 +578,7 @@ habitually hand-editing.
 When a new Claude Code session picks up work on an existing feature branch, run these steps before
 doing anything else.
 
-**Quick start**: Run `mise run handoff` to get a snapshot of worktrees, branch, status, commits, and
+**Quick start**: Run `mise handoff` to get a snapshot of worktrees, branch, status, commits, and
 changed files. Then continue with the detailed steps below for anything that needs attention.
 
 1. **Check for orphaned worktrees.** Run `git worktree list`. If there are worktrees from a prior

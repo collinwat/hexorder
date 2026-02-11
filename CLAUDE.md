@@ -64,11 +64,11 @@ game system assets.
 2. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
 3. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
 4. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
-5. **Test**: Run `mise run check` (or individually: `cargo test`, `cargo clippy --all-targets`);
+5. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`);
    update spec success criteria
 6. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
    the feature branch
-7. **Boundary check**: Run `mise run check:boundary` — verifies no cross-feature internal imports.
+7. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports.
    All shared types must go through `src/contracts/`
 8. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
 9. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
@@ -81,14 +81,14 @@ game system assets.
 
 Before a milestone is marked complete, run a **constitution audit** across the full codebase.
 
-**Automated checks** — run `mise run check:audit` to verify all of these at once:
+**Automated checks** — run `mise check:audit` to verify all of these at once:
 
 1. `cargo test` — all tests pass
 2. `cargo clippy --all-targets` — zero warnings (pedantic lints via `[lints.clippy]` in Cargo.toml)
 3. `cargo build` — clean compilation
-4. **No `unwrap()` in production code** (test files exempt) — `mise run check:unwrap`
-5. **No cross-feature internal imports** — `mise run check:boundary`
-6. Formatting, typos, TOML, dependency audit — all covered by `mise run check`
+4. **No `unwrap()` in production code** (test files exempt) — `mise check:unwrap`
+5. **No cross-feature internal imports** — `mise check:boundary`
+6. Formatting, typos, TOML, dependency audit — all covered by `mise check`
 
 **Manual checks** — these require human judgment and cannot be automated:
 
@@ -110,13 +110,13 @@ milestone version and record it in coordination.md.
 
 ## Testing Commands
 
-- `mise run check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
-- `mise run check:audit` — full constitution audit (same as `check`, used at milestone gates)
+- `mise check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
+- `mise check:audit` — full constitution audit (same as `check`, used at milestone gates)
 - `cargo test` — all unit and integration tests
 - `cargo clippy --all-targets` — lint check (pedantic, configured in Cargo.toml)
 - `cargo test --lib <feature_name>` — feature-specific tests
-- `mise run check:boundary` — cross-feature import boundary check
-- `mise run check:unwrap` — no unwrap() in production code
+- `mise check:boundary` — cross-feature import boundary check
+- `mise check:unwrap` — no unwrap() in production code
 
 ## Shared Contracts Protocol
 
