@@ -4,6 +4,7 @@ lefthook = "latest"
 "git-lfs" = "latest"
 "git-cliff" = "latest"
 prettier = "latest"
+"aqua:EmbarkStudios/cargo-deny" = "latest"
 
 [tasks."fix:prettier:markdown"]
 description = "Format markdown files with Prettier"
