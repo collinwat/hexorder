@@ -94,10 +94,10 @@ acceptably.
 
 - **Amber/gold accent** (`#c89640`) — present in the icon but not yet in the UI. Introduce it
   incrementally in future milestones for:
-  - Section headings or active tab labels
-  - Selected cell type border in the palette (currently white)
-  - Game System name/version display
-  - Primary action buttons (Create, Save)
+    - Section headings or active tab labels
+    - Selected cell type border in the palette (currently white)
+    - Game System name/version display
+    - Primary action buttons (Create, Save)
 - **Text colors** (`#e0e0e0`, `#808080`, `#505050`) — currently relying on egui dark defaults.
   Explicitly set these when the defaults diverge from the brand or when finer control is needed.
 

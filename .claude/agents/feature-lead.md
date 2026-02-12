@@ -1,8 +1,8 @@
 ---
 name: feature-lead
 description:
-  Decomposes features into specs, subtasks, and contracts. Use when planning a new feature or
-  reviewing feature progress.
+    Decomposes features into specs, subtasks, and contracts. Use when planning a new feature or
+    reviewing feature progress.
 tools: Read, Grep, Glob, Write, Edit, Bash
 ---
 

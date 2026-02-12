@@ -38,18 +38,18 @@ combined Query type with Changed filter exceeds clippy's default complexity thre
 - `cargo clippy -- -D warnings`: SUCCESS (0 warnings)
 - `cargo test`: SUCCESS (36 tests pass, 11 terrain-specific)
 - Terrain tests:
-  - `palette_has_five_terrain_types`: verifies 5 entries with all variant types present
-  - `terrain_materials_created_for_all_types`: verifies material handles for all 5 types
-  - `active_terrain_defaults_to_plains`: verifies default ActiveTerrain resource
-  - `active_terrain_resource_inserted_at_startup`: verifies resource insertion
-  - `assign_default_terrain_adds_plains_to_tiles`: verifies tiles get Plains component
-  - `paint_terrain_changes_tile_type`: verifies painting via HexSelectedEvent observer
-  - `paint_does_not_affect_other_tiles`: verifies only targeted tile changes
-  - `terrain_type_enum_has_all_variants`: verifies enum completeness
-  - `terrain_type_default_is_plains`: verifies Default trait impl
-  - `terrain_materials_lookup_works`: verifies HashMap lookup
-  - `palette_entries_have_names`: verifies non-empty display names
-  - `sync_terrain_visuals_updates_material`: verifies material sync on terrain change
+    - `palette_has_five_terrain_types`: verifies 5 entries with all variant types present
+    - `terrain_materials_created_for_all_types`: verifies material handles for all 5 types
+    - `active_terrain_defaults_to_plains`: verifies default ActiveTerrain resource
+    - `active_terrain_resource_inserted_at_startup`: verifies resource insertion
+    - `assign_default_terrain_adds_plains_to_tiles`: verifies tiles get Plains component
+    - `paint_terrain_changes_tile_type`: verifies painting via HexSelectedEvent observer
+    - `paint_does_not_affect_other_tiles`: verifies only targeted tile changes
+    - `terrain_type_enum_has_all_variants`: verifies enum completeness
+    - `terrain_type_default_is_plains`: verifies Default trait impl
+    - `terrain_materials_lookup_works`: verifies HashMap lookup
+    - `palette_entries_have_names`: verifies non-empty display names
+    - `sync_terrain_visuals_updates_material`: verifies material sync on terrain change
 
 ## Blockers
 

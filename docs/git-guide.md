@@ -111,26 +111,26 @@ Run these steps in order when starting work on a new feature. No steps are optio
 1. **Branch name.** Determine the branch name: `<milestone>/<feature>` (e.g., `m4/movement-rules`).
    Verify it follows the naming rules above.
 2. **Create branch and worktree.**
-   ```bash
-   git branch m4/movement-rules
-   git worktree add ../hexorder-m4-movement-rules m4/movement-rules
-   cd ../hexorder-m4-movement-rules
-   ```
+    ```bash
+    git branch m4/movement-rules
+    git worktree add ../hexorder-m4-movement-rules m4/movement-rules
+    cd ../hexorder-m4-movement-rules
+    ```
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
    have their own git hooks and need lefthook installed separately.
 4. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
-   ```toml
-   version = "0.4.0-movement-rules"
-   ```
-   The suffix is the `<feature>` portion of the branch name. This identifies builds from this
-   branch. The suffix is stripped at merge time when the final version is set.
+    ```toml
+    version = "0.4.0-movement-rules"
+    ```
+    The suffix is the `<feature>` portion of the branch name. This identifies builds from this
+    branch. The suffix is stripped at merge time when the final version is set.
 5. **Spec scaffolding.** Verify the feature has spec and log files. If they don't exist, create them
    from the templates:
-   ```
-   .specs/features/<feature>/spec.md   ← copy from .specs/features/_template_spec.md
-   .specs/features/<feature>/log.md    ← copy from .specs/features/_template_log.md
-   ```
-   If the files already exist, read them to understand prior decisions.
+    ```
+    .specs/features/<feature>/spec.md   ← copy from .specs/features/_template_spec.md
+    .specs/features/<feature>/log.md    ← copy from .specs/features/_template_log.md
+    ```
+    If the files already exist, read them to understand prior decisions.
 6. **Contract check.** Read `.specs/contracts/` for any shared types the feature depends on or
    introduces. If new contracts are needed, follow the Shared Contracts Protocol in CLAUDE.md.
 7. **Claim ownership.** Update `.specs/coordination.md` → Active Features table: set Owner to your
@@ -138,12 +138,12 @@ Run these steps in order when starting work on a new feature. No steps are optio
 8. **Initial commit.** Stage the `Cargo.toml` version change, any new spec/log files, and the
    coordination.md update. Commit:
 
-   ```
-   chore(<feature>): set up feature branch
+    ```
+    chore(<feature>): set up feature branch
 
-   Create worktree, set pre-release version, scaffold specs.
-   Part of <milestone>.
-   ```
+    Create worktree, set pre-release version, scaffold specs.
+    Part of <milestone>.
+    ```
 
 After this checklist, proceed to the Development Workflow in CLAUDE.md.
 
@@ -154,18 +154,18 @@ After this checklist, proceed to the Development Workflow in CLAUDE.md.
 Run these steps after a feature branch has been merged to `main` and the merge tag is verified.
 
 1. **Verify merge.** Confirm the merge commit and tag exist on `main`:
-   ```bash
-   git log --oneline -5 main
-   git tag -l 'v0.*'
-   ```
+    ```bash
+    git log --oneline -5 main
+    git tag -l 'v0.*'
+    ```
 2. **Remove worktree.**
-   ```bash
-   git worktree remove ../hexorder-<milestone>-<feature>
-   ```
+    ```bash
+    git worktree remove ../hexorder-<milestone>-<feature>
+    ```
 3. **Delete branch.**
-   ```bash
-   git branch -d <milestone>/<feature>
-   ```
+    ```bash
+    git branch -d <milestone>/<feature>
+    ```
 4. **Update ownership.** In `.specs/coordination.md` → Active Features table, set Status to
    `complete` and clear Owner.
 5. **Release merge lock.** If not already done in the Pre-Merge Checklist, confirm your Merge Lock
@@ -335,20 +335,20 @@ Every merge to `main` must pass all of these in order:
    formatting, dependency audit, typos, boundary check, and unwrap check. All must pass.
 3. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
    these categories:
-   - Your feature's module: `src/<feature>/**`
-   - Your feature's specs: `.specs/features/<feature>/**`
-   - Contracts your feature owns or extends: `src/contracts/**`, `.specs/contracts/**`
-   - Expected shared files: `.specs/coordination.md`, `Cargo.toml`, `Cargo.lock`, `main.rs` (plugin
-     registration)
-   - If any file falls outside these categories, investigate. Either remove the change or justify it
-     in the commit body.
+    - Your feature's module: `src/<feature>/**`
+    - Your feature's specs: `.specs/features/<feature>/**`
+    - Contracts your feature owns or extends: `src/contracts/**`, `.specs/contracts/**`
+    - Expected shared files: `.specs/coordination.md`, `Cargo.toml`, `Cargo.lock`, `main.rs` (plugin
+      registration)
+    - If any file falls outside these categories, investigate. Either remove the change or justify
+      it in the commit body.
 4. **Spec criteria met?** Open `.specs/features/<name>/spec.md`. Every success criterion is
    satisfied.
 5. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
    `main` tip. If not, rebase first: `git rebase main`. If the rebase produces conflicts, follow the
    Conflict Resolution rules below.
-6. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced
-   conflicts or breakage not caught earlier. All checks must pass before proceeding.
+6. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced conflicts
+   or breakage not caught earlier. All checks must pass before proceeding.
 7. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
    `0.4.0`).
@@ -366,8 +366,8 @@ Every merge to `main` must pass all of these in order:
 
 When the last feature of a milestone merges, also:
 
-14. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the
-    Milestone Completion Gate in CLAUDE.md.
+14. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the Milestone
+    Completion Gate in CLAUDE.md.
 15. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
     Integration Test Checkpoints.
 
@@ -421,30 +421,30 @@ When two in-flight feature branches have interdependent contracts or need to be 
 before either merges to `main`, use a **temporary integration branch**:
 
 1. **Create a throwaway branch** from `main`:
-   ```bash
-   git branch integration-test main
-   git worktree add ../hexorder-integration-test integration-test
-   cd ../hexorder-integration-test
-   ```
+    ```bash
+    git branch integration-test main
+    git worktree add ../hexorder-integration-test integration-test
+    cd ../hexorder-integration-test
+    ```
 2. **Merge both feature branches** into it:
-   ```bash
-   git merge m4/movement-rules
-   git merge m4/terrain-costs
-   ```
+    ```bash
+    git merge m4/movement-rules
+    git merge m4/terrain-costs
+    ```
 3. **Resolve any conflicts** between the two branches (follow the Conflict Resolution rules above).
 4. **Run the full test suite**:
-   ```bash
-   cargo build && cargo test && cargo clippy -- -D warnings
-   ```
+    ```bash
+    cargo build && cargo test && cargo clippy -- -D warnings
+    ```
 5. **Evaluate results.** If tests pass, both features are compatible — proceed with merging them to
    `main` individually (one at a time, via the normal Pre-Merge Checklist). If tests fail, the
    failing feature must fix its code on its own branch before retesting.
 6. **Discard the integration branch** — it is never merged to `main`:
-   ```bash
-   cd ../hexorder
-   git worktree remove ../hexorder-integration-test
-   git branch -D integration-test
-   ```
+    ```bash
+    cd ../hexorder
+    git worktree remove ../hexorder-integration-test
+    git branch -D integration-test
+    ```
 
 This branch exists solely for testing. It carries no version bump, no changelog entry, and no tag.
 The real merges happen through the normal Pre-Merge Checklist.
@@ -583,29 +583,29 @@ changed files. Then continue with the detailed steps below for anything that nee
 
 1. **Check for orphaned worktrees.** Run `git worktree list`. If there are worktrees from a prior
    session that is no longer active:
-   - `cd` into the orphaned worktree and run `git status`.
-   - If there are uncommitted changes, evaluate them: commit coherent work with a checkpoint commit
-     (`chore(<feature>): recover uncommitted work from prior session`), or discard broken fragments
-     with `git checkout -- .`.
-   - If the worktree is for a different feature than yours, leave it alone — another session may own
-     it.
-   - If the worktree is for your feature, continue working in it. If you need a fresh worktree,
-     clean up the orphan first: `git worktree remove <path>`.
+    - `cd` into the orphaned worktree and run `git status`.
+    - If there are uncommitted changes, evaluate them: commit coherent work with a checkpoint commit
+      (`chore(<feature>): recover uncommitted work from prior session`), or discard broken fragments
+      with `git checkout -- .`.
+    - If the worktree is for a different feature than yours, leave it alone — another session may
+      own it.
+    - If the worktree is for your feature, continue working in it. If you need a fresh worktree,
+      clean up the orphan first: `git worktree remove <path>`.
 2. **Identify the branch.** Run `git branch --show-current` to confirm you're on the correct feature
    branch.
 3. **Check for uncommitted work.** Run `git status`. If there are unstaged or staged changes from a
    prior session, review them. Commit coherent work; discard broken fragments.
 4. **Review branch history.** Run `git log --oneline main..HEAD` to see what the previous session(s)
    committed on this branch. Use the conventional commit format to reconstruct context:
-   - **Group by type** to understand what was done: `feat` = new functionality, `fix` = bug fixes,
-     `refactor` = restructuring, `test` = test additions, `docs` = spec/doc updates, `chore` =
-     setup/config.
-   - **Group by scope** to understand what was touched: each scope maps to a feature module or
-     `contracts`/`project`.
-   - **Read commit bodies** (run `git log main..HEAD` without `--oneline`) for rationale and
-     decisions — these serve as lightweight decision records between log entries.
-   - **Identify the last checkpoint commit** (if any) — this marks the last known-good state the
-     prior session saved before a risky change.
+    - **Group by type** to understand what was done: `feat` = new functionality, `fix` = bug fixes,
+      `refactor` = restructuring, `test` = test additions, `docs` = spec/doc updates, `chore` =
+      setup/config.
+    - **Group by scope** to understand what was touched: each scope maps to a feature module or
+      `contracts`/`project`.
+    - **Read commit bodies** (run `git log main..HEAD` without `--oneline`) for rationale and
+      decisions — these serve as lightweight decision records between log entries.
+    - **Identify the last checkpoint commit** (if any) — this marks the last known-good state the
+      prior session saved before a risky change.
 5. **Load context from diff.** Run `git diff main..HEAD --stat` for a file-level summary, then
    `git diff main..HEAD` for the full delta. This is the fastest way to understand what this branch
    has changed relative to mainline.

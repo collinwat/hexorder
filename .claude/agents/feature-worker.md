@@ -1,8 +1,8 @@
 ---
 name: feature-worker
 description:
-  Implements a specific feature or subtask according to its spec. Use when a feature spec exists and
-  implementation work is needed.
+    Implements a specific feature or subtask according to its spec. Use when a feature spec exists
+    and implementation work is needed.
 tools: Read, Grep, Glob, Write, Edit, Bash
 ---
 

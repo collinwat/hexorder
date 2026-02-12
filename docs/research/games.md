@@ -25,21 +25,21 @@
   hex map, CRT, Terrain Effects Chart, Turn Record Track
 - **Rules:** ~4 pages of rules, 7 turns per game
 - **Game Mechanics:** All core hex wargame mechanics present:
-  - Hex grid movement with movement points
-  - Zones of Control (rigid)
-  - Odds-ratio Combat Results Table (CRT)
-  - Terrain effects on combat and movement (forests, cities, fortifications, rivers, railroads)
-  - Step losses (full-strength to half-strength)
-  - Replacements/reinforcements
-  - Supply rules (simplified)
+    - Hex grid movement with movement points
+    - Zones of Control (rigid)
+    - Odds-ratio Combat Results Table (CRT)
+    - Terrain effects on combat and movement (forests, cities, fortifications, rivers, railroads)
+    - Step losses (full-strength to half-strength)
+    - Replacements/reinforcements
+    - Supply rules (simplified)
 - **License/Availability:** Frank Chadwick made the game freely available for personal/recreational
   use after GDW closed in 1996. The copyright remains with Chadwick. **NOT open source** -- it is
   free to download and print, but "not for commercial or mass reproduction."
 - **URLs:**
-  - Rules & components: https://grognard.com/bfm/game.html
-  - Alternative site: https://oberlabs.com/b4m/rules.html
-  - Rules PDF: https://tesera.ru/images/items/160567/B4M_rules_booklet.pdf
-  - Internet Archive: https://archive.org/details/bmoscow
+    - Rules & components: https://grognard.com/bfm/game.html
+    - Alternative site: https://oberlabs.com/b4m/rules.html
+    - Rules PDF: https://tesera.ru/images/items/160567/B4M_rules_booklet.pdf
+    - Internet Archive: https://archive.org/details/bmoscow
 - **Why it works:** Perfect complexity level (~39 counters, single map, 4 pages of rules),
   represents all core hex wargame mechanics, designed specifically as an intro game. Very well
   documented.
@@ -57,21 +57,22 @@
 - **Components:** 61 counters (cavalry and infantry divisions), 1 small hex map (11"x13"), CRT
 - **Rules:** ~6 pages (4 sides of A4)
 - **Game Mechanics:**
-  - I-Go-You-Go turn structure
-  - Simple hex movement
-  - Odds-ratio CRT
-  - Terrain effects
-  - Zones of control
+    - I-Go-You-Go turn structure
+    - Simple hex movement
+    - Odds-ratio CRT
+    - Terrain effects
+    - Zones of control
 - **License/Availability:** SPI is defunct. The rules, map, and counters are available for download
   at spigames.net, which provides resources "to help people play and enjoy the old SPI games they
   own." The legal status is ambiguous -- Decision Games later acquired SPI rights and republished a
   revised edition in 2014.
 - **URLs:**
-  - Rules PDF: https://www.spigames.net/PDFv2/NapoleonatWaterloo.pdf
-  - Print and Play: https://www.kobudovenlo.nl/napoleonatwaterloo/Napoleon%20at%20Waterloo%20PnP.htm
-  - SPI Downloads page: https://www.spigames.net/rules_downloads.htm
-  - Steam Workshop (Tabletop Simulator):
-    https://steamcommunity.com/sharedfiles/filedetails/?id=340557668
+    - Rules PDF: https://www.spigames.net/PDFv2/NapoleonatWaterloo.pdf
+    - Print and Play:
+      https://www.kobudovenlo.nl/napoleonatwaterloo/Napoleon%20at%20Waterloo%20PnP.htm
+    - SPI Downloads page: https://www.spigames.net/rules_downloads.htm
+    - Steam Workshop (Tabletop Simulator):
+      https://steamcommunity.com/sharedfiles/filedetails/?id=340557668
 - **Why it works:** Even simpler than Battle for Moscow. Historically important as the original
   introductory wargame. Complete PnP files available.
 - **Why it might not work:** Legally ambiguous -- Decision Games may hold rights. Not formally
@@ -87,17 +88,17 @@
 - **Components:** ~140 counters (Pocket Edition), 1 hex map, simple CRT
 - **Rules:** ~16 pages (Pocket Edition rulebook)
 - **Game Mechanics:**
-  - Hex grid movement
-  - Asymmetric gameplay (one mega-tank vs. many smaller units)
-  - Simple attack/defense ratio combat
-  - Unit damage tracking
+    - Hex grid movement
+    - Asymmetric gameplay (one mega-tank vs. many smaller units)
+    - Simple attack/defense ratio combat
+    - Unit damage tracking
 - **License/Availability:** Rules PDFs are hosted on Steve Jackson Games' official website. The
   rules are freely downloadable, but SJG retains full copyright. The game is still actively sold.
 - **URLs:**
-  - Rulebook PDF: https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf
-  - Ogre + G.E.V. rules: https://www.sjgames.com/ogre/products/ogregev/img/ogre-rules-new.pdf
-  - Pocket Edition rules: https://tesera.ru/images/items/155413/Pocket_Ogre_Rules_6-14-12.pdf
-  - Official site: https://www.sjgames.com/ogre/
+    - Rulebook PDF: https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf
+    - Ogre + G.E.V. rules: https://www.sjgames.com/ogre/products/ogregev/img/ogre-rules-new.pdf
+    - Pocket Edition rules: https://tesera.ru/images/items/155413/Pocket_Ogre_Rules_6-14-12.pdf
+    - Official site: https://www.sjgames.com/ogre/
 - **Why it works:** Extremely well-documented rules. Iconic game. Simple enough for first
   implementation. Rules freely available online.
 - **Why it might not work:** Sci-fi rather than historical. Actively commercial product with strong
@@ -113,18 +114,19 @@
 - **Complexity:** Deliberately minimal
 - **Components:** Counters (20x10mm blocks), 2-page map, CRT, Terrain Effects Chart
 - **Game Mechanics:**
-  - All standard hex wargame features present
-  - Movement with movement points
-  - Zones of control
-  - CRT with column shifts
-  - Terrain effects on movement and combat
-  - Stacking limits
-  - Units with Movement-Combat stats (or Movement-Offense-Defense)
+    - All standard hex wargame features present
+    - Movement with movement points
+    - Zones of control
+    - CRT with column shifts
+    - Terrain effects on movement and combat
+    - Stacking limits
+    - Units with Movement-Combat stats (or Movement-Offense-Defense)
 - **License/Availability:** Copyright 2024 Evan D'Alessandro. No explicit open license found. Free
   to download.
 - **URLs:**
-  - Game page: https://evandalessandro.com/hex-encounters/
-  - Rules PDF (v4): https://evandalessandro.com/wp-content/uploads/2024/02/hexencountersrulesv4.pdf
+    - Game page: https://evandalessandro.com/hex-encounters/
+    - Rules PDF (v4):
+      https://evandalessandro.com/wp-content/uploads/2024/02/hexencountersrulesv4.pdf
 - **Why it works:** Explicitly designed to be the "simplest possible game that includes all standard
   features of a hex and counter wargame." Perfect for validating a tool. Includes digital (Google
   Slides) version.
@@ -143,13 +145,13 @@
 - **What it is:** A VASSAL module template providing all the infrastructure for a hex-and-counter
   wargame
 - **Includes:**
-  - Hex grid system with configurable hex sizes
-  - NATO unit symbol templates (infantry, mechanized, anti-aircraft)
-  - Counter rotation (6 directions), movement marking, step-loss tracking
-  - CRT chart window, terrain effects chart, turn track
-  - Dice rolling (d6, 2d6)
-  - Eliminated units tracking ("dead pile")
-  - Multiple counter color variants and prototype definitions
+    - Hex grid system with configurable hex sizes
+    - NATO unit symbol templates (infantry, mechanized, anti-aircraft)
+    - Counter rotation (6 directions), movement marking, step-loss tracking
+    - CRT chart window, terrain effects chart, turn track
+    - Dice rolling (d6, 2d6)
+    - Eliminated units tracking ("dead pile")
+    - Multiple counter color variants and prototype definitions
 - **URL:** https://github.com/jzedwards/vassal-hex-n-counters-template
 - **Why it works:** CC0 licensed (completely free to use for anything). Provides a reusable template
   with NATO symbology and all standard wargame infrastructure. Could serve as a reference for what a
@@ -165,19 +167,20 @@
 - **What it is:** A LaTeX package that generates complete print-and-play wargames (rules, hex maps,
   counter sheets, charts) plus exports to VASSAL modules
 - **Features:**
-  - Hex map generation with terrain types
-  - Counter/chit creation with NATO APP-6 symbology
-  - Counter sheet layout
-  - Order of Battle charts
-  - CRT and other chart generation
-  - VASSAL module export via `wgexport.py`
+    - Hex map generation with terrain types
+    - Counter/chit creation with NATO APP-6 symbology
+    - Counter sheet layout
+    - Order of Battle charts
+    - CRT and other chart generation
+    - VASSAL module export via `wgexport.py`
 - **Example games included:** Tannenberg (introductory), plus tutorial game with clear, woods, and
   mountain terrain
 - **URLs:**
-  - GitLab: https://gitlab.com/wargames_tex/wargame_tex
-  - CTAN package page: https://ctan.org/pkg/wargame
-  - Tutorial PDF: https://ctan.math.illinois.edu/macros/latex/contrib/wargame/doc/tutorial/game.pdf
-  - Documentation: https://ctan.math.illinois.edu/macros/latex/contrib/wargame/doc/wargame.pdf
+    - GitLab: https://gitlab.com/wargames_tex/wargame_tex
+    - CTAN package page: https://ctan.org/pkg/wargame
+    - Tutorial PDF:
+      https://ctan.math.illinois.edu/macros/latex/contrib/wargame/doc/tutorial/game.pdf
+    - Documentation: https://ctan.math.illinois.edu/macros/latex/contrib/wargame/doc/wargame.pdf
 - **Why it works:** Fully open source, CC-BY-SA licensed. Includes complete example games. Defines a
   formal data model for hex wargames (terrain, counters, OOB, charts). Excellent reference for what
   a wargame design tool needs to produce.
@@ -191,11 +194,11 @@
 - **License:** MIT
 - **What it is:** A playable hex wargame in JavaScript with a web-based scenario editor
 - **Features:**
-  - Hex maps with terrain types defined via CSV
-  - NATO military symbology for units
-  - Combat Results Table
-  - Scenario editor (under development)
-  - Terrain system inspired by HPS & John Tiller games
+    - Hex maps with terrain types defined via CSV
+    - NATO military symbology for units
+    - Combat Results Table
+    - Scenario editor (under development)
+    - Terrain system inspired by HPS & John Tiller games
 - **URL:** https://github.com/yiyuezhuo/Hex-Wargame-JavaScript
 - **Why it works:** MIT licensed, includes scenario editor, uses CSV for data (easy to parse),
   directly represents a hex wargame system.
@@ -210,13 +213,13 @@
 - **What it is:** A complete turn-based tactical war game on a hex grid with custom map and campaign
   creation tools
 - **Features:**
-  - Hex grid with multiple terrain types
-  - Unit types with customizable stats
-  - Built-in map/campaign editor
-  - Cross-platform (Windows, Linux, Mac)
+    - Hex grid with multiple terrain types
+    - Unit types with customizable stats
+    - Built-in map/campaign editor
+    - Cross-platform (Windows, Linux, Mac)
 - **URLs:**
-  - LibreGameWiki: https://libregamewiki.org/Crimson_Fields
-  - Source: https://gitlab.com/osgames/crimson.git
+    - LibreGameWiki: https://libregamewiki.org/Crimson_Fields
+    - Source: https://gitlab.com/osgames/crimson.git
 - **Why it works:** Complete, working hex wargame with editor. GPL licensed. Modifiable unit and
   terrain data.
 - **Why it might not work:** Last release 0.5.3 was in 2009 -- project appears dormant. C++
@@ -229,10 +232,10 @@
 - **License:** GPL-3.0
 - **What it is:** A multiplayer 2D turn-based strategy wargame written in Rust using Bevy
 - **Features:**
-  - Procedural hex map generation (up to 1000x1000 tiles)
-  - Environmental simulation (biome, elevation, temperature)
-  - Unit creation with individual soldier tracking
-  - Basic networking
+    - Procedural hex map generation (up to 1000x1000 tiles)
+    - Environmental simulation (biome, elevation, temperature)
+    - Unit creation with individual soldier tracking
+    - Basic networking
 - **URL:** https://github.com/mjhouse/warfare-rs
 - **Why it works:** Same technology stack (Rust + Bevy). Hex grid implementation already exists.
   Open source.
@@ -251,12 +254,12 @@
   western. Over 80 pre-made tiles plus buildings, objects, and details. Includes separate PNGs,
   spritesheets, and vector source files.
 - **URLs:**
-  - https://kenney.nl/assets/hexagon-pack
-  - OpenGameArt mirror: https://opengameart.org/content/hexagon-pack-310x
-  - GitHub mirror: https://github.com/utgarda/kenney-hexagon
+    - https://kenney.nl/assets/hexagon-pack
+    - OpenGameArt mirror: https://opengameart.org/content/hexagon-pack-310x
+    - GitHub mirror: https://github.com/utgarda/kenney-hexagon
 - **Additional Kenney hex packs:**
-  - Hexagon Tiles (90 assets): https://kenney.nl/assets/hexagon-tiles
-  - Hexagon Kit (70 assets): https://kenney.nl/assets/hexagon-kit
+    - Hexagon Tiles (90 assets): https://kenney.nl/assets/hexagon-tiles
+    - Hexagon Kit (70 assets): https://kenney.nl/assets/hexagon-kit
 
 #### 11. OpenGameArt Hex Tileset Pack (CC0)
 

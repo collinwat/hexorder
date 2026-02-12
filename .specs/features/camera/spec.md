@@ -85,7 +85,7 @@ Solo feature — no parallel decomposition needed.
   covers S world units). Adjusted dynamically at startup via `fit_scale` if `HexGridConfig` is
   present.
 - Zoom min/max limits: yes, min_scale=0.005, max_scale=0.15
-- Pan speed scales with zoom level: yes, speed = pan_speed _ current_scale _ delta_time
+- Pan speed scales with zoom level: yes, speed = pan*speed * current*scale * delta_time
 - Pan input: right-click drag + left-click drag with 5px threshold (not middle-click, for macOS
   trackpad compatibility)
 - Panel offset: 260px editor panel width, offset = (PANEL_WIDTH / 2) \* scale, positive X due to

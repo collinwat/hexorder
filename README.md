@@ -69,20 +69,20 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 
 ### Common commands
 
-| Command                        | Purpose                                             |
-| ------------------------------ | --------------------------------------------------- |
-| `cargo build`                  | Compile the project                                 |
-| `cargo test`                   | Run all unit and integration tests                  |
-| `cargo clippy --all-targets`   | Lint check (pedantic, must pass with zero warnings) |
-| `cargo run`                    | Launch the application                              |
-| `cargo run --features dev`     | Launch with dynamic linking (faster rebuilds)       |
-| `mise fix`                 | Run all fixers (fmt, taplo, prettier, typos)        |
-| `mise check`               | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
-| `mise check:audit`         | Full constitution audit (pre-merge / milestone)     |
-| `mise changelog`           | Preview unreleased changelog                        |
-| `mise handoff`             | Session handoff — dump context for resuming work    |
-| `mise setup`               | First-time project setup (tools, hooks, LFS)        |
-| `bacon`                        | Watch mode — continuous check/clippy/test           |
+| Command                      | Purpose                                                           |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `cargo build`                | Compile the project                                               |
+| `cargo test`                 | Run all unit and integration tests                                |
+| `cargo clippy --all-targets` | Lint check (pedantic, must pass with zero warnings)               |
+| `cargo run`                  | Launch the application                                            |
+| `cargo run --features dev`   | Launch with dynamic linking (faster rebuilds)                     |
+| `mise fix`                   | Run all fixers (fmt, taplo, prettier, typos)                      |
+| `mise check`                 | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
+| `mise check:audit`           | Full constitution audit (pre-merge / milestone)                   |
+| `mise changelog`             | Preview unreleased changelog                                      |
+| `mise handoff`               | Session handoff — dump context for resuming work                  |
+| `mise setup`                 | First-time project setup (tools, hooks, LFS)                      |
+| `bacon`                      | Watch mode — continuous check/clippy/test                         |
 
 ### Git workflow
 
@@ -97,31 +97,31 @@ workflow, including:
 
 ### Key tools
 
-| Tool                                                         | Purpose                                        | Config         |
-| ------------------------------------------------------------ | ---------------------------------------------- | -------------- |
-| [mise](https://mise.jdx.dev/)                                | Project tool manager and task runner           | `mise.toml`    |
-| [lefthook](https://github.com/evilmartians/lefthook)         | Git hooks (fmt check, build, secrets)          | `lefthook.yml` |
-| [git-lfs](https://git-lfs.com/)                              | Large file storage for binary assets           | `.gitattributes` |
-| [git-cliff](https://git-cliff.org/)                          | Changelog generation from conventional commits | `cliff.toml`   |
-| [prettier](https://prettier.io/)                             | Markdown formatter                             | `.prettierrc`  |
-| [taplo](https://taplo.tamasfe.dev/)                          | TOML formatter                                 | `taplo.toml`   |
-| [typos](https://crates.io/crates/typos-cli)                  | Source code spell checker                      | `_typos.toml`  |
-| [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)    | Dependency audit (vulnerabilities, licenses)   | `deny.toml`    |
-| [bacon](https://crates.io/crates/bacon)                      | Background code checker (watch mode)           | `bacon.toml`   |
+| Tool                                                      | Purpose                                        | Config           |
+| --------------------------------------------------------- | ---------------------------------------------- | ---------------- |
+| [mise](https://mise.jdx.dev/)                             | Project tool manager and task runner           | `mise.toml`      |
+| [lefthook](https://github.com/evilmartians/lefthook)      | Git hooks (fmt check, build, secrets)          | `lefthook.yml`   |
+| [git-lfs](https://git-lfs.com/)                           | Large file storage for binary assets           | `.gitattributes` |
+| [git-cliff](https://git-cliff.org/)                       | Changelog generation from conventional commits | `cliff.toml`     |
+| [prettier](https://prettier.io/)                          | Markdown formatter                             | `.prettierrc`    |
+| [taplo](https://taplo.tamasfe.dev/)                       | TOML formatter                                 | `taplo.toml`     |
+| [typos](https://crates.io/crates/typos-cli)               | Source code spell checker                      | `_typos.toml`    |
+| [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) | Dependency audit (vulnerabilities, licenses)   | `deny.toml`      |
+| [bacon](https://crates.io/crates/bacon)                   | Background code checker (watch mode)           | `bacon.toml`     |
 
 ### Code quality
 
-| Layer          | What it enforces                                    | When it runs       |
-| -------------- | --------------------------------------------------- | ------------------ |
-| `rustfmt`      | Rust formatting (100-char width, Unix line endings) | Pre-commit hook    |
-| `clippy`       | Pedantic lints with Bevy-specific overrides         | CI, `mise check` |
-| `cargo test`   | 71 unit, integration, and architecture tests        | CI, `mise check` |
-| `cargo-deny`   | Vulnerability, license, and source auditing         | CI, `mise check` |
-| `typos`        | Spell checking across code and docs                 | CI, `mise check` |
-| `taplo`        | TOML file formatting                                | CI, `mise check` |
-| `prettier`     | Markdown formatting (100-char width)                | `mise fix`     |
-| `.editorconfig`| Cross-editor indent, charset, line ending defaults  | Editor-level       |
-| GitHub Actions | All of the above, automated on push/PR              | Push to main, PRs  |
+| Layer           | What it enforces                                    | When it runs      |
+| --------------- | --------------------------------------------------- | ----------------- |
+| `rustfmt`       | Rust formatting (100-char width, Unix line endings) | Pre-commit hook   |
+| `clippy`        | Pedantic lints with Bevy-specific overrides         | CI, `mise check`  |
+| `cargo test`    | 71 unit, integration, and architecture tests        | CI, `mise check`  |
+| `cargo-deny`    | Vulnerability, license, and source auditing         | CI, `mise check`  |
+| `typos`         | Spell checking across code and docs                 | CI, `mise check`  |
+| `taplo`         | TOML file formatting                                | CI, `mise check`  |
+| `prettier`      | Markdown formatting (100-char width)                | `mise fix`        |
+| `.editorconfig` | Cross-editor indent, charset, line ending defaults  | Editor-level      |
+| GitHub Actions  | All of the above, automated on push/PR              | Push to main, PRs |
 
 ## Contributing
 

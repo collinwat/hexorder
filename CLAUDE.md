@@ -64,12 +64,12 @@ game system assets.
 2. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
 3. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
 4. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
-5. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`);
-   update spec success criteria
+5. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
+   spec success criteria
 6. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
    the feature branch
-7. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports.
-   All shared types must go through `src/contracts/`
+7. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
+   shared types must go through `src/contracts/`
 8. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
 9. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
 10. **Merge**: When the feature is complete, follow the Pre-Merge Checklist in `docs/git-guide.md` —

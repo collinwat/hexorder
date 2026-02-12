@@ -1,23 +1,23 @@
 [
- {
-  "RuleID": "generic-api-key",
-  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
-  "StartLine": 314,
-  "EndLine": 314,
-  "StartColumn": 6,
-  "EndColumn": 37,
-  "Match": "Key Insight: Calculated/Derived ",
-  "Secret": "Calculated/Derived",
-  "File": "docs/research/game-engines.md",
-  "SymlinkFile": "",
-  "Commit": "c4a3b572591bf4b48b01ea849e37c6278a2614ab",
-  "Link": "https://github.com/collinwat/hexorder/blob/c4a3b572591bf4b48b01ea849e37c6278a2614ab/docs/research/game-engines.md?plain=1#L314",
-  "Entropy": 3.5724313,
-  "Author": "Collin Watson",
-  "Email": "collinwat@users.noreply.github.com",
-  "Date": "2026-02-11T12:54:40Z",
-  "Message": "feat(project): add M1-M3 codebase\n\nImplements three milestones of the Hexorder game system design tool:\n- M1: Hex grid rendering, orthographic camera, terrain painting\n- M2: Game System container, cell types with properties, editor UI\n- M3: Unit types, unit placement/movement/deletion, unit inspector\n\nIncludes feature specs, contracts, research docs, and build scripts.\n71 tests pass, clippy clean.",
-  "Tags": [],
-  "Fingerprint": "c4a3b572591bf4b48b01ea849e37c6278a2614ab:docs/research/game-engines.md:generic-api-key:314"
- }
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+    "StartLine": 314,
+    "EndLine": 314,
+    "StartColumn": 6,
+    "EndColumn": 37,
+    "Match": "Key Insight: Calculated/Derived ",
+    "Secret": "Calculated/Derived",
+    "File": "docs/research/game-engines.md",
+    "SymlinkFile": "",
+    "Commit": "c4a3b572591bf4b48b01ea849e37c6278a2614ab",
+    "Link": "https://github.com/collinwat/hexorder/blob/c4a3b572591bf4b48b01ea849e37c6278a2614ab/docs/research/game-engines.md?plain=1#L314",
+    "Entropy": 3.5724313,
+    "Author": "Collin Watson",
+    "Email": "collinwat@users.noreply.github.com",
+    "Date": "2026-02-11T12:54:40Z",
+    "Message": "feat(project): add M1-M3 codebase\n\nImplements three milestones of the Hexorder game system design tool:\n- M1: Hex grid rendering, orthographic camera, terrain painting\n- M2: Game System container, cell types with properties, editor UI\n- M3: Unit types, unit placement/movement/deletion, unit inspector\n\nIncludes feature specs, contracts, research docs, and build scripts.\n71 tests pass, clippy clean.",
+    "Tags": [],
+    "Fingerprint": "c4a3b572591bf4b48b01ea849e37c6278a2614ab:docs/research/game-engines.md:generic-api-key:314"
+  }
 ]

@@ -40,7 +40,8 @@ pre-commit:
   parallel: false
   commands:
     gitleaks:
-      run: mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
+      run:
+        mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
     check-formatting:
       run: cargo fmt --all -- --check
     check-compiles:
