@@ -2,16 +2,19 @@
 
 ## Purpose
 
-Defines the Game System container, the entity-agnostic property system, and the types needed to
-describe cell type definitions and unit type definitions. The Game System is the root design
-artifact that holds all user-defined definitions.
+Defines the Game System container, the entity-agnostic property system, and the unified entity type
+system. The Game System is the root design artifact that holds all user-defined definitions.
+
+M4 unifies CellType and UnitType into a single EntityType with a designer-assigned role. This
+eliminates code duplication and enables the ontology framework to work across all entity categories.
 
 ## Types
 
 ### Identity
 
 ```rust
-/// Unique identifier for cell types, enum definitions, property definitions, etc.
+/// Unique identifier for entity types, enum definitions, property definitions,
+/// concepts, relations, constraints, etc.
 /// Uses UUID for stability across serialization (M5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub uuid::Uuid);
@@ -73,82 +76,65 @@ pub struct EnumDefinition {
 }
 ```
 
-### Cell Types
+### Entity Types (M4 — replaces Cell Types and Unit Types)
 
 ```rust
-/// Unique identifier for a cell type.
-pub type CellTypeId = TypeId;
+/// The role an entity type plays in the game system.
+/// Determines how instances interact with the grid and other entities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EntityRole {
+    /// Occupies a hex position on the board (replaces CellType).
+    /// Each hex tile has exactly one BoardPosition entity type.
+    BoardPosition,
+    /// A movable game piece placed on hex tiles (replaces UnitType).
+    /// Multiple tokens may occupy the same hex position.
+    Token,
+}
 
-/// A cell type definition: describes what a board position can be.
+/// A unified entity type definition. Replaces both CellType and UnitType.
+/// The designer classifies each type by role.
 #[derive(Debug, Clone)]
-pub struct CellType {
-    pub id: CellTypeId,
+pub struct EntityType {
+    pub id: TypeId,
     pub name: String,
+    pub role: EntityRole,
     pub color: bevy::color::Color,
     pub properties: Vec<PropertyDefinition>,
 }
 
-/// Registry of all defined cell types in the current Game System.
-#[derive(Resource, Debug)]
-pub struct CellTypeRegistry {
-    pub types: Vec<CellType>,
-    pub enum_definitions: Vec<EnumDefinition>,
-}
-
-/// Component attached to hex tile entities. Stores the cell type
-/// and per-instance property values.
-#[derive(Component, Debug, Clone)]
-pub struct CellData {
-    pub cell_type_id: CellTypeId,
-    pub properties: HashMap<TypeId, PropertyValue>,
-}
-
-/// Tracks which cell type the user is currently painting with.
-#[derive(Resource, Debug)]
-pub struct ActiveCellType {
-    pub cell_type_id: Option<CellTypeId>,
-}
-```
-
-### Unit Types
-
-```rust
-/// Unique identifier for a unit type.
-pub type UnitTypeId = TypeId;
-
-/// A unit type definition: describes what a game entity on the board can be.
-/// Defined by the user within a Game System.
-#[derive(Debug, Clone)]
-pub struct UnitType {
-    pub id: UnitTypeId,
-    pub name: String,
-    pub color: bevy::color::Color,
-    pub properties: Vec<PropertyDefinition>,
-}
-
-/// Registry of all defined unit types in the current Game System.
+/// Unified registry of all entity types and enum definitions.
+/// Replaces CellTypeRegistry and UnitTypeRegistry.
 #[derive(Resource, Debug, Default)]
-pub struct UnitTypeRegistry {
-    pub types: Vec<UnitType>,
+pub struct EntityTypeRegistry {
+    pub types: Vec<EntityType>,
     pub enum_definitions: Vec<EnumDefinition>,
 }
 
-/// Component attached to entities representing units on the hex grid.
-/// Stores which unit type this entity is and its per-instance property values.
+/// Component attached to any entity on the hex grid (tiles and tokens).
+/// Stores the entity type and per-instance property values.
+/// Replaces both CellData and UnitData.
 #[derive(Component, Debug, Clone)]
-pub struct UnitData {
-    pub unit_type_id: UnitTypeId,
+pub struct EntityData {
+    pub entity_type_id: TypeId,
+    /// Per-instance property values, keyed by PropertyDefinition ID.
     pub properties: HashMap<TypeId, PropertyValue>,
 }
 
-/// Marker component for unit entities on the hex grid.
+/// Marker component for token entities on the hex grid.
+/// Used to distinguish tokens from tiles in queries.
 #[derive(Component, Debug)]
 pub struct UnitInstance;
 
-/// Tracks which unit type the user is currently placing.
+/// Tracks which BoardPosition entity type the user is currently painting with.
 #[derive(Resource, Debug, Default)]
-pub struct ActiveUnitType {
-    pub unit_type_id: Option<UnitTypeId>,
+pub struct ActiveBoardType {
+    pub entity_type_id: Option<TypeId>,
+}
+
+/// Tracks which Token entity type the user is currently placing.
+#[derive(Resource, Debug, Default)]
+pub struct ActiveTokenType {
+    pub entity_type_id: Option<TypeId>,
 }
 
 /// Tracks the currently selected unit entity, if any.
@@ -157,52 +143,66 @@ pub struct SelectedUnit {
     pub entity: Option<Entity>,
 }
 
-/// Fired when a unit is placed on the grid.
+/// Fired when a token entity is placed on the grid.
 #[derive(Event, Debug)]
 pub struct UnitPlacedEvent {
     pub entity: Entity,
     pub position: HexPosition,
-    pub unit_type_id: UnitTypeId,
+    pub entity_type_id: TypeId,
 }
 ```
 
+### Removed Types (M4)
+
+The following M3 types are removed in M4, replaced by the unified EntityType system:
+
+| Removed Type       | Replaced By          | Notes                                  |
+| ------------------ | -------------------- | -------------------------------------- |
+| `CellType`         | `EntityType`         | role = BoardPosition                   |
+| `CellTypeId`       | `TypeId`             | No longer a separate alias             |
+| `CellTypeRegistry` | `EntityTypeRegistry` | Filter by role for role-specific views |
+| `CellData`         | `EntityData`         | Same structure, unified name           |
+| `ActiveCellType`   | `ActiveBoardType`    | Role-specific active selection         |
+| `UnitType`         | `EntityType`         | role = Token                           |
+| `UnitTypeId`       | `TypeId`             | No longer a separate alias             |
+| `UnitTypeRegistry` | `EntityTypeRegistry` | Filter by role for role-specific views |
+| `UnitData`         | `EntityData`         | Same structure, unified name           |
+| `ActiveUnitType`   | `ActiveTokenType`    | Role-specific active selection         |
+
 ## Consumers
 
-- game_system (owns the GameSystem resource, cell type registry, unit type registry, startup logic)
-- cell (reads CellTypeRegistry, CellType, CellData, ActiveCellType)
-- unit (reads UnitTypeRegistry, UnitType, UnitData, ActiveUnitType, SelectedUnit)
-- editor_ui (reads/writes GameSystem, CellTypeRegistry, UnitTypeRegistry, ActiveCellType,
-  ActiveUnitType, SelectedUnit, PropertyDefinition, PropertyValue)
+- game_system (owns the GameSystem resource, EntityTypeRegistry, startup logic)
+- cell (reads EntityTypeRegistry filtered by BoardPosition, EntityData)
+- unit (reads EntityTypeRegistry filtered by Token, EntityData, SelectedUnit)
+- ontology (reads EntityTypeRegistry for concept bindings and schema validation)
+- rules_engine (reads EntityTypeRegistry for constraint evaluation)
+- editor_ui (reads/writes GameSystem, EntityTypeRegistry, ActiveBoardType, ActiveTokenType,
+  SelectedUnit, PropertyDefinition, PropertyValue)
 
 ## Producers
 
-- game_system (inserts GameSystem, CellTypeRegistry, ActiveCellType, UnitTypeRegistry,
-  ActiveUnitType, SelectedUnit resources at startup)
+- game_system (inserts GameSystem, EntityTypeRegistry, ActiveBoardType, ActiveTokenType,
+  SelectedUnit resources at startup)
 
 ## Invariants
 
 - `GameSystem` is inserted during `Startup` and available for the lifetime of the app
-- `CellTypeRegistry` is inserted during `Startup`; may be empty or contain starter types
-- `ActiveCellType` is inserted during `Startup`; defaults to the first registered cell type (or None
-  if empty)
-- `CellData.cell_type_id` must reference a valid entry in `CellTypeRegistry` (or be handled
-  gracefully if the type was deleted)
-- `UnitTypeRegistry` is inserted during `Startup`; may be empty or contain starter types
-- `ActiveUnitType` is inserted during `Startup`; defaults to the first registered unit type (or None
-  if empty)
+- `EntityTypeRegistry` is inserted during `Startup`; may be empty or contain starter types
+- `ActiveBoardType` is inserted during `Startup`; defaults to the first BoardPosition type
+- `ActiveTokenType` is inserted during `Startup`; defaults to the first Token type
 - `SelectedUnit` is inserted during `Startup`; defaults to None
-- `UnitData.unit_type_id` must reference a valid entry in `UnitTypeRegistry` (or be handled
-  gracefully if the type was deleted)
+- `EntityData.entity_type_id` must reference a valid entry in `EntityTypeRegistry`
 - `PropertyValue` variant must match the corresponding `PropertyType` variant
 - `PropertyValue::Enum` value must be one of the options in the referenced `EnumDefinition`
 - `TypeId` values are globally unique (UUID-based)
-- Enum definitions are duplicated in both CellTypeRegistry and UnitTypeRegistry (future
-  consolidation planned)
+- `EntityTypeRegistry` contains all entity types regardless of role; use `types_by_role()` for
+  filtered views
 
 ## Changelog
 
-| Date       | Change                          | Reason                                                                                                      |
-| ---------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition              | M2 Game System container and property system                                                                |
-| 2026-02-09 | Renamed Vertex→Cell terminology | Cell is mathematically correct for N-dimensional grid elements; Vertex means hex corner in grid terminology |
-| 2026-02-09 | Added unit types section        | M3 — units on the hex grid                                                                                  |
+| Date       | Change                           | Reason                                                                                                      |
+| ---------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition               | M2 Game System container and property system                                                                |
+| 2026-02-09 | Renamed Vertex->Cell terminology | Cell is mathematically correct for N-dimensional grid elements; Vertex means hex corner in grid terminology |
+| 2026-02-09 | Added unit types section         | M3 — units on the hex grid                                                                                  |
+| 2026-02-11 | Unified EntityType               | M4 — replace CellType/UnitType with EntityType + EntityRole                                                 |

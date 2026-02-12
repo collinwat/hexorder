@@ -1,17 +1,19 @@
 # Hexorder Coordination
 
-## Active Milestone: M3 — "Things Live in the World"
+## Active Milestone: M4 — "Rules Shape the World"
 
 ## Active Features
 
-| Feature     | Owner | Status        | Dependencies                                                | Notes                                                                                    |
-| ----------- | ----- | ------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| hex_grid    | —     | complete (M1) | none                                                        | Unchanged for M3. Grid rendering, tile selection, hover feedback.                        |
-| camera      | —     | complete (M1) | none                                                        | Unchanged for M3. Orthographic top-down, pan + zoom.                                     |
-| game_system | —     | complete (M3) | none                                                        | M3: added UnitTypeRegistry, ActiveUnitType, SelectedUnit, 3 starter unit types.          |
-| cell        | —     | complete (M2) | hex_grid contract, game_system contract, editor_ui contract | Unchanged for M3. Cell painting + visual sync.                                           |
-| unit        | —     | complete (M3) | hex_grid contract, game_system contract, editor_ui contract | M3: Unit placement, movement, visual sync, deletion. 9 unit tests + 4 integration tests. |
-| editor_ui   | —     | complete (M3) | hex_grid contract, game_system contract                     | M3: Place tool, unit palette, unit type editor, unit inspector.                          |
+| Feature      | Owner | Status        | Dependencies                                                                     | Notes                                                                                      |
+| ------------ | ----- | ------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| hex_grid     | —     | speccing (M4) | validation contract                                                              | M4: move overlay rendering from ValidMoveSet.                                              |
+| camera       | —     | complete (M1) | none                                                                             | Unchanged for M4. Orthographic top-down, pan + zoom.                                       |
+| game_system  | —     | speccing (M4) | none                                                                             | M4: EntityType unification — replaces CellType/UnitType with EntityType + EntityRole.      |
+| cell         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract                      | M4: migrate to EntityTypeRegistry/EntityData.                                              |
+| unit         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract, validation contract | M4: migrate to EntityTypeRegistry/EntityData. Movement consults ValidMoveSet.              |
+| editor_ui    | —     | speccing (M4) | hex_grid contract, game_system contract, ontology contract, validation contract  | M4: unified entity editor, ontology panels (concepts, relations, constraints, validation). |
+| ontology     | —     | speccing (M4) | game_system contract                                                             | NEW M4: concepts, relations, constraints, auto-generation, schema validation trigger.      |
+| rules_engine | —     | speccing (M4) | game_system contract, ontology contract, hex_grid contract, validation contract  | NEW M4: constraint evaluation, ValidMoveSet computation, SchemaValidation production.      |
 
 Status values: `speccing` | `in-progress` | `testing` | `blocked` | `complete` | `retiring`
 
@@ -22,21 +24,22 @@ Declared in `main.rs`. Update this when adding a new plugin.
 1. DefaultPlugins (built-in)
 2. HexGridPlugin
 3. CameraPlugin
-4. GameSystemPlugin (must be before CellPlugin, UnitPlugin, and EditorUiPlugin)
-5. CellPlugin
-6. UnitPlugin
-7. EditorUiPlugin
+4. GameSystemPlugin (must be before CellPlugin, UnitPlugin, OntologyPlugin, and EditorUiPlugin)
+5. OntologyPlugin (NEW — must be after GameSystemPlugin, before RulesEnginePlugin)
+6. CellPlugin
+7. UnitPlugin
+8. RulesEnginePlugin (NEW — must be after OntologyPlugin, UnitPlugin)
+9. EditorUiPlugin (must be last — reads all resources)
 
 ## Pending Contract Changes
 
-| Contract    | Proposed By | Change Description                                                                                                                      | Affected Features | Status |
-| ----------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------ |
-| game_system | game_system | NEW — GameSystem, PropertyType, PropertyDefinition, PropertyValue, EnumDefinition, CellType, CellTypeRegistry, CellData, ActiveCellType | cell, editor_ui   | done   |
-| terrain     | M2          | RETIRED — TerrainType, Terrain, TerrainPalette, TerrainEntry, ActiveTerrain removed                                                     | —                 | done   |
-| editor_ui   | —           | Unchanged — EditorTool stays as-is                                                                                                      | cell              | done   |
-| hex_grid    | —           | Unchanged                                                                                                                               | cell, editor_ui   | done   |
-| game_system | M3          | ADD — UnitType, UnitTypeRegistry, UnitData, UnitInstance, ActiveUnitType, SelectedUnit, UnitPlacedEvent                                 | unit, editor_ui   | done   |
-| editor_ui   | M3          | EVOLVE — EditorTool gains Place variant                                                                                                 | unit, cell        | done   |
+| Contract    | Proposed By | Change Description                                                                                                                        | Affected Features                             | Status   |
+| ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- |
+| game_system | M4          | EVOLVE — EntityType, EntityRole, EntityTypeRegistry, EntityData replace CellType/UnitType systems. ActiveBoardType/ActiveTokenType added. | cell, unit, editor_ui, ontology, rules_engine | proposed |
+| ontology    | M4          | NEW — Concept, ConceptRole, ConceptBinding, Relation, Constraint, ConstraintExpr, registries                                              | rules_engine, editor_ui                       | proposed |
+| validation  | M4          | NEW — ValidMoveSet, SchemaValidation, SchemaError, ValidationResult                                                                       | hex_grid, unit, editor_ui                     | proposed |
+| hex_grid    | M4          | EXTEND — MoveOverlay, MoveOverlayState                                                                                                    | hex_grid                                      | proposed |
+| editor_ui   | M4          | UNCHANGED — EditorTool, PaintPreview stay as-is                                                                                           | cell, unit                                    | proposed |
 
 Status: `proposed` | `approved` | `implementing` | `done`
 
@@ -48,42 +51,72 @@ Status: `proposed` | `approved` | `implementing` | `done`
 - **Input separation**: Left-click for selection/painting, middle-click for camera pan, scroll for
   zoom. bevy_egui consumes input when mouse is over UI panels (via `egui_wants_any_pointer_input`
   run condition).
-- **Game System**: M2 introduces the Game System container (id + version). All design definitions
-  (cell types, future unit types) live inside the Game System.
-- **Property system**: Entity-agnostic. PropertyDefinition and PropertyValue are reused across cell
-  types (M2), unit types (M3), and any future entity types.
-- **Terminology**: Hex tiles on the board are "cells." Game entities on tiles are "units." Their
-  types and properties are defined by the Game System. "Terrain" terminology is retired. "Vertex"
-  terminology is retired (vertex refers to hex corners in grid geometry).
-- **Unit placement**: Units are separate entities from hex tiles. They share HexPosition for grid
-  location. Multiple units can occupy the same tile (no stacking rules in M3).
-- **Enum definition duplication**: Both CellTypeRegistry and UnitTypeRegistry have their own
-  enum_definitions. Flagged for future consolidation into a standalone resource.
-- **Serialization**: Not needed for M3; all state is ephemeral
-- **Editor tool mode**: `EditorTool` resource (owned by editor_ui) must be checked by cell before
-  painting.
+- **Game System**: The root design artifact. Holds all definitions (entity types, concepts,
+  relations, constraints). All design data lives inside the Game System.
+- **Property system**: Entity-agnostic. PropertyDefinition and PropertyValue are reused across all
+  entity types regardless of role.
+- **Terminology (M4)**: Entity types have a role (BoardPosition or Token). Hex tiles on the board
+  have EntityData with a BoardPosition-role type. Game pieces on tiles have EntityData with a
+  Token-role type plus UnitInstance marker. "Cell" and "unit" are informal shorthand for
+  BoardPosition and Token entities respectively. CellType/UnitType terminology is retired in M4
+  (unified as EntityType).
+- **Entity placement**: Token entities are separate from hex tile entities. They share HexPosition
+  for grid location. Multiple tokens can occupy the same tile.
+- **Enum definitions**: Consolidated into single EntityTypeRegistry (M4 resolves the M3 duplication
+  concern).
+- **Serialization**: Not needed for M4; all state is ephemeral.
+- **Editor tool mode**: `EditorTool` resource (owned by editor_ui) must be checked by cell and unit
+  before painting/placing.
 - **Module privacy enforcement**: Feature sub-modules are `mod` (private). Contract boundary
   violations are compile errors + enforced by `architecture_tests::feature_modules_are_private`.
+- **Ontology**: Concepts, relations, and constraints are designer-defined abstractions. No hardcoded
+  game terms — the tool understands only structural relationships, not domain semantics.
+- **Constraint evaluation**: The rules_engine evaluates constraints and produces ValidMoveSet. The
+  unit plugin checks ValidMoveSet before allowing moves. If no constraints exist, all moves are
+  valid (backward compatible with M3).
+- **Move overlays**: Separate lightweight entities above hex tiles, managed by hex_grid. Do not
+  modify tile materials or interfere with cell visual sync.
 
-## Feature Dependency Graph (M3)
+## Feature Dependency Graph (M4)
 
 ```
 game_system (contract) ──→ cell
 game_system (contract) ──→ unit
+game_system (contract) ──→ ontology
+game_system (contract) ──→ rules_engine
 game_system (contract) ──→ editor_ui
 hex_grid (contract)    ──→ cell
 hex_grid (contract)    ──→ unit
+hex_grid (contract)    ──→ rules_engine
 hex_grid (contract)    ──→ editor_ui
 editor_ui (contract)   ──→ cell
 editor_ui (contract)   ──→ unit
+ontology (contract)    ──→ rules_engine
+ontology (contract)    ──→ editor_ui
+validation (contract)  ──→ hex_grid
+validation (contract)  ──→ unit
+validation (contract)  ──→ editor_ui
 
 camera: independent
-hex_grid: independent (M1, unchanged)
-game_system: independent (provides registries)
+hex_grid: depends on validation contract (M4: move overlays)
+game_system: independent (provides EntityTypeRegistry)
+ontology: depends on game_system contract
 cell: depends on hex_grid + game_system + editor_ui contracts
-unit: depends on hex_grid + game_system + editor_ui contracts
-editor_ui: depends on hex_grid + game_system contracts
+unit: depends on hex_grid + game_system + editor_ui + validation contracts
+rules_engine: depends on game_system + ontology + hex_grid contracts
+editor_ui: depends on hex_grid + game_system + ontology + validation contracts
 ```
+
+## Implementation Phases (M4)
+
+M4 proceeds in three phases:
+
+1. **Phase 1 — Unify EntityType**: Migrate game_system, cell, unit, editor_ui to unified types. No
+   new behavior, all M3 tests updated and passing.
+2. **Phase 2 — Ontology Framework**: New ontology contract + OntologyPlugin. ConceptRegistry,
+   RelationRegistry, ConstraintRegistry. Schema validation. Editor UI panels.
+3. **Phase 3 — Rules Engine + Visual Rendering**: New validation contract + RulesEnginePlugin.
+   ValidMoveSet computation. Unit movement checks. Move overlay rendering.
 
 ## Merge Lock
 

@@ -311,11 +311,104 @@ discoverable enough — or the viewport may need better separation from the pane
 
 ---
 
-## Milestone 4 — "Rules Shape the World" (sketch)
+## Milestone 4 — "Rules Shape the World"
 
-Introduce constraints and rules. Movement costs based on terrain. Impassable terrain. Turn phases
-(move phase, action phase). The simulation enforces rules defined by the user. The user can see "why
-can't this unit move there?" feedback.
+**Goal**: Transform Hexorder from a placement tool into a game ontology editor. The designer defines
+entity types, concepts, relations, and constraints. The tool validates the design and renders
+entities according to the defined rules. No hardcoded game terms — everything is designer-defined.
+
+**Context**: M3 delivered unit placement and free movement with no rules. M4 introduces the
+conceptual framework that lets a game designer express _how_ their entities interact. The designer
+creates abstract concepts (e.g., "Motion"), binds entity types to concept roles, defines relations
+between those roles, and adds constraints. The tool validates the design for consistency and shows
+the implications visually (e.g., highlighting reachable hexes based on movement constraints).
+
+This milestone also unifies CellType and UnitType into a single EntityType with a designer-assigned
+role (BoardPosition or Token). This eliminates code duplication, simplifies the editor, and enables
+the relation system to work across all entity categories uniformly.
+
+### Terminology
+
+- **Entity type**: A designer-defined type (replaces CellType and UnitType). Classified by role.
+- **Entity role**: How a type participates in the world — BoardPosition (hex tile) or Token (game
+  piece).
+- **Property**: A named, typed field on an entity type (existing from M2).
+- **Attribute**: The value assigned to a property for a specific entity instance.
+- **Concept**: An abstract category that groups related behaviors across entity types (e.g.,
+  "Motion", "Defense"). Has named role slots that entity types can bind to.
+- **Relation**: How entity types interact through a concept — defines a trigger (enter, exit,
+  coexist) and an effect (modify a property, block movement).
+- **Constraint**: A validation rule that must hold for the game design to be consistent. Can be
+  auto-generated from relations or manually defined.
+- **Schema validation**: Checking whether the game system definition itself is internally consistent
+  (design-time).
+- **State validation**: Checking whether a board state satisfies all constraints (placement/movement
+  time).
+
+### What the user can do
+
+- Create entity types with a role (BoardPosition or Token) — unified editor replaces separate
+  cell/unit type editors
+- Create concepts with named role slots and bind entity types to them
+- Define relations between concept roles (trigger + effect)
+- Define constraints using a structured expression builder
+- See schema validation results — which parts of their game design are inconsistent and why
+- Select a unit and see which hexes it can reach based on the defined constraints
+- Attempt to move a unit and get feedback when the move is rejected and why
+- Inspect constraint details on hovered hexes (why is this blocked?)
+
+### Technical scope
+
+| Feature                | Plugin                   | Notes                                                                                                                                      |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| EntityType unification | `game_system` (refactor) | Replace CellType/UnitType with EntityType + EntityRole. Single EntityTypeRegistry. EntityData replaces CellData/UnitData.                  |
+| Concept system         | `ontology` (NEW)         | Concepts, ConceptRoles, ConceptBindings. Designer creates concepts and binds entity types to role slots with property mappings.            |
+| Relation system        | `ontology` (NEW)         | Relations between concept roles. Triggers: OnEnter, OnExit, WhilePresent. Effects: ModifyProperty (with operation), Block, Allow.          |
+| Constraint system      | `ontology` (NEW)         | Constraints with structured expressions. Auto-generated constraints from relations. ConceptRegistry, RelationRegistry, ConstraintRegistry. |
+| Schema validation      | `rules_engine` (NEW)     | Validates game system definition consistency. Reports errors with categories and human-readable explanations.                              |
+| State validation       | `rules_engine` (NEW)     | Evaluates constraints against board state. Computes valid moves via BFS. Produces ValidMoveSet resource.                                   |
+| Move overlay rendering | `hex_grid` (extend)      | Reads ValidMoveSet, renders green/red overlays on reachable/blocked hexes. Separate overlay entities above tiles.                          |
+| Unified entity editor  | `editor_ui` (refactor)   | Single type editor with role selector. Replaces separate cell/unit type editors.                                                           |
+| Ontology editor panels | `editor_ui` (extend)     | Tabbed layout: Types, Concepts, Relations, Constraints, Validation. Concept binding UI, relation editor, constraint expression builder.    |
+| Validation feedback    | `editor_ui` (extend)     | Schema error panel. Inspector shows constraint annotations. Rejection reasons on hover.                                                    |
+| Cell migration         | `cell` (refactor)        | Use EntityTypeRegistry (BoardPosition filter) and EntityData instead of CellTypeRegistry and CellData.                                     |
+| Unit migration         | `unit` (refactor)        | Use EntityTypeRegistry (Token filter) and EntityData instead of UnitTypeRegistry and UnitData. Movement consults ValidMoveSet.             |
+
+### Contracts needed
+
+- `game_system` (EVOLVE — EntityType, EntityRole, EntityTypeRegistry, EntityData, ActiveBoardType,
+  ActiveTokenType replace CellType/UnitType types)
+- `ontology` (NEW — Concept, ConceptRole, ConceptBinding, PropertyBinding, Relation,
+  RelationTrigger, RelationEffect, Constraint, ConstraintExpr, registries)
+- `validation` (NEW — ValidationResult, ValidMoveSet, SchemaValidation, SchemaError)
+- `hex_grid` (EXTEND — MoveOverlay, MoveOverlayState)
+- `editor_ui` (unchanged)
+
+### Out of scope for M4
+
+- Persistence / save / load (M5)
+- Turn phases / action phases (deferred — no actions exist yet)
+- Formula or computed properties
+- Multi-select or group operations
+- Taxonomy / type classification hierarchies
+- Undo/redo
+- Path visualization (optimal path highlighting — just valid/invalid for M4)
+
+### Success criteria
+
+- Entity types are unified: one editor, one registry, role-based filtering works
+- Designer can create at least one concept with two role slots
+- Designer can bind entity types to concept roles with property mappings
+- Designer can create a relation between concept roles
+- Designer can create constraints (at least PropertyCompare and PathBudget types)
+- Schema validation catches and reports at least: dangling references, role mismatches, missing
+  bindings
+- Selecting a unit shows reachable hexes as green overlays, blocked hexes as red
+- Moving to a blocked hex shows a rejection message explaining why
+- Auto-generated constraints appear when creating Subtract relations
+- All existing M3 functionality preserved (painting, placing, moving — now through unified types)
+- `cargo test` and `cargo clippy --all-targets` pass
+- Constitution audit passes (no contract boundary violations)
 
 ---
 

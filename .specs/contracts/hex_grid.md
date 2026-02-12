@@ -98,6 +98,29 @@ impl HexPosition {
 }
 ```
 
+### Move Overlays (M4)
+
+```rust
+/// The visual state of a move overlay on a hex tile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveOverlayState {
+    /// This hex is a valid destination. Rendered with a green tint.
+    Valid,
+    /// This hex is within range but blocked by a constraint. Rendered with a red tint.
+    Blocked,
+    /// No overlay.
+    None,
+}
+
+/// Component on overlay entities that float above hex tiles to indicate move validity.
+/// Managed by hex_grid: spawned when a unit is selected, despawned when deselected.
+#[derive(Component, Debug, Clone)]
+pub struct MoveOverlay {
+    pub state: MoveOverlayState,
+    pub position: HexPosition,
+}
+```
+
 ## Invariants
 
 - `HexPosition` coordinates are always valid axial coordinates
@@ -108,8 +131,9 @@ impl HexPosition {
 
 ## Changelog
 
-| Date       | Change                           | Reason                                                                    |
-| ---------- | -------------------------------- | ------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition               | Foundation for all hex-based features                                     |
-| 2026-02-08 | Added HexTile, SelectedHex       | Promoted from hex_grid internals to fix contract boundary violations      |
-| 2026-02-10 | Added TileBaseMaterial component | Needed so hover/selection ring overlays can coexist with cell type colors |
+| Date       | Change                              | Reason                                                                    |
+| ---------- | ----------------------------------- | ------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition                  | Foundation for all hex-based features                                     |
+| 2026-02-08 | Added HexTile, SelectedHex          | Promoted from hex_grid internals to fix contract boundary violations      |
+| 2026-02-10 | Added TileBaseMaterial component    | Needed so hover/selection ring overlays can coexist with cell type colors |
+| 2026-02-11 | Added MoveOverlay, MoveOverlayState | M4 — visual feedback for valid/blocked move destinations                  |
