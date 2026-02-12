@@ -9,14 +9,14 @@ commit-msg:
       run: |
         msg=$(cat "{1}")
         # Validate conventional commit format: type(scope): summary
-        if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|refactor|test|docs|chore|style)\((unit|cell|hex_grid|camera|game_system|editor_ui|contracts|project)\): .+$'; then
+        if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|refactor|test|docs|chore|style)\((unit|cell|hex_grid|camera|game_system|editor_ui|ontology|rules_engine|contracts|project)\): .+$'; then
           echo ""
           echo "ERROR: Commit message does not match required format."
           echo ""
           echo "  Expected: <type>(<scope>): <summary>"
           echo ""
           echo "  Types:  feat | fix | refactor | test | docs | chore | style"
-          echo "  Scopes: unit | cell | hex_grid | camera | game_system | editor_ui | contracts | project"
+          echo "  Scopes: unit | cell | hex_grid | camera | game_system | editor_ui | ontology | rules_engine | contracts | project"
           echo ""
           echo "  Rules:"
           echo "    - Imperative mood, lowercase, no trailing period"

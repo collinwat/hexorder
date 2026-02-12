@@ -8,7 +8,7 @@
 | ------------ | ----- | ------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | hex_grid     | —     | speccing (M4) | validation contract                                                              | M4: move overlay rendering from ValidMoveSet.                                              |
 | camera       | —     | complete (M1) | none                                                                             | Unchanged for M4. Orthographic top-down, pan + zoom.                                       |
-| game_system  | —     | speccing (M4) | none                                                                             | M4: EntityType unification — replaces CellType/UnitType with EntityType + EntityRole.      |
+| game_system  | agent | in-progress   | none                                                                             | M4: EntityType unification — replaces CellType/UnitType with EntityType + EntityRole.      |
 | cell         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract                      | M4: migrate to EntityTypeRegistry/EntityData.                                              |
 | unit         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract, validation contract | M4: migrate to EntityTypeRegistry/EntityData. Movement consults ValidMoveSet.              |
 | editor_ui    | —     | speccing (M4) | hex_grid contract, game_system contract, ontology contract, validation contract  | M4: unified entity editor, ontology panels (concepts, relations, constraints, validation). |
@@ -33,13 +33,13 @@ Declared in `main.rs`. Update this when adding a new plugin.
 
 ## Pending Contract Changes
 
-| Contract    | Proposed By | Change Description                                                                                                                        | Affected Features                             | Status   |
-| ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- |
-| game_system | M4          | EVOLVE — EntityType, EntityRole, EntityTypeRegistry, EntityData replace CellType/UnitType systems. ActiveBoardType/ActiveTokenType added. | cell, unit, editor_ui, ontology, rules_engine | proposed |
-| ontology    | M4          | NEW — Concept, ConceptRole, ConceptBinding, Relation, Constraint, ConstraintExpr, registries                                              | rules_engine, editor_ui                       | proposed |
-| validation  | M4          | NEW — ValidMoveSet, SchemaValidation, SchemaError, ValidationResult                                                                       | hex_grid, unit, editor_ui                     | proposed |
-| hex_grid    | M4          | EXTEND — MoveOverlay, MoveOverlayState                                                                                                    | hex_grid                                      | proposed |
-| editor_ui   | M4          | UNCHANGED — EditorTool, PaintPreview stay as-is                                                                                           | cell, unit                                    | proposed |
+| Contract    | Proposed By | Change Description                                                                                                                        | Affected Features                             | Status       |
+| ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------ |
+| game_system | M4          | EVOLVE — EntityType, EntityRole, EntityTypeRegistry, EntityData replace CellType/UnitType systems. ActiveBoardType/ActiveTokenType added. | cell, unit, editor_ui, ontology, rules_engine | implementing |
+| ontology    | M4          | NEW — Concept, ConceptRole, ConceptBinding, Relation, Constraint, ConstraintExpr, registries                                              | rules_engine, editor_ui                       | proposed     |
+| validation  | M4          | NEW — ValidMoveSet, SchemaValidation, SchemaError, ValidationResult                                                                       | hex_grid, unit, editor_ui                     | proposed     |
+| hex_grid    | M4          | EXTEND — MoveOverlay, MoveOverlayState                                                                                                    | hex_grid                                      | proposed     |
+| editor_ui   | M4          | UNCHANGED — EditorTool, PaintPreview stay as-is                                                                                           | cell, unit                                    | proposed     |
 
 Status: `proposed` | `approved` | `implementing` | `done`
 
