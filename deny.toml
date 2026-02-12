@@ -18,7 +18,7 @@ allow = [
   "Zlib",
   "0BSD",
   "Unicode-3.0",
-  "Unicode-DFS-2016",
+
   "CC0-1.0",
   "MIT-0",
   "OFL-1.1",
@@ -28,8 +28,24 @@ confidence-threshold = 0.8
 exceptions = [ { allow = [ "LicenseRef-Proprietary" ], crate = "hexorder" } ]
 
 [bans]
-multiple-versions = "warn"
+multiple-versions = "deny"
 wildcards = "allow"
+# Bevy transitive dependency version splits — we cannot control these
+skip = [
+  "bitflags",
+  "block2",
+  "core-foundation",
+  "core-graphics-types",
+  "foldhash",
+  "hashbrown",
+  "itertools",
+  "objc2",
+  "objc2-app-kit",
+  "objc2-foundation",
+  "read-fonts",
+  "rustc-hash",
+  "skrifa",
+]
 
 [sources]
 unknown-registry = "deny"
