@@ -31,9 +31,13 @@ run = "prettier --write '**/*.md'"
 description = "Fix typos in source code"
 run = "typos -w"
 
+[tasks."fix:clippy"]
+description = "Apply machine-fixable clippy suggestions"
+run = "cargo clippy --fix --all-targets --allow-dirty --allow-staged"
+
 [tasks.fix]
 description = "Run all fixers"
-depends = [ "fix:fmt", "fix:taplo", "fix:prettier", "fix:typos" ]
+depends = [ "fix:fmt", "fix:clippy", "fix:taplo", "fix:prettier", "fix:typos" ]
 
 # --- Check tasks (lint / verify) ---
 
