@@ -136,4 +136,4 @@ Primary target: **macOS**. Additional platforms will be added later.
 
 ## License
 
-TBD
+Proprietary. All rights reserved.

@@ -2,6 +2,7 @@
 name = "hexorder"
 version = "0.3.0"
 edition = "2024"
+license = "LicenseRef-Proprietary"
 publish = false
 
 [features]
