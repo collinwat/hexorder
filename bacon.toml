@@ -1,21 +1,15 @@
 default_job = "check"
 
 [jobs.check]
-command = ["cargo", "check", "--color", "always"]
+command = [ "cargo", "check", "--color", "always" ]
 
 [jobs.clippy]
-command = [
-  "cargo",
-  "clippy",
-  "--all-targets",
-  "--color",
-  "always",
-]
+command = [ "cargo", "clippy", "--all-targets", "--color", "always" ]
 
 [jobs.test]
-command = ["cargo", "test", "--color", "always"]
+command = [ "cargo", "test", "--color", "always" ]
 
 [jobs.run]
-command = ["cargo", "run", "--features", "dev", "--color", "always"]
+command = [ "cargo", "run", "--features", "dev", "--color", "always" ]
 allow_warnings = true
 need_stdout = true

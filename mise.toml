@@ -33,7 +33,7 @@ run = "typos -w"
 
 [tasks.fix]
 description = "Run all fixers"
-depends = ["fix:fmt", "fix:taplo", "fix:prettier", "fix:typos"]
+depends = [ "fix:fmt", "fix:taplo", "fix:prettier", "fix:typos" ]
 
 # --- Check tasks (lint / verify) ---
 
@@ -100,7 +100,7 @@ depends = [
 
 [tasks."check:audit"]
 description = "Full constitution audit (all automated checks)"
-depends = ["check"]
+depends = [ "check" ]
 
 # --- Workflow tasks ---
 
