@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.4.0-entity-unification"
+version = "0.4.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
