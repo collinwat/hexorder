@@ -352,7 +352,8 @@ Every merge to `main` must pass all of these in order:
 7. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
    `0.4.0`).
-8. **Merge.** From `main`: `git merge <branch>`.
+8. **Merge.** From `main`: `git merge --ff-only <branch>`. The `--ff-only` flag ensures a
+   fast-forward (linear history). If it fails, the branch is not rebased — go back to step 5.
 9. **Generate changelog.** Run `mise changelog:generate`. Review the generated output to confirm
    it's accurate. Make manual edits only if a commit message was unclear.
 10. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
