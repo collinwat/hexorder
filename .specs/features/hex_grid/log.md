@@ -1,6 +1,6 @@
 # Feature Log: hex_grid
 
-## Status: complete
+## Status: complete (M4)
 
 ## Decision Log
 
@@ -154,6 +154,12 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 - `cargo clippy -- -D warnings` -- passes (0 warnings)
 - `cargo test` -- 71/71 tests pass
 
+### 2026-02-11 — All 90 tests passing (M4 complete)
+
+- `cargo build` -- passes
+- `cargo clippy -- -D warnings` -- passes (0 warnings)
+- `cargo test` -- 90/90 tests pass (19 hex_grid tests including 4 new overlay tests)
+
 ## Blockers
 
 | Blocker                                           | Waiting On           | Raised     | Resolved                         |
@@ -162,8 +168,9 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                |
-| ---------- | -------- | ---------------------------------------------------- |
-| 2026-02-08 | speccing | Initial spec created                                 |
-| 2026-02-08 | complete | Implementation done, all tests passing, clippy clean |
-| 2026-02-10 | complete | Post-M3 polish: ring overlays, deselect, mesh fixes  |
+| Date       | Status   | Notes                                                                 |
+| ---------- | -------- | --------------------------------------------------------------------- |
+| 2026-02-08 | speccing | Initial spec created                                                  |
+| 2026-02-08 | complete | Implementation done, all tests passing, clippy clean                  |
+| 2026-02-10 | complete | Post-M3 polish: ring overlays, deselect, mesh fixes                   |
+| 2026-02-11 | complete | M4: move overlays (sync_move_overlays), OverlayMaterials, 4 new tests |

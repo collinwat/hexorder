@@ -1,6 +1,6 @@
 # Feature Log: unit
 
-## Status: complete
+## Status: complete (M4)
 
 ## Decision Log
 
@@ -52,8 +52,9 @@ but breaking change).
 
 ## Status Updates
 
-| Date       | Status      | Notes                                                                  |
-| ---------- | ----------- | ---------------------------------------------------------------------- |
-| 2026-02-09 | speccing    | Initial spec created from M3 plan                                      |
-| 2026-02-09 | in-progress | Implementation started: contracts, game_system, unit plugin, editor UI |
-| 2026-02-09 | complete    | All 13 success criteria met. 71 tests, clippy clean, audit clean.      |
+| Date       | Status      | Notes                                                                                     |
+| ---------- | ----------- | ----------------------------------------------------------------------------------------- |
+| 2026-02-09 | speccing    | Initial spec created from M3 plan                                                         |
+| 2026-02-09 | in-progress | Implementation started: contracts, game_system, unit plugin, editor UI                    |
+| 2026-02-09 | complete    | All 13 success criteria met. 71 tests, clippy clean, audit clean.                         |
+| 2026-02-11 | complete    | M4: migrated to EntityData, handle_unit_interaction consults ValidMoveSet. 10 unit tests. |
