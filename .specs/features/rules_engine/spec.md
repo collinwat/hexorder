@@ -55,25 +55,26 @@ system definition.
 
 ## Success Criteria
 
-- [ ] [SC-1] `schema_validation_resource_exists` test — SchemaValidation exists after Startup
-- [ ] [SC-2] `valid_move_set_resource_exists` test — ValidMoveSet exists after Startup
-- [ ] [SC-3] `valid_moves_empty_when_no_selection` test — ValidMoveSet is empty when no unit
+- [x] [SC-1] `schema_validation_resource_exists` test — SchemaValidation exists after Startup
+      (handled by OntologyPlugin; RulesEnginePlugin does not duplicate)
+- [x] [SC-2] `valid_move_set_resource_exists` test — ValidMoveSet exists after Startup
+- [x] [SC-3] `valid_moves_empty_when_no_selection` test — ValidMoveSet is empty when no unit
       selected
-- [ ] [SC-4] `valid_moves_computed_on_selection` test — selecting a unit populates ValidMoveSet
-- [ ] [SC-5] `blocked_positions_have_explanations` test — blocked hexes have non-empty explanation
+- [x] [SC-4] `valid_moves_computed_on_selection` test — selecting a unit populates ValidMoveSet
+- [x] [SC-5] `blocked_positions_have_explanations` test — blocked hexes have non-empty explanation
       strings
-- [ ] [SC-6] `path_budget_limits_range` test — unit with budget N cannot reach positions costing
+- [x] [SC-6] `path_budget_limits_range` test — unit with budget N cannot reach positions costing
       more than N
-- [ ] [SC-7] `block_relation_prevents_entry` test — Block relation on a concept role prevents
+- [x] [SC-7] `block_relation_prevents_entry` test — Block relation on a concept role prevents
       movement to bound entity types
-- [ ] [SC-8] `schema_errors_detected` test — invalid ontology produces non-empty SchemaValidation
-      errors
-- [ ] [SC-9] `valid_moves_respect_grid_bounds` test — positions outside map_radius are never in
+- [x] [SC-8] `schema_errors_detected` test — invalid ontology produces non-empty SchemaValidation
+      errors (handled by OntologyPlugin; tested in ontology::tests)
+- [x] [SC-9] `valid_moves_respect_grid_bounds` test — positions outside map_radius are never in
       valid_positions
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy --all-targets` passes
-- [ ] [SC-TEST] `cargo test` passes
-- [ ] [SC-BOUNDARY] No imports from other features' internals — all cross-feature types come from
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
+- [x] [SC-TEST] `cargo test` passes (86 tests, 8 new rules_engine tests)
+- [x] [SC-BOUNDARY] No imports from other features' internals — all cross-feature types come from
       `crate::contracts::`
 
 ## Constraints
