@@ -6,8 +6,8 @@ use bevy::prelude::*;
 
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
-    ActiveUnitType, PropertyValue, SelectedUnit, UnitData, UnitInstance, UnitPlacedEvent,
-    UnitTypeRegistry,
+    ActiveTokenType, EntityData, EntityRole, EntityTypeRegistry, PropertyValue, SelectedUnit,
+    UnitInstance, UnitPlacedEvent,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexMoveEvent, HexPosition, HexSelectedEvent};
 
@@ -20,20 +20,20 @@ const UNIT_Y_OFFSET: f32 = 0.25;
 // Startup
 // ---------------------------------------------------------------------------
 
-/// Creates materials for all registered unit types and a shared cylinder mesh.
+/// Creates materials for all registered Token entity types and a shared cylinder mesh.
 pub fn setup_unit_visuals(
     mut commands: Commands,
-    registry: Res<UnitTypeRegistry>,
+    registry: Res<EntityTypeRegistry>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let mut unit_materials = HashMap::new();
-    for ut in &registry.types {
+    for et in registry.types_by_role(EntityRole::Token) {
         let handle = materials.add(StandardMaterial {
-            base_color: ut.color,
+            base_color: et.color,
             ..default()
         });
-        unit_materials.insert(ut.id, handle);
+        unit_materials.insert(et.id, handle);
     }
     commands.insert_resource(UnitMaterials {
         materials: unit_materials,
@@ -54,8 +54,8 @@ pub fn setup_unit_visuals(
 pub fn handle_unit_placement(
     trigger: On<HexSelectedEvent>,
     tool: Res<EditorTool>,
-    active_unit: Res<ActiveUnitType>,
-    registry: Res<UnitTypeRegistry>,
+    active_unit: Res<ActiveTokenType>,
+    registry: Res<EntityTypeRegistry>,
     config: Res<HexGridConfig>,
     unit_materials: Res<UnitMaterials>,
     unit_mesh: Res<UnitMesh>,
@@ -65,11 +65,11 @@ pub fn handle_unit_placement(
         return;
     }
 
-    let Some(active_id) = active_unit.unit_type_id else {
+    let Some(active_id) = active_unit.entity_type_id else {
         return;
     };
 
-    let Some(unit_type) = registry.get(active_id) else {
+    let Some(entity_type) = registry.get(active_id) else {
         return;
     };
 
@@ -85,8 +85,8 @@ pub fn handle_unit_placement(
     // Compute world position from hex coordinates.
     let world_pos = config.layout.hex_to_world_pos(hex);
 
-    // Build default properties for this unit type.
-    let default_properties: HashMap<_, _> = unit_type
+    // Build default properties for this entity type.
+    let default_properties: HashMap<_, _> = entity_type
         .properties
         .iter()
         .map(|pd| (pd.id, PropertyValue::default_for(&pd.property_type)))
@@ -101,8 +101,8 @@ pub fn handle_unit_placement(
         .spawn((
             UnitInstance,
             HexPosition::new(pos.q, pos.r),
-            UnitData {
-                unit_type_id: active_id,
+            EntityData {
+                entity_type_id: active_id,
                 properties: default_properties,
             },
             Mesh3d(unit_mesh.handle.clone()),
@@ -114,7 +114,7 @@ pub fn handle_unit_placement(
     commands.trigger(UnitPlacedEvent {
         entity,
         position: pos,
-        unit_type_id: active_id,
+        entity_type_id: active_id,
     });
 }
 
@@ -185,13 +185,7 @@ pub fn handle_unit_interaction(
 // Update systems
 // ---------------------------------------------------------------------------
 
-/// Deletes the selected unit when the editor UI sets
-/// `SelectedUnit.entity` to a special "delete requested" signal.
-///
-/// The editor UI sets a `DeleteUnitRequested` resource flag; this system
-/// checks it and despawns the entity.
 /// Clears the `SelectedUnit` resource if the selected entity no longer exists.
-/// Actual unit deletion is performed by the `editor_ui` via `commands.entity().despawn()`.
 pub fn delete_selected_unit(
     mut selected_unit: ResMut<SelectedUnit>,
     units: Query<Entity, With<UnitInstance>>,
@@ -203,9 +197,9 @@ pub fn delete_selected_unit(
     }
 }
 
-/// Updates material colors when the `UnitTypeRegistry` changes.
+/// Updates material colors when the `EntityTypeRegistry` changes.
 pub fn sync_unit_materials(
-    registry: Res<UnitTypeRegistry>,
+    registry: Res<EntityTypeRegistry>,
     mut unit_materials: ResMut<UnitMaterials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -213,37 +207,39 @@ pub fn sync_unit_materials(
         return;
     }
 
-    for ut in &registry.types {
-        if let Some(handle) = unit_materials.materials.get(&ut.id) {
+    let token_types = registry.types_by_role(EntityRole::Token);
+
+    for et in &token_types {
+        if let Some(handle) = unit_materials.materials.get(&et.id) {
             if let Some(mat) = materials.get_mut(handle) {
-                mat.base_color = ut.color;
+                mat.base_color = et.color;
             }
         } else {
             let handle = materials.add(StandardMaterial {
-                base_color: ut.color,
+                base_color: et.color,
                 ..default()
             });
-            unit_materials.materials.insert(ut.id, handle);
+            unit_materials.materials.insert(et.id, handle);
         }
     }
 
-    let valid_ids: HashSet<_> = registry.types.iter().map(|ut| ut.id).collect();
+    let valid_ids: HashSet<_> = token_types.iter().map(|et| et.id).collect();
     unit_materials
         .materials
         .retain(|id, _| valid_ids.contains(id));
 }
 
-/// Syncs unit material when `UnitData` changes (change detection).
+/// Syncs unit material when `EntityData` changes (change detection).
 #[allow(clippy::type_complexity)]
 pub fn sync_unit_visuals(
     unit_materials: Res<UnitMaterials>,
     mut units: Query<
-        (&UnitData, &mut MeshMaterial3d<StandardMaterial>),
-        (With<UnitInstance>, Changed<UnitData>),
+        (&EntityData, &mut MeshMaterial3d<StandardMaterial>),
+        (With<UnitInstance>, Changed<EntityData>),
     >,
 ) {
-    for (unit_data, mut material) in &mut units {
-        if let Some(handle) = unit_materials.get(unit_data.unit_type_id) {
+    for (entity_data, mut material) in &mut units {
+        if let Some(handle) = unit_materials.get(entity_data.entity_type_id) {
             material.0 = handle.clone();
         }
     }

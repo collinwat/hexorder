@@ -4,16 +4,16 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::UnitTypeId;
+use crate::contracts::game_system::TypeId;
 
-/// Pre-created material handles for each unit type, keyed by `UnitTypeId`.
+/// Pre-created material handles for each Token entity type, keyed by `TypeId`.
 #[derive(Resource, Debug)]
 pub struct UnitMaterials {
-    pub materials: HashMap<UnitTypeId, Handle<StandardMaterial>>,
+    pub materials: HashMap<TypeId, Handle<StandardMaterial>>,
 }
 
 impl UnitMaterials {
-    pub fn get(&self, id: UnitTypeId) -> Option<&Handle<StandardMaterial>> {
+    pub fn get(&self, id: TypeId) -> Option<&Handle<StandardMaterial>> {
         self.materials.get(&id)
     }
 }

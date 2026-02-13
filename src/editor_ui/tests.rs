@@ -32,18 +32,12 @@ fn editor_tool_resource_inserts_correctly() {
 #[test]
 fn editor_state_defaults() {
     let state = EditorState::default();
-    // Cell fields
     assert!(state.new_type_name.is_empty());
     assert_eq!(state.new_type_color, [0.5, 0.5, 0.5]);
+    assert_eq!(state.new_type_role_index, 0);
     assert!(state.new_prop_name.is_empty());
     assert_eq!(state.new_prop_type_index, 0);
     assert!(state.new_enum_options.is_empty());
-    // Unit fields
-    assert!(state.new_unit_type_name.is_empty());
-    assert_eq!(state.new_unit_type_color, [0.5, 0.5, 0.5]);
-    assert!(state.new_unit_prop_name.is_empty());
-    assert_eq!(state.new_unit_prop_type_index, 0);
-    assert!(state.new_unit_enum_options.is_empty());
 }
 
 #[test]

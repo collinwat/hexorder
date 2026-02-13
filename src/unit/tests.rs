@@ -6,7 +6,8 @@ use bevy::prelude::*;
 
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
-    ActiveUnitType, SelectedUnit, TypeId, UnitData, UnitInstance, UnitType, UnitTypeRegistry,
+    ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry, SelectedUnit, TypeId,
+    UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexSelectedEvent};
 
@@ -22,19 +23,21 @@ fn test_app() -> App {
     app
 }
 
-/// Helper: create a test unit type registry with 2 types.
-fn test_registry() -> UnitTypeRegistry {
-    UnitTypeRegistry {
+/// Helper: create a test entity type registry with 2 Token types.
+fn test_registry() -> EntityTypeRegistry {
+    EntityTypeRegistry {
         types: vec![
-            UnitType {
+            EntityType {
                 id: TypeId::new(),
                 name: "Infantry".to_string(),
+                role: EntityRole::Token,
                 color: Color::srgb(0.2, 0.4, 0.7),
                 properties: Vec::new(),
             },
-            UnitType {
+            EntityType {
                 id: TypeId::new(),
                 name: "Cavalry".to_string(),
+                role: EntityRole::Token,
                 color: Color::srgb(0.7, 0.3, 0.2),
                 properties: Vec::new(),
             },
@@ -74,18 +77,19 @@ fn unit_materials_created_for_all_types() {
         .get_resource::<UnitMaterials>()
         .expect("UnitMaterials should exist after Startup");
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let token_types = registry.types_by_role(EntityRole::Token);
     assert_eq!(
         unit_mats.materials.len(),
-        registry.types.len(),
-        "Should have a material for each unit type"
+        token_types.len(),
+        "Should have a material for each Token entity type"
     );
 
-    for ut in &registry.types {
+    for et in &token_types {
         assert!(
-            unit_mats.get(ut.id).is_some(),
-            "Material should exist for unit type '{}'",
-            ut.name
+            unit_mats.get(et.id).is_some(),
+            "Material should exist for entity type '{}'",
+            et.name
         );
     }
 }
@@ -108,12 +112,12 @@ fn place_unit_creates_entity() {
     setup_unit_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     app.world_mut().insert_resource(EditorTool::Place);
-    app.world_mut().insert_resource(ActiveUnitType {
-        unit_type_id: Some(first_id),
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
     });
 
     app.add_observer(systems::handle_unit_placement);
@@ -125,13 +129,13 @@ fn place_unit_creates_entity() {
 
     let mut query = app
         .world_mut()
-        .query_filtered::<(Entity, &HexPosition, &UnitData), With<UnitInstance>>();
+        .query_filtered::<(Entity, &HexPosition, &EntityData), With<UnitInstance>>();
     let units: Vec<_> = query.iter(app.world()).collect();
 
     assert_eq!(units.len(), 1, "Should have spawned one unit");
     let (_, pos, data) = units[0];
     assert_eq!(*pos, HexPosition::new(0, 0));
-    assert_eq!(data.unit_type_id, first_id);
+    assert_eq!(data.entity_type_id, first_id);
 }
 
 #[test]
@@ -140,12 +144,12 @@ fn place_unit_skipped_in_select_mode() {
     setup_unit_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     app.world_mut().insert_resource(EditorTool::Select);
-    app.world_mut().insert_resource(ActiveUnitType {
-        unit_type_id: Some(first_id),
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
     });
 
     app.add_observer(systems::handle_unit_placement);
@@ -173,16 +177,16 @@ fn select_unit_sets_selected() {
     app.world_mut().insert_resource(SelectedUnit::default());
 
     // Manually spawn a unit at (1, 1).
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     let unit_entity = app
         .world_mut()
         .spawn((
             UnitInstance,
             HexPosition::new(1, 1),
-            UnitData {
-                unit_type_id: first_id,
+            EntityData {
+                entity_type_id: first_id,
                 properties: HashMap::new(),
             },
             Transform::default(),
@@ -212,16 +216,16 @@ fn move_unit_updates_position() {
 
     app.world_mut().insert_resource(EditorTool::Select);
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     let unit_entity = app
         .world_mut()
         .spawn((
             UnitInstance,
             HexPosition::new(0, 0),
-            UnitData {
-                unit_type_id: first_id,
+            EntityData {
+                entity_type_id: first_id,
                 properties: HashMap::new(),
             },
             Transform::default(),
@@ -267,16 +271,16 @@ fn move_unit_respects_grid_bounds() {
 
     app.world_mut().insert_resource(EditorTool::Select);
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     let unit_entity = app
         .world_mut()
         .spawn((
             UnitInstance,
             HexPosition::new(0, 0),
-            UnitData {
-                unit_type_id: first_id,
+            EntityData {
+                entity_type_id: first_id,
                 properties: HashMap::new(),
             },
             Transform::default(),
@@ -313,8 +317,8 @@ fn sync_unit_visuals_updates_material() {
     setup_unit_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<UnitTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
 
     let dummy_material = app
         .world_mut()
@@ -325,8 +329,8 @@ fn sync_unit_visuals_updates_material() {
         .world_mut()
         .spawn((
             UnitInstance,
-            UnitData {
-                unit_type_id: first_id,
+            EntityData {
+                entity_type_id: first_id,
                 properties: HashMap::new(),
             },
             MeshMaterial3d(dummy_material),
@@ -340,7 +344,7 @@ fn sync_unit_visuals_updates_material() {
         let unit_mats = app.world().resource::<UnitMaterials>();
         unit_mats
             .get(first_id)
-            .expect("Material should exist for first unit type")
+            .expect("Material should exist for first entity type")
             .clone()
     };
 
@@ -352,7 +356,7 @@ fn sync_unit_visuals_updates_material() {
 
     assert_eq!(
         unit_material.0, expected_handle,
-        "Unit material should match the unit type material"
+        "Unit material should match the entity type material"
     );
 }
 
@@ -365,14 +369,15 @@ fn sync_unit_materials_adds_new_type() {
     let initial_count = app.world().resource::<UnitMaterials>().materials.len();
     assert_eq!(initial_count, 2);
 
-    // Add a new unit type to the registry.
+    // Add a new Token entity type to the registry.
     let new_id = TypeId::new();
     app.world_mut()
-        .resource_mut::<UnitTypeRegistry>()
+        .resource_mut::<EntityTypeRegistry>()
         .types
-        .push(UnitType {
+        .push(EntityType {
             id: new_id,
             name: "Artillery".to_string(),
+            role: EntityRole::Token,
             color: Color::srgb(0.6, 0.6, 0.2),
             properties: Vec::new(),
         });

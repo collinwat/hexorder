@@ -1,8 +1,8 @@
 //! Shared Game System types. See `.specs/contracts/game_system.md`.
 //!
 //! Contains the Game System container, the entity-agnostic property system,
-//! and cell type definitions. Cell types are Game System definitions
-//! and live here rather than in a separate contract.
+//! and the unified entity type system. M4 replaces separate `CellType`/`UnitType`
+//! with `EntityType` + `EntityRole`.
 
 use std::collections::HashMap;
 
@@ -13,9 +13,10 @@ use uuid::Uuid;
 // Identity
 // ---------------------------------------------------------------------------
 
-/// Unique identifier for types within the Game System (cell types,
-/// enum definitions, property definitions, etc.). Uses UUID v4 for
-/// stability across future serialization.
+/// Unique identifier for types within the Game System (entity types,
+/// enum definitions, property definitions, concepts, relations,
+/// constraints, etc.). Uses UUID v4 for stability across future
+/// serialization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub Uuid);
 
@@ -36,9 +37,8 @@ impl Default for TypeId {
 // Game System Container
 // ---------------------------------------------------------------------------
 
-/// The root design artifact. All definitions (cell types, property schemas,
-/// enum definitions, and in future milestones unit types and rules) belong to
-/// a Game System.
+/// The root design artifact. All definitions (entity types, property schemas,
+/// enum definitions, concepts, relations, constraints) belong to a Game System.
 #[derive(Resource, Debug)]
 pub struct GameSystem {
     /// Unique identifier for this game system.
@@ -92,8 +92,7 @@ impl PropertyValue {
 }
 
 /// A property schema entry defining a named, typed property with a default value.
-/// Property definitions are reusable across entity types (cell types, future
-/// unit types, etc.).
+/// Property definitions are reusable across entity types regardless of role.
 #[derive(Debug, Clone)]
 pub struct PropertyDefinition {
     pub id: TypeId,
@@ -112,33 +111,43 @@ pub struct EnumDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// Cell Types (Game System definitions for board positions)
+// Entity Types (M4 — unified, replaces CellType and UnitType)
 // ---------------------------------------------------------------------------
 
-/// Alias for clarity — cell types are identified by the same `TypeId`.
-pub type CellTypeId = TypeId;
+/// The role an entity type plays in the game system.
+/// Determines how instances interact with the grid and other entities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EntityRole {
+    /// Occupies a hex position on the board (replaces `CellType`).
+    /// Each hex tile has exactly one `BoardPosition` entity type.
+    BoardPosition,
+    /// A movable game piece placed on hex tiles (replaces `UnitType`).
+    /// Multiple tokens may occupy the same hex position.
+    Token,
+}
 
-/// A cell type definition: describes what a board position can be.
-/// Defined by the user within a Game System.
+/// A unified entity type definition. Replaces both `CellType` and `UnitType`.
+/// The designer classifies each type by role.
 #[derive(Debug, Clone)]
-pub struct CellType {
-    pub id: CellTypeId,
+pub struct EntityType {
+    pub id: TypeId,
     pub name: String,
+    pub role: EntityRole,
     pub color: bevy::color::Color,
     pub properties: Vec<PropertyDefinition>,
 }
 
-/// Registry of all defined cell types and enum definitions in the
-/// current Game System. This is a resource managed by the `game_system` plugin.
+/// Unified registry of all entity types and enum definitions.
+/// Replaces `CellTypeRegistry` and `UnitTypeRegistry`.
 #[derive(Resource, Debug, Default)]
-pub struct CellTypeRegistry {
-    pub types: Vec<CellType>,
+pub struct EntityTypeRegistry {
+    pub types: Vec<EntityType>,
     pub enum_definitions: Vec<EnumDefinition>,
 }
 
-impl CellTypeRegistry {
-    /// Look up a cell type by its ID.
-    pub fn get(&self, id: CellTypeId) -> Option<&CellType> {
+impl EntityTypeRegistry {
+    /// Look up an entity type by its ID.
+    pub fn get(&self, id: TypeId) -> Option<&EntityType> {
         self.types.iter().find(|t| t.id == id)
     }
 
@@ -147,90 +156,44 @@ impl CellTypeRegistry {
         self.enum_definitions.iter().find(|e| e.id == id)
     }
 
-    /// Returns the first registered cell type, if any.
-    pub fn first(&self) -> Option<&CellType> {
-        self.types.first()
+    /// Returns all entity types with the given role.
+    pub fn types_by_role(&self, role: EntityRole) -> Vec<&EntityType> {
+        self.types.iter().filter(|t| t.role == role).collect()
+    }
+
+    /// Returns the first entity type with the given role, if any.
+    pub fn first_by_role(&self, role: EntityRole) -> Option<&EntityType> {
+        self.types.iter().find(|t| t.role == role)
     }
 }
 
-/// Component attached to hex tile entities. Stores which cell type this
-/// tile is and its per-instance property values.
+/// Component attached to any entity on the hex grid (tiles and tokens).
+/// Stores the entity type and per-instance property values.
+/// Replaces both `CellData` and `UnitData`.
 #[derive(Component, Debug, Clone)]
-pub struct CellData {
-    pub cell_type_id: CellTypeId,
+pub struct EntityData {
+    pub entity_type_id: TypeId,
     /// Per-instance property values, keyed by `PropertyDefinition` ID.
-    /// Painted tiles get default values from the cell type; users can
+    /// Entities get default values from their type; users can
     /// override individual values via the inspector.
     pub properties: HashMap<TypeId, PropertyValue>,
 }
 
-/// Tracks which cell type the user is currently painting with.
-#[derive(Resource, Debug, Default)]
-pub struct ActiveCellType {
-    pub cell_type_id: Option<CellTypeId>,
-}
-
-// ---------------------------------------------------------------------------
-// Unit Types (Game System definitions for entities on the board)
-// ---------------------------------------------------------------------------
-
-/// Alias for clarity — unit types are identified by the same `TypeId`.
-pub type UnitTypeId = TypeId;
-
-/// A unit type definition: describes what a game entity on the board can be.
-/// Defined by the user within a Game System.
-#[derive(Debug, Clone)]
-pub struct UnitType {
-    pub id: UnitTypeId,
-    pub name: String,
-    pub color: bevy::color::Color,
-    pub properties: Vec<PropertyDefinition>,
-}
-
-/// Registry of all defined unit types and their enum definitions in the
-/// current Game System. This is a resource managed by the `game_system` plugin.
-#[derive(Resource, Debug, Default)]
-pub struct UnitTypeRegistry {
-    pub types: Vec<UnitType>,
-    pub enum_definitions: Vec<EnumDefinition>,
-}
-
-impl UnitTypeRegistry {
-    /// Look up a unit type by its ID.
-    pub fn get(&self, id: UnitTypeId) -> Option<&UnitType> {
-        self.types.iter().find(|t| t.id == id)
-    }
-
-    /// Look up an enum definition by its ID.
-    pub fn get_enum(&self, id: TypeId) -> Option<&EnumDefinition> {
-        self.enum_definitions.iter().find(|e| e.id == id)
-    }
-
-    /// Returns the first registered unit type, if any.
-    pub fn first(&self) -> Option<&UnitType> {
-        self.types.first()
-    }
-}
-
-/// Component attached to entities representing units on the hex grid.
-/// Stores which unit type this entity is and its per-instance property values.
-#[derive(Component, Debug, Clone)]
-pub struct UnitData {
-    pub unit_type_id: UnitTypeId,
-    /// Per-instance property values, keyed by `PropertyDefinition` ID.
-    /// Placed units get default values from the unit type; users can
-    /// override individual values via the inspector.
-    pub properties: HashMap<TypeId, PropertyValue>,
-}
-
-/// Marker component for unit entities on the hex grid.
+/// Marker component for token entities on the hex grid.
+/// Used to distinguish tokens from tiles in queries.
 #[derive(Component, Debug)]
 pub struct UnitInstance;
 
-/// Tracks which unit type the user is currently placing.
+/// Tracks which `BoardPosition` entity type the user is currently painting with.
 #[derive(Resource, Debug, Default)]
-pub struct ActiveUnitType {
-    pub unit_type_id: Option<UnitTypeId>,
+pub struct ActiveBoardType {
+    pub entity_type_id: Option<TypeId>,
+}
+
+/// Tracks which Token entity type the user is currently placing.
+#[derive(Resource, Debug, Default)]
+pub struct ActiveTokenType {
+    pub entity_type_id: Option<TypeId>,
 }
 
 /// Tracks the currently selected unit entity, if any.
@@ -239,10 +202,10 @@ pub struct SelectedUnit {
     pub entity: Option<Entity>,
 }
 
-/// Fired when a unit is placed on the grid.
+/// Fired when a token entity is placed on the grid.
 #[derive(Event, Debug)]
 pub struct UnitPlacedEvent {
     pub entity: Entity,
     pub position: super::hex_grid::HexPosition,
-    pub unit_type_id: UnitTypeId,
+    pub entity_type_id: TypeId,
 }

@@ -333,8 +333,8 @@ mod integration_tests {
 
     use crate::contracts::editor_ui::EditorTool;
     use crate::contracts::game_system::{
-        ActiveCellType, ActiveUnitType, CellData, CellTypeRegistry, GameSystem, SelectedUnit,
-        UnitData, UnitInstance, UnitTypeRegistry,
+        ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityTypeRegistry, GameSystem,
+        SelectedUnit, UnitInstance,
     };
     use crate::contracts::hex_grid::{
         HexGridConfig, HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial,
@@ -399,12 +399,12 @@ mod integration_tests {
             "GameSystem should exist before first update"
         );
         assert!(
-            app.world().get_resource::<CellTypeRegistry>().is_some(),
-            "CellTypeRegistry should exist before first update"
+            app.world().get_resource::<EntityTypeRegistry>().is_some(),
+            "EntityTypeRegistry should exist before first update"
         );
         assert!(
-            app.world().get_resource::<ActiveCellType>().is_some(),
-            "ActiveCellType should exist before first update"
+            app.world().get_resource::<ActiveBoardType>().is_some(),
+            "ActiveBoardType should exist before first update"
         );
     }
 
@@ -417,7 +417,7 @@ mod integration_tests {
         app.update(); // First Update runs
     }
 
-    /// Tiles spawned between Startup and Update get default `CellData`
+    /// Tiles spawned between Startup and Update get default `EntityData`
     /// from the cell plugin's `assign_default_cell_data` system.
     #[test]
     fn cell_assigns_default_data_to_new_tiles() {
@@ -431,21 +431,26 @@ mod integration_tests {
 
         app.update(); // Update: assign_default_cell_data runs
 
-        let registry = app.world().resource::<CellTypeRegistry>();
-        let first_id = registry.first().expect("registry should have types").id;
+        let registry = app.world().resource::<EntityTypeRegistry>();
+        let first_id = registry
+            .first_by_role(EntityRole::BoardPosition)
+            .expect("registry should have BoardPosition types")
+            .id;
 
-        let mut query = app.world_mut().query_filtered::<&CellData, With<HexTile>>();
-        let cell_data: Vec<_> = query.iter(app.world()).collect();
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&EntityData, With<HexTile>>();
+        let entity_data: Vec<_> = query.iter(app.world()).collect();
 
         assert_eq!(
-            cell_data.len(),
+            entity_data.len(),
             3,
-            "All tiles should have CellData after update"
+            "All tiles should have EntityData after update"
         );
-        for cd in &cell_data {
+        for ed in &entity_data {
             assert_eq!(
-                cd.cell_type_id, first_id,
-                "Default cell type should be the first in registry"
+                ed.entity_type_id, first_id,
+                "Default entity type should be the first BoardPosition in registry"
             );
         }
     }
@@ -458,12 +463,12 @@ mod integration_tests {
         app.add_plugins(crate::game_system::GameSystemPlugin);
 
         assert!(
-            app.world().get_resource::<UnitTypeRegistry>().is_some(),
-            "UnitTypeRegistry should exist before first update"
+            app.world().get_resource::<EntityTypeRegistry>().is_some(),
+            "EntityTypeRegistry should exist before first update"
         );
         assert!(
-            app.world().get_resource::<ActiveUnitType>().is_some(),
-            "ActiveUnitType should exist before first update"
+            app.world().get_resource::<ActiveTokenType>().is_some(),
+            "ActiveTokenType should exist before first update"
         );
         assert!(
             app.world().get_resource::<SelectedUnit>().is_some(),
@@ -478,11 +483,11 @@ mod integration_tests {
         app.update(); // Startup runs
         app.update(); // First Update runs
 
-        // Verify unit types are registered and materials exist.
-        let registry = app.world().resource::<UnitTypeRegistry>();
+        // Verify token entity types are registered.
+        let registry = app.world().resource::<EntityTypeRegistry>();
         assert!(
-            !registry.types.is_empty(),
-            "Unit types should be registered"
+            !registry.types_by_role(EntityRole::Token).is_empty(),
+            "Token entity types should be registered"
         );
     }
 
@@ -497,9 +502,9 @@ mod integration_tests {
 
         let active_id = app
             .world()
-            .resource::<ActiveUnitType>()
-            .unit_type_id
-            .expect("ActiveUnitType should have a type selected");
+            .resource::<ActiveTokenType>()
+            .entity_type_id
+            .expect("ActiveTokenType should have a type selected");
 
         // Trigger placement at (0, 0).
         app.world_mut().trigger(HexSelectedEvent {
@@ -511,11 +516,11 @@ mod integration_tests {
         // Find the unit.
         let mut query = app
             .world_mut()
-            .query_filtered::<(&UnitData, &HexPosition), With<UnitInstance>>();
+            .query_filtered::<(&EntityData, &HexPosition), With<UnitInstance>>();
         let units: Vec<_> = query.iter(app.world()).collect();
 
         assert_eq!(units.len(), 1, "Exactly one unit should be placed");
-        assert_eq!(units[0].0.unit_type_id, active_id);
+        assert_eq!(units[0].0.entity_type_id, active_id);
         assert_eq!(*units[0].1, HexPosition::new(0, 0));
     }
 
@@ -562,7 +567,7 @@ mod integration_tests {
     }
 
     /// The full assign -> `sync_materials` -> `sync_visuals` chain works across
-    /// plugin boundaries: tiles get `CellData` and their material is updated.
+    /// plugin boundaries: tiles get `EntityData` and their material is updated.
     #[test]
     fn cell_visual_sync_after_data_assignment() {
         let mut app = headless_app();

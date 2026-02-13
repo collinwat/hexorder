@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::EditorTool;
-use crate::contracts::game_system::{ActiveCellType, CellData, CellType, CellTypeRegistry, TypeId};
+use crate::contracts::game_system::{
+    ActiveBoardType, EntityData, EntityRole, EntityType, EntityTypeRegistry, TypeId,
+};
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
 
 use super::components::CellMaterials;
@@ -20,25 +22,28 @@ fn test_app() -> App {
     app
 }
 
-/// Helper: create a test registry with 3 cell types.
-fn test_registry() -> CellTypeRegistry {
-    CellTypeRegistry {
+/// Helper: create a test registry with 3 `BoardPosition` entity types.
+fn test_registry() -> EntityTypeRegistry {
+    EntityTypeRegistry {
         types: vec![
-            CellType {
+            EntityType {
                 id: TypeId::new(),
                 name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
                 color: Color::srgb(0.6, 0.8, 0.4),
                 properties: Vec::new(),
             },
-            CellType {
+            EntityType {
                 id: TypeId::new(),
                 name: "Forest".to_string(),
+                role: EntityRole::BoardPosition,
                 color: Color::srgb(0.2, 0.5, 0.2),
                 properties: Vec::new(),
             },
-            CellType {
+            EntityType {
                 id: TypeId::new(),
                 name: "Water".to_string(),
+                role: EntityRole::BoardPosition,
                 color: Color::srgb(0.2, 0.4, 0.8),
                 properties: Vec::new(),
             },
@@ -91,18 +96,19 @@ fn cell_materials_created_for_all_types() {
         .get_resource::<CellMaterials>()
         .expect("CellMaterials should exist after Startup");
 
-    let registry = app.world().resource::<CellTypeRegistry>();
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
     assert_eq!(
         cell_mats.materials.len(),
-        registry.types.len(),
-        "Should have a material for each cell type"
+        board_types.len(),
+        "Should have a material for each BoardPosition entity type"
     );
 
-    for vt in &registry.types {
+    for et in &board_types {
         assert!(
-            cell_mats.get(vt.id).is_some(),
-            "Material should exist for cell type '{}'",
-            vt.name
+            cell_mats.get(et.id).is_some(),
+            "Material should exist for entity type '{}'",
+            et.name
         );
     }
 }
@@ -113,7 +119,7 @@ fn assign_default_cell_data_adds_to_tiles() {
     setup_cell_resources(&mut app);
     app.update();
 
-    // Spawn tiles without CellData.
+    // Spawn tiles without EntityData.
     spawn_test_tile(&mut app, 0, 0);
     spawn_test_tile(&mut app, 1, 0);
     spawn_test_tile(&mut app, 0, 1);
@@ -122,17 +128,22 @@ fn assign_default_cell_data_adds_to_tiles() {
     app.add_systems(Update, systems::assign_default_cell_data);
     app.update();
 
-    let registry = app.world().resource::<CellTypeRegistry>();
-    let first_id = registry.first().unwrap().id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
 
-    let mut query = app.world_mut().query_filtered::<&CellData, With<HexTile>>();
-    let cell_data: Vec<_> = query.iter(app.world()).collect();
+    let mut query = app
+        .world_mut()
+        .query_filtered::<&EntityData, With<HexTile>>();
+    let entity_data: Vec<_> = query.iter(app.world()).collect();
 
-    assert_eq!(cell_data.len(), 3, "All 3 tiles should have CellData");
-    for cd in cell_data {
+    assert_eq!(entity_data.len(), 3, "All 3 tiles should have EntityData");
+    for ed in entity_data {
         assert_eq!(
-            cd.cell_type_id, first_id,
-            "Default cell type should be the first in registry"
+            ed.entity_type_id, first_id,
+            "Default entity type should be the first BoardPosition in registry"
         );
     }
 }
@@ -143,20 +154,21 @@ fn paint_cell_changes_tile_type() {
     setup_cell_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<CellTypeRegistry>();
-    let first_id = registry.types[0].id;
-    let second_id = registry.types[1].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+    let second_id = board_types[1].id;
 
-    // Spawn a tile with default cell data.
+    // Spawn a tile with default entity data.
     let tile_entity = spawn_test_tile(&mut app, 2, 3);
-    app.world_mut().entity_mut(tile_entity).insert(CellData {
-        cell_type_id: first_id,
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
         properties: HashMap::new(),
     });
 
-    // Set active cell type to the second type and tool to Paint mode.
-    app.world_mut().insert_resource(ActiveCellType {
-        cell_type_id: Some(second_id),
+    // Set active board type to the second type and tool to Paint mode.
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(second_id),
     });
     app.world_mut().insert_resource(EditorTool::Paint);
 
@@ -167,15 +179,15 @@ fn paint_cell_changes_tile_type() {
     });
     app.update();
 
-    let cell_data = app
+    let entity_data = app
         .world()
         .entity(tile_entity)
-        .get::<CellData>()
-        .expect("Tile should have CellData");
+        .get::<EntityData>()
+        .expect("Tile should have EntityData");
 
     assert_eq!(
-        cell_data.cell_type_id, second_id,
-        "Cell type should have been painted to the second type"
+        entity_data.entity_type_id, second_id,
+        "Entity type should have been painted to the second type"
     );
 }
 
@@ -185,23 +197,24 @@ fn paint_does_not_affect_other_tiles() {
     setup_cell_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<CellTypeRegistry>();
-    let first_id = registry.types[0].id;
-    let third_id = registry.types[2].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+    let third_id = board_types[2].id;
 
     let tile_a = spawn_test_tile(&mut app, 0, 0);
     let tile_b = spawn_test_tile(&mut app, 1, 1);
-    app.world_mut().entity_mut(tile_a).insert(CellData {
-        cell_type_id: first_id,
+    app.world_mut().entity_mut(tile_a).insert(EntityData {
+        entity_type_id: first_id,
         properties: HashMap::new(),
     });
-    app.world_mut().entity_mut(tile_b).insert(CellData {
-        cell_type_id: first_id,
+    app.world_mut().entity_mut(tile_b).insert(EntityData {
+        entity_type_id: first_id,
         properties: HashMap::new(),
     });
 
-    app.world_mut().insert_resource(ActiveCellType {
-        cell_type_id: Some(third_id),
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(third_id),
     });
     app.world_mut().insert_resource(EditorTool::Paint);
 
@@ -212,13 +225,13 @@ fn paint_does_not_affect_other_tiles() {
     });
     app.update();
 
-    let cd_a = app.world().entity(tile_a).get::<CellData>().unwrap();
-    let cd_b = app.world().entity(tile_b).get::<CellData>().unwrap();
+    let ed_a = app.world().entity(tile_a).get::<EntityData>().unwrap();
+    let ed_b = app.world().entity(tile_b).get::<EntityData>().unwrap();
 
-    assert_eq!(cd_a.cell_type_id, third_id);
+    assert_eq!(ed_a.entity_type_id, third_id);
     assert_eq!(
-        cd_b.cell_type_id, first_id,
-        "Unpainted tile should remain with first cell type"
+        ed_b.entity_type_id, first_id,
+        "Unpainted tile should remain with first entity type"
     );
 }
 
@@ -228,18 +241,19 @@ fn paint_skipped_in_select_mode() {
     setup_cell_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<CellTypeRegistry>();
-    let first_id = registry.types[0].id;
-    let second_id = registry.types[1].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+    let second_id = board_types[1].id;
 
     let tile_entity = spawn_test_tile(&mut app, 0, 0);
-    app.world_mut().entity_mut(tile_entity).insert(CellData {
-        cell_type_id: first_id,
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
         properties: HashMap::new(),
     });
 
-    app.world_mut().insert_resource(ActiveCellType {
-        cell_type_id: Some(second_id),
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(second_id),
     });
     app.world_mut().insert_resource(EditorTool::Select);
 
@@ -250,10 +264,10 @@ fn paint_skipped_in_select_mode() {
     });
     app.update();
 
-    let cell_data = app.world().entity(tile_entity).get::<CellData>().unwrap();
+    let entity_data = app.world().entity(tile_entity).get::<EntityData>().unwrap();
     assert_eq!(
-        cell_data.cell_type_id, first_id,
-        "Cell type should remain unchanged when tool is Select"
+        entity_data.entity_type_id, first_id,
+        "Entity type should remain unchanged when tool is Select"
     );
 }
 
@@ -263,12 +277,15 @@ fn sync_cell_visuals_updates_material() {
     setup_cell_resources(&mut app);
     app.update();
 
-    let registry = app.world().resource::<CellTypeRegistry>();
-    let first_id = registry.types[0].id;
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
 
     let tile_entity = spawn_test_tile(&mut app, 0, 0);
-    app.world_mut().entity_mut(tile_entity).insert(CellData {
-        cell_type_id: first_id,
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
         properties: HashMap::new(),
     });
 
@@ -279,7 +296,7 @@ fn sync_cell_visuals_updates_material() {
         let cell_mats = app.world().resource::<CellMaterials>();
         cell_mats
             .get(first_id)
-            .expect("Material should exist for first cell type")
+            .expect("Material should exist for first entity type")
             .clone()
     };
 
@@ -291,7 +308,7 @@ fn sync_cell_visuals_updates_material() {
 
     assert_eq!(
         tile_material.0, expected_handle,
-        "Tile material should match the cell type material"
+        "Tile material should match the entity type material"
     );
 }
 
@@ -320,14 +337,15 @@ fn sync_cell_materials_adds_new_type() {
     let initial_count = app.world().resource::<CellMaterials>().materials.len();
     assert_eq!(initial_count, 3);
 
-    // Add a new cell type to the registry.
+    // Add a new BoardPosition entity type to the registry.
     let new_id = TypeId::new();
     app.world_mut()
-        .resource_mut::<CellTypeRegistry>()
+        .resource_mut::<EntityTypeRegistry>()
         .types
-        .push(CellType {
+        .push(EntityType {
             id: new_id,
             name: "Desert".to_string(),
+            role: EntityRole::BoardPosition,
             color: Color::srgb(0.9, 0.8, 0.5),
             properties: Vec::new(),
         });
