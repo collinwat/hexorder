@@ -5,62 +5,62 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] — 2026-02-09
+## [0.4.0] — 2026-02-13
 
 ### Added
 
-- Unit type definitions with custom properties (game_system)
-- Unit placement on hex grid with click-to-place (unit)
-- Unit movement via click-to-move (unit)
-- Unit deletion (unit)
-- Unit visual sync with type color and selection highlight (unit)
-- UnitTypeRegistry with 3 starter unit types: Infantry, Cavalry, Artillery (game_system)
-- Place tool mode for unit placement (editor_ui)
-- Unit palette panel with type selection (editor_ui)
-- Unit type editor for creating and editing unit types (editor_ui)
-- Unit inspector panel showing selected unit details (editor_ui)
-- ActiveUnitType and SelectedUnit resources (game_system)
-- UnitPlacedEvent observer event (game_system)
+- document new project tooling in README (project)
+- reference mise tasks from workflow docs (project)
+- simplify getting started to 3 steps (project)
+- use mise shorthand instead of mise run (project)
+- add repo URL to getting started clone command (project)
+- spec M4 milestone — rules shape the world (project)
+- add ontology framework and validation contracts (ontology)
+- add BFS valid move computation (rules_engine)
+- add move overlays and unit ValidMoveSet check (hex_grid)
+- update M4 coordination and feature logs (project)
 
 ### Changed
 
-- EditorTool gains Place variant for unit placement mode (editor_ui)
+- add prettier formatting support (project)
+- format all markdown with prettier (project)
+- add gitleaks for secret and PII detection (project)
+- add rustfmt configuration (project)
+- format rust code with rustfmt (project)
+- add clippy and rustc lint configuration (project)
+- add bevy dynamic linking and release profile (project)
+- add cargo-deny dependency auditing (project)
+- add editorconfig (project)
+- add typos spell checker (project)
+- add taplo TOML formatter (project)
+- format TOML files with taplo (project)
+- add bacon watch mode configuration (project)
+- add mise check and fix task hierarchy (project)
+- add cargo fmt check to pre-commit hook (project)
+- add GitHub Actions CI workflow (project)
+- add boundary and unwrap check tasks (project)
+- add audit, changelog, setup, and handoff tasks (project)
+- declare proprietary license (project)
+- acknowledge known duplicate dependencies (project)
+- add prettier, gitleaks, debug, and doc checks (project)
+- format files with prettier (project)
+- run mise check in pre-commit hook (project)
+- add fix:clippy task for auto-fixable lints (project)
+- set up entity unification feature branch (project)
+- unify entity types with EntityRole (game_system)
+- bump version to 0.4.0 (project)
 
-## [0.2.0] — 2026-02-09
+### Fixed
+
+- fix cargo-deny and taplo check failures (project)
+
+## [0.3.0] — 2026-02-11
 
 ### Added
 
-- Game System container with id and version (game_system)
-- Property system with 6 data types: Bool, Int, Float, String, Color, Enum (game_system)
-- User-defined cell types with custom properties (game_system)
-- CellTypeRegistry resource replacing TerrainPalette (game_system)
-- Cell painting with dynamic cell types (cell)
-- Cell type editor for creating, editing, and deleting cell types (editor_ui)
-- Inspector panel for viewing and editing cell property values (editor_ui)
-- Editor dark theme with brand palette (editor_ui)
-- Brand palette enforcement via architecture test (editor_ui)
-- Hidden-window pattern to prevent white flash on launch (camera)
+- add M1-M3 codebase (project)
+- add development process and tooling (project)
 
-### Removed
+### Changed
 
-- Hardcoded TerrainType enum, replaced by dynamic CellTypeId (game_system)
-- Terrain plugin, replaced by Cell plugin (cell)
-- TerrainPalette, TerrainEntry, ActiveTerrain resources (game_system)
-
-## [0.1.0] — 2026-02-08
-
-### Added
-
-- Hex grid rendering on XZ ground plane with configurable radius (hex_grid)
-- Axial coordinate system using hexx crate (hex_grid)
-- Hex tile selection via raycast with visual highlight (hex_grid)
-- HexSelectedEvent observer event (hex_grid)
-- Orthographic top-down camera locked to Y-axis (camera)
-- Camera pan via middle-click drag (camera)
-- Camera zoom via scroll wheel (camera)
-- Terrain painting with 5 hardcoded terrain types (terrain)
-- Terrain visual sync with color-coded hex tiles (terrain)
-- Minimal editor UI with tool selector and terrain palette (editor_ui)
-- bevy_egui integration for editor panels (editor_ui)
-- Contract boundary enforcement via architecture tests (project)
-- Module privacy enforcement via private sub-modules (project)
+- bump version to 0.3.0 (project)
