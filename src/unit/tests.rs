@@ -10,6 +10,7 @@ use crate::contracts::game_system::{
     UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexSelectedEvent};
+use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{UnitMaterials, UnitMesh};
 use super::systems;
@@ -175,6 +176,7 @@ fn select_unit_sets_selected() {
 
     app.world_mut().insert_resource(EditorTool::Select);
     app.world_mut().insert_resource(SelectedUnit::default());
+    app.init_resource::<ValidMoveSet>();
 
     // Manually spawn a unit at (1, 1).
     let registry = app.world().resource::<EntityTypeRegistry>();
@@ -215,6 +217,7 @@ fn move_unit_updates_position() {
     app.update();
 
     app.world_mut().insert_resource(EditorTool::Select);
+    app.init_resource::<ValidMoveSet>();
 
     let registry = app.world().resource::<EntityTypeRegistry>();
     let first_id = registry.types_by_role(EntityRole::Token)[0].id;
@@ -270,6 +273,7 @@ fn move_unit_respects_grid_bounds() {
     app.update();
 
     app.world_mut().insert_resource(EditorTool::Select);
+    app.init_resource::<ValidMoveSet>();
 
     let registry = app.world().resource::<EntityTypeRegistry>();
     let first_id = registry.types_by_role(EntityRole::Token)[0].id;

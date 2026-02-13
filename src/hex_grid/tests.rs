@@ -5,8 +5,10 @@ use std::sync::{Arc, Mutex};
 use bevy::prelude::*;
 
 use crate::contracts::hex_grid::{
-    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, SelectedHex,
+    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
+    SelectedHex,
 };
+use crate::contracts::validation::{ValidMoveSet, ValidationResult};
 
 use super::components::{HexMaterials, HoveredHex};
 use super::systems;
@@ -286,4 +288,137 @@ fn no_click_no_event() {
 
     let events = received.lock().expect("mutex should not be poisoned");
     assert_eq!(events.len(), 0, "No event should fire without a click");
+}
+
+// ---------------------------------------------------------------------------
+// Move overlay tests (M4)
+// ---------------------------------------------------------------------------
+
+/// Helper: create a test app with grid startup and overlay materials.
+fn test_app_with_overlays() -> App {
+    let mut app = test_app();
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+            systems::setup_indicators,
+        )
+            .chain(),
+    );
+    app.init_resource::<ValidMoveSet>();
+    app.add_systems(Update, systems::sync_move_overlays);
+    app
+}
+
+#[test]
+fn move_overlays_spawned_on_unit_select() {
+    let mut app = test_app_with_overlays();
+    app.update(); // Startup
+
+    // Simulate a unit being selected with some valid positions.
+    let unit_entity = app.world_mut().spawn_empty().id();
+    let mut valid_positions = std::collections::HashSet::new();
+    valid_positions.insert(HexPosition::new(1, 0));
+    valid_positions.insert(HexPosition::new(0, 1));
+
+    app.world_mut().insert_resource(ValidMoveSet {
+        valid_positions,
+        blocked_explanations: std::collections::HashMap::new(),
+        for_entity: Some(unit_entity),
+    });
+    app.update();
+
+    let mut query = app.world_mut().query::<&MoveOverlay>();
+    let overlays: Vec<_> = query.iter(app.world()).collect();
+
+    assert_eq!(overlays.len(), 2, "Should have 2 valid move overlays");
+    assert!(
+        overlays.iter().all(|o| o.state == MoveOverlayState::Valid),
+        "All overlays should be Valid state"
+    );
+}
+
+#[test]
+fn move_overlays_despawned_on_deselect() {
+    let mut app = test_app_with_overlays();
+    app.update(); // Startup
+
+    // First, spawn some overlays.
+    let unit_entity = app.world_mut().spawn_empty().id();
+    let mut valid_positions = std::collections::HashSet::new();
+    valid_positions.insert(HexPosition::new(1, 0));
+
+    app.world_mut().insert_resource(ValidMoveSet {
+        valid_positions,
+        blocked_explanations: std::collections::HashMap::new(),
+        for_entity: Some(unit_entity),
+    });
+    app.update();
+
+    // Verify overlays exist.
+    let mut query = app.world_mut().query::<&MoveOverlay>();
+    assert_eq!(query.iter(app.world()).count(), 1);
+
+    // Now deselect — clear ValidMoveSet.
+    app.world_mut().insert_resource(ValidMoveSet::default());
+    app.update();
+
+    let mut query = app.world_mut().query::<&MoveOverlay>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "All overlays should be despawned after deselect"
+    );
+}
+
+#[test]
+fn blocked_positions_get_red_overlay() {
+    let mut app = test_app_with_overlays();
+    app.update(); // Startup
+
+    let unit_entity = app.world_mut().spawn_empty().id();
+    let blocked_pos = HexPosition::new(2, 0);
+    let mut blocked = std::collections::HashMap::new();
+    blocked.insert(
+        blocked_pos,
+        vec![ValidationResult {
+            constraint_id: crate::contracts::game_system::TypeId::new(),
+            constraint_name: "Test".to_string(),
+            satisfied: false,
+            explanation: "Blocked".to_string(),
+        }],
+    );
+
+    app.world_mut().insert_resource(ValidMoveSet {
+        valid_positions: std::collections::HashSet::new(),
+        blocked_explanations: blocked,
+        for_entity: Some(unit_entity),
+    });
+    app.update();
+
+    let mut query = app.world_mut().query::<&MoveOverlay>();
+    let overlays: Vec<_> = query.iter(app.world()).collect();
+
+    assert_eq!(overlays.len(), 1, "Should have 1 blocked overlay");
+    assert_eq!(overlays[0].state, MoveOverlayState::Blocked);
+    assert_eq!(overlays[0].position, blocked_pos);
+}
+
+#[test]
+fn no_overlays_when_valid_move_set_empty() {
+    let mut app = test_app_with_overlays();
+    app.update(); // Startup
+
+    // ValidMoveSet is default (empty) — no overlays should exist.
+    // Run a second update so the system has a chance to process.
+    app.update();
+
+    let mut query = app.world_mut().query::<&MoveOverlay>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "No overlays when ValidMoveSet is empty"
+    );
 }

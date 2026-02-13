@@ -69,3 +69,25 @@ pub struct SelectedHex {
 /// Updated by the cell plugin when cell data changes.
 #[derive(Component, Debug, Clone)]
 pub struct TileBaseMaterial(pub Handle<StandardMaterial>);
+
+// ---------------------------------------------------------------------------
+// Move Overlays (M4)
+// ---------------------------------------------------------------------------
+
+/// The visual state of a move overlay on a hex tile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveOverlayState {
+    /// This hex is a valid destination. Rendered with a green tint.
+    Valid,
+    /// This hex is within range but blocked by a constraint. Rendered red.
+    Blocked,
+}
+
+/// Component on overlay entities that float above hex tiles to indicate
+/// move validity. Managed by `hex_grid`: spawned when a unit is selected,
+/// despawned when deselected.
+#[derive(Component, Debug, Clone)]
+pub struct MoveOverlay {
+    pub state: MoveOverlayState,
+    pub position: HexPosition,
+}

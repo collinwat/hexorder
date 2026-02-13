@@ -35,6 +35,7 @@ impl Plugin for HexGridPlugin {
                 systems::handle_click.run_if(not(egui_wants_any_pointer_input)),
                 systems::deselect_on_escape.run_if(not(egui_wants_any_keyboard_input)),
                 systems::update_indicators,
+                systems::sync_move_overlays,
             )
                 .chain(),
         );

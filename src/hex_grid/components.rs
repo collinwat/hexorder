@@ -37,3 +37,14 @@ pub struct IndicatorMaterials {
     /// Default hover ring material (used in Select mode).
     pub hover: Handle<StandardMaterial>,
 }
+
+/// Stores material handles for move overlay rendering.
+#[derive(Resource, Debug)]
+pub struct OverlayMaterials {
+    /// Semi-transparent green for valid move destinations.
+    pub valid: Handle<StandardMaterial>,
+    /// Semi-transparent red for blocked destinations.
+    pub blocked: Handle<StandardMaterial>,
+    /// Shared ring mesh handle for overlays.
+    pub ring_mesh: Handle<Mesh>,
+}

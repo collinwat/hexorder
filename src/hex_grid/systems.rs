@@ -7,11 +7,13 @@ use hexx::shapes;
 
 use crate::contracts::editor_ui::{EditorTool, PaintPreview};
 use crate::contracts::hex_grid::{
-    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, SelectedHex, TileBaseMaterial,
+    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
+    SelectedHex, TileBaseMaterial,
 };
+use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{
-    HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, SelectIndicator,
+    HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, OverlayMaterials, SelectIndicator,
 };
 
 /// Creates the hex grid configuration resource with default settings.
@@ -282,11 +284,30 @@ pub fn setup_indicators(
 
     commands.spawn((
         SelectIndicator,
-        Mesh3d(ring_mesh),
+        Mesh3d(ring_mesh.clone()),
         MeshMaterial3d(select_material),
         Transform::from_xyz(0.0, 0.02, 0.0).with_rotation(flat_rotation),
         Visibility::Hidden,
     ));
+
+    // Move overlay materials (M4).
+    let valid_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.2, 0.8, 0.2, 0.4),
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        ..default()
+    });
+    let blocked_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.8, 0.2, 0.2, 0.4),
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        ..default()
+    });
+    commands.insert_resource(OverlayMaterials {
+        valid: valid_material,
+        blocked: blocked_material,
+        ring_mesh,
+    });
 }
 
 /// Positions hover and selection ring overlays at the appropriate hex tiles.
@@ -355,6 +376,64 @@ pub fn update_indicators(
                 *vis = Visibility::Hidden;
             }
         }
+    }
+}
+
+/// Spawns, updates, and despawns move overlay entities based on `ValidMoveSet`.
+///
+/// - When `ValidMoveSet` has a selected entity and positions, overlays are
+///   spawned (or updated) above tiles at y=0.015.
+/// - When `ValidMoveSet` is empty (no unit selected), all overlays are despawned.
+/// - Uses change detection to avoid work when the move set hasn't changed.
+pub fn sync_move_overlays(
+    valid_moves: Res<ValidMoveSet>,
+    overlay_materials: Res<OverlayMaterials>,
+    config: Res<HexGridConfig>,
+    existing_overlays: Query<(Entity, &MoveOverlay)>,
+    mut commands: Commands,
+) {
+    if !valid_moves.is_changed() {
+        return;
+    }
+
+    let flat_rotation = Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+
+    // Despawn all existing overlays first (simple pool strategy).
+    for (entity, _) in &existing_overlays {
+        commands.entity(entity).despawn();
+    }
+
+    // If no unit is selected, we're done — overlays are cleared.
+    if valid_moves.for_entity.is_none() {
+        return;
+    }
+
+    // Spawn valid overlays.
+    for &pos in &valid_moves.valid_positions {
+        let wp = config.layout.hex_to_world_pos(pos.to_hex());
+        commands.spawn((
+            MoveOverlay {
+                state: MoveOverlayState::Valid,
+                position: pos,
+            },
+            Mesh3d(overlay_materials.ring_mesh.clone()),
+            MeshMaterial3d(overlay_materials.valid.clone()),
+            Transform::from_xyz(wp.x, 0.015, wp.y).with_rotation(flat_rotation),
+        ));
+    }
+
+    // Spawn blocked overlays.
+    for &pos in valid_moves.blocked_explanations.keys() {
+        let wp = config.layout.hex_to_world_pos(pos.to_hex());
+        commands.spawn((
+            MoveOverlay {
+                state: MoveOverlayState::Blocked,
+                position: pos,
+            },
+            Mesh3d(overlay_materials.ring_mesh.clone()),
+            MeshMaterial3d(overlay_materials.blocked.clone()),
+            Transform::from_xyz(wp.x, 0.015, wp.y).with_rotation(flat_rotation),
+        ));
     }
 }
 

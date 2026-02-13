@@ -10,6 +10,7 @@ use crate::contracts::game_system::{
     UnitInstance, UnitPlacedEvent,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexMoveEvent, HexPosition, HexSelectedEvent};
+use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{UnitMaterials, UnitMesh};
 
@@ -123,10 +124,16 @@ pub fn handle_unit_placement(
 /// - Click hex with unit → select it
 /// - Click same hex as selected unit → deselect
 /// - Click different hex while unit selected → move unit there
+///
+/// If `ValidMoveSet` has valid positions, only allows movement to those
+/// positions. If `ValidMoveSet` is empty (no constraints), all in-bounds
+/// positions are allowed (backward compatible with M3).
+#[allow(clippy::too_many_arguments)]
 pub fn handle_unit_interaction(
     trigger: On<HexSelectedEvent>,
     tool: Res<EditorTool>,
     mut selected_unit: ResMut<SelectedUnit>,
+    valid_moves: Option<Res<ValidMoveSet>>,
     config: Res<HexGridConfig>,
     mut units: Query<(Entity, &mut HexPosition, &mut Transform), With<UnitInstance>>,
     mut commands: Commands,
@@ -156,6 +163,16 @@ pub fn handle_unit_interaction(
         // Clicked empty tile while a unit is selected → move the unit.
         let hex = clicked_pos.to_hex();
         if hex.unsigned_distance_to(hexx::Hex::ZERO) > config.map_radius {
+            return;
+        }
+
+        // If ValidMoveSet has computed valid positions for this entity,
+        // only allow movement to those positions.
+        if let Some(moves) = &valid_moves
+            && moves.for_entity == Some(selected_entity)
+            && !moves.valid_positions.is_empty()
+            && !moves.valid_positions.contains(&clicked_pos)
+        {
             return;
         }
 
