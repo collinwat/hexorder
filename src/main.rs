@@ -7,6 +7,7 @@ mod contracts;
 mod editor_ui;
 mod game_system;
 mod hex_grid;
+mod ontology;
 mod unit;
 
 fn main() {
@@ -30,6 +31,7 @@ fn main() {
         .add_plugins(hex_grid::HexGridPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(game_system::GameSystemPlugin)
+        .add_plugins(ontology::OntologyPlugin)
         .add_plugins(cell::CellPlugin)
         .add_plugins(unit::UnitPlugin)
         .add_plugins(editor_ui::EditorUiPlugin)

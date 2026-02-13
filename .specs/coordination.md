@@ -12,7 +12,7 @@
 | cell         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract                      | M4: migrate to EntityTypeRegistry/EntityData.                                              |
 | unit         | —     | speccing (M4) | hex_grid contract, game_system contract, editor_ui contract, validation contract | M4: migrate to EntityTypeRegistry/EntityData. Movement consults ValidMoveSet.              |
 | editor_ui    | —     | speccing (M4) | hex_grid contract, game_system contract, ontology contract, validation contract  | M4: unified entity editor, ontology panels (concepts, relations, constraints, validation). |
-| ontology     | —     | speccing (M4) | game_system contract                                                             | NEW M4: concepts, relations, constraints, auto-generation, schema validation trigger.      |
+| ontology     | agent | complete (M4) | game_system contract                                                             | NEW M4: concepts, relations, constraints, auto-generation, schema validation trigger.      |
 | rules_engine | —     | speccing (M4) | game_system contract, ontology contract, hex_grid contract, validation contract  | NEW M4: constraint evaluation, ValidMoveSet computation, SchemaValidation production.      |
 
 Status values: `speccing` | `in-progress` | `testing` | `blocked` | `complete` | `retiring`

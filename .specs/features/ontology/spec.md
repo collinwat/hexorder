@@ -49,24 +49,24 @@ consistency.
 
 ## Success Criteria
 
-- [ ] [SC-1] `registries_available_at_startup` test — ConceptRegistry, RelationRegistry,
+- [x] [SC-1] `registries_available_at_startup` test — ConceptRegistry, RelationRegistry,
       ConstraintRegistry exist as resources after Startup
-- [ ] [SC-2] `auto_constraint_on_subtract_relation` test — creating a Subtract relation
+- [x] [SC-2] `auto_constraint_on_subtract_relation` test — creating a Subtract relation
       auto-generates a non-negative budget constraint
-- [ ] [SC-3] `auto_constraint_deleted_with_relation` test — deleting the source relation removes the
+- [x] [SC-3] `auto_constraint_deleted_with_relation` test — deleting the source relation removes the
       auto-generated constraint
-- [ ] [SC-4] `auto_constraint_regenerated_on_relation_change` test — modifying the relation
+- [x] [SC-4] `auto_constraint_regenerated_on_relation_change` test — modifying the relation
       regenerates the constraint
-- [ ] [SC-5] `schema_validation_catches_dangling_reference` test — binding referencing a
+- [x] [SC-5] `schema_validation_catches_dangling_reference` test — binding referencing a
       non-existent entity type produces a SchemaError
-- [ ] [SC-6] `schema_validation_catches_role_mismatch` test — Token type bound to a
+- [x] [SC-6] `schema_validation_catches_role_mismatch` test — Token type bound to a
       BoardPosition-only concept role produces a SchemaError
-- [ ] [SC-7] `schema_validation_catches_property_mismatch` test — property binding referencing a
+- [x] [SC-7] `schema_validation_catches_property_mismatch` test — property binding referencing a
       non-existent property produces a SchemaError
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy --all-targets` passes
-- [ ] [SC-TEST] `cargo test` passes
-- [ ] [SC-BOUNDARY] No imports from other features' internals — all cross-feature types come from
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
+- [x] [SC-TEST] `cargo test` passes
+- [x] [SC-BOUNDARY] No imports from other features' internals — all cross-feature types come from
       `crate::contracts::`
 
 ## Constraints

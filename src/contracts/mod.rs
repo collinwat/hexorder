@@ -10,3 +10,7 @@ pub mod editor_ui;
 pub mod game_system;
 #[allow(dead_code)]
 pub mod hex_grid;
+#[allow(dead_code)]
+pub mod ontology;
+#[allow(dead_code)]
+pub mod validation;
