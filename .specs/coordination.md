@@ -4,16 +4,16 @@
 
 ## Active Features
 
-| Feature      | Owner | Status        | Dependencies                                                                     | Notes                                                                                                 |
-| ------------ | ----- | ------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| hex_grid     | —     | complete (M4) | validation contract                                                              | M4: move overlay rendering from ValidMoveSet. 4 overlay tests added. 19 tests total.                  |
-| camera       | —     | complete (M1) | none                                                                             | Unchanged for M4. Orthographic top-down, pan + zoom.                                                  |
-| game_system  | —     | complete (M4) | none                                                                             | M4: EntityType unification complete. EntityTypeRegistry replaces CellType/UnitType registries.        |
-| cell         | —     | complete (M4) | hex_grid contract, game_system contract, editor_ui contract                      | M4: migrated to EntityTypeRegistry/EntityData. 10 tests pass.                                         |
-| unit         | —     | complete (M4) | hex_grid contract, game_system contract, editor_ui contract, validation contract | M4: migrated to EntityTypeRegistry/EntityData. Movement consults ValidMoveSet. 10 tests pass.         |
-| editor_ui    | —     | complete (M4) | hex_grid contract, game_system contract, ontology contract, validation contract  | M4: unified entity editor migrated. Ontology UI panels (concepts, relations, constraints) are future. |
-| ontology     | —     | complete (M4) | game_system contract                                                             | NEW M4: concepts, relations, constraints, auto-generation, schema validation. 7 tests.                |
-| rules_engine | —     | complete (M4) | game_system contract, ontology contract, hex_grid contract, validation contract  | NEW M4: constraint evaluation, ValidMoveSet BFS computation. 8 tests.                                 |
+| Feature      | Owner | Status        | Dependencies                                                                     | Notes                                                                                                              |
+| ------------ | ----- | ------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| hex_grid     | —     | complete (M4) | validation contract                                                              | M4: move overlay rendering from ValidMoveSet. 4 overlay tests added. 19 tests total.                               |
+| camera       | —     | complete (M1) | none                                                                             | Unchanged for M4. Orthographic top-down, pan + zoom.                                                               |
+| game_system  | —     | complete (M4) | none                                                                             | M4: EntityType unification complete. EntityTypeRegistry replaces CellType/UnitType registries.                     |
+| cell         | —     | complete (M4) | hex_grid contract, game_system contract, editor_ui contract                      | M4: migrated to EntityTypeRegistry/EntityData. 10 tests pass.                                                      |
+| unit         | —     | complete (M4) | hex_grid contract, game_system contract, editor_ui contract, validation contract | M4: migrated to EntityTypeRegistry/EntityData. Movement consults ValidMoveSet. 10 tests pass.                      |
+| editor_ui    | —     | complete (M4) | hex_grid contract, game_system contract, ontology contract, validation contract  | M4: unified entity editor migrated. Ontology UI panels (concepts, relations, constraints, validation) implemented. |
+| ontology     | —     | complete (M4) | game_system contract                                                             | NEW M4: concepts, relations, constraints, auto-generation, schema validation. 7 tests.                             |
+| rules_engine | —     | complete (M4) | game_system contract, ontology contract, hex_grid contract, validation contract  | NEW M4: constraint evaluation, ValidMoveSet BFS computation. 8 tests.                                              |
 
 Status values: `speccing` | `in-progress` | `testing` | `blocked` | `complete` | `retiring`
 

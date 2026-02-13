@@ -3,7 +3,23 @@
 //! Contract types (`EditorTool`) live in `crate::contracts::editor_ui`.
 //! This module holds types that are internal to the `editor_ui` feature plugin.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+
+use crate::contracts::game_system::TypeId;
+use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::contracts::validation::SchemaValidation;
+
+/// Which tab is active in the ontology editor panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OntologyTab {
+    #[default]
+    Types,
+    Concepts,
+    Relations,
+    Constraints,
+    Validation,
+}
 
 /// Persistent UI state for the editor panels.
 #[derive(Resource, Debug)]
@@ -23,6 +39,49 @@ pub struct EditorState {
     pub new_prop_type_index: usize,
     /// Comma-separated enum options when adding an Enum property.
     pub new_enum_options: String,
+
+    // -- Ontology tab state --
+    /// Which ontology tab is active.
+    pub active_tab: OntologyTab,
+
+    // Concept editor
+    pub new_concept_name: String,
+    pub new_concept_description: String,
+    pub new_role_name: String,
+    /// Toggles for allowed entity roles: \[`BoardPosition`, `Token`\].
+    pub new_role_allowed_roles: Vec<bool>,
+    #[allow(dead_code)]
+    pub editing_concept_id: Option<TypeId>,
+
+    // Concept binding
+    pub binding_entity_type_id: Option<TypeId>,
+    pub binding_concept_role_id: Option<TypeId>,
+
+    // Relation editor
+    pub new_relation_name: String,
+    pub new_relation_concept_index: usize,
+    pub new_relation_subject_index: usize,
+    pub new_relation_object_index: usize,
+    /// 0=OnEnter, 1=OnExit, 2=WhilePresent.
+    pub new_relation_trigger_index: usize,
+    /// 0=ModifyProperty, 1=Block, 2=Allow.
+    pub new_relation_effect_index: usize,
+    pub new_relation_target_prop: String,
+    pub new_relation_source_prop: String,
+    /// 0=Add, 1=Subtract, 2=Multiply, 3=Min, 4=Max.
+    pub new_relation_operation_index: usize,
+
+    // Constraint editor
+    pub new_constraint_name: String,
+    pub new_constraint_description: String,
+    pub new_constraint_concept_index: usize,
+    /// 0=PropertyCompare, 1=CrossCompare, 2=IsType, 3=PathBudget.
+    pub new_constraint_expr_type_index: usize,
+    pub new_constraint_role_index: usize,
+    pub new_constraint_property: String,
+    /// 0=Eq, 1=Ne, 2=Lt, 3=Le, 4=Gt, 5=Ge.
+    pub new_constraint_op_index: usize,
+    pub new_constraint_value_str: String,
 }
 
 impl Default for EditorState {
@@ -34,6 +93,41 @@ impl Default for EditorState {
             new_prop_name: String::new(),
             new_prop_type_index: 0,
             new_enum_options: String::new(),
+            active_tab: OntologyTab::default(),
+            new_concept_name: String::new(),
+            new_concept_description: String::new(),
+            new_role_name: String::new(),
+            new_role_allowed_roles: vec![false, false],
+            editing_concept_id: None,
+            binding_entity_type_id: None,
+            binding_concept_role_id: None,
+            new_relation_name: String::new(),
+            new_relation_concept_index: 0,
+            new_relation_subject_index: 0,
+            new_relation_object_index: 0,
+            new_relation_trigger_index: 0,
+            new_relation_effect_index: 0,
+            new_relation_target_prop: String::new(),
+            new_relation_source_prop: String::new(),
+            new_relation_operation_index: 0,
+            new_constraint_name: String::new(),
+            new_constraint_description: String::new(),
+            new_constraint_concept_index: 0,
+            new_constraint_expr_type_index: 0,
+            new_constraint_role_index: 0,
+            new_constraint_property: String::new(),
+            new_constraint_op_index: 0,
+            new_constraint_value_str: String::new(),
         }
     }
+}
+
+/// Bundled system parameter for ontology-related resources.
+/// Reduces the system parameter count in `editor_panel_system`.
+#[derive(SystemParam)]
+pub(super) struct OntologyParams<'w> {
+    pub(super) concept_registry: ResMut<'w, ConceptRegistry>,
+    pub(super) relation_registry: ResMut<'w, RelationRegistry>,
+    pub(super) constraint_registry: ResMut<'w, ConstraintRegistry>,
+    pub(super) schema_validation: Res<'w, SchemaValidation>,
 }

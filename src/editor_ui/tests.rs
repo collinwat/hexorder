@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::contracts::editor_ui::EditorTool;
 
-use super::components::EditorState;
+use super::components::{EditorState, OntologyTab};
 
 #[test]
 fn editor_tool_defaults_to_select() {
@@ -38,6 +38,12 @@ fn editor_state_defaults() {
     assert!(state.new_prop_name.is_empty());
     assert_eq!(state.new_prop_type_index, 0);
     assert!(state.new_enum_options.is_empty());
+    assert_eq!(state.active_tab, OntologyTab::Types);
+    assert!(state.new_concept_name.is_empty());
+    assert!(state.new_relation_name.is_empty());
+    assert!(state.new_constraint_name.is_empty());
+    assert!(state.editing_concept_id.is_none());
+    assert!(state.binding_entity_type_id.is_none());
 }
 
 #[test]
@@ -49,4 +55,18 @@ fn editor_state_resource_inserts_correctly() {
     let state = app.world().resource::<EditorState>();
     assert!(state.new_type_name.is_empty());
     assert_eq!(state.new_prop_type_index, 0);
+}
+
+#[test]
+fn ontology_tab_default_is_types() {
+    assert_eq!(OntologyTab::default(), OntologyTab::Types);
+}
+
+#[test]
+fn ontology_tab_variants_are_distinct() {
+    assert_ne!(OntologyTab::Types, OntologyTab::Concepts);
+    assert_ne!(OntologyTab::Types, OntologyTab::Relations);
+    assert_ne!(OntologyTab::Types, OntologyTab::Constraints);
+    assert_ne!(OntologyTab::Types, OntologyTab::Validation);
+    assert_ne!(OntologyTab::Concepts, OntologyTab::Relations);
 }

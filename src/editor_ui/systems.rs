@@ -10,8 +10,14 @@ use crate::contracts::game_system::{
     TypeId, UnitInstance,
 };
 use crate::contracts::hex_grid::{HexPosition, HexTile, SelectedHex};
+use crate::contracts::ontology::{
+    CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
+    ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
+    RelationTrigger,
+};
+use crate::contracts::validation::SchemaValidation;
 
-use super::components::EditorState;
+use super::components::{EditorState, OntologyParams, OntologyTab};
 
 /// Deferred actions to apply after the egui closure completes.
 /// Avoids side effects inside the closure (multi-pass safe).
@@ -35,6 +41,52 @@ enum EditorAction {
         prop_id: TypeId,
     },
     DeleteSelectedUnit,
+    CreateConcept {
+        name: String,
+        description: String,
+    },
+    DeleteConcept {
+        id: TypeId,
+    },
+    AddConceptRole {
+        concept_id: TypeId,
+        name: String,
+        allowed_roles: Vec<EntityRole>,
+    },
+    RemoveConceptRole {
+        concept_id: TypeId,
+        role_id: TypeId,
+    },
+    BindEntityToConcept {
+        entity_type_id: TypeId,
+        concept_id: TypeId,
+        concept_role_id: TypeId,
+    },
+    UnbindEntityFromConcept {
+        #[allow(dead_code)]
+        concept_id: TypeId,
+        binding_id: TypeId,
+    },
+    CreateRelation {
+        name: String,
+        concept_id: TypeId,
+        subject_role_id: TypeId,
+        object_role_id: TypeId,
+        trigger: RelationTrigger,
+        effect: RelationEffect,
+    },
+    DeleteRelation {
+        id: TypeId,
+    },
+    CreateConstraint {
+        name: String,
+        description: String,
+        concept_id: TypeId,
+        expression: ConstraintExpr,
+    },
+    DeleteConstraint {
+        id: TypeId,
+    },
 }
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
@@ -88,12 +140,13 @@ pub fn editor_panel_system(
     mut selected_unit: ResMut<SelectedUnit>,
     mut editor_state: ResMut<EditorState>,
     selected_hex: Res<SelectedHex>,
-    game_system: Option<Res<GameSystem>>,
-    mut registry: Option<ResMut<EntityTypeRegistry>>,
+    game_system: Res<GameSystem>,
+    mut registry: ResMut<EntityTypeRegistry>,
     mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
     mut unit_data_query: Query<&mut EntityData, With<UnitInstance>>,
     tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
     mut commands: Commands,
+    mut ontology: OntologyParams,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -110,40 +163,84 @@ pub fn editor_panel_system(
             // -- Tool Mode --
             render_tool_mode(ui, &mut editor_tool);
 
-            // -- Cell Palette (Paint mode) --
-            if *editor_tool == EditorTool::Paint {
-                render_cell_palette(ui, &registry, &mut active_board);
-            }
+            // -- Tab Bar --
+            render_tab_bar(ui, &mut editor_state);
 
-            // -- Unit Palette (Place mode) --
-            if *editor_tool == EditorTool::Place {
-                render_unit_palette(ui, &registry, &mut active_token);
-            }
+            // -- Tab Content --
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                match editor_state.active_tab {
+                    OntologyTab::Types => {
+                        render_entity_type_editor(
+                            ui,
+                            &mut registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Concepts => {
+                        render_concepts_tab(
+                            ui,
+                            &mut ontology.concept_registry,
+                            &registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Relations => {
+                        render_relations_tab(
+                            ui,
+                            &mut ontology.relation_registry,
+                            &ontology.concept_registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Constraints => {
+                        render_constraints_tab(
+                            ui,
+                            &mut ontology.constraint_registry,
+                            &ontology.concept_registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Validation => {
+                        render_validation_tab(ui, &ontology.schema_validation);
+                    }
+                }
 
-            // -- Entity Type Editor --
-            render_entity_type_editor(ui, &mut registry, &mut editor_state, &mut actions);
+                ui.separator();
 
-            ui.separator();
+                // -- Cell Palette (Paint mode) --
+                if *editor_tool == EditorTool::Paint {
+                    render_cell_palette(ui, &registry, &mut active_board);
+                }
 
-            // -- Unit Inspector (takes priority when a unit is selected) --
-            if selected_unit.entity.is_some() {
-                render_unit_inspector(
-                    ui,
-                    &selected_unit,
-                    &mut unit_data_query,
-                    &registry,
-                    &mut actions,
-                );
-            } else {
-                // -- Tile Inspector --
-                render_inspector(
-                    ui,
-                    &selected_hex,
-                    &tile_query,
-                    &mut tile_data_query,
-                    &registry,
-                );
-            }
+                // -- Unit Palette (Place mode) --
+                if *editor_tool == EditorTool::Place {
+                    render_unit_palette(ui, &registry, &mut active_token);
+                }
+
+                // -- Unit Inspector (takes priority when a unit is selected) --
+                if selected_unit.entity.is_some() {
+                    render_unit_inspector(
+                        ui,
+                        &selected_unit,
+                        &mut unit_data_query,
+                        &registry,
+                        &mut actions,
+                    );
+                } else {
+                    // -- Tile Inspector --
+                    render_inspector(
+                        ui,
+                        &selected_hex,
+                        &tile_query,
+                        &mut tile_data_query,
+                        &registry,
+                    );
+                }
+            });
         });
 
     // -- Apply deferred actions --
@@ -156,6 +253,9 @@ pub fn editor_panel_system(
         &mut selected_unit,
         &editor_state,
         &mut commands,
+        &mut ontology.concept_registry,
+        &mut ontology.relation_registry,
+        &mut ontology.constraint_registry,
     );
 }
 
@@ -163,30 +263,28 @@ pub fn editor_panel_system(
 // UI Section Renderers
 // ---------------------------------------------------------------------------
 
-fn render_game_system_info(ui: &mut egui::Ui, game_system: &Option<Res<GameSystem>>) {
-    if let Some(gs) = game_system {
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Hexorder").strong().size(15.0));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(
-                    egui::RichText::new(format!("v{}", gs.version))
-                        .small()
-                        .color(egui::Color32::GRAY),
-                );
-            });
+fn render_game_system_info(ui: &mut egui::Ui, gs: &Res<GameSystem>) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Hexorder").strong().size(15.0));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(
+                egui::RichText::new(format!("v{}", gs.version))
+                    .small()
+                    .color(egui::Color32::GRAY),
+            );
         });
-        let id_short = if gs.id.len() > 8 {
-            format!("{}...", &gs.id[..8])
-        } else {
-            gs.id.clone()
-        };
-        ui.label(
-            egui::RichText::new(format!("ID: {id_short}"))
-                .small()
-                .color(egui::Color32::from_gray(120)),
-        );
-        ui.separator();
-    }
+    });
+    let id_short = if gs.id.len() > 8 {
+        format!("{}...", &gs.id[..8])
+    } else {
+        gs.id.clone()
+    };
+    ui.label(
+        egui::RichText::new(format!("ID: {id_short}"))
+            .small()
+            .color(egui::Color32::from_gray(120)),
+    );
+    ui.separator();
 }
 
 fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut ResMut<EditorTool>) {
@@ -214,44 +312,67 @@ fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut ResMut<EditorTool>) {
     ui.separator();
 }
 
+fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut ResMut<EditorState>) {
+    ui.horizontal_wrapped(|ui| {
+        for tab in [
+            OntologyTab::Types,
+            OntologyTab::Concepts,
+            OntologyTab::Relations,
+            OntologyTab::Constraints,
+            OntologyTab::Validation,
+        ] {
+            let label = match tab {
+                OntologyTab::Types => "Types",
+                OntologyTab::Concepts => "Concepts",
+                OntologyTab::Relations => "Relations",
+                OntologyTab::Constraints => "Constr.",
+                OntologyTab::Validation => "Valid.",
+            };
+            if ui
+                .selectable_label(editor_state.active_tab == tab, label)
+                .clicked()
+            {
+                editor_state.active_tab = tab;
+            }
+        }
+    });
+    ui.separator();
+}
+
 fn render_cell_palette(
     ui: &mut egui::Ui,
-    registry: &Option<ResMut<EntityTypeRegistry>>,
+    registry: &ResMut<EntityTypeRegistry>,
     active_board: &mut ResMut<ActiveBoardType>,
 ) {
     ui.label(egui::RichText::new("Cell Palette").strong());
 
-    if let Some(registry) = registry {
-        for et in registry.types_by_role(EntityRole::BoardPosition) {
-            let is_active = active_board.entity_type_id == Some(et.id);
-            let color = bevy_color_to_egui(et.color);
-            let et_id = et.id;
-            let et_name = et.name.clone();
+    for et in registry.types_by_role(EntityRole::BoardPosition) {
+        let is_active = active_board.entity_type_id == Some(et.id);
+        let color = bevy_color_to_egui(et.color);
+        let et_id = et.id;
+        let et_name = et.name.clone();
 
-            ui.horizontal(|ui| {
-                let (rect, response) =
-                    ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
-                if ui.is_rect_visible(rect) {
-                    ui.painter().rect_filled(rect, 2.0, color);
-                    if is_active {
-                        ui.painter().rect_stroke(
-                            rect,
-                            2.0,
-                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                            egui::StrokeKind::Outside,
-                        );
-                    }
+        ui.horizontal(|ui| {
+            let (rect, response) =
+                ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
+            if ui.is_rect_visible(rect) {
+                ui.painter().rect_filled(rect, 2.0, color);
+                if is_active {
+                    ui.painter().rect_stroke(
+                        rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::WHITE),
+                        egui::StrokeKind::Outside,
+                    );
                 }
-                if response.clicked() {
-                    active_board.entity_type_id = Some(et_id);
-                }
-                if ui.selectable_label(is_active, &et_name).clicked() {
-                    active_board.entity_type_id = Some(et_id);
-                }
-            });
-        }
-    } else {
-        ui.label("(no cell types loaded)");
+            }
+            if response.clicked() {
+                active_board.entity_type_id = Some(et_id);
+            }
+            if ui.selectable_label(is_active, &et_name).clicked() {
+                active_board.entity_type_id = Some(et_id);
+            }
+        });
     }
 
     ui.separator();
@@ -259,42 +380,38 @@ fn render_cell_palette(
 
 fn render_unit_palette(
     ui: &mut egui::Ui,
-    registry: &Option<ResMut<EntityTypeRegistry>>,
+    registry: &ResMut<EntityTypeRegistry>,
     active_token: &mut ResMut<ActiveTokenType>,
 ) {
     ui.label(egui::RichText::new("Unit Palette").strong());
 
-    if let Some(registry) = registry {
-        for et in registry.types_by_role(EntityRole::Token) {
-            let is_active = active_token.entity_type_id == Some(et.id);
-            let color = bevy_color_to_egui(et.color);
-            let et_id = et.id;
-            let et_name = et.name.clone();
+    for et in registry.types_by_role(EntityRole::Token) {
+        let is_active = active_token.entity_type_id == Some(et.id);
+        let color = bevy_color_to_egui(et.color);
+        let et_id = et.id;
+        let et_name = et.name.clone();
 
-            ui.horizontal(|ui| {
-                let (rect, response) =
-                    ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
-                if ui.is_rect_visible(rect) {
-                    ui.painter().rect_filled(rect, 2.0, color);
-                    if is_active {
-                        ui.painter().rect_stroke(
-                            rect,
-                            2.0,
-                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                            egui::StrokeKind::Outside,
-                        );
-                    }
+        ui.horizontal(|ui| {
+            let (rect, response) =
+                ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
+            if ui.is_rect_visible(rect) {
+                ui.painter().rect_filled(rect, 2.0, color);
+                if is_active {
+                    ui.painter().rect_stroke(
+                        rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::WHITE),
+                        egui::StrokeKind::Outside,
+                    );
                 }
-                if response.clicked() {
-                    active_token.entity_type_id = Some(et_id);
-                }
-                if ui.selectable_label(is_active, &et_name).clicked() {
-                    active_token.entity_type_id = Some(et_id);
-                }
-            });
-        }
-    } else {
-        ui.label("(no unit types loaded)");
+            }
+            if response.clicked() {
+                active_token.entity_type_id = Some(et_id);
+            }
+            if ui.selectable_label(is_active, &et_name).clicked() {
+                active_token.entity_type_id = Some(et_id);
+            }
+        });
     }
 
     ui.separator();
@@ -302,7 +419,7 @@ fn render_unit_palette(
 
 fn render_entity_type_editor(
     ui: &mut egui::Ui,
-    registry: &mut Option<ResMut<EntityTypeRegistry>>,
+    registry: &mut ResMut<EntityTypeRegistry>,
     editor_state: &mut ResMut<EditorState>,
     actions: &mut Vec<EditorAction>,
 ) {
@@ -332,7 +449,7 @@ fn render_entity_type_editor(
 #[allow(clippy::too_many_arguments)]
 fn render_entity_type_section(
     ui: &mut egui::Ui,
-    registry: &mut Option<ResMut<EntityTypeRegistry>>,
+    registry: &mut ResMut<EntityTypeRegistry>,
     editor_state: &mut ResMut<EditorState>,
     actions: &mut Vec<EditorAction>,
     role: EntityRole,
@@ -380,7 +497,7 @@ fn render_entity_type_section(
             ui.add_space(4.0);
 
             // -- Edit existing types --
-            if let Some(registry) = registry {
+            {
                 // Collect indices and ids for types with the matching role.
                 let role_indices: Vec<usize> = registry
                     .types
@@ -526,13 +643,834 @@ fn render_entity_type_section(
         });
 }
 
+#[allow(clippy::too_many_arguments)]
+fn render_concepts_tab(
+    ui: &mut egui::Ui,
+    concept_registry: &mut ResMut<ConceptRegistry>,
+    entity_registry: &ResMut<EntityTypeRegistry>,
+    editor_state: &mut ResMut<EditorState>,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(egui::RichText::new("Concepts").strong());
+
+    // -- Create new concept --
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("New Concept").small());
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut editor_state.new_concept_name);
+        });
+        ui.horizontal(|ui| {
+            ui.label("Desc:");
+            ui.text_edit_singleline(&mut editor_state.new_concept_description);
+        });
+        let name_valid = !editor_state.new_concept_name.trim().is_empty();
+        ui.add_enabled_ui(name_valid, |ui| {
+            if ui.button("+ Create Concept").clicked() && name_valid {
+                actions.push(EditorAction::CreateConcept {
+                    name: editor_state.new_concept_name.trim().to_string(),
+                    description: editor_state.new_concept_description.trim().to_string(),
+                });
+                editor_state.new_concept_name.clear();
+                editor_state.new_concept_description.clear();
+            }
+        });
+    });
+
+    ui.add_space(4.0);
+
+    // -- Concept list --
+    if concept_registry.concepts.is_empty() {
+        ui.label(
+            egui::RichText::new("No concepts defined")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+        return;
+    }
+
+    // Snapshot concept data to avoid borrow conflicts.
+    let concept_snapshots: Vec<_> = concept_registry
+        .concepts
+        .iter()
+        .map(|c| {
+            (
+                c.id,
+                c.name.clone(),
+                c.description.clone(),
+                c.role_labels.clone(),
+            )
+        })
+        .collect();
+
+    let binding_snapshots: Vec<_> = concept_registry
+        .bindings
+        .iter()
+        .map(|b| {
+            (
+                b.id,
+                b.entity_type_id,
+                b.concept_id,
+                b.concept_role_id,
+                b.property_bindings.clone(),
+            )
+        })
+        .collect();
+
+    for (concept_id, concept_name, concept_desc, role_labels) in &concept_snapshots {
+        let mut delete_concept = false;
+
+        egui::CollapsingHeader::new(concept_name)
+            .id_salt(format!("concept_{concept_id:?}"))
+            .show(ui, |ui| {
+                // Description
+                ui.label(
+                    egui::RichText::new(concept_desc)
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+
+                // -- Role Slots --
+                ui.label(egui::RichText::new("Roles:").small());
+                if role_labels.is_empty() {
+                    ui.label(
+                        egui::RichText::new("  (none)")
+                            .small()
+                            .color(egui::Color32::GRAY),
+                    );
+                } else {
+                    let mut remove_role_id = None;
+                    for role in role_labels {
+                        ui.horizontal(|ui| {
+                            let allowed_str: Vec<&str> = role
+                                .allowed_entity_roles
+                                .iter()
+                                .map(|r| match r {
+                                    EntityRole::BoardPosition => "Board",
+                                    EntityRole::Token => "Token",
+                                })
+                                .collect();
+                            ui.label(format!("  {} [{}]", role.name, allowed_str.join(", ")));
+                            if ui.small_button("x").clicked() {
+                                remove_role_id = Some(role.id);
+                            }
+                        });
+                    }
+                    if let Some(role_id) = remove_role_id {
+                        actions.push(EditorAction::RemoveConceptRole {
+                            concept_id: *concept_id,
+                            role_id,
+                        });
+                    }
+                }
+
+                // Add role form
+                ui.group(|ui| {
+                    ui.label(egui::RichText::new("Add Role").small());
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut editor_state.new_role_name);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut editor_state.new_role_allowed_roles[0], "Board");
+                        ui.checkbox(&mut editor_state.new_role_allowed_roles[1], "Token");
+                    });
+                    let role_valid = !editor_state.new_role_name.trim().is_empty()
+                        && editor_state.new_role_allowed_roles.iter().any(|&v| v);
+                    ui.add_enabled_ui(role_valid, |ui| {
+                        if ui.button("+ Add Role").clicked() && role_valid {
+                            let mut allowed = Vec::new();
+                            if editor_state.new_role_allowed_roles[0] {
+                                allowed.push(EntityRole::BoardPosition);
+                            }
+                            if editor_state.new_role_allowed_roles[1] {
+                                allowed.push(EntityRole::Token);
+                            }
+                            actions.push(EditorAction::AddConceptRole {
+                                concept_id: *concept_id,
+                                name: editor_state.new_role_name.trim().to_string(),
+                                allowed_roles: allowed,
+                            });
+                            editor_state.new_role_name.clear();
+                            editor_state.new_role_allowed_roles = vec![false, false];
+                        }
+                    });
+                });
+
+                // -- Bindings --
+                ui.add_space(2.0);
+                ui.label(egui::RichText::new("Bindings:").small());
+
+                let concept_bindings: Vec<_> = binding_snapshots
+                    .iter()
+                    .filter(|(_, _, cid, _, _)| *cid == *concept_id)
+                    .collect();
+
+                if concept_bindings.is_empty() {
+                    ui.label(
+                        egui::RichText::new("  (none)")
+                            .small()
+                            .color(egui::Color32::GRAY),
+                    );
+                } else {
+                    let mut unbind_id = None;
+                    for (binding_id, et_id, _, cr_id, prop_bindings) in &concept_bindings {
+                        let et_name = entity_registry
+                            .get(*et_id)
+                            .map_or_else(|| format!("{et_id:?}"), |et| et.name.clone());
+                        let role_name = role_labels
+                            .iter()
+                            .find(|r| r.id == *cr_id)
+                            .map_or("?", |r| r.name.as_str());
+                        ui.horizontal(|ui| {
+                            ui.label(format!("  {et_name} -> {role_name}"));
+                            if ui.small_button("x").clicked() {
+                                unbind_id = Some(*binding_id);
+                            }
+                        });
+                        // Show property mappings read-only
+                        for pb in prop_bindings {
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "    {:?} as \"{}\"",
+                                    pb.property_id, pb.concept_local_name
+                                ))
+                                .small()
+                                .color(egui::Color32::GRAY),
+                            );
+                        }
+                    }
+                    if let Some(bid) = unbind_id {
+                        actions.push(EditorAction::UnbindEntityFromConcept {
+                            concept_id: *concept_id,
+                            binding_id: bid,
+                        });
+                    }
+                }
+
+                // Add binding form
+                if !role_labels.is_empty() {
+                    ui.group(|ui| {
+                        ui.label(egui::RichText::new("Bind Entity").small());
+
+                        // Entity type ComboBox
+                        let et_names: Vec<(TypeId, String)> = entity_registry
+                            .types
+                            .iter()
+                            .map(|et| (et.id, et.name.clone()))
+                            .collect();
+
+                        let selected_et_name = editor_state
+                            .binding_entity_type_id
+                            .and_then(|id| et_names.iter().find(|(eid, _)| *eid == id))
+                            .map_or("(select)", |(_, n)| n.as_str())
+                            .to_string();
+
+                        egui::ComboBox::from_id_salt(format!("bind_et_{concept_id:?}"))
+                            .selected_text(&selected_et_name)
+                            .show_ui(ui, |ui| {
+                                for (et_id, et_name) in &et_names {
+                                    let selected =
+                                        editor_state.binding_entity_type_id == Some(*et_id);
+                                    if ui.selectable_label(selected, et_name).clicked() {
+                                        editor_state.binding_entity_type_id = Some(*et_id);
+                                    }
+                                }
+                            });
+
+                        // Concept role ComboBox
+                        let selected_cr_name = editor_state
+                            .binding_concept_role_id
+                            .and_then(|id| role_labels.iter().find(|r| r.id == id))
+                            .map_or("(select)", |r| r.name.as_str())
+                            .to_string();
+
+                        egui::ComboBox::from_id_salt(format!("bind_cr_{concept_id:?}"))
+                            .selected_text(&selected_cr_name)
+                            .show_ui(ui, |ui| {
+                                for role in role_labels {
+                                    let selected =
+                                        editor_state.binding_concept_role_id == Some(role.id);
+                                    if ui.selectable_label(selected, &role.name).clicked() {
+                                        editor_state.binding_concept_role_id = Some(role.id);
+                                    }
+                                }
+                            });
+
+                        let bind_valid = editor_state.binding_entity_type_id.is_some()
+                            && editor_state.binding_concept_role_id.is_some();
+                        ui.add_enabled_ui(bind_valid, |ui| {
+                            if ui.button("+ Bind").clicked()
+                                && bind_valid
+                                && let (Some(et_id), Some(cr_id)) = (
+                                    editor_state.binding_entity_type_id,
+                                    editor_state.binding_concept_role_id,
+                                )
+                            {
+                                actions.push(EditorAction::BindEntityToConcept {
+                                    entity_type_id: et_id,
+                                    concept_id: *concept_id,
+                                    concept_role_id: cr_id,
+                                });
+                                editor_state.binding_entity_type_id = None;
+                                editor_state.binding_concept_role_id = None;
+                            }
+                        });
+                    });
+                }
+
+                // Delete concept
+                ui.add_space(4.0);
+                if ui
+                    .button(
+                        egui::RichText::new("Delete Concept")
+                            .color(egui::Color32::from_rgb(200, 80, 80)),
+                    )
+                    .clicked()
+                {
+                    delete_concept = true;
+                }
+            });
+
+        if delete_concept {
+            actions.push(EditorAction::DeleteConcept { id: *concept_id });
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_relations_tab(
+    ui: &mut egui::Ui,
+    relation_registry: &mut ResMut<RelationRegistry>,
+    concept_registry: &ResMut<ConceptRegistry>,
+    editor_state: &mut ResMut<EditorState>,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(egui::RichText::new("Relations").strong());
+
+    let concepts: Vec<_> = concept_registry
+        .concepts
+        .iter()
+        .map(|c| (c.id, c.name.clone(), c.role_labels.clone()))
+        .collect();
+
+    // -- Create new relation --
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("New Relation").small());
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut editor_state.new_relation_name);
+        });
+
+        // Concept selector
+        let concept_names: Vec<&str> = concepts.iter().map(|(_, n, _)| n.as_str()).collect();
+        if !concept_names.is_empty() {
+            ui.horizontal(|ui| {
+                ui.label("Concept:");
+                let idx = &mut editor_state.new_relation_concept_index;
+                *idx = (*idx).min(concept_names.len().saturating_sub(1));
+                egui::ComboBox::from_id_salt("rel_concept")
+                    .selected_text(concept_names.get(*idx).copied().unwrap_or("--"))
+                    .show_ui(ui, |ui| {
+                        for (i, name) in concept_names.iter().enumerate() {
+                            ui.selectable_value(idx, i, *name);
+                        }
+                    });
+            });
+
+            // Subject/object role selectors
+            let selected_concept_roles = concepts
+                .get(editor_state.new_relation_concept_index)
+                .map(|(_, _, roles)| roles.clone())
+                .unwrap_or_default();
+            let role_names: Vec<&str> = selected_concept_roles
+                .iter()
+                .map(|r| r.name.as_str())
+                .collect();
+
+            if !role_names.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Subject:");
+                    let idx = &mut editor_state.new_relation_subject_index;
+                    *idx = (*idx).min(role_names.len().saturating_sub(1));
+                    egui::ComboBox::from_id_salt("rel_subject")
+                        .selected_text(role_names.get(*idx).copied().unwrap_or("--"))
+                        .show_ui(ui, |ui| {
+                            for (i, name) in role_names.iter().enumerate() {
+                                ui.selectable_value(idx, i, *name);
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Object:");
+                    let idx = &mut editor_state.new_relation_object_index;
+                    *idx = (*idx).min(role_names.len().saturating_sub(1));
+                    egui::ComboBox::from_id_salt("rel_object")
+                        .selected_text(role_names.get(*idx).copied().unwrap_or("--"))
+                        .show_ui(ui, |ui| {
+                            for (i, name) in role_names.iter().enumerate() {
+                                ui.selectable_value(idx, i, *name);
+                            }
+                        });
+                });
+            }
+        }
+
+        // Trigger selector
+        let triggers = ["OnEnter", "OnExit", "WhilePresent"];
+        ui.horizontal(|ui| {
+            ui.label("Trigger:");
+            let idx = &mut editor_state.new_relation_trigger_index;
+            *idx = (*idx).min(2);
+            egui::ComboBox::from_id_salt("rel_trigger")
+                .selected_text(triggers[*idx])
+                .show_ui(ui, |ui| {
+                    for (i, name) in triggers.iter().enumerate() {
+                        ui.selectable_value(idx, i, *name);
+                    }
+                });
+        });
+
+        // Effect selector
+        let effects = ["ModifyProperty", "Block", "Allow"];
+        ui.horizontal(|ui| {
+            ui.label("Effect:");
+            let idx = &mut editor_state.new_relation_effect_index;
+            *idx = (*idx).min(2);
+            egui::ComboBox::from_id_salt("rel_effect")
+                .selected_text(effects[*idx])
+                .show_ui(ui, |ui| {
+                    for (i, name) in effects.iter().enumerate() {
+                        ui.selectable_value(idx, i, *name);
+                    }
+                });
+        });
+
+        // ModifyProperty fields
+        if editor_state.new_relation_effect_index == 0 {
+            ui.horizontal(|ui| {
+                ui.label("Target:");
+                ui.text_edit_singleline(&mut editor_state.new_relation_target_prop);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Source:");
+                ui.text_edit_singleline(&mut editor_state.new_relation_source_prop);
+            });
+            let operations = ["Add", "Subtract", "Multiply", "Min", "Max"];
+            ui.horizontal(|ui| {
+                ui.label("Op:");
+                let idx = &mut editor_state.new_relation_operation_index;
+                *idx = (*idx).min(4);
+                egui::ComboBox::from_id_salt("rel_op")
+                    .selected_text(operations[*idx])
+                    .show_ui(ui, |ui| {
+                        for (i, name) in operations.iter().enumerate() {
+                            ui.selectable_value(idx, i, *name);
+                        }
+                    });
+            });
+        }
+
+        // Create button
+        let name_valid = !editor_state.new_relation_name.trim().is_empty() && !concepts.is_empty();
+        ui.add_enabled_ui(name_valid, |ui| {
+            if ui.button("+ Create Relation").clicked() && name_valid {
+                let concept_idx = editor_state.new_relation_concept_index;
+                if let Some((concept_id, _, roles)) = concepts.get(concept_idx) {
+                    let subject_id = roles
+                        .get(editor_state.new_relation_subject_index)
+                        .map_or_else(TypeId::new, |r| r.id);
+                    let object_id = roles
+                        .get(editor_state.new_relation_object_index)
+                        .map_or_else(TypeId::new, |r| r.id);
+                    let trigger = match editor_state.new_relation_trigger_index {
+                        1 => RelationTrigger::OnExit,
+                        2 => RelationTrigger::WhilePresent,
+                        _ => RelationTrigger::OnEnter,
+                    };
+                    let effect = match editor_state.new_relation_effect_index {
+                        1 => RelationEffect::Block { condition: None },
+                        2 => RelationEffect::Allow { condition: None },
+                        _ => RelationEffect::ModifyProperty {
+                            target_property: editor_state
+                                .new_relation_target_prop
+                                .trim()
+                                .to_string(),
+                            source_property: editor_state
+                                .new_relation_source_prop
+                                .trim()
+                                .to_string(),
+                            operation: index_to_modify_operation(
+                                editor_state.new_relation_operation_index,
+                            ),
+                        },
+                    };
+                    actions.push(EditorAction::CreateRelation {
+                        name: editor_state.new_relation_name.trim().to_string(),
+                        concept_id: *concept_id,
+                        subject_role_id: subject_id,
+                        object_role_id: object_id,
+                        trigger,
+                        effect,
+                    });
+                    editor_state.new_relation_name.clear();
+                    editor_state.new_relation_target_prop.clear();
+                    editor_state.new_relation_source_prop.clear();
+                }
+            }
+        });
+    });
+
+    ui.add_space(4.0);
+
+    // -- Relation list --
+    if relation_registry.relations.is_empty() {
+        ui.label(
+            egui::RichText::new("No relations defined")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+        return;
+    }
+
+    let relation_snapshots: Vec<_> = relation_registry
+        .relations
+        .iter()
+        .map(|r| {
+            (
+                r.id,
+                r.name.clone(),
+                r.concept_id,
+                r.subject_role_id,
+                r.object_role_id,
+                r.trigger,
+                r.effect.clone(),
+            )
+        })
+        .collect();
+
+    for (rel_id, rel_name, concept_id, subj_id, obj_id, trigger, effect) in &relation_snapshots {
+        let mut delete_rel = false;
+
+        egui::CollapsingHeader::new(rel_name)
+            .id_salt(format!("rel_{rel_id:?}"))
+            .show(ui, |ui| {
+                let concept_name = concepts
+                    .iter()
+                    .find(|(id, _, _)| *id == *concept_id)
+                    .map_or("?", |(_, n, _)| n.as_str());
+                ui.label(format!("Concept: {concept_name}"));
+
+                // Find role names
+                let role_labels = concepts
+                    .iter()
+                    .find(|(id, _, _)| *id == *concept_id)
+                    .map(|(_, _, roles)| roles.clone())
+                    .unwrap_or_default();
+                let subj_name = role_labels
+                    .iter()
+                    .find(|r| r.id == *subj_id)
+                    .map_or("?", |r| r.name.as_str());
+                let obj_name = role_labels
+                    .iter()
+                    .find(|r| r.id == *obj_id)
+                    .map_or("?", |r| r.name.as_str());
+                ui.label(format!("{subj_name} -> {obj_name}"));
+
+                let trigger_str = match trigger {
+                    RelationTrigger::OnEnter => "OnEnter",
+                    RelationTrigger::OnExit => "OnExit",
+                    RelationTrigger::WhilePresent => "WhilePresent",
+                };
+                ui.label(format!("Trigger: {trigger_str}"));
+
+                let effect_str = format_relation_effect(effect);
+                ui.label(format!("Effect: {effect_str}"));
+
+                if ui
+                    .button(
+                        egui::RichText::new("Delete").color(egui::Color32::from_rgb(200, 80, 80)),
+                    )
+                    .clicked()
+                {
+                    delete_rel = true;
+                }
+            });
+
+        if delete_rel {
+            actions.push(EditorAction::DeleteRelation { id: *rel_id });
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_constraints_tab(
+    ui: &mut egui::Ui,
+    constraint_registry: &mut ResMut<ConstraintRegistry>,
+    concept_registry: &ResMut<ConceptRegistry>,
+    editor_state: &mut ResMut<EditorState>,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(egui::RichText::new("Constraints").strong());
+
+    let concepts: Vec<_> = concept_registry
+        .concepts
+        .iter()
+        .map(|c| (c.id, c.name.clone(), c.role_labels.clone()))
+        .collect();
+
+    // -- Constraint list --
+    let constraint_snapshots: Vec<_> = constraint_registry
+        .constraints
+        .iter()
+        .map(|c| {
+            (
+                c.id,
+                c.name.clone(),
+                c.description.clone(),
+                c.auto_generated,
+                c.expression.clone(),
+            )
+        })
+        .collect();
+
+    if constraint_snapshots.is_empty() {
+        ui.label(
+            egui::RichText::new("No constraints defined")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+    } else {
+        for (cst_id, cst_name, _cst_desc, auto_gen, expr) in &constraint_snapshots {
+            ui.horizontal(|ui| {
+                if *auto_gen {
+                    ui.label(
+                        egui::RichText::new("[auto]")
+                            .small()
+                            .color(egui::Color32::from_rgb(200, 150, 64)),
+                    );
+                }
+                ui.label(&**cst_name);
+                if ui.small_button("x").clicked() {
+                    actions.push(EditorAction::DeleteConstraint { id: *cst_id });
+                }
+            });
+            ui.label(
+                egui::RichText::new(format_constraint_expr(expr))
+                    .small()
+                    .color(egui::Color32::GRAY),
+            );
+            ui.add_space(2.0);
+        }
+    }
+
+    ui.add_space(4.0);
+
+    // -- Create constraint --
+    egui::CollapsingHeader::new(egui::RichText::new("New Constraint").small())
+        .default_open(false)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Name:");
+                ui.text_edit_singleline(&mut editor_state.new_constraint_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Desc:");
+                ui.text_edit_singleline(&mut editor_state.new_constraint_description);
+            });
+
+            // Concept selector
+            let concept_names: Vec<&str> = concepts.iter().map(|(_, n, _)| n.as_str()).collect();
+            if !concept_names.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Concept:");
+                    let idx = &mut editor_state.new_constraint_concept_index;
+                    *idx = (*idx).min(concept_names.len().saturating_sub(1));
+                    egui::ComboBox::from_id_salt("cst_concept")
+                        .selected_text(concept_names.get(*idx).copied().unwrap_or("--"))
+                        .show_ui(ui, |ui| {
+                            for (i, name) in concept_names.iter().enumerate() {
+                                ui.selectable_value(idx, i, *name);
+                            }
+                        });
+                });
+            }
+
+            // Expression type
+            let expr_types = ["PropertyCompare", "CrossCompare", "IsType", "PathBudget"];
+            ui.horizontal(|ui| {
+                ui.label("Expr:");
+                let idx = &mut editor_state.new_constraint_expr_type_index;
+                *idx = (*idx).min(3);
+                egui::ComboBox::from_id_salt("cst_expr")
+                    .selected_text(expr_types[*idx])
+                    .show_ui(ui, |ui| {
+                        for (i, name) in expr_types.iter().enumerate() {
+                            ui.selectable_value(idx, i, *name);
+                        }
+                    });
+            });
+
+            // Fields based on expression type
+            let selected_concept_roles = concepts
+                .get(editor_state.new_constraint_concept_index)
+                .map(|(_, _, roles)| roles.clone())
+                .unwrap_or_default();
+            let role_names: Vec<&str> = selected_concept_roles
+                .iter()
+                .map(|r| r.name.as_str())
+                .collect();
+
+            match editor_state.new_constraint_expr_type_index {
+                0 => {
+                    // PropertyCompare
+                    if !role_names.is_empty() {
+                        ui.horizontal(|ui| {
+                            ui.label("Role:");
+                            let idx = &mut editor_state.new_constraint_role_index;
+                            *idx = (*idx).min(role_names.len().saturating_sub(1));
+                            egui::ComboBox::from_id_salt("cst_role")
+                                .selected_text(role_names.get(*idx).copied().unwrap_or("--"))
+                                .show_ui(ui, |ui| {
+                                    for (i, name) in role_names.iter().enumerate() {
+                                        ui.selectable_value(idx, i, *name);
+                                    }
+                                });
+                        });
+                    }
+                    ui.horizontal(|ui| {
+                        ui.label("Prop:");
+                        ui.text_edit_singleline(&mut editor_state.new_constraint_property);
+                    });
+                    let ops = ["==", "!=", "<", "<=", ">", ">="];
+                    ui.horizontal(|ui| {
+                        ui.label("Op:");
+                        let idx = &mut editor_state.new_constraint_op_index;
+                        *idx = (*idx).min(5);
+                        egui::ComboBox::from_id_salt("cst_op")
+                            .selected_text(ops[*idx])
+                            .show_ui(ui, |ui| {
+                                for (i, name) in ops.iter().enumerate() {
+                                    ui.selectable_value(idx, i, *name);
+                                }
+                            });
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Value:");
+                        ui.text_edit_singleline(&mut editor_state.new_constraint_value_str);
+                    });
+                }
+                3 => {
+                    // PathBudget
+                    if !role_names.is_empty() {
+                        ui.label(egui::RichText::new("Cost:").small());
+                        ui.horizontal(|ui| {
+                            ui.label("Role:");
+                            let idx = &mut editor_state.new_constraint_role_index;
+                            *idx = (*idx).min(role_names.len().saturating_sub(1));
+                            egui::ComboBox::from_id_salt("cst_cost_role")
+                                .selected_text(role_names.get(*idx).copied().unwrap_or("--"))
+                                .show_ui(ui, |ui| {
+                                    for (i, name) in role_names.iter().enumerate() {
+                                        ui.selectable_value(idx, i, *name);
+                                    }
+                                });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Prop:");
+                            ui.text_edit_singleline(&mut editor_state.new_constraint_property);
+                        });
+                        ui.label(egui::RichText::new("Budget:").small());
+                        ui.horizontal(|ui| {
+                            ui.label("Value:");
+                            ui.text_edit_singleline(&mut editor_state.new_constraint_value_str);
+                        });
+                    }
+                }
+                _ => {
+                    // CrossCompare and IsType — simplified for now
+                    ui.label(
+                        egui::RichText::new("(full editor coming soon)")
+                            .small()
+                            .color(egui::Color32::GRAY),
+                    );
+                }
+            }
+
+            let name_valid =
+                !editor_state.new_constraint_name.trim().is_empty() && !concepts.is_empty();
+            ui.add_enabled_ui(name_valid, |ui| {
+                if ui.button("+ Create Constraint").clicked() && name_valid {
+                    let concept_idx = editor_state.new_constraint_concept_index;
+                    if let Some((concept_id, _, roles)) = concepts.get(concept_idx) {
+                        let expression = build_constraint_expression(editor_state, roles);
+                        actions.push(EditorAction::CreateConstraint {
+                            name: editor_state.new_constraint_name.trim().to_string(),
+                            description: editor_state.new_constraint_description.trim().to_string(),
+                            concept_id: *concept_id,
+                            expression,
+                        });
+                        editor_state.new_constraint_name.clear();
+                        editor_state.new_constraint_description.clear();
+                        editor_state.new_constraint_value_str.clear();
+                        editor_state.new_constraint_property.clear();
+                    }
+                }
+            });
+        });
+}
+
+fn render_validation_tab(ui: &mut egui::Ui, validation: &Res<SchemaValidation>) {
+    ui.label(egui::RichText::new("Validation").strong());
+
+    if validation.is_valid {
+        ui.label(egui::RichText::new("Schema Valid").color(egui::Color32::from_rgb(80, 152, 80)));
+    } else {
+        ui.label(
+            egui::RichText::new(format!("{} Error(s)", validation.errors.len()))
+                .color(egui::Color32::from_rgb(200, 80, 80)),
+        );
+    }
+
+    if !validation.errors.is_empty() {
+        ui.add_space(4.0);
+        for error in &validation.errors {
+            ui.group(|ui| {
+                let category_str = match error.category {
+                    crate::contracts::validation::SchemaErrorCategory::DanglingReference => {
+                        "Dangling Ref"
+                    }
+                    crate::contracts::validation::SchemaErrorCategory::RoleMismatch => {
+                        "Role Mismatch"
+                    }
+                    crate::contracts::validation::SchemaErrorCategory::PropertyMismatch => {
+                        "Prop Mismatch"
+                    }
+                    crate::contracts::validation::SchemaErrorCategory::MissingBinding => {
+                        "Missing Binding"
+                    }
+                    crate::contracts::validation::SchemaErrorCategory::InvalidExpression => {
+                        "Invalid Expr"
+                    }
+                };
+                ui.label(
+                    egui::RichText::new(category_str)
+                        .small()
+                        .color(egui::Color32::from_rgb(200, 150, 64)),
+                );
+                ui.label(egui::RichText::new(&error.message).small());
+            });
+        }
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn render_inspector(
     ui: &mut egui::Ui,
     selected_hex: &Res<SelectedHex>,
     tile_query: &Query<(&HexPosition, Entity), With<HexTile>>,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
-    registry: &Option<ResMut<EntityTypeRegistry>>,
+    registry: &ResMut<EntityTypeRegistry>,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Inspector").strong())
         .default_open(true)
@@ -560,15 +1498,13 @@ fn render_inspector(
 
             // Cell type name
             let type_name = registry
-                .as_ref()
-                .and_then(|r| r.get(entity_data.entity_type_id))
+                .get(entity_data.entity_type_id)
                 .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
             ui.label(format!("Type: {type_name}"));
 
             // Property value editors
             let prop_defs: Vec<_> = registry
-                .as_ref()
-                .and_then(|r| r.get(entity_data.entity_type_id))
+                .get(entity_data.entity_type_id)
                 .map(|et| et.properties.clone())
                 .unwrap_or_default();
 
@@ -581,10 +1517,7 @@ fn render_inspector(
                 return;
             }
 
-            let enum_defs: Vec<EnumDefinition> = registry
-                .as_ref()
-                .map(|r| r.enum_definitions.clone())
-                .unwrap_or_default();
+            let enum_defs: Vec<EnumDefinition> = registry.enum_definitions.clone();
 
             ui.separator();
             ui.label(egui::RichText::new("Properties").small());
@@ -608,7 +1541,7 @@ fn render_unit_inspector(
     ui: &mut egui::Ui,
     selected_unit: &ResMut<SelectedUnit>,
     unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
-    registry: &Option<ResMut<EntityTypeRegistry>>,
+    registry: &ResMut<EntityTypeRegistry>,
     actions: &mut Vec<EditorAction>,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Unit Inspector").strong())
@@ -626,22 +1559,17 @@ fn render_unit_inspector(
 
             // Unit type name
             let type_name = registry
-                .as_ref()
-                .and_then(|r| r.get(entity_data.entity_type_id))
+                .get(entity_data.entity_type_id)
                 .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
             ui.label(format!("Unit Type: {type_name}"));
 
             // Property value editors
             let prop_defs: Vec<_> = registry
-                .as_ref()
-                .and_then(|r| r.get(entity_data.entity_type_id))
+                .get(entity_data.entity_type_id)
                 .map(|et| et.properties.clone())
                 .unwrap_or_default();
 
-            let enum_defs: Vec<EnumDefinition> = registry
-                .as_ref()
-                .map(|r| r.enum_definitions.clone())
-                .unwrap_or_default();
+            let enum_defs: Vec<EnumDefinition> = registry.enum_definitions.clone();
 
             if !prop_defs.is_empty() {
                 ui.separator();
@@ -738,69 +1666,68 @@ fn render_property_value_editor(
 #[allow(clippy::too_many_arguments)]
 fn apply_actions(
     actions: Vec<EditorAction>,
-    registry: &mut Option<ResMut<EntityTypeRegistry>>,
+    registry: &mut ResMut<EntityTypeRegistry>,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
     active_board: &mut ResMut<ActiveBoardType>,
     active_token: &mut ResMut<ActiveTokenType>,
     selected_unit: &mut ResMut<SelectedUnit>,
     editor_state: &ResMut<EditorState>,
     commands: &mut Commands,
+    concept_registry: &mut ResMut<ConceptRegistry>,
+    relation_registry: &mut ResMut<RelationRegistry>,
+    constraint_registry: &mut ResMut<ConstraintRegistry>,
 ) {
     for action in actions {
         match action {
             EditorAction::CreateEntityType { name, role, color } => {
-                if let Some(registry) = registry.as_mut() {
-                    registry.types.push(EntityType {
-                        id: TypeId::new(),
-                        name,
-                        role,
-                        color,
-                        properties: Vec::new(),
-                    });
-                }
+                registry.types.push(EntityType {
+                    id: TypeId::new(),
+                    name,
+                    role,
+                    color,
+                    properties: Vec::new(),
+                });
             }
             EditorAction::DeleteEntityType { id } => {
-                if let Some(registry) = registry.as_mut() {
-                    // Determine the role of the type being deleted.
-                    let role = registry.get(id).map(|et| et.role);
+                // Determine the role of the type being deleted.
+                let role = registry.get(id).map(|et| et.role);
 
-                    match role {
-                        Some(EntityRole::BoardPosition) => {
-                            // Find a fallback BoardPosition type.
-                            let fallback_id = registry
-                                .types_by_role(EntityRole::BoardPosition)
-                                .iter()
-                                .find(|et| et.id != id)
-                                .map(|et| et.id);
-                            if let Some(fallback) = fallback_id {
-                                for mut ed in tile_data_query.iter_mut() {
-                                    if ed.entity_type_id == id {
-                                        ed.entity_type_id = fallback;
-                                        ed.properties.clear();
-                                    }
-                                }
-                                if active_board.entity_type_id == Some(id) {
-                                    active_board.entity_type_id = Some(fallback);
+                match role {
+                    Some(EntityRole::BoardPosition) => {
+                        // Find a fallback BoardPosition type.
+                        let fallback_id = registry
+                            .types_by_role(EntityRole::BoardPosition)
+                            .iter()
+                            .find(|et| et.id != id)
+                            .map(|et| et.id);
+                        if let Some(fallback) = fallback_id {
+                            for mut ed in tile_data_query.iter_mut() {
+                                if ed.entity_type_id == id {
+                                    ed.entity_type_id = fallback;
+                                    ed.properties.clear();
                                 }
                             }
-                        }
-                        Some(EntityRole::Token) => {
-                            let fallback_id = registry
-                                .types_by_role(EntityRole::Token)
-                                .iter()
-                                .find(|et| et.id != id)
-                                .map(|et| et.id);
-                            if let Some(fallback) = fallback_id
-                                && active_token.entity_type_id == Some(id)
-                            {
-                                active_token.entity_type_id = Some(fallback);
+                            if active_board.entity_type_id == Some(id) {
+                                active_board.entity_type_id = Some(fallback);
                             }
                         }
-                        None => {}
                     }
-
-                    registry.types.retain(|et| et.id != id);
+                    Some(EntityRole::Token) => {
+                        let fallback_id = registry
+                            .types_by_role(EntityRole::Token)
+                            .iter()
+                            .find(|et| et.id != id)
+                            .map(|et| et.id);
+                        if let Some(fallback) = fallback_id
+                            && active_token.entity_type_id == Some(id)
+                        {
+                            active_token.entity_type_id = Some(fallback);
+                        }
+                    }
+                    None => {}
                 }
+
+                registry.types.retain(|et| et.id != id);
             }
             EditorAction::AddProperty {
                 type_id,
@@ -808,45 +1735,38 @@ fn apply_actions(
                 prop_type,
                 enum_options,
             } => {
-                if let Some(registry) = registry.as_mut() {
-                    let final_type = if matches!(prop_type, PropertyType::Enum(_)) {
-                        let enum_id = TypeId::new();
-                        let options: Vec<String> = enum_options
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect();
-                        registry.enum_definitions.push(EnumDefinition {
-                            id: enum_id,
-                            name: name.clone(),
-                            options,
-                        });
-                        PropertyType::Enum(enum_id)
-                    } else {
-                        prop_type
-                    };
+                let final_type = if matches!(prop_type, PropertyType::Enum(_)) {
+                    let enum_id = TypeId::new();
+                    let options: Vec<String> = enum_options
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    registry.enum_definitions.push(EnumDefinition {
+                        id: enum_id,
+                        name: name.clone(),
+                        options,
+                    });
+                    PropertyType::Enum(enum_id)
+                } else {
+                    prop_type
+                };
 
-                    let default_value = PropertyValue::default_for(&final_type);
-                    if let Some(et) = registry.types.iter_mut().find(|et| et.id == type_id) {
-                        et.properties.push(PropertyDefinition {
-                            id: TypeId::new(),
-                            name,
-                            property_type: final_type,
-                            default_value,
-                        });
-                    }
+                let default_value = PropertyValue::default_for(&final_type);
+                if let Some(et) = registry.types.iter_mut().find(|et| et.id == type_id) {
+                    et.properties.push(PropertyDefinition {
+                        id: TypeId::new(),
+                        name,
+                        property_type: final_type,
+                        default_value,
+                    });
                 }
             }
             EditorAction::RemoveProperty { type_id, prop_id } => {
                 // Determine role to know which query to clean up.
-                let role = registry
-                    .as_ref()
-                    .and_then(|r| r.get(type_id))
-                    .map(|et| et.role);
+                let role = registry.get(type_id).map(|et| et.role);
 
-                if let Some(registry) = registry.as_mut()
-                    && let Some(et) = registry.types.iter_mut().find(|et| et.id == type_id)
-                {
+                if let Some(et) = registry.types.iter_mut().find(|et| et.id == type_id) {
                     et.properties.retain(|p| p.id != prop_id);
                 }
 
@@ -866,6 +1786,118 @@ fn apply_actions(
                     commands.entity(entity).despawn();
                     selected_unit.entity = None;
                 }
+            }
+            EditorAction::CreateConcept { name, description } => {
+                concept_registry
+                    .concepts
+                    .push(crate::contracts::ontology::Concept {
+                        id: TypeId::new(),
+                        name,
+                        description,
+                        role_labels: Vec::new(),
+                    });
+            }
+            EditorAction::DeleteConcept { id } => {
+                concept_registry.concepts.retain(|c| c.id != id);
+                concept_registry.bindings.retain(|b| b.concept_id != id);
+                relation_registry.relations.retain(|r| r.concept_id != id);
+                constraint_registry
+                    .constraints
+                    .retain(|c| c.concept_id != id);
+            }
+            EditorAction::AddConceptRole {
+                concept_id,
+                name,
+                allowed_roles,
+            } => {
+                if let Some(concept) = concept_registry
+                    .concepts
+                    .iter_mut()
+                    .find(|c| c.id == concept_id)
+                {
+                    concept.role_labels.push(ConceptRole {
+                        id: TypeId::new(),
+                        name,
+                        allowed_entity_roles: allowed_roles,
+                    });
+                }
+            }
+            EditorAction::RemoveConceptRole {
+                concept_id,
+                role_id,
+            } => {
+                if let Some(concept) = concept_registry
+                    .concepts
+                    .iter_mut()
+                    .find(|c| c.id == concept_id)
+                {
+                    concept.role_labels.retain(|r| r.id != role_id);
+                }
+                concept_registry
+                    .bindings
+                    .retain(|b| !(b.concept_id == concept_id && b.concept_role_id == role_id));
+            }
+            EditorAction::BindEntityToConcept {
+                entity_type_id,
+                concept_id,
+                concept_role_id,
+            } => {
+                concept_registry.bindings.push(ConceptBinding {
+                    id: TypeId::new(),
+                    entity_type_id,
+                    concept_id,
+                    concept_role_id,
+                    property_bindings: Vec::new(),
+                });
+            }
+            EditorAction::UnbindEntityFromConcept {
+                concept_id: _,
+                binding_id,
+            } => {
+                concept_registry.bindings.retain(|b| b.id != binding_id);
+            }
+            EditorAction::CreateRelation {
+                name,
+                concept_id,
+                subject_role_id,
+                object_role_id,
+                trigger,
+                effect,
+            } => {
+                relation_registry.relations.push(Relation {
+                    id: TypeId::new(),
+                    name,
+                    concept_id,
+                    subject_role_id,
+                    object_role_id,
+                    trigger,
+                    effect,
+                });
+            }
+            EditorAction::DeleteRelation { id } => {
+                relation_registry.relations.retain(|r| r.id != id);
+                constraint_registry
+                    .constraints
+                    .retain(|c| c.relation_id != Some(id));
+            }
+            EditorAction::CreateConstraint {
+                name,
+                description,
+                concept_id,
+                expression,
+            } => {
+                constraint_registry.constraints.push(Constraint {
+                    id: TypeId::new(),
+                    name,
+                    description,
+                    concept_id,
+                    relation_id: None,
+                    expression,
+                    auto_generated: false,
+                });
+            }
+            EditorAction::DeleteConstraint { id } => {
+                constraint_registry.constraints.retain(|c| c.id != id);
             }
         }
     }
@@ -937,4 +1969,148 @@ fn rgb_to_color32(rgb: [f32; 3]) -> egui::Color32 {
 fn color32_to_rgb(c: egui::Color32) -> [f32; 3] {
     let [r, g, b, _] = c.to_array();
     [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0]
+}
+
+fn format_relation_effect(effect: &RelationEffect) -> String {
+    match effect {
+        RelationEffect::ModifyProperty {
+            target_property,
+            source_property,
+            operation,
+        } => {
+            let op = match operation {
+                ModifyOperation::Add => "+",
+                ModifyOperation::Subtract => "-",
+                ModifyOperation::Multiply => "*",
+                ModifyOperation::Min => "min",
+                ModifyOperation::Max => "max",
+            };
+            format!("{target_property} {op} {source_property}")
+        }
+        RelationEffect::Block { .. } => "Block".to_string(),
+        RelationEffect::Allow { .. } => "Allow".to_string(),
+    }
+}
+
+fn format_constraint_expr(expr: &ConstraintExpr) -> String {
+    match expr {
+        ConstraintExpr::PropertyCompare {
+            property_name,
+            operator,
+            value,
+            ..
+        } => {
+            let op = format_compare_op(*operator);
+            format!("{property_name} {op} {value:?}")
+        }
+        ConstraintExpr::CrossCompare {
+            left_property,
+            right_property,
+            operator,
+            ..
+        } => {
+            let op = format_compare_op(*operator);
+            format!("{left_property} {op} {right_property}")
+        }
+        ConstraintExpr::IsType { .. } => "is type".to_string(),
+        ConstraintExpr::IsNotType { .. } => "is not type".to_string(),
+        ConstraintExpr::PathBudget {
+            cost_property,
+            budget_property,
+            ..
+        } => {
+            format!("sum(path.{cost_property}) <= {budget_property}")
+        }
+        ConstraintExpr::All(exprs) => {
+            let parts: Vec<String> = exprs.iter().map(format_constraint_expr).collect();
+            format!("({})", parts.join(" AND "))
+        }
+        ConstraintExpr::Any(exprs) => {
+            let parts: Vec<String> = exprs.iter().map(format_constraint_expr).collect();
+            format!("({})", parts.join(" OR "))
+        }
+        ConstraintExpr::Not(expr) => {
+            format!("NOT ({})", format_constraint_expr(expr))
+        }
+    }
+}
+
+fn format_compare_op(op: CompareOp) -> &'static str {
+    match op {
+        CompareOp::Eq => "==",
+        CompareOp::Ne => "!=",
+        CompareOp::Lt => "<",
+        CompareOp::Le => "<=",
+        CompareOp::Gt => ">",
+        CompareOp::Ge => ">=",
+    }
+}
+
+fn index_to_modify_operation(index: usize) -> ModifyOperation {
+    match index {
+        1 => ModifyOperation::Subtract,
+        2 => ModifyOperation::Multiply,
+        3 => ModifyOperation::Min,
+        4 => ModifyOperation::Max,
+        _ => ModifyOperation::Add,
+    }
+}
+
+fn index_to_compare_op(index: usize) -> CompareOp {
+    match index {
+        1 => CompareOp::Ne,
+        2 => CompareOp::Lt,
+        3 => CompareOp::Le,
+        4 => CompareOp::Gt,
+        5 => CompareOp::Ge,
+        _ => CompareOp::Eq,
+    }
+}
+
+fn build_constraint_expression(
+    editor_state: &ResMut<EditorState>,
+    roles: &[ConceptRole],
+) -> ConstraintExpr {
+    match editor_state.new_constraint_expr_type_index {
+        0 => {
+            // PropertyCompare
+            let role_id = roles
+                .get(editor_state.new_constraint_role_index)
+                .map_or_else(TypeId::new, |r| r.id);
+            let value = editor_state
+                .new_constraint_value_str
+                .trim()
+                .parse::<i64>()
+                .map_or(PropertyValue::Int(0), PropertyValue::Int);
+            ConstraintExpr::PropertyCompare {
+                role_id,
+                property_name: editor_state.new_constraint_property.trim().to_string(),
+                operator: index_to_compare_op(editor_state.new_constraint_op_index),
+                value,
+            }
+        }
+        3 => {
+            // PathBudget
+            let cost_role_id = roles
+                .get(editor_state.new_constraint_role_index)
+                .map_or_else(TypeId::new, |r| r.id);
+            // For PathBudget, use the first role as budget role if different, or same role
+            let budget_role_idx =
+                usize::from(roles.len() > 1 && editor_state.new_constraint_role_index == 0);
+            let budget_role_id = roles
+                .get(budget_role_idx)
+                .map_or_else(TypeId::new, |r| r.id);
+            ConstraintExpr::PathBudget {
+                concept_id: TypeId::new(), // Will be set from the concept
+                cost_property: editor_state.new_constraint_property.trim().to_string(),
+                cost_role_id,
+                budget_property: editor_state.new_constraint_value_str.trim().to_string(),
+                budget_role_id,
+            }
+        }
+        _ => {
+            // Placeholder for CrossCompare and IsType
+            ConstraintExpr::All(Vec::new())
+        }
+    }
 }

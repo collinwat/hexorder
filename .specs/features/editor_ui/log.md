@@ -1,6 +1,6 @@
 # Feature Log: editor_ui
 
-## Status: complete (M2)
+## Status: complete (M4)
 
 ## Decision Log
 
@@ -69,6 +69,40 @@ absorb system clears Bevy's input buffers when egui has focus, allowing egui tex
 keystrokes. **Lesson**: Run conditions and absorb serve different purposes. Run conditions guard
 game systems; absorb guards against Bevy internals. Both are needed when the UI has text input.
 
+### 2026-02-12 -- M4: Ontology UI panels
+
+**Decision**: Add tabbed layout with 5 tabs (Types, Concepts, Relations, Constraints, Validation) to
+the editor sidebar. Each tab renders a dedicated panel for its ontology domain.
+
+**Key changes**:
+
+- `EditorState` extended with `OntologyTab` and form state for concepts, relations, constraints.
+- `OntologyParams` SystemParam bundle created to keep system param count under Bevy's 16-param
+  limit.
+- `EntityTypeRegistry` changed from `Option<ResMut<>>` to `ResMut<>` since `GameSystemPlugin` always
+  inserts it.
+- `GameSystem` changed from `Option<Res<>>` to `Res<>` since it's always present.
+- `render_game_system_info` simplified (no Option unwrapping).
+- New `EditorAction` variants for concept, relation, and constraint CRUD operations.
+- Brand palette extended with success green (#509850 / `from_rgb(80, 152, 80)`) for the "Schema
+  Valid" indicator.
+- `editor_panel_system` uses `.chain()` instead of `.after(bare_fn)` for system ordering (required
+  when system has many params).
+
+**Rationale**: Tabbed layout keeps the sidebar manageable. The ontology panels follow the same
+deferred-action pattern as the existing type editor. `OntologyParams` bundle avoids hitting Bevy's
+16-parameter system limit.
+
+### 2026-02-12 -- M4: OntologyParams SystemParam bundle
+
+**Context**: Adding 4 new system parameters (3 ontology registries + schema validation) pushed
+`editor_panel_system` to 17 parameters, exceeding Bevy 0.18's 16-parameter limit for `IntoSystem`.
+**Decision**: Create `OntologyParams` as a `#[derive(SystemParam)]` bundle in `components.rs` that
+groups `ConceptRegistry`, `RelationRegistry`, `ConstraintRegistry`, and `SchemaValidation`. The
+EditorUiPlugin also calls `init_resource` for all four types to guarantee they exist even without
+the OntologyPlugin. **Rationale**: SystemParam derive is the idiomatic Bevy solution for reducing
+parameter counts. Dual `init_resource` calls are safe (no-op if resource already exists).
+
 ## Test Results
 
 | Date       | Command                       | Result | Notes                                |
@@ -76,6 +110,9 @@ game systems; absorb guards against Bevy internals. Both are needed when the UI 
 | 2026-02-09 | `cargo build`                 | PASS   | Clean compilation                    |
 | 2026-02-09 | `cargo clippy -- -D warnings` | PASS   | Zero warnings                        |
 | 2026-02-09 | `cargo test`                  | PASS   | 48/48 tests pass (5 editor_ui tests) |
+| 2026-02-12 | `cargo build`                 | PASS   | Clean compilation                    |
+| 2026-02-12 | `cargo clippy -- -D warnings` | PASS   | Zero warnings                        |
+| 2026-02-12 | `cargo test`                  | PASS   | 90/90 tests pass (5 editor_ui tests) |
 
 ### Tests (5):
 
@@ -99,3 +136,4 @@ game systems; absorb guards against Bevy internals. Both are needed when the UI 
 | 2026-02-08 | complete | M1 plugin implemented                                                                                          |
 | 2026-02-08 | speccing | M2 evolution: dark theme, cell type editor, inspector panel                                                    |
 | 2026-02-09 | complete | M2 evolution implemented: dark theme, cell palette, type editor, property editors, inspector, game system info |
+| 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.         |

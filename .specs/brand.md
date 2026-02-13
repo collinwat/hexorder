@@ -46,6 +46,7 @@ and a military mark.
 | Text (disabled)  | Dark gray   | `#505050` | Inactive elements        |
 | Border (subtle)  | Dark gray   | `#3c3c3c` | Panel borders, dividers  |
 | Danger           | Muted red   | `#c85050` | Delete actions, warnings |
+| Success          | Muted green | `#509850` | Valid states, success    |
 
 ### Cell Type Defaults (naturalistic)
 

@@ -7,6 +7,8 @@ use bevy::prelude::*;
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::EditorTool;
+use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::contracts::validation::SchemaValidation;
 
 mod components;
 mod systems;
@@ -32,6 +34,10 @@ impl Plugin for EditorUiPlugin {
 
         app.insert_resource(EditorTool::default());
         app.insert_resource(components::EditorState::default());
+        app.init_resource::<ConceptRegistry>();
+        app.init_resource::<RelationRegistry>();
+        app.init_resource::<ConstraintRegistry>();
+        app.init_resource::<SchemaValidation>();
 
         // Both systems run unconditionally in EguiPrimaryContextPass.
         // Gating with in_state() does not work reliably in this schedule
@@ -40,10 +46,7 @@ impl Plugin for EditorUiPlugin {
         // unavailable (e.g. while the primary window is hidden).
         app.add_systems(
             EguiPrimaryContextPass,
-            (
-                systems::configure_theme,
-                systems::editor_panel_system.after(systems::configure_theme),
-            ),
+            (systems::configure_theme, systems::editor_panel_system).chain(),
         );
     }
 }

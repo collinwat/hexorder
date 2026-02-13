@@ -98,21 +98,21 @@ The existing EditorAction enum extends with new variants for ontology operations
 
 ### M4 (new)
 
-- [ ] [SC-14] Tabbed layout renders with 5 tabs: Types, Concepts, Relations, Constraints, Validation
-- [ ] [SC-15] Unified type editor shows entity types from both roles
-- [ ] [SC-16] Type creation includes role selector (BoardPosition / Token)
-- [ ] [SC-17] Concept editor can create a concept with role slots
-- [ ] [SC-18] Concept editor can bind an entity type to a concept role
-- [ ] [SC-19] Relation editor can create a relation between concept roles
-- [ ] [SC-20] Constraint editor can create a PropertyCompare constraint
-- [ ] [SC-21] Constraint editor can create a PathBudget constraint
-- [ ] [SC-22] Auto-generated constraints show "[auto]" badge
-- [ ] [SC-23] Validation panel shows schema errors when ontology is invalid
-- [ ] [SC-24] Entity palette filters by role (BoardPosition in Paint, Token in Place)
-- [ ] [SC-BUILD] `cargo build` succeeds
-- [ ] [SC-CLIPPY] `cargo clippy --all-targets` passes
-- [ ] [SC-TEST] `cargo test` passes
-- [ ] [SC-BOUNDARY] No imports from other features' internals
+- [x] [SC-14] Tabbed layout renders with 5 tabs: Types, Concepts, Relations, Constraints, Validation
+- [x] [SC-15] Unified type editor shows entity types from both roles
+- [x] [SC-16] Type creation includes role selector (BoardPosition / Token)
+- [x] [SC-17] Concept editor can create a concept with role slots
+- [x] [SC-18] Concept editor can bind an entity type to a concept role
+- [x] [SC-19] Relation editor can create a relation between concept roles
+- [x] [SC-20] Constraint editor can create a PropertyCompare constraint
+- [x] [SC-21] Constraint editor can create a PathBudget constraint
+- [x] [SC-22] Auto-generated constraints show "[auto]" badge
+- [x] [SC-23] Validation panel shows schema errors when ontology is invalid
+- [x] [SC-24] Entity palette filters by role (BoardPosition in Paint, Token in Place)
+- [x] [SC-BUILD] `cargo build` succeeds
+- [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
+- [x] [SC-TEST] `cargo test` passes
+- [x] [SC-BOUNDARY] No imports from other features' internals
 
 ## Constraints
 

@@ -155,6 +155,7 @@ mod architecture_tests {
             (0, 92, 128),   // #005c80 — teal accent
             (200, 80, 80),  // #c85050 — danger red
             (200, 150, 64), // #c89640 — amber/gold accent
+            (80, 152, 80),  // #509850 — success green
         ];
 
         // Named constants that are allowed
