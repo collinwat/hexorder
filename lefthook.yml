@@ -42,5 +42,18 @@ pre-commit:
     gitleaks:
       run:
         mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
+    md-filenames:
+      glob: "*.md"
+      run: |
+        bad=$(git diff --cached --name-only --diff-filter=ACR | grep '\.md$' | grep '_' || true)
+        if [ -n "$bad" ]; then
+          echo ""
+          echo "ERROR: Markdown filenames must use hyphens, not underscores."
+          echo ""
+          echo "  Rename these files:"
+          echo "$bad" | sed 's/^/    /'
+          echo ""
+          exit 1
+        fi
     check:
       run: mise check
