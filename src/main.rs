@@ -131,37 +131,41 @@ mod architecture_tests {
 
     /// Walks the project for `.md` files and fails if any filename contains
     /// underscores. Markdown filenames must use hyphens as word separators.
+    fn walk_for_underscore_md(dir: &Path, violations: &mut Vec<String>) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+
+            // Skip hidden dirs, target, node_modules.
+            if name.starts_with('.') || name == "target" || name == "node_modules" {
+                continue;
+            }
+
+            if path.is_dir() {
+                walk_for_underscore_md(&path, violations);
+            } else if path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                && name.contains('_')
+            {
+                violations.push(format!("  {}", path.display()));
+            }
+        }
+    }
+
     #[test]
     fn markdown_filenames_use_hyphens() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
         let mut violations = Vec::new();
 
-        fn walk(dir: &Path, violations: &mut Vec<String>) {
-            let Ok(entries) = fs::read_dir(dir) else {
-                return;
-            };
-            for entry in entries {
-                let Ok(entry) = entry else { continue };
-                let path = entry.path();
-                let name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or_default();
-
-                // Skip hidden dirs, target, node_modules.
-                if name.starts_with('.') || name == "target" || name == "node_modules" {
-                    continue;
-                }
-
-                if path.is_dir() {
-                    walk(&path, violations);
-                } else if name.ends_with(".md") && name.contains('_') {
-                    violations.push(format!("  {}", path.display()));
-                }
-            }
-        }
-
-        walk(root, &mut violations);
+        walk_for_underscore_md(root, &mut violations);
 
         assert!(
             violations.is_empty(),

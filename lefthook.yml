@@ -42,8 +42,5 @@ pre-commit:
     gitleaks:
       run:
         mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
-    md-filenames:
-      glob: "*.md"
-      run: mise run check:filenames
     check:
       run: mise check
