@@ -9,36 +9,19 @@ description:
 
 # Research
 
-This skill supports two workflows: consuming existing research and performing new research. Wiki
-operations (reading, writing, pushing) are handled by the **wiki skill**.
+For process details, rationale, and quality expectations, see `docs/guides/research.md`.
 
 ## Consuming Existing Research
 
-1. Read `.wiki/Research-Index.md` — this is the **single source of truth** for which research pages
-   are relevant to which feature areas and topics
+1. Read `.wiki/Research-Index.md` — **single source of truth** for which research pages are relevant
+   to which feature areas and topics
 2. Read the relevant `.wiki/<Page-Name>.md` file(s) identified by the index
-3. Read `.wiki/Home.md` for a complete list of all available research pages
-
-### How to Use Findings
-
-1. Read only the sections relevant to your current work (the Research Index has section pointers)
-2. Summarize key findings that affect your implementation decisions
-3. Reference the wiki page in your feature log entry
-4. Do not copy research content into specs or code comments — reference the wiki page
+3. Summarize key findings that affect your implementation decisions
+4. Reference the wiki page in your feature log entry — do not copy content into specs or code
 
 ## Performing New Research
 
-### When to Research
-
-- Before committing to an implementation approach for a novel problem
-- When a pitch identifies an open question or unknown
-- When existing research is outdated or doesn't cover a new area
-- During cool-down when shaping future pitches
-
-### Process
-
-1. **Create a GitHub Issue** using the `research` template (`type:research` label). Define the
-   question, context, and expected deliverables.
+1. **Create a GitHub Issue** using the `research` template (`type:research` label)
 
 2. **Investigate.** Use web search, documentation, and source code analysis.
 
