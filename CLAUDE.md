@@ -24,11 +24,13 @@ game system assets.
 5. Read `docs/guides/git.md` — git workflow, branching, commit, and merge conventions
 6. Read `docs/guides/bevy.md` — Bevy 0.18 API reference, patterns, and pitfalls
 7. Read `docs/guides/bevy-egui.md` — bevy_egui 0.39 API reference (if working on UI features)
-8. Read `docs/guides/research.md` — research workflow and wiki consumption (if exploring unknowns)
-9. Read the relevant `docs/features/<name>/spec.md` for your assigned feature
-10. Read `docs/contracts/` for any shared types your feature depends on or exposes
-11. Check `docs/features/<name>/log.md` for prior decisions and blockers
-12. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
+8. Read `docs/guides/contract.md` — contract protocol and spec template (if exposing or consuming
+   shared types)
+9. Read `docs/guides/research.md` — research workflow and wiki consumption (if exploring unknowns)
+10. Read the relevant `docs/features/<name>/spec.md` for your assigned feature
+11. Read `docs/contracts/` for any shared types your feature depends on or exposes
+12. Check `docs/features/<name>/log.md` for prior decisions and blockers
+13. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
 
 ## Architecture Rules
 

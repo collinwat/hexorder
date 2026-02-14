@@ -14,8 +14,7 @@ Your job is to take a feature description and produce:
    `docs/features/_template_spec.md`)
 2. A fresh log at `docs/features/<name>/log.md` (use the template at
    `docs/features/_template_log.md`)
-3. Any new contracts at `docs/contracts/<name>.md` (use the template at
-   `docs/contracts/_template.md`)
+3. Any new contracts at `docs/contracts/<name>.md` (use the template from `docs/guides/contract.md`)
 4. An updated `docs/coordination.md` registering the feature
 
 Before writing anything:
