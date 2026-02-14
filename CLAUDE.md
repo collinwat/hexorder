@@ -60,8 +60,7 @@ game system assets.
 ## Development Workflow (Within a Build Cycle)
 
 > This workflow applies during the **build phase** of a Shape Up cycle. Before this workflow starts,
-> the pitch has been shaped, bet on, and assigned to a release. See `docs/roadmap.md` for the cycle
-> loop and cool-down protocol.
+> the pitch has been shaped, bet on, and assigned to a release.
 
 ### Getting Oriented (first 1-2 days)
 
@@ -138,7 +137,6 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
     placeholders in specs, feature logs, and source code have corresponding GitHub Issues. Search
     with `gh issue list --search "<keywords>"` to verify.
-12. Record audit results in the release checkpoint section of `docs/roadmap.md`
 
 This gate applies even if all individual features pass their own success criteria. Constitution
 violations that only emerge at the cross-feature level (like import boundary violations) are caught

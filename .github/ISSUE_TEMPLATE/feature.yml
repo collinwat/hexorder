@@ -42,7 +42,7 @@ body:
     attributes:
       label: Context
       description: >-
-        Why is this needed? Link to milestone checkpoint notes, roadmap items, or prior decisions.
+        Why is this needed? Link to milestone checkpoint notes or prior decisions.
   - type: textarea
     id: acceptance
     attributes:

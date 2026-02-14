@@ -21,7 +21,6 @@ Workflow:
 4. For each failure:
     - Identify which feature(s) are involved
     - Identify which contract boundary is broken
-    - Record in the release checkpoint section of `docs/roadmap.md`
     - Log the issue in the relevant feature's log.md
 5. Report summary of results
 

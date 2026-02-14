@@ -9,8 +9,7 @@ state. Feature work happens on short-lived branches via git worktrees, merged ba
 the cycle's scope is complete.
 
 Build cycles have fixed time and variable scope. Branches are created within a cycle to implement
-shaped pitches. At the end of the cycle, completed work ships. See `docs/roadmap.md` for the cycle
-loop and cool-down protocol.
+shaped pitches. At the end of the cycle, completed work ships.
 
 - Small, frequent commits on feature branches
 - Deliberate merges to mainline with version bump and changelog
@@ -249,7 +248,7 @@ Follow **conventional commit** practices. Every commit message **must** match th
 | ------------ | ----------------------------------------------------------------------------------------------- |
 | Feature name | Work within a single feature (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`) |
 | `contracts`  | Shared type definitions in `src/contracts/` or `docs/contracts/`                                |
-| `project`    | Cross-cutting changes (CLAUDE.md, coordination, roadmap, git guide, build config)               |
+| `project`    | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                        |
 
 **Subject line rules**:
 
@@ -383,15 +382,13 @@ When the last scope of a cycle merges, also run these steps:
 
 17. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
     CLAUDE.md.
-18. **Record in roadmap.** Add the audit result to the release checkpoint section of
-    `docs/roadmap.md`.
-19. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
+18. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
     `gh issue close <number> --reason completed`. Verify no open issues remain for the release.
-20. **Triage new items.** Review issues with `status:triage` label:
+19. **Triage new items.** Review issues with `status:triage` label:
     `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label. Review
     open issues older than 2 cycles for staleness.
-21. **Run cool-down protocol.** Follow the Cool-Down Protocol in `CLAUDE.md`. This includes the
+20. **Run cool-down protocol.** Follow the Cool-Down Protocol in `CLAUDE.md`. This includes the
     retrospective, shaping, and betting for the next cycle.
 
 ### Conflict Resolution
@@ -687,7 +684,6 @@ When a Claude Code session needs to commit:
     `main` — never merge without holding the lock
 11. **Issue references**: reference GitHub Issue numbers in commits when closing or addressing
     tracked items (e.g., `fixes #42`, `ref #42`)
-12. **Deferred items**: create GitHub Issues for deferred items before merge — do not add to
-    roadmap.md
+12. **Deferred items**: create GitHub Issues for deferred items before merge
 13. **Duplicate check**: search existing issues before creating:
     `gh issue list --search "<keywords>" --state all`
