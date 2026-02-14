@@ -15,7 +15,7 @@
 ### Phase 2: Persistence Contract + File I/O
 
 - Created `src/contracts/persistence.rs` with GameSystemFile, TileSaveData, UnitSaveData
-- Created `.specs/contracts/persistence.md`
+- Created `docs/contracts/persistence.md`
 - RON pretty-printing for human-readable save files
 - Format version check for forward compatibility
 - 4 file I/O tests added (136 total)

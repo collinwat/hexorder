@@ -975,7 +975,7 @@ assert_eq!(count, expected);
 ```
 src/
   main.rs              # App setup, plugin registration only
-  contracts/           # Shared types (mirrors .specs/contracts/)
+  contracts/           # Shared types (mirrors docs/contracts/)
     mod.rs
     hex_grid.rs        # HexPosition, HexGridConfig, HexSelectedEvent, HexMoveEvent
     game_system.rs     # GameSystem, CellType, CellTypeRegistry, CellData, PropertyType, etc.
@@ -989,7 +989,7 @@ src/
 
 ### Contracts Protocol
 
-Shared types between plugins live in `src/contracts/` and are specified in `.specs/contracts/`.
+Shared types between plugins live in `src/contracts/` and are specified in `docs/contracts/`.
 
 ```rust
 // src/contracts/mod.rs
@@ -1004,8 +1004,8 @@ point in development.
 
 **Before changing a contract:**
 
-1. Propose in `.specs/coordination.md` under "Pending Contract Changes"
-2. Update `.specs/contracts/<name>.md`
+1. Propose in `docs/coordination.md` under "Pending Contract Changes"
+2. Update `docs/contracts/<name>.md`
 3. Implement in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers compile
 

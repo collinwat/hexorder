@@ -5,7 +5,7 @@ feature plugins.
 
 ## Rules
 
-1. Every contract has a spec (`.specs/contracts/<name>.md`) and an implementation
+1. Every contract has a spec (`docs/contracts/<name>.md`) and an implementation
    (`src/contracts/<name>.rs`)
 2. The spec is written FIRST. The implementation must match the spec.
 3. Changing a contract requires updating coordination.md "Pending Contract Changes"

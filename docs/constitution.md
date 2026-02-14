@@ -48,16 +48,16 @@ application consumes the exported assets for distribution.
 ## Architecture
 
 - Feature boundaries align with plugin boundaries
-- Shared types live in `src/contracts/` and are specified in `.specs/contracts/`
+- Shared types live in `src/contracts/` and are specified in `docs/contracts/`
 - No circular dependencies between feature plugins
 - Features may depend on contracts but never on other features' internals
-- Plugin load order is declared in `main.rs` and documented in coordination.md
+- Plugin load order is declared in `main.rs` and documented in `docs/architecture.md`
 
 ## Coordination
 
 - Shape before schedule: promising ideas are shaped into pitches before entering a build cycle
-- Spec before code: `.specs/features/<name>/spec.md` must exist before implementation
-- Contracts before types: `.specs/contracts/<name>.md` must exist before `src/contracts/<name>.rs`
+- Spec before code: `docs/features/<name>/spec.md` must exist before implementation
+- Contracts before types: `docs/contracts/<name>.md` must exist before `src/contracts/<name>.rs`
 - Log everything: decisions, test results, blockers go in the feature log
 - One owner per feature at a time (tracked in coordination.md)
 - Circuit breaker: unfinished cycles are cancelled by default, not extended

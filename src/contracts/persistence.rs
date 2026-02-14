@@ -1,4 +1,4 @@
-//! Shared Persistence types. See `.specs/contracts/persistence.md`.
+//! Shared Persistence types. See `docs/contracts/persistence.md`.
 //!
 //! Types for saving and loading game system definitions and board state
 //! to `.hexorder` (RON) files.

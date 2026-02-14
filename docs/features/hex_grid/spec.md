@@ -86,7 +86,7 @@ overlaid with green (valid) or red (blocked) indicators based on the ValidMoveSe
 - Hex math must use `hexx` crate (constitution requirement)
 - Axial (q, r) coordinate system (constitution requirement)
 - Move overlay entities are separate from tile entities — do not modify tile materials
-- Overlay materials must be in the brand palette (`.specs/brand.md`)
+- Overlay materials must be in the brand palette (`docs/brand.md`)
 - Overlays must not interfere with hover/selection ring overlays (different Y offsets)
 - When ValidMoveSet is empty (no constraints), no overlays are shown — preserving M3 visual behavior
 

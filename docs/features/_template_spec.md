@@ -17,7 +17,7 @@
 
 ## Dependencies
 
-- **Contracts consumed**: [list contract names from .specs/contracts/]
+- **Contracts consumed**: [list contract names from docs/contracts/]
 - **Contracts produced**: [list any new contracts this feature introduces]
 - **Crate dependencies**: [any new crates needed in Cargo.toml]
 

@@ -1,4 +1,4 @@
-//! Shared Validation types. See `.specs/contracts/validation.md`.
+//! Shared Validation types. See `docs/contracts/validation.md`.
 //!
 //! Types for schema-level validation (is the game system definition
 //! internally consistent?) and state-level validation (given a board

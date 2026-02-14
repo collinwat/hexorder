@@ -6,7 +6,7 @@ This contract is merged into the `game_system` contract. Cell types (CellTypeId,
 CellTypeRegistry, CellData, ActiveCellType) are Game System definitions and live in
 `src/contracts/game_system.rs`.
 
-See `.specs/contracts/game_system.md` for all type definitions.
+See `docs/contracts/game_system.md` for all type definitions.
 
 ## Rationale
 

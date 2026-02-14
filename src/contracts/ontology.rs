@@ -1,4 +1,4 @@
-//! Shared Ontology types. See `.specs/contracts/ontology.md`.
+//! Shared Ontology types. See `docs/contracts/ontology.md`.
 //!
 //! Defines the game ontology framework: concepts, relations, and constraints.
 //! These are designer-defined abstractions that give meaning to entity types

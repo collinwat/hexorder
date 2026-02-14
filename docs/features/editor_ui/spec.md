@@ -22,7 +22,7 @@ dark theme + cell type editor + inspector, 0.3.0 unit palette + unit type editor
   Relation, RelationTrigger, RelationEffect, ModifyOperation, Constraint, ConstraintExpr,
   CompareOp), `validation` (SchemaValidation, SchemaError, ValidMoveSet, ValidationResult)
 - **Contracts produced**: `editor_ui` (EditorTool, PaintPreview)
-- **Crate dependencies**: `bevy_egui` (see `docs/bevy-egui-guide.md`)
+- **Crate dependencies**: `bevy_egui` (see `docs/guides/bevy-egui-guide.md`)
 
 ## Requirements
 
@@ -116,7 +116,7 @@ The existing EditorAction enum extends with new variants for ontology operations
 
 ## Constraints
 
-- The dark theme must use the brand palette from `.specs/brand.md`
+- The dark theme must use the brand palette from `docs/brand.md`
 - New color literals must be added to the approved palette in the architecture test
 - Property editors must validate input
 - The tabbed layout should not overwhelm the designer — collapse sections by default, show

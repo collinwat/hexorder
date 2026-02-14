@@ -1,4 +1,4 @@
-//! Shared Game System types. See `.specs/contracts/game_system.md`.
+//! Shared Game System types. See `docs/contracts/game_system.md`.
 //!
 //! Contains the Game System container, the entity-agnostic property system,
 //! and the unified entity type system. 0.4.0 replaces separate `CellType`/`UnitType`

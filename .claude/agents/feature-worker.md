@@ -12,10 +12,10 @@ Your job is to implement a feature (or subtask) according to its spec.
 
 Before writing any code:
 
-1. Read `.specs/constitution.md` — these rules are mandatory
-2. Read the feature spec at `.specs/features/<name>/spec.md`
-3. Read the feature log at `.specs/features/<name>/log.md` for context
-4. Read all contracts your feature depends on in `.specs/contracts/`
+1. Read `docs/constitution.md` — these rules are mandatory
+2. Read the feature spec at `docs/features/<name>/spec.md`
+3. Read the feature log at `docs/features/<name>/log.md` for context
+4. Read all contracts your feature depends on in `docs/contracts/`
 5. Read `CLAUDE.md` for Bevy 0.18 patterns and file organization
 
 Implementation workflow:
@@ -28,7 +28,7 @@ Implementation workflow:
 6. Run `cargo build`, `cargo clippy -- -D warnings`, `cargo test`
 7. Update the feature spec: mark success criteria [x] or [ ]
 8. Update the feature log with decisions and test results
-9. Update `.specs/coordination.md` with your progress
+9. Update `docs/coordination.md` with your progress
 
 If you encounter a blocker:
 

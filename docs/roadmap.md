@@ -1,84 +1,5 @@
 # Hexorder Roadmap
 
-## Strategy
-
-This project follows **Shape Up**, a cycle-based development model adapted for solo dev + AI agents.
-The full methodology reference is in `docs/shape-up-guide.md`.
-
-Core principles:
-
-- **Fixed time, variable scope.** Each build cycle has a fixed duration (flexible, not strictly 6
-  weeks). Scope is cut to fit. When the cycle ends, whatever is complete ships.
-- **Shaping before scheduling.** Work is designed (shaped) into pitches before entering a cycle.
-  Only shaped pitches are bet on at the betting table.
-- **No groomed backlogs.** GitHub Issues capture raw ideas — observations, bugs, feature requests.
-  They are NOT a prioritized backlog. During cool-down, the developer reviews issues and shapes
-  promising ones into pitch Issues (`type:pitch` template).
-- **One cycle at a time.** Only the current cycle is actively specced and built. Future work stays
-  as raw ideas until shaped and bet on.
-- **Circuit breaker.** If a cycle does not finish, the work is cancelled by default. Re-shape and
-  re-pitch for a future cycle.
-
-### The Cycle Loop
-
-```
-┌──────────────────────────────┐   ┌──────────────────────────────────┐
-│       BUILD CYCLE            │   │          COOL-DOWN               │
-│   (flexible duration)        │   │                                  │
-│                              │   │  1. Ship & audit                 │
-│  Build shaped work.          │   │  2. Retrospective                │
-│  No scope changes.           │   │  3. Shape: review raw ideas,     │
-│  Ship at the end.            │   │     write pitches                │
-│                              │   │  4. Betting table: choose        │
-│                              │   │     pitches for next cycle       │
-└──────────────────────────────┘   └──────────────────────────────────┘
-                              ↻ repeat
-```
-
----
-
-## Domain Model
-
-These are the core concepts the product is built around. They emerged from early design
-conversations and will be refined as we build.
-
-### Game System (versioned)
-
-The abstract design artifact. Defines how the world works: rules, constraints, unit type
-definitions, terrain type definitions, combat mechanics, movement rules, turn phase structure,
-theme/aesthetics. This is what gets exported. Multiple games can share one system.
-
-### Game (pinned to a Game System version)
-
-A concrete game built on a specific Game System version. Contains map(s), unit rosters, and playable
-configurations. Cannot exist without a Game System.
-
-### Scenario / Campaign / Situation
-
-Different ways to experience a Game. Same rules and content, different setups or progressions. These
-"skin" or "configure" the Game to provide distinct play experiences.
-
-### Workspace
-
-The user's persistent design-time context. Remembers which Game System or Game the user was working
-on, camera state, open panels, and tool state. The user resumes a workspace when they open Hexorder.
-
-### Game Session
-
-Play-test runtime. The game is running, but the user has extra tooling — note-taking, insight
-capture, logging — to feed observations back into the design process.
-
-### Change Isolation Model
-
-- Game Systems are immutable at a given version (v1, v2, v3...).
-- Games pin to a specific Game System version.
-- A Game can fork/duplicate Game System content to experiment with changes in isolation.
-- Integration back into the Game System is deliberate, with impact analysis across all consuming
-  Games.
-- Each Game opts in to upgrading to a new Game System version.
-
----
-
 ## Release 0.1.0 — "The World Exists"
 
 **Goal**: Open Hexorder, see a hex world, and interact with it. The earliest point where you can
@@ -142,8 +63,9 @@ scenarios, workspace persistence, or launcher exist yet. The app boots directly 
   spec template, pre-checkpoint audit requirement in this roadmap, and a compile-time enforcement
   via private modules + `architecture_tests::feature_modules_are_private` test.
 - Searching repeatedly for framework API patterns (Bevy 0.18, bevy_egui 0.39) was a significant time
-  cost. Solved by creating `docs/bevy-guide.md` and `docs/bevy-egui-guide.md` as persistent
-  references. Future releases should create guides for any new library before implementation begins.
+  cost. Solved by creating `docs/guides/bevy-guide.md` and `docs/guides/bevy-egui-guide.md` as
+  persistent references. Future releases should create guides for any new library before
+  implementation begins.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -250,13 +172,13 @@ is replaced entirely. The editor gets a dark theme and an inspector panel.
 - GPU rendering impacts window lifecycle. Bevy's render pipeline causes a white flash on the
   OS-default window surface before the first GPU frame lands. We solved this with a hidden-window
   pattern (start `visible: false`, reveal after 3 frames once the GPU has rendered dark content).
-  This is now documented in `docs/bevy-guide.md` Section 19. Future releases should account for GPU
-  pipeline timing when adding new windows or render targets.
+  This is now documented in `docs/guides/bevy-guide.md` Section 19. Future releases should account
+  for GPU pipeline timing when adding new windows or render targets.
 - Brand palette enforcement via architecture tests (`editor_ui_colors_match_brand_palette`) catches
   color drift at compile time. This worked well and should be extended to any future UI surfaces.
-- Library reference guides (`docs/bevy-guide.md`, `docs/bevy-egui-guide.md`) continue to pay off —
-  created at 0.1.0 and expanded throughout 0.2.0. Any new crate dependency should get a guide before
-  implementation.
+- Library reference guides (`docs/guides/bevy-guide.md`, `docs/guides/bevy-egui-guide.md`) continue
+  to pay off — created at 0.1.0 and expanded throughout 0.2.0. Any new crate dependency should get a
+  guide before implementation.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -632,86 +554,3 @@ after Cycle 1 ships.
 
 Scope determined by the first betting table after Cycle 1 ships. Shaped pitches from the cool-down
 retrospective will compete for this release.
-
----
-
-## Raw Ideas (GitHub Issues)
-
-GitHub Issues are a personal idea and feedback tracker — NOT a groomed, prioritized backlog. Issues
-capture raw observations, feature requests, bugs, tech debt, and research questions as they arise.
-
-The path from raw idea to shipped work:
-
-1. **Capture**: Create an Issue using the appropriate template (feature, bug, tech-debt, research)
-2. **Triage**: Assign type/area labels (during cool-down or as they arrive)
-3. **Shape**: During cool-down, review Issues. Shape promising ones into pitch Issues (`type:pitch`)
-4. **Bet**: At the betting table, select pitches for the next cycle
-5. **Build**: Selected pitches become the cycle's fixed scope
-
-Issues that are not shaped into pitches are not lost — they remain in the tracker. Important ideas
-resurface naturally. Stale ideas fade without consuming energy.
-
-### Quick reference
-
-```bash
-gh issue list --state open                           # all open ideas
-gh issue list --label "type:pitch"                   # shaped pitches
-gh issue list --label "type:pitch" --milestone "<m>" # pitches bet for a release
-gh issue list --label "status:triage"                # items needing triage
-gh issue list --search "<keywords>"                  # search by keyword
-gh issue create                                      # capture a raw idea
-```
-
-### How raw ideas become work
-
-Items are NOT directly promoted from a backlog to a release. Instead:
-
-1. During **cool-down**, the developer reviews raw ideas
-2. Promising ideas are **shaped** into pitch Issues (using the `type:pitch` template)
-3. At the **betting table**, shaped pitches compete for the next cycle
-4. Selected pitches are assigned to the target release milestone
-
----
-
-## Cool-Down Protocol
-
-After each cycle ships, run this protocol. It has three phases: Ship & Audit, Retrospective, and
-Betting. The full merge and tagging procedure is in `docs/git-guide.md` → Cycle ship merge.
-
-### Phase 1: Ship & Audit
-
-1. **Ship gate.** The cycle must pass the **Ship Gate** defined in CLAUDE.md. This is a
-   full-codebase audit covering tests, lint, contract boundaries, and architectural rules.
-2. **Issue cleanup.** Close all GitHub Issues completed in this cycle. Verify via
-   `gh issue list --milestone "<milestone>" --state open`.
-3. **Triage new items.** Review all issues with `status:triage` label:
-   `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label.
-4. **Review aging items.** Check open issues older than 2 cycles. Close or reprioritize stale items.
-
-### Phase 2: Retrospective
-
-Answer these questions. Decisions (reorder, insert, drop) are made by the project owner (human).
-Agents provide data and recommendations but do not unilaterally change direction.
-
-5. What did we learn by using the tool at this stage?
-6. What felt right? What felt wrong or missing?
-7. Does the current product direction still make sense?
-8. Do we need to change anything about the cycle structure or appetite?
-9. Have any domain model assumptions changed?
-10. **Shape promising ideas.** Review GitHub Issues (raw ideas). Which ones have come up repeatedly?
-    Which feel urgent after this cycle's experience? Shape promising ones into pitch Issues using
-    the `type:pitch` template. Reference the raw idea Issues they address.
-
-### Phase 3: Betting Table
-
-11. **Review pitches.** `gh issue list --label "type:pitch" --state open` — review all shaped
-    pitches.
-12. **Bet.** Select which pitches to commit to for the next cycle. Consider:
-    - Does the problem matter right now?
-    - Is the appetite right?
-    - Is the solution attractive?
-    - Is this the right time?
-13. **Set cycle scope.** Assign selected pitch Issues to the target release milestone. Record the
-    bets in `.specs/coordination.md` under "Current Bets."
-14. **Set appetite.** Determine the cycle duration based on the selected work.
-15. **Update roadmap.** Record the new cycle in this file with its bets, appetite, and scope.

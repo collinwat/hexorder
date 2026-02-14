@@ -1,4 +1,4 @@
-//! Shared editor UI types. See `.specs/contracts/editor_ui.md`.
+//! Shared editor UI types. See `docs/contracts/editor_ui.md`.
 
 use bevy::prelude::*;
 

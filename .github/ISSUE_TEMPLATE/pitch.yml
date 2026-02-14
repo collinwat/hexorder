@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         A pitch is a shaped, risk-reduced proposal. Only pitches are considered at the betting
-        table. See `docs/shape-up-guide.md` for the full Shape Up reference.
+        table. See `docs/guides/shape-up-guide.md` for the full Shape Up reference.
   - type: textarea
     id: problem
     attributes:

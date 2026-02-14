@@ -12,8 +12,8 @@ Your job is to verify that all features work together correctly.
 
 Workflow:
 
-1. Read `.specs/coordination.md` to see all active features
-2. Read all contract specs in `.specs/contracts/`
+1. Read `docs/coordination.md` to see all active features
+2. Read all contract specs in `docs/contracts/`
 3. Run the test suite:
     - `cargo build 2>&1` — capture all output
     - `cargo clippy -- -D warnings 2>&1` — capture all output
@@ -21,7 +21,7 @@ Workflow:
 4. For each failure:
     - Identify which feature(s) are involved
     - Identify which contract boundary is broken
-    - Record in `.specs/coordination.md` under Integration Test Checkpoints
+    - Record in the release checkpoint section of `docs/roadmap.md`
     - Log the issue in the relevant feature's log.md
 5. Report summary of results
 

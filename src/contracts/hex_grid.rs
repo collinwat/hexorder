@@ -1,4 +1,4 @@
-//! Shared hex grid types. See `.specs/contracts/hex_grid.md`.
+//! Shared hex grid types. See `docs/contracts/hex_grid.md`.
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};

@@ -18,20 +18,21 @@ game system assets.
 
 1. Follow the **Getting Started** section in `README.md` — prerequisites, tool installation, build
    verification
-2. Read `.specs/constitution.md` — non-negotiable project rules
-3. Read `.specs/coordination.md` — active features, ownership, cross-cutting concerns
-4. Read `docs/git-guide.md` — git workflow, branching, commit, and merge conventions
-5. Read `docs/bevy-guide.md` — Bevy 0.18 API reference, patterns, and pitfalls
-6. Read `docs/bevy-egui-guide.md` — bevy_egui 0.39 API reference (if working on UI features)
-7. Read the relevant `.specs/features/<name>/spec.md` for your assigned feature
-8. Read `.specs/contracts/` for any shared types your feature depends on or exposes
-9. Check `.specs/features/<name>/log.md` for prior decisions and blockers
-10. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
+2. Read `docs/constitution.md` — non-negotiable project rules
+3. Read `docs/coordination.md` — active cycle, ownership, merge lock
+4. Read `docs/architecture.md` — plugin load order, cross-cutting concerns, dependency graph
+5. Read `docs/guides/git-guide.md` — git workflow, branching, commit, and merge conventions
+6. Read `docs/guides/bevy-guide.md` — Bevy 0.18 API reference, patterns, and pitfalls
+7. Read `docs/guides/bevy-egui-guide.md` — bevy_egui 0.39 API reference (if working on UI features)
+8. Read the relevant `docs/features/<name>/spec.md` for your assigned feature
+9. Read `docs/contracts/` for any shared types your feature depends on or exposes
+10. Check `docs/features/<name>/log.md` for prior decisions and blockers
+11. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
 
 ## Architecture Rules
 
 - Every feature is a Bevy Plugin in its own module under `src/`
-- Shared types live in `src/contracts/` and are mirrored in `.specs/contracts/`
+- Shared types live in `src/contracts/` and are mirrored in `docs/contracts/`
 - Use Events for cross-feature communication, never direct coupling
 - Components, Resources, Events must derive standard Bevy traits + Debug
 - Prefer systems over methods; prefer queries over direct world access
@@ -39,9 +40,9 @@ game system assets.
 
 ## Bevy 0.18 Conventions
 
-> Full reference: `docs/bevy-guide.md` — covers API, patterns, testing, migration notes, and
-> pitfalls. egui reference: `docs/bevy-egui-guide.md` — covers bevy_egui 0.39 setup, scheduling,
-> widgets, input passthrough, and styling.
+> Full reference: `docs/guides/bevy-guide.md` — covers API, patterns, testing, migration notes, and
+> pitfalls. egui reference: `docs/guides/bevy-egui-guide.md` — covers bevy_egui 0.39 setup,
+> scheduling, widgets, input passthrough, and styling.
 
 - App builder: `app.add_plugins(MyPlugin)`
 - Systems: `add_systems(Update, my_system)` with explicit schedule labels
@@ -59,8 +60,8 @@ game system assets.
 ## Development Workflow (Within a Build Cycle)
 
 > This workflow applies during the **build phase** of a Shape Up cycle. Before this workflow starts,
-> the pitch has been shaped, bet on, and assigned to a release. See `.specs/roadmap.md` for the
-> cycle loop and cool-down protocol.
+> the pitch has been shaped, bet on, and assigned to a release. See `docs/roadmap.md` for the cycle
+> loop and cool-down protocol.
 
 ### Getting Oriented (first 1-2 days)
 
@@ -68,9 +69,9 @@ When a cycle starts, do not jump straight into coding. Read the shaped pitch, ex
 code, and think through the approach. This orientation period is normal and expected.
 
 1. Read the pitch Issue for your assigned work
-2. Read `.specs/features/<name>/spec.md` and the pitch's solution sketch
-3. Read `.specs/contracts/` for any shared types your feature depends on or exposes
-4. Check `.specs/features/<name>/log.md` for prior decisions and blockers
+2. Read `docs/features/<name>/spec.md` and the pitch's solution sketch
+3. Read `docs/contracts/` for any shared types your feature depends on or exposes
+4. Check `docs/features/<name>/log.md` for prior decisions and blockers
 5. Explore relevant code paths and contracts
 6. Identify the first piece to build end-to-end (see "Get One Piece Done" below)
 
@@ -81,18 +82,18 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 
 ### Build Loop
 
-7. **Branch**: Run the Feature Branch Setup Checklist in `docs/git-guide.md` — creates branch,
-   worktree, pre-release version, spec scaffolding, and claims ownership
-8. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
-9. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
+7. **Branch**: Run the Feature Branch Setup Checklist in `docs/guides/git-guide.md` — creates
+   branch, worktree, pre-release version, spec scaffolding, and claims ownership
+8. **Spec first**: Read/update `docs/features/<name>/spec.md` before coding
+9. **Contract check**: If your feature exposes or consumes shared types, check `docs/contracts/`
 10. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
     spec success criteria
-12. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
-    the feature branch
+12. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git-guide.md` — commit early and
+    often on the feature branch
 13. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
     shared types must go through `src/contracts/`
-14. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
+14. **Log**: Record decisions, test results, blockers in `docs/features/<name>/log.md`
 
 ### Scope Hammering
 
@@ -104,11 +105,11 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
 15. **Capture new ideas**: When you discover future work (tech debt, feature ideas, research needs,
     bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
     with the appropriate template. Issues are raw idea capture, not commitments.
-16. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
-17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/git-guide.md` —
-    version bump, changelog, tag
+16. **Coordinate**: Update `docs/coordination.md` status when starting/finishing work
+17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in
+    `docs/guides/git-guide.md` — version bump, changelog, tag
 18. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
-    `docs/git-guide.md` — remove worktree, delete branch, update ownership
+    `docs/guides/git-guide.md` — remove worktree, delete branch, update ownership
 
 ## Ship Gate
 
@@ -130,21 +131,21 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 7. **No `unsafe` without documented justification**
 8. **All public types derive `Debug`**
 9. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
-   `.specs/contracts/`, and vice versa
+   `docs/contracts/`, and vice versa
 10. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
     passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
-    test and documented in `.specs/brand.md`
+    test and documented in `docs/brand.md`
 11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
     placeholders in specs, feature logs, and source code have corresponding GitHub Issues. Search
     with `gh issue list --search "<keywords>"` to verify.
-12. Record audit results in `.specs/coordination.md` under "Integration Test Checkpoints"
+12. Record audit results in the release checkpoint section of `docs/roadmap.md`
 
 This gate applies even if all individual features pass their own success criteria. Constitution
 violations that only emerge at the cross-feature level (like import boundary violations) are caught
 here.
 
-After the gate passes, follow the "Cycle ship merge" steps in `docs/git-guide.md` — tag the release
-version and record it in coordination.md.
+After the gate passes, follow the "Cycle ship merge" steps in `docs/guides/git-guide.md` — tag the
+release version and record it in coordination.md.
 
 ### Circuit Breaker
 
@@ -227,11 +228,11 @@ gh issue edit <n> --add-assignee @me           # claim a bet pitch
 
 When you need to ADD or CHANGE a contract:
 
-1. Propose the change in `.specs/coordination.md` under "Pending Contract Changes"
-2. Update the spec in `.specs/contracts/<name>.md`
+1. Propose the change in `docs/coordination.md` under "Pending Contract Changes"
+2. Update the spec in `docs/contracts/<name>.md`
 3. Implement the Rust types in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
-5. Notify affected features (check coordination.md for dependencies)
+5. Notify affected features (check `docs/architecture.md` for dependency graph)
 
 ## Agent Coordination Model
 
@@ -252,13 +253,13 @@ Lead decomposes the feature into subtasks. Teammates each own a subsystem.
 
 Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 
-- Each terminal owns one feature in its own git worktree and branch (see `docs/git-guide.md`)
-- Coordination happens through `.specs/coordination.md` and contracts
+- Each terminal owns one feature in its own git worktree and branch (see `docs/guides/git-guide.md`)
+- Coordination happens through `docs/coordination.md` and contracts
 - Before touching a contract, check coordination.md for pending changes
 - After changing a contract, run `cargo build` to catch breakage
-- **Before merging to `main`**: claim the Merge Lock in `.specs/coordination.md` — only one merge at
-  a time (see `docs/git-guide.md` → Merge Lock Protocol)
-- Merges to `main` follow the Pre-Merge Checklist in `docs/git-guide.md`
+- **Before merging to `main`**: claim the Merge Lock in `docs/coordination.md` — only one merge at a
+  time (see `docs/guides/git-guide.md` → Merge Lock Protocol)
+- Merges to `main` follow the Pre-Merge Checklist in `docs/guides/git-guide.md`
 
 ## When to Spawn Teammates vs Work Solo
 
@@ -271,7 +272,7 @@ Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 ```
 src/
   main.rs              # App setup, plugin registration
-  contracts/           # Shared types (mirrors .specs/contracts/)
+  contracts/           # Shared types (mirrors docs/contracts/)
     mod.rs
   <feature_name>/
     mod.rs             # Plugin definition

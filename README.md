@@ -42,17 +42,20 @@ src/
   unit/                # Unit placement, movement, deletion
   editor_ui/           # Editor panels, tools, inspector
 
-.specs/
+docs/
   constitution.md      # Non-negotiable project rules
-  coordination.md      # Active features, ownership, merge lock
-  roadmap.md           # Release plan and checkpoint history
+  coordination.md      # Active cycle, ownership, merge lock
+  architecture.md      # Plugin load order, cross-cutting concerns, dependency graph
+  roadmap.md           # Release history and checkpoint retrospectives
+  domain.md            # Product domain model
+  brand.md             # Visual identity (colors, typography, icon)
+  glossary.md          # Canonical terminology
   contracts/           # Shared type specifications
   features/            # Per-feature specs and logs
-
-docs/
-  git-guide.md         # Git workflow, branching, commit, merge conventions
-  bevy-guide.md        # Bevy 0.18 API reference and patterns
-  bevy-egui-guide.md   # bevy_egui 0.39 API reference
+  guides/
+    git-guide.md       # Git workflow, branching, commit, merge conventions
+    bevy-guide.md      # Bevy 0.18 API reference and patterns
+    bevy-egui-guide.md # bevy_egui 0.39 API reference
 
 # Project root config
 CLAUDE.md              # Agent workflow and architecture rules
@@ -65,7 +68,7 @@ lefthook.yml           # Git hook definitions (fmt, build, secrets)
 ## Development
 
 Every feature is a Bevy Plugin in its own module under `src/`. Shared types live in `src/contracts/`
-and are specified in `.specs/contracts/`. Cross-feature communication uses Events only.
+and are specified in `docs/contracts/`. Cross-feature communication uses Events only.
 
 ### Common commands
 
@@ -87,8 +90,8 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 ### Git workflow
 
 This project uses trunk-based development with git worktrees, operating within Shape Up build
-cycles. See `docs/git-guide.md` for the full workflow and `docs/shape-up-guide.md` for the
-methodology reference. The workflow includes:
+cycles. See `docs/guides/git-guide.md` for the full workflow and `docs/guides/shape-up-guide.md` for
+the methodology reference. The workflow includes:
 
 - Branch naming and worktree setup
 - Conventional commit message format
@@ -127,9 +130,10 @@ methodology reference. The workflow includes:
 ## Contributing
 
 1. Read `CLAUDE.md` for agent workflow and architecture rules
-2. Read `.specs/constitution.md` for non-negotiable project rules
-3. Read `docs/git-guide.md` for git conventions
-4. Check `.specs/coordination.md` for active features and ownership
+2. Read `docs/constitution.md` for non-negotiable project rules
+3. Read `docs/guides/git-guide.md` for git conventions
+4. Check `docs/coordination.md` for active cycle and ownership
+5. Check `docs/architecture.md` for cross-cutting concerns and dependencies
 
 ## Platform
 

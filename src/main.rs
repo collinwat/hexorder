@@ -130,7 +130,7 @@ mod architecture_tests {
     }
 
     /// Scans `editor_ui` source files for color literals and verifies each one
-    /// is in the approved brand palette (`.specs/brand.md`). Catches ad-hoc
+    /// is in the approved brand palette (`docs/brand.md`). Catches ad-hoc
     /// colors that drift from the design system.
     ///
     /// Exempt patterns:
@@ -228,7 +228,7 @@ mod architecture_tests {
                         {
                             violations.push(format!(
                                 "{}:{}: `from_gray({})` is not in the brand palette. \
-                                     See .specs/brand.md for approved colors.",
+                                     See docs/brand.md for approved colors.",
                                 path.display(),
                                 line_num + 1,
                                 val,
@@ -250,7 +250,7 @@ mod architecture_tests {
                             {
                                 violations.push(format!(
                                     "{}:{}: `from_rgb({}, {}, {})` is not in the brand palette. \
-                                         See .specs/brand.md for approved colors.",
+                                         See docs/brand.md for approved colors.",
                                     path.display(),
                                     line_num + 1,
                                     r,
@@ -282,7 +282,7 @@ mod architecture_tests {
                             if !approved_rgb.contains(&(r, g, b)) {
                                 violations.push(format!(
                                         "{}:{}: `from_rgba*({}, {}, {}, ...)` is not in the brand palette. \
-                                         See .specs/brand.md for approved colors.",
+                                         See docs/brand.md for approved colors.",
                                         path.display(),
                                         line_num + 1,
                                         r, g, b,
@@ -311,7 +311,7 @@ mod architecture_tests {
                         if !approved_named.contains(&full.as_str()) {
                             violations.push(format!(
                                 "{}:{}: `{}` is not in the brand palette. \
-                                 See .specs/brand.md for approved colors.",
+                                 See docs/brand.md for approved colors.",
                                 path.display(),
                                 line_num + 1,
                                 full,

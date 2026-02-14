@@ -1,6 +1,6 @@
 # Hexorder — git-cliff configuration
 # Generates CHANGELOG.md from conventional commit messages.
-# See docs/git-guide.md for commit message conventions.
+# See docs/guides/git-guide.md for commit message conventions.
 #
 # Usage:
 #   git cliff --output CHANGELOG.md          # regenerate full changelog

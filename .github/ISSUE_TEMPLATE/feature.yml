@@ -14,8 +14,8 @@ body:
     attributes:
       label: Spec file
       description: >-
-        Path to the relevant spec file, if one exists (e.g., .specs/features/unit/spec.md)
-      placeholder: ".specs/features/..."
+        Path to the relevant spec file, if one exists (e.g., docs/features/unit/spec.md)
+      placeholder: "docs/features/..."
   - type: dropdown
     id: area
     attributes:
