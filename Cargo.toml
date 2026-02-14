@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.4.0"
+version = "0.6.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
@@ -12,7 +12,14 @@ dev = [ "bevy/dynamic_linking" ]
 bevy = "0.18"
 bevy_egui = "0.39"
 hexx = "0.22"
+mlua = { version = "0.11", features = [ "luajit", "vendored" ] }
+rfd = "0.15"
+ron = "0.12"
+serde = { version = "1", features = [ "derive" ] }
 uuid = { version = "1", features = [ "v4" ] }
+
+[dev-dependencies]
+egui_kittest = "0.33"
 
 [lints.rust]
 unsafe_code = "forbid"

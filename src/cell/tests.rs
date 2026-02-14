@@ -9,6 +9,7 @@ use crate::contracts::game_system::{
     ActiveBoardType, EntityData, EntityRole, EntityType, EntityTypeRegistry, TypeId,
 };
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
+use crate::contracts::persistence::AppScreen;
 
 use super::components::CellMaterials;
 use super::systems;
@@ -17,6 +18,8 @@ use super::systems;
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app

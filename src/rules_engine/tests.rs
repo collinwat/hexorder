@@ -13,12 +13,15 @@ use crate::contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
     ModifyOperation, PropertyBinding, Relation, RelationEffect, RelationRegistry, RelationTrigger,
 };
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::ValidMoveSet;
 
 /// Creates a minimal headless test app with the `RulesEnginePlugin`.
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.insert_resource(HexGridConfig {
         layout: hexx::HexLayout {
             orientation: hexx::HexOrientation::Pointy,

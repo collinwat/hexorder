@@ -78,6 +78,11 @@ pub fn keyboard_pan(
     time: Res<Time>,
     mut camera_state: ResMut<CameraState>,
 ) {
+    // Ignore WASD when a command modifier is held (e.g. Cmd+S for save).
+    if keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]) {
+        return;
+    }
+
     let mut direction = Vec2::ZERO;
 
     // WASD and arrow keys for panning in the XZ plane.

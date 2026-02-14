@@ -6,9 +6,83 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use crate::contracts::game_system::TypeId;
-use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::contracts::game_system::{EntityRole, PropertyType, TypeId};
+use crate::contracts::ontology::{
+    ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
+    RelationTrigger,
+};
 use crate::contracts::validation::SchemaValidation;
+
+/// Deferred actions to apply after the egui closure completes.
+/// Avoids side effects inside the closure (multi-pass safe).
+#[derive(Debug)]
+pub(crate) enum EditorAction {
+    CreateEntityType {
+        name: String,
+        role: EntityRole,
+        color: Color,
+    },
+    DeleteEntityType {
+        id: TypeId,
+    },
+    AddProperty {
+        type_id: TypeId,
+        name: String,
+        prop_type: PropertyType,
+        enum_options: String,
+    },
+    RemoveProperty {
+        type_id: TypeId,
+        prop_id: TypeId,
+    },
+    DeleteSelectedUnit,
+    CreateConcept {
+        name: String,
+        description: String,
+    },
+    DeleteConcept {
+        id: TypeId,
+    },
+    AddConceptRole {
+        concept_id: TypeId,
+        name: String,
+        allowed_roles: Vec<EntityRole>,
+    },
+    RemoveConceptRole {
+        concept_id: TypeId,
+        role_id: TypeId,
+    },
+    BindEntityToConcept {
+        entity_type_id: TypeId,
+        concept_id: TypeId,
+        concept_role_id: TypeId,
+    },
+    UnbindEntityFromConcept {
+        #[allow(dead_code)]
+        concept_id: TypeId,
+        binding_id: TypeId,
+    },
+    CreateRelation {
+        name: String,
+        concept_id: TypeId,
+        subject_role_id: TypeId,
+        object_role_id: TypeId,
+        trigger: RelationTrigger,
+        effect: RelationEffect,
+    },
+    DeleteRelation {
+        id: TypeId,
+    },
+    CreateConstraint {
+        name: String,
+        description: String,
+        concept_id: TypeId,
+        expression: ConstraintExpr,
+    },
+    DeleteConstraint {
+        id: TypeId,
+    },
+}
 
 /// Which tab is active in the ontology editor panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

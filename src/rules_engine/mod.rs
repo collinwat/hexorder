@@ -5,6 +5,7 @@
 
 use bevy::prelude::*;
 
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::ValidMoveSet;
 
 mod systems;
@@ -20,6 +21,9 @@ pub struct RulesEnginePlugin;
 impl Plugin for RulesEnginePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ValidMoveSet>();
-        app.add_systems(Update, systems::compute_valid_moves);
+        app.add_systems(
+            Update,
+            systems::compute_valid_moves.run_if(in_state(AppScreen::Editor)),
+        );
     }
 }

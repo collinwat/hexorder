@@ -13,4 +13,6 @@ pub mod hex_grid;
 #[allow(dead_code)]
 pub mod ontology;
 #[allow(dead_code)]
+pub mod persistence;
+#[allow(dead_code)]
 pub mod validation;

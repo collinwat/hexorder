@@ -6,6 +6,8 @@
 
 use bevy::prelude::*;
 
+use crate::contracts::persistence::AppScreen;
+
 mod components;
 mod systems;
 
@@ -18,7 +20,7 @@ pub struct UnitPlugin;
 
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, systems::setup_unit_visuals)
+        app.add_systems(OnEnter(AppScreen::Editor), systems::setup_unit_visuals)
             .add_systems(
                 Update,
                 (
@@ -26,7 +28,8 @@ impl Plugin for UnitPlugin {
                     systems::sync_unit_materials,
                     systems::sync_unit_visuals,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(AppScreen::Editor)),
             )
             .add_observer(systems::handle_unit_placement)
             .add_observer(systems::handle_unit_interaction);

@@ -8,6 +8,7 @@
 use bevy::prelude::*;
 
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::SchemaValidation;
 
 mod systems;
@@ -33,7 +34,8 @@ impl Plugin for OntologyPlugin {
                 systems::auto_generate_constraints,
                 systems::run_schema_validation,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(AppScreen::Editor)),
         );
     }
 }

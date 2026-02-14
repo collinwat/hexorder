@@ -8,6 +8,7 @@ use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::SchemaValidation;
 
 mod components;
@@ -15,6 +16,9 @@ mod systems;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod ui_tests;
 
 /// Plugin that provides the editor UI overlay via egui.
 #[derive(Debug)]
@@ -39,14 +43,17 @@ impl Plugin for EditorUiPlugin {
         app.init_resource::<ConstraintRegistry>();
         app.init_resource::<SchemaValidation>();
 
-        // Both systems run unconditionally in EguiPrimaryContextPass.
-        // Gating with in_state() does not work reliably in this schedule
-        // because state transitions may not have propagated yet.
-        // The systems themselves early-return when the egui context is
-        // unavailable (e.g. while the primary window is hidden).
+        // Theme applies unconditionally so both launcher and editor get dark theming.
+        app.add_systems(EguiPrimaryContextPass, systems::configure_theme);
+        // Launcher screen shown only in Launcher state.
         app.add_systems(
             EguiPrimaryContextPass,
-            (systems::configure_theme, systems::editor_panel_system).chain(),
+            systems::launcher_system.run_if(in_state(AppScreen::Launcher)),
+        );
+        // Editor panel shown only in Editor state.
+        app.add_systems(
+            EguiPrimaryContextPass,
+            systems::editor_panel_system.run_if(in_state(AppScreen::Editor)),
         );
     }
 }

@@ -8,11 +8,14 @@ use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumDefinition, GameSystem,
     PropertyType, PropertyValue, SelectedUnit, TypeId,
 };
+use crate::contracts::persistence::AppScreen;
 
 /// Helper: create a minimal App with the `GameSystemPlugin`.
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.add_plugins(super::GameSystemPlugin);
     app
 }

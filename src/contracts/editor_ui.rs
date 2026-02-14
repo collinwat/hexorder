@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 /// The current editor tool mode. Other plugins (e.g., cell, unit) read this
 /// to decide whether a click should select, paint, or place.
-#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum EditorTool {
     /// Click to select hex tiles or units. Also handles unit movement.
     #[default]
@@ -18,7 +18,7 @@ pub enum EditorTool {
 /// Holds the material handle for the currently active paint color.
 /// Updated by the cell plugin when the active cell type changes.
 /// Read by `hex_grid` to show a paint preview on hover in Paint mode.
-#[derive(Resource, Debug, Default)]
+#[derive(Resource, Debug, Default, Reflect)]
 pub struct PaintPreview {
     pub material: Option<Handle<StandardMaterial>>,
 }

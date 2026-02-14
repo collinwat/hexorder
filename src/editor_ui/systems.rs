@@ -15,79 +15,10 @@ use crate::contracts::ontology::{
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
+use crate::contracts::persistence::{LoadRequestEvent, NewProjectEvent, SaveRequestEvent};
 use crate::contracts::validation::SchemaValidation;
 
-use super::components::{EditorState, OntologyParams, OntologyTab};
-
-/// Deferred actions to apply after the egui closure completes.
-/// Avoids side effects inside the closure (multi-pass safe).
-enum EditorAction {
-    CreateEntityType {
-        name: String,
-        role: EntityRole,
-        color: Color,
-    },
-    DeleteEntityType {
-        id: TypeId,
-    },
-    AddProperty {
-        type_id: TypeId,
-        name: String,
-        prop_type: PropertyType,
-        enum_options: String,
-    },
-    RemoveProperty {
-        type_id: TypeId,
-        prop_id: TypeId,
-    },
-    DeleteSelectedUnit,
-    CreateConcept {
-        name: String,
-        description: String,
-    },
-    DeleteConcept {
-        id: TypeId,
-    },
-    AddConceptRole {
-        concept_id: TypeId,
-        name: String,
-        allowed_roles: Vec<EntityRole>,
-    },
-    RemoveConceptRole {
-        concept_id: TypeId,
-        role_id: TypeId,
-    },
-    BindEntityToConcept {
-        entity_type_id: TypeId,
-        concept_id: TypeId,
-        concept_role_id: TypeId,
-    },
-    UnbindEntityFromConcept {
-        #[allow(dead_code)]
-        concept_id: TypeId,
-        binding_id: TypeId,
-    },
-    CreateRelation {
-        name: String,
-        concept_id: TypeId,
-        subject_role_id: TypeId,
-        object_role_id: TypeId,
-        trigger: RelationTrigger,
-        effect: RelationEffect,
-    },
-    DeleteRelation {
-        id: TypeId,
-    },
-    CreateConstraint {
-        name: String,
-        description: String,
-        concept_id: TypeId,
-        expression: ConstraintExpr,
-    },
-    DeleteConstraint {
-        id: TypeId,
-    },
-}
+use super::components::{EditorAction, EditorState, OntologyParams, OntologyTab};
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
@@ -130,6 +61,42 @@ pub fn configure_theme(mut contexts: EguiContexts) {
     ctx.set_style(style);
 }
 
+/// Launcher screen system. Renders a centered panel with New / Open buttons.
+pub fn launcher_system(mut contexts: EguiContexts, mut commands: Commands) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.vertical_centered(|ui| {
+            ui.add_space(ui.available_height() * 0.3);
+
+            ui.label(egui::RichText::new("hexorder").size(32.0).strong());
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                    .small()
+                    .color(egui::Color32::GRAY),
+            );
+            ui.add_space(24.0);
+
+            if ui
+                .add(egui::Button::new("New Game System").min_size(egui::vec2(200.0, 36.0)))
+                .clicked()
+            {
+                commands.trigger(NewProjectEvent);
+            }
+            ui.add_space(8.0);
+            if ui
+                .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
+                .clicked()
+            {
+                commands.trigger(LoadRequestEvent);
+            }
+        });
+    });
+}
+
 /// Main editor panel system. Renders the left side panel with all editor sections.
 #[allow(clippy::too_many_arguments)]
 pub fn editor_panel_system(
@@ -153,6 +120,31 @@ pub fn editor_panel_system(
     };
 
     let mut actions: Vec<EditorAction> = Vec::new();
+
+    // -- File Menu Bar --
+    egui::TopBottomPanel::top("file_menu_bar").show(ctx, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New          Cmd+N").clicked() {
+                    commands.trigger(NewProjectEvent);
+                    ui.close();
+                }
+                if ui.button("Open...      Cmd+O").clicked() {
+                    commands.trigger(LoadRequestEvent);
+                    ui.close();
+                }
+                ui.separator();
+                if ui.button("Save         Cmd+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: false });
+                    ui.close();
+                }
+                if ui.button("Save As...   Cmd+Shift+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: true });
+                    ui.close();
+                }
+            });
+        });
+    });
 
     egui::SidePanel::left("editor_panel")
         .default_width(260.0)
@@ -263,7 +255,7 @@ pub fn editor_panel_system(
 // UI Section Renderers
 // ---------------------------------------------------------------------------
 
-fn render_game_system_info(ui: &mut egui::Ui, gs: &Res<GameSystem>) {
+pub(crate) fn render_game_system_info(ui: &mut egui::Ui, gs: &GameSystem) {
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("Hexorder").strong().size(15.0));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -287,32 +279,32 @@ fn render_game_system_info(ui: &mut egui::Ui, gs: &Res<GameSystem>) {
     ui.separator();
 }
 
-fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut ResMut<EditorTool>) {
+pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) {
     ui.label(egui::RichText::new("Tool Mode").strong());
     ui.horizontal(|ui| {
         if ui
-            .selectable_label(**editor_tool == EditorTool::Select, "Select")
+            .selectable_label(*editor_tool == EditorTool::Select, "Select")
             .clicked()
         {
-            **editor_tool = EditorTool::Select;
+            *editor_tool = EditorTool::Select;
         }
         if ui
-            .selectable_label(**editor_tool == EditorTool::Paint, "Paint")
+            .selectable_label(*editor_tool == EditorTool::Paint, "Paint")
             .clicked()
         {
-            **editor_tool = EditorTool::Paint;
+            *editor_tool = EditorTool::Paint;
         }
         if ui
-            .selectable_label(**editor_tool == EditorTool::Place, "Place")
+            .selectable_label(*editor_tool == EditorTool::Place, "Place")
             .clicked()
         {
-            **editor_tool = EditorTool::Place;
+            *editor_tool = EditorTool::Place;
         }
     });
     ui.separator();
 }
 
-fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut ResMut<EditorState>) {
+pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
     ui.horizontal_wrapped(|ui| {
         for tab in [
             OntologyTab::Types,
@@ -339,10 +331,10 @@ fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut ResMut<EditorState>) {
     ui.separator();
 }
 
-fn render_cell_palette(
+pub(crate) fn render_cell_palette(
     ui: &mut egui::Ui,
-    registry: &ResMut<EntityTypeRegistry>,
-    active_board: &mut ResMut<ActiveBoardType>,
+    registry: &EntityTypeRegistry,
+    active_board: &mut ActiveBoardType,
 ) {
     ui.label(egui::RichText::new("Cell Palette").strong());
 
@@ -378,10 +370,10 @@ fn render_cell_palette(
     ui.separator();
 }
 
-fn render_unit_palette(
+pub(crate) fn render_unit_palette(
     ui: &mut egui::Ui,
-    registry: &ResMut<EntityTypeRegistry>,
-    active_token: &mut ResMut<ActiveTokenType>,
+    registry: &EntityTypeRegistry,
+    active_token: &mut ActiveTokenType,
 ) {
     ui.label(egui::RichText::new("Unit Palette").strong());
 
@@ -417,10 +409,10 @@ fn render_unit_palette(
     ui.separator();
 }
 
-fn render_entity_type_editor(
+pub(crate) fn render_entity_type_editor(
     ui: &mut egui::Ui,
-    registry: &mut ResMut<EntityTypeRegistry>,
-    editor_state: &mut ResMut<EditorState>,
+    registry: &mut EntityTypeRegistry,
+    editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
     // -- Cell Types (BoardPosition) --
@@ -447,10 +439,10 @@ fn render_entity_type_editor(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_entity_type_section(
+pub(crate) fn render_entity_type_section(
     ui: &mut egui::Ui,
-    registry: &mut ResMut<EntityTypeRegistry>,
-    editor_state: &mut ResMut<EditorState>,
+    registry: &mut EntityTypeRegistry,
+    editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
     role: EntityRole,
     section_label: &str,
@@ -644,11 +636,11 @@ fn render_entity_type_section(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_concepts_tab(
+pub(crate) fn render_concepts_tab(
     ui: &mut egui::Ui,
-    concept_registry: &mut ResMut<ConceptRegistry>,
-    entity_registry: &ResMut<EntityTypeRegistry>,
-    editor_state: &mut ResMut<EditorState>,
+    concept_registry: &mut ConceptRegistry,
+    entity_registry: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
     ui.label(egui::RichText::new("Concepts").strong());
@@ -939,11 +931,11 @@ fn render_concepts_tab(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_relations_tab(
+pub(crate) fn render_relations_tab(
     ui: &mut egui::Ui,
-    relation_registry: &mut ResMut<RelationRegistry>,
-    concept_registry: &ResMut<ConceptRegistry>,
-    editor_state: &mut ResMut<EditorState>,
+    relation_registry: &mut RelationRegistry,
+    concept_registry: &ConceptRegistry,
+    editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
     ui.label(egui::RichText::new("Relations").strong());
@@ -1204,11 +1196,11 @@ fn render_relations_tab(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_constraints_tab(
+pub(crate) fn render_constraints_tab(
     ui: &mut egui::Ui,
-    constraint_registry: &mut ResMut<ConstraintRegistry>,
-    concept_registry: &ResMut<ConceptRegistry>,
-    editor_state: &mut ResMut<EditorState>,
+    constraint_registry: &mut ConstraintRegistry,
+    concept_registry: &ConceptRegistry,
+    editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
     ui.label(egui::RichText::new("Constraints").strong());
@@ -1420,7 +1412,7 @@ fn render_constraints_tab(
         });
 }
 
-fn render_validation_tab(ui: &mut egui::Ui, validation: &Res<SchemaValidation>) {
+pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValidation) {
     ui.label(egui::RichText::new("Validation").strong());
 
     if validation.is_valid {
@@ -1465,12 +1457,12 @@ fn render_validation_tab(ui: &mut egui::Ui, validation: &Res<SchemaValidation>) 
 }
 
 #[allow(clippy::type_complexity)]
-fn render_inspector(
+pub(crate) fn render_inspector(
     ui: &mut egui::Ui,
-    selected_hex: &Res<SelectedHex>,
+    selected_hex: &SelectedHex,
     tile_query: &Query<(&HexPosition, Entity), With<HexTile>>,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
-    registry: &ResMut<EntityTypeRegistry>,
+    registry: &EntityTypeRegistry,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Inspector").strong())
         .default_open(true)
@@ -1537,11 +1529,11 @@ fn render_inspector(
         });
 }
 
-fn render_unit_inspector(
+pub(crate) fn render_unit_inspector(
     ui: &mut egui::Ui,
-    selected_unit: &ResMut<SelectedUnit>,
+    selected_unit: &SelectedUnit,
     unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
-    registry: &ResMut<EntityTypeRegistry>,
+    registry: &EntityTypeRegistry,
     actions: &mut Vec<EditorAction>,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Unit Inspector").strong())
@@ -1666,16 +1658,16 @@ fn render_property_value_editor(
 #[allow(clippy::too_many_arguments)]
 fn apply_actions(
     actions: Vec<EditorAction>,
-    registry: &mut ResMut<EntityTypeRegistry>,
+    registry: &mut EntityTypeRegistry,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
-    active_board: &mut ResMut<ActiveBoardType>,
-    active_token: &mut ResMut<ActiveTokenType>,
-    selected_unit: &mut ResMut<SelectedUnit>,
-    editor_state: &ResMut<EditorState>,
+    active_board: &mut ActiveBoardType,
+    active_token: &mut ActiveTokenType,
+    selected_unit: &mut SelectedUnit,
+    editor_state: &EditorState,
     commands: &mut Commands,
-    concept_registry: &mut ResMut<ConceptRegistry>,
-    relation_registry: &mut ResMut<RelationRegistry>,
-    constraint_registry: &mut ResMut<ConstraintRegistry>,
+    concept_registry: &mut ConceptRegistry,
+    relation_registry: &mut RelationRegistry,
+    constraint_registry: &mut ConstraintRegistry,
 ) {
     for action in actions {
         match action {
@@ -2068,7 +2060,7 @@ fn index_to_compare_op(index: usize) -> CompareOp {
 }
 
 fn build_constraint_expression(
-    editor_state: &ResMut<EditorState>,
+    editor_state: &EditorState,
     roles: &[ConceptRole],
 ) -> ConstraintExpr {
     match editor_state.new_constraint_expr_type_index {

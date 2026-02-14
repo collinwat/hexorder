@@ -11,6 +11,7 @@ use crate::contracts::ontology::{
     ConstraintRegistry, ModifyOperation, PropertyBinding, Relation, RelationEffect,
     RelationRegistry, RelationTrigger,
 };
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::{SchemaErrorCategory, SchemaValidation};
 use crate::ontology::OntologyPlugin;
 
@@ -24,6 +25,8 @@ use crate::ontology::OntologyPlugin;
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.insert_resource(test_entity_type_registry());
     app.add_plugins(OntologyPlugin);
     app

@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::contracts::persistence::AppScreen;
+
 use super::components::{CameraState, TopDownCamera};
 use super::systems;
 
@@ -9,6 +11,8 @@ use super::systems;
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.init_resource::<CameraState>();
     app
 }

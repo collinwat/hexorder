@@ -4,7 +4,11 @@
 //! These are designer-defined abstractions that give meaning to entity types
 //! and their properties without hardcoding any game terms.
 
+// bevy_reflect derive macros generate underscore-prefixed bindings internally
+#![allow(clippy::used_underscore_binding)]
+
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use super::game_system::{EntityRole, PropertyValue, TypeId};
 
@@ -15,7 +19,7 @@ use super::game_system::{EntityRole, PropertyValue, TypeId};
 /// A designer-defined abstract category that groups related behaviors.
 /// Concepts provide the vocabulary for relations between entity types.
 /// Example: "Motion" is a concept; "Defense" is another concept.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct Concept {
     pub id: TypeId,
     pub name: String,
@@ -27,7 +31,7 @@ pub struct Concept {
 /// A named slot within a concept. Entity types can bind to this role.
 /// Example: The "Motion" concept has roles "traveler" (`Token`) and
 /// "terrain" (`BoardPosition`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct ConceptRole {
     pub id: TypeId,
     pub name: String,
@@ -44,7 +48,7 @@ pub struct ConceptRole {
 /// properties are relevant to that concept.
 /// Example: Infantry binds to Motion's "traveler" role, mapping its
 /// `movement_points` property as concept-local name "budget".
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct ConceptBinding {
     pub id: TypeId,
     pub entity_type_id: TypeId,
@@ -56,7 +60,7 @@ pub struct ConceptBinding {
 
 /// Maps an entity type's property to a concept-local semantic name.
 /// The concept-local name is what relations and constraints reference.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct PropertyBinding {
     pub property_id: TypeId,
     /// The name used within this concept. E.g., "budget", "cost", "passable".
@@ -68,7 +72,7 @@ pub struct PropertyBinding {
 // ---------------------------------------------------------------------------
 
 /// When a relation is evaluated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum RelationTrigger {
     /// Evaluated when an entity enters a hex position.
     OnEnter,
@@ -79,7 +83,7 @@ pub enum RelationTrigger {
 }
 
 /// How to apply a numeric modification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum ModifyOperation {
     Add,
     Subtract,
@@ -89,7 +93,7 @@ pub enum ModifyOperation {
 }
 
 /// What effect a relation has when triggered.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
 pub enum RelationEffect {
     /// Modifies a numeric property value.
     /// E.g., terrain cost subtracts from movement budget.
@@ -112,7 +116,7 @@ pub enum RelationEffect {
 /// A designer-defined relation between two concept roles.
 /// Example: "Terrain Movement Cost" — when a traveler enters terrain,
 /// subtract the terrain's cost from the traveler's budget.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct Relation {
     pub id: TypeId,
     pub name: String,
@@ -130,7 +134,7 @@ pub struct Relation {
 // ---------------------------------------------------------------------------
 
 /// Comparison operators for constraint expressions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum CompareOp {
     Eq,
     Ne,
@@ -143,7 +147,8 @@ pub enum CompareOp {
 /// A structured constraint expression. Deliberately limited for M4:
 /// property comparisons, cross-entity comparisons, path budgets,
 /// type checks, and boolean logic. Not a full DSL.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
 pub enum ConstraintExpr {
     /// Compare a property value against a literal.
     /// E.g., traveler.budget >= 0
@@ -194,7 +199,7 @@ pub enum ConstraintExpr {
 
 /// A named constraint in the game system.
 /// Can be auto-generated from a relation or manually created by the designer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct Constraint {
     pub id: TypeId,
     pub name: String,
@@ -214,20 +219,104 @@ pub struct Constraint {
 // ---------------------------------------------------------------------------
 
 /// Registry of all concepts and their bindings.
-#[derive(Resource, Debug, Default)]
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
 pub struct ConceptRegistry {
     pub concepts: Vec<Concept>,
     pub bindings: Vec<ConceptBinding>,
 }
 
 /// Registry of all relations.
-#[derive(Resource, Debug, Default)]
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
 pub struct RelationRegistry {
     pub relations: Vec<Relation>,
 }
 
 /// Registry of all constraints.
-#[derive(Resource, Debug, Default)]
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
 pub struct ConstraintRegistry {
     pub constraints: Vec<Constraint>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::game_system::{EntityRole, PropertyValue, TypeId};
+
+    /// Round-trip: serialize `ConceptRegistry` with bindings.
+    #[test]
+    fn concept_registry_ron_round_trip() {
+        let concept_id = TypeId::new();
+        let role_id = TypeId::new();
+        let entity_type_id = TypeId::new();
+        let prop_id = TypeId::new();
+
+        let registry = ConceptRegistry {
+            concepts: vec![Concept {
+                id: concept_id,
+                name: "Motion".to_string(),
+                description: "Movement system".to_string(),
+                role_labels: vec![ConceptRole {
+                    id: role_id,
+                    name: "traveler".to_string(),
+                    allowed_entity_roles: vec![EntityRole::Token],
+                }],
+            }],
+            bindings: vec![ConceptBinding {
+                id: TypeId::new(),
+                entity_type_id,
+                concept_id,
+                concept_role_id: role_id,
+                property_bindings: vec![PropertyBinding {
+                    property_id: prop_id,
+                    concept_local_name: "budget".to_string(),
+                }],
+            }],
+        };
+
+        let ron_str = ron::to_string(&registry).expect("serialize");
+        let deserialized: ConceptRegistry = ron::from_str(&ron_str).expect("deserialize");
+
+        assert_eq!(deserialized.concepts.len(), 1);
+        assert_eq!(deserialized.concepts[0].name, "Motion");
+        assert_eq!(deserialized.concepts[0].role_labels.len(), 1);
+        assert_eq!(deserialized.bindings.len(), 1);
+        assert_eq!(deserialized.bindings[0].property_bindings.len(), 1);
+        assert_eq!(
+            deserialized.bindings[0].property_bindings[0].concept_local_name,
+            "budget"
+        );
+    }
+
+    /// Round-trip: serialize recursive `ConstraintExpr`.
+    #[test]
+    fn constraint_expr_ron_round_trip() {
+        let role_id = TypeId::new();
+        let expr = ConstraintExpr::All(vec![
+            ConstraintExpr::PropertyCompare {
+                role_id,
+                property_name: "budget".to_string(),
+                operator: CompareOp::Ge,
+                value: PropertyValue::Int(0),
+            },
+            ConstraintExpr::Not(Box::new(ConstraintExpr::IsType {
+                role_id,
+                entity_type_id: TypeId::new(),
+            })),
+        ]);
+
+        let ron_str = ron::to_string(&expr).expect("serialize");
+        let deserialized: ConstraintExpr = ron::from_str(&ron_str).expect("deserialize");
+
+        match &deserialized {
+            ConstraintExpr::All(children) => {
+                assert_eq!(children.len(), 2);
+                assert!(matches!(
+                    &children[0],
+                    ConstraintExpr::PropertyCompare { .. }
+                ));
+                assert!(matches!(&children[1], ConstraintExpr::Not(_)));
+            }
+            other => panic!("expected All, got {other:?}"),
+        }
+    }
 }

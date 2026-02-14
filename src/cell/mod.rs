@@ -7,6 +7,7 @@
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::PaintPreview;
+use crate::contracts::persistence::AppScreen;
 
 mod components;
 mod systems;
@@ -21,7 +22,7 @@ pub struct CellPlugin;
 impl Plugin for CellPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PaintPreview>()
-            .add_systems(Startup, systems::setup_cell_materials)
+            .add_systems(OnEnter(AppScreen::Editor), systems::setup_cell_materials)
             .add_systems(
                 Update,
                 (
@@ -30,7 +31,8 @@ impl Plugin for CellPlugin {
                     systems::sync_cell_visuals,
                     systems::update_paint_preview,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(AppScreen::Editor)),
             )
             .add_observer(systems::paint_cell);
     }

@@ -7,6 +7,8 @@
 use bevy::prelude::*;
 use bevy_egui::input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input};
 
+use crate::contracts::persistence::AppScreen;
+
 mod components;
 mod systems;
 #[cfg(test)]
@@ -32,10 +34,16 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CameraState>()
-            .configure_sets(Update, CameraSet::Apply.after(CameraSet::Input))
+            .configure_sets(
+                Update,
+                CameraSet::Apply
+                    .after(CameraSet::Input)
+                    .run_if(in_state(AppScreen::Editor)),
+            )
+            .add_systems(Startup, systems::spawn_camera)
             .add_systems(
-                Startup,
-                (systems::spawn_camera, systems::configure_bounds_from_grid).chain(),
+                OnEnter(AppScreen::Editor),
+                systems::configure_bounds_from_grid,
             )
             .add_systems(
                 Update,
@@ -56,7 +64,8 @@ impl Plugin for CameraPlugin {
                     systems::smooth_camera
                         .in_set(CameraSet::Apply)
                         .after(systems::compensate_resize),
-                ),
+                )
+                    .run_if(in_state(AppScreen::Editor)),
             );
     }
 }

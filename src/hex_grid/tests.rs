@@ -8,6 +8,7 @@ use crate::contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex,
 };
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::{ValidMoveSet, ValidationResult};
 
 use super::components::{HexMaterials, HoveredHex};
@@ -18,6 +19,8 @@ fn test_app() -> App {
     let mut app = App::new();
     // MinimalPlugins provides the basic scheduler without rendering.
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<bevy::input::mouse::AccumulatedMouseMotion>();

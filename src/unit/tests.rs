@@ -10,6 +10,7 @@ use crate::contracts::game_system::{
     UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexSelectedEvent};
+use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{UnitMaterials, UnitMesh};
@@ -19,6 +20,8 @@ use super::systems;
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app

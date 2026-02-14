@@ -8,8 +8,12 @@ mod editor_ui;
 mod game_system;
 mod hex_grid;
 mod ontology;
+mod persistence;
 mod rules_engine;
+mod scripting;
 mod unit;
+
+use contracts::persistence::AppScreen;
 
 fn main() {
     App::new()
@@ -29,6 +33,7 @@ fn main() {
             }),
             ..default()
         }))
+        .init_state::<AppScreen>()
         .add_plugins(hex_grid::HexGridPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(game_system::GameSystemPlugin)
@@ -36,6 +41,8 @@ fn main() {
         .add_plugins(cell::CellPlugin)
         .add_plugins(unit::UnitPlugin)
         .add_plugins(rules_engine::RulesEnginePlugin)
+        .add_plugins(scripting::ScriptingPlugin)
+        .add_plugins(persistence::PersistencePlugin)
         .add_plugins(editor_ui::EditorUiPlugin)
         .add_systems(Update, reveal_window)
         .run();
@@ -348,9 +355,14 @@ mod integration_tests {
     /// Build a headless app with `GameSystemPlugin` + `CellPlugin` + `UnitPlugin`.
     /// Manually provides `EditorTool`, `HexGridConfig` (normally from EditorUiPlugin/HexGridPlugin)
     /// and asset stores (normally from `DefaultPlugins`).
+    /// Starts in `AppScreen::Editor` so gated systems run immediately.
     fn headless_app() -> App {
+        use crate::contracts::persistence::AppScreen;
+
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(AppScreen::Editor);
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
         app.insert_resource(EditorTool::default());

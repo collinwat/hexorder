@@ -6,6 +6,8 @@
 use bevy::prelude::*;
 use bevy_egui::input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input};
 
+use crate::contracts::persistence::AppScreen;
+
 mod components;
 mod systems;
 
@@ -19,7 +21,7 @@ pub struct HexGridPlugin;
 impl Plugin for HexGridPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Startup,
+            OnEnter(AppScreen::Editor),
             (
                 systems::setup_grid_config,
                 systems::setup_materials,
@@ -37,7 +39,8 @@ impl Plugin for HexGridPlugin {
                 systems::update_indicators,
                 systems::sync_move_overlays,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(AppScreen::Editor)),
         );
     }
 }
