@@ -1,12 +1,12 @@
 ---
-name: contracts
+name: contract
 description:
     Create, modify, or consume shared contract types between feature plugins. Use when a feature
     needs to expose or consume shared types, when adding cross-feature communication, or when
-    checking contract spec-code parity. Also use when the user invokes /contracts.
+    checking contract spec-code parity. Also use when the user invokes /contract.
 ---
 
-# Contracts
+# Contract
 
 For the full protocol, conventions, and rationale, see `docs/guides/contract.md`.
 
