@@ -46,7 +46,6 @@ docs/
   constitution.md      # Non-negotiable project rules
   coordination.md      # Active cycle, ownership, merge lock
   architecture.md      # Plugin load order, cross-cutting concerns, dependency graph
-  domain.md            # Product domain model
   brand.md             # Visual identity (colors, typography, icon)
   glossary.md          # Canonical terminology
   contracts/           # Shared type specifications
