@@ -54,6 +54,7 @@ docs/
     git.md       # Git workflow, branching, commit, merge conventions
     bevy.md      # Bevy 0.18 API reference and patterns
     bevy-egui.md # bevy_egui 0.39 API reference
+    research.md  # Research workflow and wiki consumption
 
 # Project root config
 CLAUDE.md              # Agent workflow and architecture rules

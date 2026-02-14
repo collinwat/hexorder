@@ -21,5 +21,5 @@ body:
     attributes:
       label: Expected deliverables
       description: >-
-        What does "done" look like? (e.g., a doc in docs/research/, a decision in a feature log, a
-        prototype branch)
+        What does "done" look like? (e.g., a wiki page at github.com/collinwat/hexorder/wiki, a
+        decision in a feature log, a prototype branch)

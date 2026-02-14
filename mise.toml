@@ -160,12 +160,24 @@ run = "git cliff --unreleased"
 description = "Regenerate CHANGELOG.md from all tags"
 run = "git cliff --output CHANGELOG.md"
 
+[tasks."wiki:clone"]
+description = "Clone the GitHub Wiki repo into .wiki/"
+run = """
+if [ -d .wiki/.git ]; then
+  echo "Wiki already cloned at .wiki/"
+else
+  git clone --depth 1 git@github.com:collinwat/hexorder.wiki.git .wiki
+  echo "Wiki cloned to .wiki/"
+fi
+"""
+
 [tasks.setup]
-description = "First-time project setup (tools, hooks, LFS)"
+description = "First-time project setup (tools, hooks, LFS, wiki)"
 run = """
 mise install
 git lfs install
 lefthook install
+mise run wiki:clone
 """
 
 [tasks.handoff]

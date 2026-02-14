@@ -18,5 +18,8 @@ Thumbs.db
 *.pem
 *.key
 
+# Wiki (separate git repo, cloned locally)
+/.wiki/
+
 # Local overrides
 *.local.*
