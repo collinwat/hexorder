@@ -1,6 +1,6 @@
 //! Cell feature plugin.
 //!
-//! Replaces the M1 terrain plugin. Handles painting user-defined cell types
+//! Replaces the 0.1.0 terrain plugin. Handles painting user-defined cell types
 //! onto hex tiles and syncing their visual appearance. Cell type definitions
 //! come from the `game_system` plugin's registry.
 

@@ -618,7 +618,7 @@ fn valid_moves_respect_grid_bounds() {
 }
 
 /// When no ontology constraints exist, all positions within grid bounds
-/// should be valid (M3 backward compat).
+/// should be valid (0.3.0 backward compat).
 #[test]
 fn free_movement_when_no_constraints() {
     let mut app = test_app();

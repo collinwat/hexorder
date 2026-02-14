@@ -73,7 +73,7 @@ pub struct SelectedHex {
 pub struct TileBaseMaterial(pub Handle<StandardMaterial>);
 
 // ---------------------------------------------------------------------------
-// Move Overlays (M4)
+// Move Overlays (0.4.0)
 // ---------------------------------------------------------------------------
 
 /// The visual state of a move overlay on a hex tile.

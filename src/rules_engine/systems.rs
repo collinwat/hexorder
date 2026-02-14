@@ -379,7 +379,7 @@ fn evaluate_step(
             RelationEffect::Allow { .. } => {
                 // Allow effects are not blocking; they permit entry.
                 // In a default-deny model these would allowlist, but for
-                // M4 we treat absence of Block as implicit allow.
+                // 0.4.0 we treat absence of Block as implicit allow.
             }
         }
     }
@@ -429,7 +429,7 @@ fn resolve_concept_property(
     None
 }
 
-/// Evaluates a block condition expression. For M4, handles `IsType`,
+/// Evaluates a block condition expression. For 0.4.0, handles `IsType`,
 /// `IsNotType`, `All`, `Any`, and `Not` checks. Other expression types
 /// default to true (blocked, conservative).
 fn evaluate_block_condition(

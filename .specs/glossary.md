@@ -5,16 +5,16 @@ consistently.
 
 ## Hex Grid Geometry
 
-| Term                   | Definition                                                                                                                                                                      | Dimension  | Code Reference                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
-| **Cell**               | The hexagonal area on the board. The fundamental spatial unit. Each cell occupies one hex position and has a type with properties.                                              | 2D region  | `HexTile` (marker), `CellData` (component), `CellType` (definition)                |
-| **Edge**               | The shared boundary between two adjacent cells. Six edges per cell.                                                                                                             | 1D segment | — (not yet modeled)                                                                |
-| **Vertex** (geometric) | The point where three cells meet. Six vertices per cell. Used only in mesh construction.                                                                                        | 0D point   | `hex_grid/systems.rs` mesh builder                                                 |
-| **Hex position**       | An axial coordinate pair (q, r) identifying a cell on the grid. Cube coordinate (q, r, s) is derived (s = -q - r).                                                              | —          | `HexPosition { q, r }`                                                             |
-| **Neighbor**           | One of the six cells sharing an edge with a given cell.                                                                                                                         | —          | `hexx::Hex` adjacency methods                                                      |
-| **Ring**               | The set of all cells at a fixed distance from a center cell.                                                                                                                    | —          | `hexx::shapes::hexagon`                                                            |
-| **Radius**             | The distance in hex steps from the grid center to its outermost ring.                                                                                                           | —          | `HexGridConfig.map_radius`                                                         |
-| **Unit**               | A game entity placed on the hex grid. Occupies a cell position. Defined by a unit type from the Game System. Multiple units may occupy the same cell (no stacking rules in M3). | ECS entity | `UnitInstance` (marker), `UnitData` (component), `HexPosition` (shared with cells) |
+| Term                   | Definition                                                                                                                                                                         | Dimension  | Code Reference                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| **Cell**               | The hexagonal area on the board. The fundamental spatial unit. Each cell occupies one hex position and has a type with properties.                                                 | 2D region  | `HexTile` (marker), `CellData` (component), `CellType` (definition)                |
+| **Edge**               | The shared boundary between two adjacent cells. Six edges per cell.                                                                                                                | 1D segment | — (not yet modeled)                                                                |
+| **Vertex** (geometric) | The point where three cells meet. Six vertices per cell. Used only in mesh construction.                                                                                           | 0D point   | `hex_grid/systems.rs` mesh builder                                                 |
+| **Hex position**       | An axial coordinate pair (q, r) identifying a cell on the grid. Cube coordinate (q, r, s) is derived (s = -q - r).                                                                 | —          | `HexPosition { q, r }`                                                             |
+| **Neighbor**           | One of the six cells sharing an edge with a given cell.                                                                                                                            | —          | `hexx::Hex` adjacency methods                                                      |
+| **Ring**               | The set of all cells at a fixed distance from a center cell.                                                                                                                       | —          | `hexx::shapes::hexagon`                                                            |
+| **Radius**             | The distance in hex steps from the grid center to its outermost ring.                                                                                                              | —          | `HexGridConfig.map_radius`                                                         |
+| **Unit**               | A game entity placed on the hex grid. Occupies a cell position. Defined by a unit type from the Game System. Multiple units may occupy the same cell (no stacking rules in 0.3.0). | ECS entity | `UnitInstance` (marker), `UnitData` (component), `HexPosition` (shared with cells) |
 
 ## Game System Domain
 
@@ -55,16 +55,32 @@ consistently.
 | **Contract** | A Rust module in `src/contracts/` containing shared types. Mirrored by a spec in `.specs/contracts/`. Features depend on contracts, never on other features' internals. | `contracts::hex_grid`, `contracts::game_system`, `contracts::editor_ui`                           |
 | **Feature**  | A self-contained plugin under `src/<name>/`. Sub-modules are private (`mod`, not `pub mod`).                                                                            | `hex_grid`, `camera`, `game_system`, `cell`, `unit`, `editor_ui`                                  |
 
+## Process (Shape Up)
+
+| Term                | Definition                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Raw idea**        | A GitHub Issue capturing an observation, bug, feature idea, or research question. Not a commitment.          |
+| **Pitch**           | A shaped, risk-reduced proposal with Problem, Appetite, Solution, Rabbit Holes, No Gos. `type:pitch` label.  |
+| **Appetite**        | Time budget declared upfront. The inverse of an estimate. Small Batch (1-2 weeks) or Big Batch (full cycle). |
+| **Betting table**   | Decision point during cool-down where the developer reviews pitches and commits to the next cycle's scope.   |
+| **Build cycle**     | Fixed-time period for building shaped work. Duration is flexible for solo dev.                               |
+| **Cool-down**       | Period after shipping: recovery, retrospective, shaping, and betting for the next cycle.                     |
+| **Circuit breaker** | Automatic cancellation of cycles that miss their deadline. Re-shape and re-pitch.                            |
+| **Scope**           | A meaningful, independently completable slice of a project (few days). Discovered during building.           |
+| **Ship gate**       | Quality bar (constitution audit) that must pass before a cycle's work ships.                                 |
+| **Release**         | A versioned code deliverable (0.1.0, 0.2.0, etc.). The output of a build cycle.                              |
+
 ## Retired Terms
 
-These terms were used in earlier milestones and must **not** appear in new code or specs.
+These terms were used in earlier releases and must **not** appear in new code or specs.
 
-| Retired Term                                             | Replaced By                            | Reason                                                                                                                          | When |
-| -------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| **Terrain** / **TerrainType**                            | Cell / CellType                        | "Terrain" was M1's name for board position types. Replaced by the Game System's cell type model in M2.                          | M2   |
-| **Vertex** (as board position)                           | Cell                                   | "Vertex" in hex geometry means a corner point (0D), not the hexagonal area (2D). Confusing for the tabletop wargaming audience. | M2   |
-| **VertexType** / **VertexData** / **VertexTypeRegistry** | CellType / CellData / CellTypeRegistry | Part of the Vertex → Cell rename.                                                                                               | M2   |
-| **TerrainPalette** / **ActiveTerrain**                   | CellTypeRegistry / ActiveCellType      | Part of the Terrain → Cell rename.                                                                                              | M2   |
+| Retired Term                                             | Replaced By                            | Reason                                                                                                                          | When  |
+| -------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **Terrain** / **TerrainType**                            | Cell / CellType                        | "Terrain" was 0.1.0's name for board position types. Replaced by the Game System's cell type model in 0.2.0.                    | 0.2.0 |
+| **Vertex** (as board position)                           | Cell                                   | "Vertex" in hex geometry means a corner point (0D), not the hexagonal area (2D). Confusing for the tabletop wargaming audience. | 0.2.0 |
+| **VertexType** / **VertexData** / **VertexTypeRegistry** | CellType / CellData / CellTypeRegistry | Part of the Vertex → Cell rename.                                                                                               | 0.2.0 |
+| **TerrainPalette** / **ActiveTerrain**                   | CellTypeRegistry / ActiveCellType      | Part of the Terrain → Cell rename.                                                                                              | 0.2.0 |
+| **Milestone** (M1, M2, M3, M4, M5)                       | Release (0.1.0, 0.2.0, etc.)           | Replaced by semver release versions. Shape Up uses "cycle" for the time-boxed work period.                                      | 0.7.0 |
 
 ## Disambiguation
 

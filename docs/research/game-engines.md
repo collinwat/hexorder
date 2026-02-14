@@ -13,9 +13,9 @@
 
 ## Context
 
-Hexorder M2 introduces a user-defined property system. Properties are entity-agnostic — they attach
-to any entity (vertices, units, etc.) as defined by the Game System. This research informs which
-primitive data types the property system should support.
+Hexorder 0.2.0 introduces a user-defined property system. Properties are entity-agnostic — they
+attach to any entity (vertices, units, etc.) as defined by the Game System. This research informs
+which primitive data types the property system should support.
 
 ---
 
@@ -380,7 +380,7 @@ their expression system instead of a first-class type.
 
 VASSAL's Calculated Property pattern is directly relevant to Hexorder. Wargame designers need
 derived values like `effective_strength = base_strength * morale_modifier * terrain_modifier`. This
-should be considered for M2 or a near-follow milestone even if the full rules engine is M4.
+should be considered for 0.2.0 or a near-follow release even if the full rules engine is 0.4.0.
 
 ### Medium Priority (useful for richer system design):
 
@@ -398,14 +398,14 @@ should be considered for M2 or a near-follow milestone even if the full rules en
 
 ---
 
-## M2 Scope Recommendation
+## 0.2.0 Scope Recommendation
 
-For M2 ("The World Has Properties"), implement the **universal core** plus the types most critical
-for the first use case (vertex/terrain properties):
+For 0.2.0 ("The World Has Properties"), implement the **universal core** plus the types most
+critical for the first use case (vertex/terrain properties):
 
-**M2 types**: `Bool`, `Int`, `Float`, `String`, `Color`, `Enum`
+**0.2.0 types**: `Bool`, `Int`, `Float`, `String`, `Color`, `Enum`
 
-**M3+ types** (when entities and relationships are needed): `EntityRef`, `List<T>`, `Map<K,V>`,
+**0.3.0+ types** (when entities and relationships are needed): `EntityRef`, `List<T>`, `Map<K,V>`,
 `Struct`, `IntRange`, `FloatRange`, `Flags`, `Formula`, `AssetPath`
 
 This gives enough expressiveness for defining vertex types with meaningful properties while keeping

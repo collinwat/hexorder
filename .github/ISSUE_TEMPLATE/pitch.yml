@@ -1,0 +1,79 @@
+name: Pitch
+description: Shaped proposal for the betting table — ready to be scheduled
+labels: ["type:pitch"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A pitch is a shaped, risk-reduced proposal. Only pitches are considered at the betting
+        table. See `docs/shape-up-guide.md` for the full Shape Up reference.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: >-
+        What pain point or opportunity does this address? Why does it matter now? Include concrete
+        examples of the current workaround or gap.
+    validations:
+      required: true
+  - type: dropdown
+    id: appetite
+    attributes:
+      label: Appetite
+      description: >-
+        How much time is this worth? Small Batch = 1-2 weeks. Big Batch = full cycle.
+      options:
+        - "Small Batch (1-2 weeks)"
+        - "Big Batch (full cycle)"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution
+      description: >-
+        The shaped solution — rough enough to leave room for implementation decisions, solved enough
+        that the builder knows the approach. Use breadboards, fat marker sketches, or written
+        walkthroughs.
+    validations:
+      required: true
+  - type: textarea
+    id: rabbit-holes
+    attributes:
+      label: Rabbit holes
+      description: >-
+        Known risks and the decisions made to prevent them. What tricky spots exist and how are they
+        mitigated?
+  - type: textarea
+    id: no-gos
+    attributes:
+      label: No gos
+      description: >-
+        Functionality deliberately excluded to fit the appetite. What are we NOT building?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the system does this affect?
+      multiple: true
+      options:
+        - hex-grid
+        - camera
+        - game-system
+        - cell
+        - unit
+        - editor-ui
+        - ontology
+        - rules-engine
+        - scripting
+        - persistence
+        - contracts
+        - process
+    validations:
+      required: true
+  - type: textarea
+    id: raw-ideas
+    attributes:
+      label: Related raw ideas
+      description: >-
+        Link to GitHub Issues (raw ideas) that this pitch addresses. Use #number references.

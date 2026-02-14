@@ -2,12 +2,19 @@
 
 ## Strategy
 
-Hexorder uses a **trunk-based development model with worktrees**. The `main` branch is the mainline
-— it must always compile, pass tests, and represent a releasable state. Feature work happens on
-short-lived branches via git worktrees, merged back to `main` when complete.
+Hexorder uses **trunk-based development with worktrees**, operating within Shape Up build cycles.
 
-Commits are frequent and small. Merges to mainline are deliberate and accompanied by a version bump
-and changelog entry.
+The `main` branch is the mainline — it must always compile, pass tests, and represent a shippable
+state. Feature work happens on short-lived branches via git worktrees, merged back to `main` when
+the cycle's scope is complete.
+
+Build cycles have fixed time and variable scope. Branches are created within a cycle to implement
+shaped pitches. At the end of the cycle, completed work ships. See `.specs/roadmap.md` for the cycle
+loop and cool-down protocol.
+
+- Small, frequent commits on feature branches
+- Deliberate merges to mainline with version bump and changelog
+- Every merge tagged with an annotated version tag
 
 ---
 
@@ -73,7 +80,7 @@ When adding a new feature scope (e.g., a new plugin), update the scope regex in 
 
 ### Feature branches
 
-- One branch per feature or milestone task
+- One branch per feature or release task
 - Use **git worktrees** so each feature gets its own working directory, allowing parallel
   development without stashing or switching
 - Keep branches short-lived — merge when the feature passes its spec criteria and tests
@@ -84,23 +91,23 @@ When adding a new feature scope (e.g., a new plugin), update the scope regex in 
 Branch names **must** follow this pattern:
 
 ```
-<milestone>/<feature>
+<release>/<feature>
 ```
 
-- `<milestone>` is the lowercase milestone identifier: `m1`, `m2`, `m3`, etc.
+- `<release>` is the target release version: `0.1.0`, `0.2.0`, `0.3.0`, etc.
 - `<feature>` is the feature name as it appears in `.specs/coordination.md`, using hyphens for
   multi-word names
 
-**Valid**: `m3/unit`, `m3/editor-ui`, `m4/movement-rules` **Invalid**: `feature/unit`,
-`unit-placement`, `m3_unit`, `m3/Unit`
+**Valid**: `0.3.0/unit`, `0.3.0/editor-ui`, `0.4.0/movement-rules` **Invalid**: `feature/unit`,
+`unit-placement`, `m3_unit`, `0.3.0/Unit`
 
 For non-feature work (docs, process, tooling), use:
 
 ```
-<milestone>/chore-<description>
+<release>/chore-<description>
 ```
 
-**Valid**: `m3/chore-git-guide`, `m4/chore-ci-setup`
+**Valid**: `0.3.0/chore-git-guide`, `0.4.0/chore-ci-setup`
 
 ---
 
@@ -108,13 +115,13 @@ For non-feature work (docs, process, tooling), use:
 
 Run these steps in order when starting work on a new feature. No steps are optional.
 
-1. **Branch name.** Determine the branch name: `<milestone>/<feature>` (e.g., `m4/movement-rules`).
+1. **Branch name.** Determine the branch name: `<release>/<feature>` (e.g., `0.4.0/movement-rules`).
    Verify it follows the naming rules above.
 2. **Create branch and worktree.**
     ```bash
-    git branch m4/movement-rules
-    git worktree add ../hexorder-m4-movement-rules m4/movement-rules
-    cd ../hexorder-m4-movement-rules
+    git branch 0.4.0/movement-rules
+    git worktree add ../hexorder-0.4.0-movement-rules 0.4.0/movement-rules
+    cd ../hexorder-0.4.0-movement-rules
     ```
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
    have their own git hooks and need lefthook installed separately.
@@ -142,7 +149,7 @@ Run these steps in order when starting work on a new feature. No steps are optio
     chore(<feature>): set up feature branch
 
     Create worktree, set pre-release version, scaffold specs.
-    Part of <milestone>.
+    Part of <release>.
     ```
 
 After this checklist, proceed to the Development Workflow in CLAUDE.md.
@@ -160,11 +167,11 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```
 2. **Remove worktree.**
     ```bash
-    git worktree remove ../hexorder-<milestone>-<feature>
+    git worktree remove ../hexorder-<release>-<feature>
     ```
 3. **Delete branch.**
     ```bash
-    git branch -d <milestone>/<feature>
+    git branch -d <release>/<feature>
     ```
 4. **Update ownership.** In `.specs/coordination.md` → Active Features table, set Status to
    `complete` and clear Owner.
@@ -256,7 +263,7 @@ Follow **conventional commit** practices. Every commit message **must** match th
 - Separated from subject by one blank line
 - Wrap at 72 characters
 - Explain _why_, not _what_ — the diff shows what changed
-- Reference the milestone when relevant: "Part of M3"
+- Reference the release when relevant: "Part of 0.3.0"
 
 **Examples**:
 
@@ -264,14 +271,14 @@ Follow **conventional commit** practices. Every commit message **must** match th
 feat(unit): add unit placement and movement systems
 
 Implements UnitPlugin with spawn, move, delete, and visual sync systems.
-Adds 9 unit tests and 4 integration tests. Part of M3.
+Adds 9 unit tests and 4 integration tests. Part of 0.3.0.
 ```
 
 ```
 docs(contracts): add unit type contract spec
 
 Defines UnitType, UnitData, UnitInstance, and UnitPlacedEvent shared
-types for M3. Matches src/contracts/game_system.rs additions.
+types for 0.3.0. Matches src/contracts/game_system.rs additions.
 ```
 
 ```
@@ -363,32 +370,30 @@ Every merge to `main` must pass all of these in order:
     it's accurate. Make manual edits only if a commit message was unclear.
 11. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
     `chore(project): bump version to <version>`.
-12. **Tag.** Create annotated tag: `git tag -a v<version> -m "<milestone>: <milestone title>"`.
+12. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
 13. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
     are correct.
 14. **Release lock.** Update your Merge Lock row in `.specs/coordination.md` to status `done`.
 15. **Push tag.** Push the tag to the remote: `git push origin v<version>`.
 16. **Create GitHub Release.** Create a release from the tag:
-    `gh release create v<version> --title "<milestone>: <milestone title>" --notes-file CHANGELOG.md`
+    `gh release create v<version> --title "<release>: <title>" --notes-file CHANGELOG.md`
 
-### Milestone final merge
+### Cycle ship merge
 
-When the last feature of a milestone merges, also:
+When the last scope of a cycle merges, also run these steps:
 
-17. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the Milestone
-    Completion Gate in CLAUDE.md.
+17. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
+    CLAUDE.md.
 18. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
     Integration Test Checkpoints.
-19. **Issue cleanup.** Close all GitHub Issues completed in this milestone:
+19. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
-    `gh issue close <number> --reason completed`. Verify no open issues remain for the milestone.
-    Close the GitHub Milestone:
-    `gh api repos/collinwat/hexorder/milestones/<n> -X PATCH -f state=closed`.
+    `gh issue close <number> --reason completed`. Verify no open issues remain for the release.
 20. **Triage new items.** Review issues with `status:triage` label:
-    `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label, set
-    priority. Review open issues older than 2 milestones for staleness.
-21. **Run checkpoint.** Answer the Checkpoint Template questions in `.specs/roadmap.md`. The backlog
-    is now clean, so triage decisions for the next milestone are based on accurate remaining work.
+    `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label. Review
+    open issues older than 2 cycles for staleness.
+21. **Run cool-down protocol.** Follow the Cool-Down Protocol in `.specs/roadmap.md`. This includes
+    the retrospective, shaping, and betting for the next cycle.
 
 ### Conflict Resolution
 
@@ -447,8 +452,8 @@ before either merges to `main`, use a **temporary integration branch**:
     ```
 2. **Merge both feature branches** into it:
     ```bash
-    git merge m4/movement-rules
-    git merge m4/terrain-costs
+    git merge 0.4.0/movement-rules
+    git merge 0.4.0/terrain-costs
     ```
 3. **Resolve any conflicts** between the two branches (follow the Conflict Resolution rules above).
 4. **Run the full test suite**:
@@ -498,17 +503,16 @@ steps in the commit body or a linked document.
 
 ## Versioning
 
-Hexorder follows **semantic versioning** (`MAJOR.MINOR.PATCH`) with milestones driving minor
-versions.
+Hexorder follows **semantic versioning** (`MAJOR.MINOR.PATCH`) with releases driving minor versions.
 
-| Version           | Meaning                                                              |
-| ----------------- | -------------------------------------------------------------------- |
-| `0.x.0`           | Milestone release (M1 = `0.1.0`, M2 = `0.2.0`, etc.)                 |
-| `0.x.y`           | Patch within a milestone (bug fixes, small additions post-milestone) |
-| `0.x.0-<feature>` | Pre-release on a feature branch (e.g., `0.4.0-movement-rules`)       |
-| `1.0.0`           | First production-quality release (future)                            |
+| Version           | Meaning                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `0.x.0`           | Release (0.1.0, 0.2.0, etc.)                                     |
+| `0.x.y`           | Patch within a release (bug fixes, small additions post-release) |
+| `0.x.0-<feature>` | Pre-release on a feature branch (e.g., `0.4.0-movement-rules`)   |
+| `1.0.0`           | First production-quality release (future)                        |
 
-The `0.x` series signals pre-release. Breaking changes are expected between milestones.
+The `0.x` series signals pre-release. Breaking changes are expected between releases.
 
 ### Pre-release versions on feature branches
 
@@ -526,22 +530,22 @@ While working on a feature branch, `Cargo.toml` carries a **pre-release suffix**
 
 ### Version Lookup Table
 
-This table is the **single source of truth** for version assignment. Update it when a new milestone
+This table is the **single source of truth** for version assignment. Update it when a new release
 begins.
 
-| Milestone | Version | Tag      | Title                    |
-| --------- | ------- | -------- | ------------------------ |
-| M1        | `0.1.0` | `v0.1.0` | The World Exists         |
-| M2        | `0.2.0` | `v0.2.0` | The World Has Properties |
-| M3        | `0.3.0` | `v0.3.0` | Things Live in the World |
-| M4        | `0.4.0` | `v0.4.0` | Rules Shape the World    |
-| M5        | `0.5.0` | `v0.5.0` | The World Remembers      |
+| Release | Version | Tag      | Title                    |
+| ------- | ------- | -------- | ------------------------ |
+| 0.1.0   | `0.1.0` | `v0.1.0` | The World Exists         |
+| 0.2.0   | `0.2.0` | `v0.2.0` | The World Has Properties |
+| 0.3.0   | `0.3.0` | `v0.3.0` | Things Live in the World |
+| 0.4.0   | `0.4.0` | `v0.4.0` | Rules Shape the World    |
+| 0.5.0   | `0.5.0` | `v0.5.0` | The World Remembers      |
 
 To determine the next version for a merge:
 
-1. Look up the current milestone in the table above.
-2. If this is the first or only merge for the milestone, use `0.x.0`.
-3. If a `0.x.0` tag already exists for this milestone, increment the patch: `0.x.1`, `0.x.2`, etc.
+1. Look up the current release in the table above.
+2. If this is the first or only merge for the release, use `0.x.0`.
+3. If a `0.x.0` tag already exists for this release, increment the patch: `0.x.1`, `0.x.2`, etc.
 
 ---
 
@@ -550,11 +554,11 @@ To determine the next version for a merge:
 Every merge to `main` that bumps the version gets an **annotated** tag:
 
 ```bash
-git tag -a v0.3.0 -m "M3: Things Live in the World"
+git tag -a v0.3.0 -m "0.3.0: Things Live in the World"
 ```
 
-Tag message format: `<milestone>: <milestone title>` for milestone releases, or
-`<milestone>: <brief description>` for patches.
+Tag message format: `<release>: <title>` for releases, or `<release>: <brief description>` for
+patches.
 
 ---
 

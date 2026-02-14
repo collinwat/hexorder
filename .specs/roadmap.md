@@ -2,16 +2,38 @@
 
 ## Strategy
 
-This roadmap follows a **vertical-slice, learn-and-adapt** model:
+This project follows **Shape Up**, a cycle-based development model adapted for solo dev + AI agents.
+The full methodology reference is in `docs/shape-up-guide.md`.
 
-- Only the current milestone is fully specced. Future milestones are loose sketches.
-- After each milestone ships, we run a checkpoint: what did we learn? What changed? Then we
-  re-sketch what comes next.
-- Milestones will be reordered, merged, split, or dropped based on what we discover by using the
-  tool.
-- No code or specs are written for future milestones until they become current.
+Core principles:
 
-**One milestone at a time is in-flight. The rest stay loose until it's their turn.**
+- **Fixed time, variable scope.** Each build cycle has a fixed duration (flexible, not strictly 6
+  weeks). Scope is cut to fit. When the cycle ends, whatever is complete ships.
+- **Shaping before scheduling.** Work is designed (shaped) into pitches before entering a cycle.
+  Only shaped pitches are bet on at the betting table.
+- **No groomed backlogs.** GitHub Issues capture raw ideas — observations, bugs, feature requests.
+  They are NOT a prioritized backlog. During cool-down, the developer reviews issues and shapes
+  promising ones into pitch Issues (`type:pitch` template).
+- **One cycle at a time.** Only the current cycle is actively specced and built. Future work stays
+  as raw ideas until shaped and bet on.
+- **Circuit breaker.** If a cycle does not finish, the work is cancelled by default. Re-shape and
+  re-pitch for a future cycle.
+
+### The Cycle Loop
+
+```
+┌──────────────────────────────┐   ┌──────────────────────────────────┐
+│       BUILD CYCLE            │   │          COOL-DOWN               │
+│   (flexible duration)        │   │                                  │
+│                              │   │  1. Ship & audit                 │
+│  Build shaped work.          │   │  2. Retrospective                │
+│  No scope changes.           │   │  3. Shape: review raw ideas,     │
+│  Ship at the end.            │   │     write pitches                │
+│                              │   │  4. Betting table: choose        │
+│                              │   │     pitches for next cycle       │
+└──────────────────────────────┘   └──────────────────────────────────┘
+                              ↻ repeat
+```
 
 ---
 
@@ -57,12 +79,12 @@ capture, logging — to feed observations back into the design process.
 
 ---
 
-## Milestone 1 — "The World Exists"
+## Release 0.1.0 — "The World Exists"
 
 **Goal**: Open Hexorder, see a hex world, and interact with it. The earliest point where you can
 touch the tool and start forming opinions.
 
-**Context**: This milestone operates entirely within a Game System editing context. No Games,
+**Context**: This release operates entirely within a Game System editing context. No Games,
 scenarios, workspace persistence, or launcher exist yet. The app boots directly into the sandbox.
 
 ### What the user can do
@@ -90,7 +112,7 @@ scenarios, workspace persistence, or launcher exist yet. The app boots directly 
 - `hex_grid` (exists as spec, needs implementation)
 - `terrain` (new — terrain type enum, terrain component, terrain palette resource)
 
-### Out of scope for M1
+### Out of scope for 0.1.0
 
 - Persistence / save / load
 - Game or Game System data model
@@ -108,21 +130,20 @@ scenarios, workspace persistence, or launcher exist yet. The app boots directly 
 - Terrain is visually distinguishable on the grid
 - `cargo test` and `cargo clippy -- -D warnings` pass
 
-### M1 Checkpoint (2026-02-08)
+### 0.1.0 Checkpoint (2026-02-08)
 
 **Status**: Complete. 44 tests, clippy clean, constitution audit passed.
 
 **1. What did we learn?**
 
-- We needed business and technical audit gates _before_ reaching the end of a milestone. The initial
+- We needed business and technical audit gates _before_ reaching the end of a release. The initial
   build passed all tests but had 5 contract boundary violations that only surfaced in a
-  cross-feature audit. Added: milestone completion gate in CLAUDE.md, `SC-BOUNDARY` in the feature
+  cross-feature audit. Added: release completion gate in CLAUDE.md, `SC-BOUNDARY` in the feature
   spec template, pre-checkpoint audit requirement in this roadmap, and a compile-time enforcement
   via private modules + `architecture_tests::feature_modules_are_private` test.
 - Searching repeatedly for framework API patterns (Bevy 0.18, bevy_egui 0.39) was a significant time
   cost. Solved by creating `docs/bevy-guide.md` and `docs/bevy-egui-guide.md` as persistent
-  references. Future milestones should create guides for any new library before implementation
-  begins.
+  references. Future releases should create guides for any new library before implementation begins.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -130,32 +151,32 @@ scenarios, workspace persistence, or launcher exist yet. The app boots directly 
   bare-bones, it validated the vertical-slice approach.
 - Missing: The editor's visual theme is plain/functional. A more engaging color palette and overall
   aesthetic would make the tool more motivating to use during long design sessions. Carry this as a
-  desire into M2.
+  desire into 0.2.0.
 
-**3. Does M2 still make sense?** Yes.
+**3. Does 0.2.0 still make sense?** Yes.
 
 **4. Reorder/insert/drop?** No changes.
 
 **5. Domain model changes?** None yet.
 
-**Carry-forward notes for M2:**
+**Carry-forward notes for 0.2.0:**
 
 - Editor visual theme: invest in a cohesive color scheme (background, panel styling, terrain colors)
-  early in M2 rather than deferring indefinitely.
+  early in 0.2.0 rather than deferring indefinitely.
 - Create library reference guides before implementation (any new crate gets a guide first).
 
 ---
 
-## Milestone 2 — "The World Has Properties"
+## Release 0.2.0 — "The World Has Properties"
 
 **Goal**: The hex board becomes a Game System artifact. Cells are defined by the user, not
 hardcoded. The property system lays the foundation for all future entity definitions.
 
-**Context**: This milestone introduces the Game System container and shifts from hardcoded terrain
-types to user-defined cell types with custom properties. The M1 terrain system (hardcoded enum) is
-replaced entirely. The editor gets a dark theme and an inspector panel.
+**Context**: This release introduces the Game System container and shifts from hardcoded terrain
+types to user-defined cell types with custom properties. The 0.1.0 terrain system (hardcoded enum)
+is replaced entirely. The editor gets a dark theme and an inspector panel.
 
-### Terminology shift from M1
+### Terminology shift from 0.1.0
 
 - "Terrain type" → "Cell type" (a Game System definition describing what a board position is)
 - "Terrain painting" → "Cell painting" (applying a cell type to a hex tile)
@@ -165,21 +186,21 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 
 - Create, edit, and delete cell types (name, color, custom properties)
 - Define properties on cell types using 6 data types: Bool, Int, Float, String, Color, Enum
-- Paint cell types onto the hex grid (replaces M1 terrain painting)
+- Paint cell types onto the hex grid (replaces 0.1.0 terrain painting)
 - Select a cell and inspect/edit its property values in an inspector panel
 - Work within a Game System context (id + version displayed, enforced as container)
 
 ### Technical scope
 
-| Feature                 | Plugin                      | Notes                                                                                                                                           |
-| ----------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Game System container   | `game_system` (NEW)         | Top-level resource with `id` and `version`. Owns cell type registry.                                                                            |
-| Property system         | `game_system`               | PropertyType enum (Bool, Int, Float, String, Color, Enum), PropertyDefinition, PropertyValue. Entity-agnostic — will be reused for units in M3. |
-| Cell type definitions   | `game_system`               | CellType (name, color, property defs). CellTypeRegistry resource. Replaces TerrainPalette.                                                      |
-| Cell painting + visuals | Refactor `terrain` → `cell` | Painting applies cell types to hex tiles. Visual sync reads cell type color. Replaces hardcoded terrain system.                                 |
-| Inspector panel         | `editor_ui` (evolve)        | Right-side panel. Shows selected cell's type and property values. Editable fields per property type.                                            |
-| Cell type editor        | `editor_ui` (evolve)        | UI for creating/editing/deleting cell types and their property definitions.                                                                     |
-| Editor dark theme       | `editor_ui` (evolve)        | Dark color scheme, system fonts, clear delineation between editor controls and game view.                                                       |
+| Feature                 | Plugin                      | Notes                                                                                                                                              |
+| ----------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game System container   | `game_system` (NEW)         | Top-level resource with `id` and `version`. Owns cell type registry.                                                                               |
+| Property system         | `game_system`               | PropertyType enum (Bool, Int, Float, String, Color, Enum), PropertyDefinition, PropertyValue. Entity-agnostic — will be reused for units in 0.3.0. |
+| Cell type definitions   | `game_system`               | CellType (name, color, property defs). CellTypeRegistry resource. Replaces TerrainPalette.                                                         |
+| Cell painting + visuals | Refactor `terrain` → `cell` | Painting applies cell types to hex tiles. Visual sync reads cell type color. Replaces hardcoded terrain system.                                    |
+| Inspector panel         | `editor_ui` (evolve)        | Right-side panel. Shows selected cell's type and property values. Editable fields per property type.                                               |
+| Cell type editor        | `editor_ui` (evolve)        | UI for creating/editing/deleting cell types and their property definitions.                                                                        |
+| Editor dark theme       | `editor_ui` (evolve)        | Dark color scheme, system fonts, clear delineation between editor controls and game view.                                                          |
 
 ### Contracts needed
 
@@ -189,9 +210,9 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 - `editor_ui` (evolve — EditorTool gains new modes if needed)
 - `hex_grid` (unchanged)
 
-### M1 types being retired
+### 0.1.0 types being retired
 
-| M1 Type                        | Replaced By               | Reason                                 |
+| 0.1.0 Type                     | Replaced By               | Reason                                 |
 | ------------------------------ | ------------------------- | -------------------------------------- |
 | `TerrainType` (hardcoded enum) | `CellTypeId` (dynamic ID) | User-defined, not hardcoded            |
 | `Terrain` (component)          | `CellData` (component)    | References cell type + property values |
@@ -200,13 +221,13 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 | `ActiveTerrain`                | `ActiveCellType`          | Same role, new type                    |
 | `terrain` plugin               | `cell` plugin             | Renamed to reflect new abstraction     |
 
-### Out of scope for M2
+### Out of scope for 0.2.0
 
-- Persistence / save / load (M5)
-- Units or movable entities (M3)
-- Rules, constraints, calculated properties (M4)
+- Persistence / save / load (0.6.0)
+- Units or movable entities (0.3.0)
+- Rules, constraints, calculated properties (0.4.0)
 - Undo/redo
-- EntityRef, List, Map, Struct, Formula property types (future milestones)
+- EntityRef, List, Map, Struct, Formula property types (future releases)
 
 ### Success criteria
 
@@ -220,7 +241,7 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 - `cargo test` and `cargo clippy -- -D warnings` pass
 - Constitution audit passes (no contract boundary violations)
 
-### M2 Checkpoint (2026-02-09)
+### 0.2.0 Checkpoint (2026-02-09)
 
 **Status**: Complete. 53 tests, clippy clean, constitution audit passed.
 
@@ -229,12 +250,12 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 - GPU rendering impacts window lifecycle. Bevy's render pipeline causes a white flash on the
   OS-default window surface before the first GPU frame lands. We solved this with a hidden-window
   pattern (start `visible: false`, reveal after 3 frames once the GPU has rendered dark content).
-  This is now documented in `docs/bevy-guide.md` Section 19. Future milestones should account for
-  GPU pipeline timing when adding new windows or render targets.
+  This is now documented in `docs/bevy-guide.md` Section 19. Future releases should account for GPU
+  pipeline timing when adding new windows or render targets.
 - Brand palette enforcement via architecture tests (`editor_ui_colors_match_brand_palette`) catches
   color drift at compile time. This worked well and should be extended to any future UI surfaces.
 - Library reference guides (`docs/bevy-guide.md`, `docs/bevy-egui-guide.md`) continue to pay off —
-  created at M1 and expanded throughout M2. Any new crate dependency should get a guide before
+  created at 0.1.0 and expanded throughout 0.2.0. Any new crate dependency should get a guide before
   implementation.
 
 **2. What felt right? What felt wrong or missing?**
@@ -245,7 +266,7 @@ replaced entirely. The editor gets a dark theme and an inspector panel.
 - Missing: Brand logo is not visible in the application. Would like it showing for brand recognition
   (e.g., in a title bar, about panel, or watermark).
 
-**3. Does M3 still make sense?** Yes — units on the grid is the natural next step.
+**3. Does 0.3.0 still make sense?** Yes — units on the grid is the natural next step.
 
 **4. Reorder/insert/drop?** No changes at this time.
 
@@ -255,23 +276,23 @@ the number of cell/unit types grows large enough to need categorization.
 
 **6. Revised sketches?** None yet.
 
-**Carry-forward notes for M3:**
+**Carry-forward notes for 0.3.0:**
 
 - Editor theme: still needs polish. Consider revisiting the visual design when adding the unit
   palette UI.
 - Brand logo: find an appropriate place to display the hexorder logo in the application (title bar
   area, splash, or persistent watermark).
-- Taxonomy models: keep in mind for M4+ when type counts grow.
+- Taxonomy models: keep in mind for 0.4.0+ when type counts grow.
 
 ---
 
-## Milestone 3 — "Things Live in the World"
+## Release 0.3.0 — "Things Live in the World"
 
 **Goal**: Define unit types with stats and properties. Place unit tokens on the hex grid. Basic
 movement — click a unit, click a destination, it moves (respecting grid bounds). No rule enforcement
 yet, just placement and relocation.
 
-### M3 Checkpoint (2026-02-10)
+### 0.3.0 Checkpoint (2026-02-10)
 
 **Status**: Complete. 71 tests, clippy clean, constitution audit passed (9/9 checks).
 
@@ -289,18 +310,18 @@ yet, just placement and relocation.
   they create rendered in the viewing portal — the connection between "I defined something" and "I
   can see it in the world" needs to be more direct.
 
-**3. Does M4 still make sense?** Tentatively yes, but the user's priority is seeing visual rendering
-of created types in the viewport before adding rules. May need to reorder.
+**3. Does 0.4.0 still make sense?** Tentatively yes, but the user's priority is seeing visual
+rendering of created types in the viewport before adding rules. May need to reorder.
 
 **4. Reorder/insert/drop?** The user wants to get to rendering of created cells sooner. Cell
-painting (M2) and unit placement (M3) already render in the viewport, but the workflow may not be
-discoverable enough — or the viewport may need better separation from the panel.
+painting (0.2.0) and unit placement (0.3.0) already render in the viewport, but the workflow may not
+be discoverable enough — or the viewport may need better separation from the panel.
 
 **5. Domain model changes?** None.
 
 **6. Revised sketches?** Not yet.
 
-**Carry-forward notes for M4:**
+**Carry-forward notes for 0.4.0:**
 
 - Viewport experience: the user needs to see the connection between type creation and world
   rendering. May need viewport adjustment (push 3D view right of panel), visual affordances, or
@@ -311,19 +332,19 @@ discoverable enough — or the viewport may need better separation from the pane
 
 ---
 
-## Milestone 4 — "Rules Shape the World"
+## Release 0.4.0 — "Rules Shape the World"
 
 **Goal**: Transform Hexorder from a placement tool into a game ontology editor. The designer defines
 entity types, concepts, relations, and constraints. The tool validates the design and renders
 entities according to the defined rules. No hardcoded game terms — everything is designer-defined.
 
-**Context**: M3 delivered unit placement and free movement with no rules. M4 introduces the
+**Context**: 0.3.0 delivered unit placement and free movement with no rules. 0.4.0 introduces the
 conceptual framework that lets a game designer express _how_ their entities interact. The designer
 creates abstract concepts (e.g., "Motion"), binds entity types to concept roles, defines relations
 between those roles, and adds constraints. The tool validates the design for consistency and shows
 the implications visually (e.g., highlighting reachable hexes based on movement constraints).
 
-This milestone also unifies CellType and UnitType into a single EntityType with a designer-assigned
+This release also unifies CellType and UnitType into a single EntityType with a designer-assigned
 role (BoardPosition or Token). This eliminates code duplication, simplifies the editor, and enables
 the relation system to work across all entity categories uniformly.
 
@@ -332,7 +353,7 @@ the relation system to work across all entity categories uniformly.
 - **Entity type**: A designer-defined type (replaces CellType and UnitType). Classified by role.
 - **Entity role**: How a type participates in the world — BoardPosition (hex tile) or Token (game
   piece).
-- **Property**: A named, typed field on an entity type (existing from M2).
+- **Property**: A named, typed field on an entity type (existing from 0.2.0).
 - **Attribute**: The value assigned to a property for a specific entity instance.
 - **Concept**: An abstract category that groups related behaviors across entity types (e.g.,
   "Motion", "Defense"). Has named role slots that entity types can bind to.
@@ -384,15 +405,15 @@ the relation system to work across all entity categories uniformly.
 - `hex_grid` (EXTEND — MoveOverlay, MoveOverlayState)
 - `editor_ui` (unchanged)
 
-### Out of scope for M4
+### Out of scope for 0.4.0
 
-- Persistence / save / load (M5)
+- Persistence / save / load (0.6.0)
 - Turn phases / action phases (deferred — no actions exist yet)
 - Formula or computed properties
 - Multi-select or group operations
 - Taxonomy / type classification hierarchies
 - Undo/redo
-- Path visualization (optimal path highlighting — just valid/invalid for M4)
+- Path visualization (optimal path highlighting — just valid/invalid for 0.4.0)
 
 ### Success criteria
 
@@ -406,11 +427,11 @@ the relation system to work across all entity categories uniformly.
 - Selecting a unit shows reachable hexes as green overlays, blocked hexes as red
 - Moving to a blocked hex shows a rejection message explaining why
 - Auto-generated constraints appear when creating Subtract relations
-- All existing M3 functionality preserved (painting, placing, moving — now through unified types)
+- All existing 0.3.0 functionality preserved (painting, placing, moving — now through unified types)
 - `cargo test` and `cargo clippy --all-targets` pass
 - Constitution audit passes (no contract boundary violations)
 
-### M4 Checkpoint (2026-02-13)
+### 0.4.0 Checkpoint (2026-02-13)
 
 **Status**: Complete. 92 tests, clippy clean, constitution audit passed (all checks green).
 
@@ -419,7 +440,7 @@ the relation system to work across all entity categories uniformly.
 - The ontology framework works — concepts, relations, constraints, and schema validation all
   function as designed. The auto-constraint generation for Subtract relations is a clean pattern.
 - The OntologyParams SystemParam bundle was necessary to stay under Bevy's 16-parameter limit. This
-  is a sign the editor_ui system is accumulating too many dependencies — future milestones should
+  is a sign the editor_ui system is accumulating too many dependencies — future releases should
   consider splitting the monolithic `editor_panel_system` into per-tab systems.
 - A UI architecture research effort (documented in `docs/research/ui-architecture-survey.md`)
   surveyed how Unity, Autodesk (Maya), Unreal, and Blender build their editor UIs and test
@@ -440,7 +461,7 @@ the relation system to work across all entity categories uniformly.
 - Right: Schema validation with immediate visual feedback ("Schema Valid" / error list) gives the
   designer confidence.
 - Wrong: **Editor forms are hand-built egui code.** Every new entity type, property, or concept
-  requires manual widget construction. This does not scale — future milestones will add more data
+  requires manual widget construction. This does not scale — future releases will add more data
   types and the editor code will grow linearly.
 - Wrong: **No UI interaction tests exist.** All 92 tests exercise logic and ECS systems. None test
   that clicking a button or filling a form actually produces the correct state change through the
@@ -448,19 +469,19 @@ the relation system to work across all entity categories uniformly.
 - Missing: **Scripting layer.** Game rule definitions are structured data entered through forms.
   Designers will eventually want to script rules, batch-process definitions, and automate
   experiments. A scripting layer (Lua) would also serve as an integration test driver.
-- Missing: Persistence is still absent (expected — scoped for M5).
+- Missing: Persistence is still absent (expected — scoped for 0.6.0).
 
-**3. Does M5 still make sense?**
+**3. Does 0.6.0 still make sense?**
 
-Yes, but it should be preceded by a testing and infrastructure milestone. Persistence adds
-complexity (file I/O, serialization, migration) that will be hard to verify without UI interaction
-tests. Adding testability _before_ persistence means M5's save/load workflows can be tested from day
+Yes, but it should be preceded by a testing and infrastructure release. Persistence adds complexity
+(file I/O, serialization, migration) that will be hard to verify without UI interaction tests.
+Adding testability _before_ persistence means 0.6.0's save/load workflows can be tested from day
 one.
 
 **4. Reorder/insert/drop?**
 
-**Insert M4.5 — "The World Is Testable"** before M5. This is infrastructure, not features — but it
-directly enables testing every future milestone's UI.
+**Insert Release 0.5.0 — "The World Is Testable"** before 0.6.0. This is infrastructure, not
+features — but it directly enables testing every future release's UI.
 
 **5. Domain model changes?**
 
@@ -470,10 +491,10 @@ layer is a product feature (not just tooling).
 
 **6. Revised sketches?**
 
-M5 stays as sketched. M4.5 inserted before it. M6+ gains "Embedded scripting (Lua)" as a known
-future need.
+0.6.0 stays as sketched. 0.5.0 inserted before it. 0.7.0+ gains "Embedded scripting (Lua)" as a
+known future need.
 
-**Carry-forward notes for M4.5:**
+**Carry-forward notes for 0.5.0:**
 
 - egui_kittest is the entry point — validate it works with bevy_egui before committing to the rest
 - `Reflect` derives should be additive (don't break existing code)
@@ -483,95 +504,214 @@ future need.
 
 ---
 
-## Milestone 4.5 — "The World Is Testable" (sketch)
+## Release 0.5.0 — "The World Is Testable"
 
-Testing infrastructure and reflection-driven forms. No new user-facing features — this milestone
+**Goal**: Testing infrastructure and embedded scripting. No new user-facing features — this release
 makes the existing editor verifiable and reduces the cost of building future UI.
 
-- Add egui_kittest for AccessKit-based UI interaction testing
-- Derive `Reflect` on game system data types (EntityType, PropertyDefinition, Concept, Relation,
-  Constraint)
-- Explore bevy-inspector-egui patterns for auto-generated property editor panels
-- Add mlua (LuaJIT) as embedded scripting layer (read-only registry access first)
-- Write UI interaction tests covering the ontology editor panels
-- Consider splitting `editor_panel_system` into per-tab systems to reduce parameter accumulation
+### What was delivered
+
+- egui_kittest for AccessKit-based UI interaction testing (26 UI tests)
+- `Reflect` derives on ~43 game system data types
+- Editor_ui render function extraction (testable pure functions)
+- mlua (LuaJIT) embedded scripting layer with read-only registry access (11 tests)
+
+### 0.5.0 Checkpoint (2026-02-13)
+
+**Status**: Complete. 129 tests, clippy clean, constitution audit passed.
+
+_Note: 0.5.0 shipped as a pure infrastructure release. Checkpoint recorded retroactively during the
+0.6.0 checkpoint process._
+
+**Carry-forward notes for 0.6.0:**
+
+- egui_kittest pattern established — use for all future UI test coverage
+- Lua scripting is read-only; write access deferred to backlog (#15)
+- editor_panel_system splitting deferred to backlog (#22)
+- bevy-inspector-egui exploration deferred to backlog (#28)
 
 ---
 
-## Milestone 5 — "The World Remembers" (sketch)
+## Release 0.6.0 — "The World Remembers"
 
-Persistence layer. Save and load Game System definitions. Workspace state (camera, open panels,
-last-edited context). The launcher screen: resume workspace, load previous, create new. Game System
-and Game data model in storage.
+**Goal**: Persistence layer. Save and load Game System definitions. Launcher screen for creating and
+opening projects. File menu with keyboard shortcuts.
+
+### What was delivered
+
+- Serialize/Deserialize + Clone on all persistent types (registries, HexPosition, PropertyValue)
+- RON file I/O with `.hexorder` file extension
+- AppScreen state machine (Launcher → Editor)
+- PersistencePlugin with save/load systems and rfd native file dialogs
+- Keyboard shortcuts (Ctrl+S save, Ctrl+O open, Ctrl+N new)
+- Launcher UI with create-new and open-existing workflows
+- 10 new tests (3 serde round-trip, 4 file I/O, 3 persistence plugin)
+
+### 0.6.0 Checkpoint (2026-02-14)
+
+**Status**: Complete. 139 tests, clippy clean, constitution audit passed (all automated checks
+green).
+
+**1. What did we learn?**
+
+- Need a shortcut customization mechanism — hardcoded shortcuts don't scale.
+- Need action confirmation feedback (e.g., visual confirmation that Cmd+S actually saved).
+- The menu bar is not styled well — need a ribbon-like experience similar to AutoDesk tools.
+- No way to exit the game system editor back to the launcher screen.
+- No default save location — the tool asks the user where to save every time.
+- No way to set the workspace/project/game system name when starting a new project.
+
+**2. What felt right? What felt wrong or missing?**
+
+- Wrong: Font choice and font size still feel off. Want user-configurable font size but an
+  opinionated default UI/form font choice.
+- Otherwise, feedback was captured in Q1 above.
+
+**3. Does the next planned release still make sense?**
+
+Not directly. Before defining the next code release, we need a process for curating issues into
+value-add buckets and a release cadence mapping those buckets to releases. The loose sketch model
+has served well through 0.1.0-0.6.0, but with 39+ backlog items and growing UX feedback, structured
+prioritization is needed.
+
+**4. Reorder/insert/drop?**
+
+Insert **Cycle 1 — "The Process Matures"** before Release 0.7.0. This is a process cycle (no code)
+to define the curation and release cadence systems.
+
+**5. Domain model changes?**
+
+Introduce **Workspace as an application-level concept** — the design tool's project container (name,
+save path, recent files, open/close lifecycle). This is distinct from the domain model Workspace
+concept. Tracked as a GitHub Issue.
+
+**6. Revised sketches?**
+
+Cycle 1 inserted. Release 0.7.0 scope deferred until the bucketing process is defined.
+
+**Carry-forward notes for Cycle 1:**
+
+- Create GitHub Issues for all 0.6.0 checkpoint feedback (shortcut customization, action
+  confirmation, ribbon menu, return-to-launcher, default save location, project naming, font size
+  config, opinionated font choice, Workspace application concept)
+- Triage and bucket all 39+ backlog issues using the new process
+- The process should produce a clear Release 0.7.0 scope
 
 ---
 
-## Backlog
+## Cycle 1 — "The Process Matures"
 
-Backlog items are tracked as GitHub Issues: `gh issue list --state open`
+**Type**: Process cycle (no code). **Appetite**: Small Batch (1-2 weeks).
+
+**Problem**: After shipping 6 releases (0.1.0-0.6.0), the project has 48+ raw ideas in GitHub Issues
+and growing UX feedback. The loose sketch model served well for bootstrapping, but structured
+prioritization is needed. Without a deliberate process for deciding what to build next, the project
+risks building low-value work or losing important ideas.
+
+**Solution**: Adopt Shape Up methodology adapted for solo dev + AI agents. Rewrite all workflow
+documentation to use Shape Up terminology and process. Define the pitch template, the cool-down
+protocol, and the betting table process.
+
+**Deliverables**:
+
+- Rewrite roadmap strategy to Shape Up cycle model
+- Rewrite CLAUDE.md workflow sections for Shape Up
+- Rewrite git-guide.md to frame branches within cycles
+- Update coordination.md with current bets
+- Create pitch Issue template (`type:pitch`)
+- Update spec and log templates with Shape Up terminology
+- Update constitution.md coordination section
+- Update glossary with Shape Up terms
+
+**No gos**: No triage of existing 48+ raw idea Issues in this cycle. That happens in the cool-down
+after Cycle 1 ships.
+
+---
+
+## Release 0.7.0 (sketch)
+
+Scope determined by the first betting table after Cycle 1 ships. Shaped pitches from the cool-down
+retrospective will compete for this release.
+
+---
+
+## Raw Ideas (GitHub Issues)
+
+GitHub Issues are a personal idea and feedback tracker — NOT a groomed, prioritized backlog. Issues
+capture raw observations, feature requests, bugs, tech debt, and research questions as they arise.
+
+The path from raw idea to shipped work:
+
+1. **Capture**: Create an Issue using the appropriate template (feature, bug, tech-debt, research)
+2. **Triage**: Assign type/area labels (during cool-down or as they arrive)
+3. **Shape**: During cool-down, review Issues. Shape promising ones into pitch Issues (`type:pitch`)
+4. **Bet**: At the betting table, select pitches for the next cycle
+5. **Build**: Selected pitches become the cycle's fixed scope
+
+Issues that are not shaped into pitches are not lost — they remain in the tracker. Important ideas
+resurface naturally. Stale ideas fade without consuming energy.
 
 ### Quick reference
 
 ```bash
-gh issue list --milestone "Backlog"           # unscheduled items
-gh issue list --milestone "<milestone>"       # items for a specific milestone
-gh issue list --label "status:triage"         # items needing triage
-gh issue list --label "type:feature"          # all feature requests
-gh issue list --search "<keywords>"           # search by keyword
+gh issue list --state open                           # all open ideas
+gh issue list --label "type:pitch"                   # shaped pitches
+gh issue list --label "type:pitch" --milestone "<m>" # pitches bet for a release
+gh issue list --label "status:triage"                # items needing triage
+gh issue list --search "<keywords>"                  # search by keyword
+gh issue create                                      # capture a raw idea
 ```
 
-### How to add items
+### How raw ideas become work
 
-1. Search existing issues first: `gh issue list --search "<keywords>" --state all`
-2. Create via `gh issue create` using the appropriate template (feature, bug, tech-debt, research)
-3. New issues automatically get `status:triage` label
-4. Assign to `Backlog` milestone unless targeting a specific milestone
+Items are NOT directly promoted from a backlog to a release. Instead:
 
-### How items get promoted
-
-Items are promoted into milestones during **checkpoint triage** (after a milestone ships). Promotion
-means reassigning the issue from the `Backlog` milestone to the target milestone. The checkpoint
-questions drive prioritization:
-
-- "What felt wrong or missing?" → surfaces feature and UX needs
-- "Does the next planned milestone still make sense?" → reorders priorities
-- "Do we need to insert, reorder, or drop anything?" → creates/adjusts milestones from backlog items
-
-Items that span multiple milestones should be split into separate issues linked via a parent issue
-(`meta:parent` label with task list).
+1. During **cool-down**, the developer reviews raw ideas
+2. Promising ideas are **shaped** into pitch Issues (using the `type:pitch` template)
+3. At the **betting table**, shaped pitches compete for the next cycle
+4. Selected pitches are assigned to the target release milestone
 
 ---
 
-## Checkpoint Template
+## Cool-Down Protocol
 
-After each milestone, follow this sequence. Steps 1–4 happen before the checkpoint questions. Steps
-5–10 are the checkpoint itself. The full merge and tagging procedure is in `docs/git-guide.md` →
-Milestone final merge (steps 17–21).
+After each cycle ships, run this protocol. It has three phases: Ship & Audit, Retrospective, and
+Betting. The full merge and tagging procedure is in `docs/git-guide.md` → Cycle ship merge.
 
-### Pre-Checkpoint
+### Phase 1: Ship & Audit
 
-1. **Constitution audit.** The milestone must pass the **Milestone Completion Gate** defined in
-   CLAUDE.md. This is a full-codebase audit covering tests, lint, contract boundaries, and
-   architectural rules. No milestone is complete until the audit passes with zero violations.
-2. **Issue cleanup.** Close all GitHub Issues completed in this milestone. Verify via
-   `gh issue list --milestone "<milestone>" --state open`. Close the GitHub Milestone.
+1. **Ship gate.** The cycle must pass the **Ship Gate** defined in CLAUDE.md. This is a
+   full-codebase audit covering tests, lint, contract boundaries, and architectural rules.
+2. **Issue cleanup.** Close all GitHub Issues completed in this cycle. Verify via
+   `gh issue list --milestone "<milestone>" --state open`.
 3. **Triage new items.** Review all issues with `status:triage` label:
-   `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label, set
-   priority.
-4. **Review aging items.** Check open issues older than 2 milestones. Close or reprioritize stale
-   items.
+   `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label.
+4. **Review aging items.** Check open issues older than 2 cycles. Close or reprioritize stale items.
 
-### Checkpoint Questions
+### Phase 2: Retrospective
 
-Checkpoint decisions (reorder, insert, drop milestones) are made by the project owner (human).
-Agents provide data and recommendations but do not unilaterally change milestone order. Answer these
-before speccing the next milestone:
+Answer these questions. Decisions (reorder, insert, drop) are made by the project owner (human).
+Agents provide data and recommendations but do not unilaterally change direction.
 
 5. What did we learn by using the tool at this stage?
 6. What felt right? What felt wrong or missing?
-7. Does the next planned milestone still make sense?
-8. Do we need to insert, reorder, or drop anything?
+7. Does the current product direction still make sense?
+8. Do we need to change anything about the cycle structure or appetite?
 9. Have any domain model assumptions changed?
-10. Update this file with revised sketches. A "sketch" is a milestone description with a goal
-    statement and bullet-point scope. No spec files, contracts, or success criteria until promoted
-    to active milestone during triage.
+10. **Shape promising ideas.** Review GitHub Issues (raw ideas). Which ones have come up repeatedly?
+    Which feel urgent after this cycle's experience? Shape promising ones into pitch Issues using
+    the `type:pitch` template. Reference the raw idea Issues they address.
+
+### Phase 3: Betting Table
+
+11. **Review pitches.** `gh issue list --label "type:pitch" --state open` — review all shaped
+    pitches.
+12. **Bet.** Select which pitches to commit to for the next cycle. Consider:
+    - Does the problem matter right now?
+    - Is the appetite right?
+    - Is the solution attractive?
+    - Is this the right time?
+13. **Set cycle scope.** Assign selected pitch Issues to the target release milestone. Record the
+    bets in `.specs/coordination.md` under "Current Bets."
+14. **Set appetite.** Determine the cycle duration based on the selected work.
+15. **Update roadmap.** Record the new cycle in this file with its bets, appetite, and scope.

@@ -14,7 +14,7 @@ Provides read-only access to game system registries from Lua scripts.
 ## Dependencies
 
 - **Contracts consumed**: `game_system`, `ontology`, `validation`
-- **Contracts produced**: none (read-only for M4.5)
+- **Contracts produced**: none (read-only for 0.5.0)
 - **Crate dependencies**: `mlua = { version = "0.11", features = ["luajit", "vendored"] }`
 
 ## Requirements
@@ -50,4 +50,4 @@ Provides read-only access to game system registries from Lua scripts.
 
 - `mlua::Lua` is `!Send` — must be stored as `NonSend` resource
 - Lua tables are used instead of `UserData` to keep the API stable across refactors
-- Write access deferred to a future milestone
+- Write access deferred to a future release

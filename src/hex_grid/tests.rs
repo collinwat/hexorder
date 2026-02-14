@@ -294,7 +294,7 @@ fn no_click_no_event() {
 }
 
 // ---------------------------------------------------------------------------
-// Move overlay tests (M4)
+// Move overlay tests (0.4.0)
 // ---------------------------------------------------------------------------
 
 /// Helper: create a test app with grid startup and overlay materials.

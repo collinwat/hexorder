@@ -1,16 +1,16 @@
 # Feature Log: unit
 
-## Status: complete (M4)
+## Status: complete (0.4.0)
 
 ## Decision Log
 
 ### 2026-02-09 — Tool mode design
 
-**Context**: M3 introduces unit placement and movement. Need to decide tool mode organization.
+**Context**: 0.3.0 introduces unit placement and movement. Need to decide tool mode organization.
 **Decision**: Three modes — Select / Paint / Place. Movement is folded into Select mode.
 **Rationale**: Fewest new modes. Select naturally handles "click to interact" (select unit, then
 click destination to move). Dedicated Move mode adds UI complexity without UX benefit.
-**Alternatives rejected**: Four modes (Select/Paint/Place/Move) — unnecessary complexity for M3.
+**Alternatives rejected**: Four modes (Select/Paint/Place/Move) — unnecessary complexity for 0.3.0.
 
 ### 2026-02-09 — Unit visual representation
 
@@ -25,15 +25,15 @@ military).
 **Context**: Users need to remove placed units during design sessions. **Decision**: Delete button
 in the inspector panel when a unit is selected. **Rationale**: Discoverable, consistent with
 inspector workflow. Low implementation cost. **Alternatives rejected**: Delete key only (less
-discoverable), both key+button (over-engineering for M3).
+discoverable), both key+button (over-engineering for 0.3.0).
 
 ### 2026-02-09 — Enum definition sharing
 
 **Context**: Both CellTypeRegistry and UnitTypeRegistry need enum definitions for Enum properties.
-**Decision**: Duplicate enum_definitions in both registries for M3. **Rationale**: Avoids breaking
-changes to CellTypeRegistry. Acceptable duplication at current scale. Flagged for consolidation in a
-future milestone. **Alternatives rejected**: Extract to standalone EnumRegistry resource (cleaner
-but breaking change).
+**Decision**: Duplicate enum_definitions in both registries for 0.3.0. **Rationale**: Avoids
+breaking changes to CellTypeRegistry. Acceptable duplication at current scale. Flagged for
+consolidation in a future release. **Alternatives rejected**: Extract to standalone EnumRegistry
+resource (cleaner but breaking change).
 
 ## Test Results
 
@@ -52,9 +52,9 @@ but breaking change).
 
 ## Status Updates
 
-| Date       | Status      | Notes                                                                                     |
-| ---------- | ----------- | ----------------------------------------------------------------------------------------- |
-| 2026-02-09 | speccing    | Initial spec created from M3 plan                                                         |
-| 2026-02-09 | in-progress | Implementation started: contracts, game_system, unit plugin, editor UI                    |
-| 2026-02-09 | complete    | All 13 success criteria met. 71 tests, clippy clean, audit clean.                         |
-| 2026-02-11 | complete    | M4: migrated to EntityData, handle_unit_interaction consults ValidMoveSet. 10 unit tests. |
+| Date       | Status      | Notes                                                                                        |
+| ---------- | ----------- | -------------------------------------------------------------------------------------------- |
+| 2026-02-09 | speccing    | Initial spec created from 0.3.0 plan                                                         |
+| 2026-02-09 | in-progress | Implementation started: contracts, game_system, unit plugin, editor UI                       |
+| 2026-02-09 | complete    | All 13 success criteria met. 71 tests, clippy clean, audit clean.                            |
+| 2026-02-11 | complete    | 0.4.0: migrated to EntityData, handle_unit_interaction consults ValidMoveSet. 10 unit tests. |

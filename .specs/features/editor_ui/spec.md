@@ -2,9 +2,9 @@
 
 ## Summary
 
-Provides the egui-based editor interface. Evolves through milestones: M1 minimal toolbar, M2 dark
-theme + cell type editor + inspector, M3 unit palette + unit type editor + unit inspector, M4
-unified entity type editor + ontology panels (concepts, relations, constraints, validation).
+Provides the egui-based editor interface. Evolves through releases: 0.1.0 minimal toolbar, 0.2.0
+dark theme + cell type editor + inspector, 0.3.0 unit palette + unit type editor + unit inspector,
+0.4.0 unified entity type editor + ontology panels (concepts, relations, constraints, validation).
 
 ## Plugin
 
@@ -26,18 +26,18 @@ unified entity type editor + ontology panels (concepts, relations, constraints, 
 
 ## Requirements
 
-### M1 (retained)
+### 0.1.0 (retained)
 
 1. [REQ-MODE] Maintain an `EditorTool` resource with modes: Select, Paint, Place.
 2. [REQ-TOOLBAR] Render an egui left side panel with a tool mode selector.
 3. [REQ-NO-PASSTHROUGH] When the mouse is over an egui panel, input does not pass through.
 
-### M2 (retained)
+### 0.2.0 (retained)
 
 4. [REQ-DARK-THEME] Apply a dark color scheme to all egui panels.
 5. [REQ-GAME-SYSTEM-INFO] Display the Game System id (abbreviated) and version.
 
-### M4 (new — unified entity editor + ontology panels)
+### 0.4.0 (new — unified entity editor + ontology panels)
 
 6. [REQ-TABBED-LAYOUT] The left sidebar uses a tabbed layout with tabs: Types, Concepts, Relations,
    Constraints, Validation. Context-sensitive palette (Paint/Place) and inspector remain below the
@@ -46,10 +46,10 @@ unified entity type editor + ontology panels (concepts, relations, constraints, 
    cell/unit type editors. Features:
     - Role selector (BoardPosition / Token) on type creation
     - List of all entity types, filterable by role
-    - Name, color, property editing (same widgets as M3)
+    - Name, color, property editing (same widgets as 0.3.0)
     - Concept binding summary: "Participates in: Motion (as traveler)"
 8. [REQ-ENTITY-PALETTE] In Paint mode, show entity types filtered by BoardPosition. In Place mode,
-   show entity types filtered by Token. Same swatch+name layout as M3.
+   show entity types filtered by Token. Same swatch+name layout as 0.3.0.
 9. [REQ-CONCEPT-EDITOR] The Concepts tab provides UI for:
     - Creating/editing/deleting concepts (name, description)
     - Adding/removing role slots on a concept (name, allowed entity roles)
@@ -89,14 +89,14 @@ The existing EditorAction enum extends with new variants for ontology operations
 
 ## Success Criteria
 
-### M1–M3 (retained)
+### 0.1.0–0.3.0 (retained)
 
 - [x] [SC-1] Tool mode switches between Select, Paint, and Place
 - [x] [SC-5] Clicking on UI panels does not trigger hex tile selection
 - [x] [SC-6] Editor uses a dark theme
 - [x] [SC-13] Game System id and version are displayed
 
-### M4 (new)
+### 0.4.0 (new)
 
 - [x] [SC-14] Tabbed layout renders with 5 tabs: Types, Concepts, Relations, Constraints, Validation
 - [x] [SC-15] Unified type editor shows entity types from both roles

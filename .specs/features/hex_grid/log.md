@@ -1,12 +1,12 @@
 # Feature Log: hex_grid
 
-## Status: complete (M4)
+## Status: complete (0.4.0)
 
 ## Decision Log
 
-### 2026-02-08 — Initial spec created from M1 roadmap
+### 2026-02-08 — Initial spec created from 0.1.0 roadmap
 
-**Context**: M1 milestone requires a renderable, interactive hex grid as the foundation.
+**Context**: 0.1.0 release requires a renderable, interactive hex grid as the foundation.
 **Decision**: hex_grid owns grid rendering, tile entity spawning, selection input, and hover
 feedback. **Rationale**: Keeps spatial foundation in one plugin. Terrain visuals are owned by the
 terrain feature. **Alternatives rejected**: Merging terrain and grid into one plugin (violates
@@ -148,13 +148,13 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 - `cargo clippy -- -D warnings` -- passes (0 warnings)
 - `cargo test` -- 13/13 tests pass
 
-### 2026-02-10 — All 71 tests passing (post-M3 polish)
+### 2026-02-10 — All 71 tests passing (post-0.3.0 polish)
 
 - `cargo build` -- passes
 - `cargo clippy -- -D warnings` -- passes (0 warnings)
 - `cargo test` -- 71/71 tests pass
 
-### 2026-02-11 — All 90 tests passing (M4 complete)
+### 2026-02-11 — All 90 tests passing (0.4.0 complete)
 
 - `cargo build` -- passes
 - `cargo clippy -- -D warnings` -- passes (0 warnings)
@@ -168,9 +168,9 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                                 |
-| ---------- | -------- | --------------------------------------------------------------------- |
-| 2026-02-08 | speccing | Initial spec created                                                  |
-| 2026-02-08 | complete | Implementation done, all tests passing, clippy clean                  |
-| 2026-02-10 | complete | Post-M3 polish: ring overlays, deselect, mesh fixes                   |
-| 2026-02-11 | complete | M4: move overlays (sync_move_overlays), OverlayMaterials, 4 new tests |
+| Date       | Status   | Notes                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------ |
+| 2026-02-08 | speccing | Initial spec created                                                     |
+| 2026-02-08 | complete | Implementation done, all tests passing, clippy clean                     |
+| 2026-02-10 | complete | Post-0.3.0 polish: ring overlays, deselect, mesh fixes                   |
+| 2026-02-11 | complete | 0.4.0: move overlays (sync_move_overlays), OverlayMaterials, 4 new tests |

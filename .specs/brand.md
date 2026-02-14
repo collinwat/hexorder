@@ -85,7 +85,7 @@ grid unit and the badge shape — form follows function.
 This document is the **single source of truth** for all UI colors. When adding or modifying editor
 UI code, pull values from the palette above — do not introduce ad-hoc colors.
 
-### Current alignment (as of M2)
+### Current alignment (as of 0.2.0)
 
 The editor dark theme in `src/editor_ui/systems.rs` (`configure_theme`) already uses the brand
 palette for backgrounds, teal accent, borders, and danger. The egui dark defaults handle text colors
@@ -94,7 +94,7 @@ acceptably.
 ### Not yet introduced
 
 - **Amber/gold accent** (`#c89640`) — present in the icon but not yet in the UI. Introduce it
-  incrementally in future milestones for:
+  incrementally in future releases for:
     - Section headings or active tab labels
     - Selected cell type border in the palette (currently white)
     - Game System name/version display

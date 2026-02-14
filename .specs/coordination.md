@@ -1,31 +1,42 @@
 # Hexorder Coordination
 
-## Active Milestone: M5 — "The World Remembers"
+## Active Cycle
+
+**Cycle 1 — "The Process Matures"** | Type: Process (no code) | Appetite: Small Batch
+
+### Current Bets
+
+| Pitch                                   | Appetite    | Status      |
+| --------------------------------------- | ----------- | ----------- |
+| Shape Up workflow documentation rewrite | Small Batch | in-progress |
+
+_Bets are set at the betting table during cool-down. See `.specs/roadmap.md` → Cool-Down Protocol._
 
 ## Active Features
 
-Feature status and ownership are tracked in GitHub Issues and the GitHub Project:
+Features are scopes within a build cycle. Status and ownership are tracked in GitHub Issues and the
+GitHub Project:
 
 ```bash
 gh issue list --state open                    # all open work items
-gh issue list --milestone "<milestone>"       # items for a specific milestone
+gh issue list --milestone "<milestone>"       # items for a specific release
 gh project view 1 --owner collinwat           # project board
 ```
 
-### Historical Feature Summary (through M5)
+### Historical Feature Summary (through 0.6.0)
 
 | Feature      | Last Updated | Notes                                                           |
 | ------------ | ------------ | --------------------------------------------------------------- |
-| hex_grid     | M4           | Move overlay rendering, 19 tests                                |
-| camera       | M5           | Orthographic top-down, pan + zoom, shortcut guard               |
-| game_system  | M4           | EntityType unification, EntityTypeRegistry                      |
-| cell         | M4           | EntityTypeRegistry/EntityData migration, 10 tests               |
-| unit         | M4           | EntityTypeRegistry/EntityData migration, ValidMoveSet, 10 tests |
-| editor_ui    | M5           | Launcher screen, file menu, 26 UI tests                         |
-| ontology     | M4           | Concepts, relations, constraints, schema validation, 7 tests    |
-| rules_engine | M4           | Constraint evaluation, ValidMoveSet BFS, 8 tests                |
-| scripting    | M4.5         | Embedded Lua (LuaJIT), read-only registry access, 11 tests      |
-| persistence  | M5           | Save/load .hexorder RON files, keyboard shortcuts, 10 tests     |
+| hex_grid     | 0.4.0        | Move overlay rendering, 19 tests                                |
+| camera       | 0.6.0        | Orthographic top-down, pan + zoom, shortcut guard               |
+| game_system  | 0.4.0        | EntityType unification, EntityTypeRegistry                      |
+| cell         | 0.4.0        | EntityTypeRegistry/EntityData migration, 10 tests               |
+| unit         | 0.4.0        | EntityTypeRegistry/EntityData migration, ValidMoveSet, 10 tests |
+| editor_ui    | 0.6.0        | Launcher screen, file menu, 26 UI tests                         |
+| ontology     | 0.4.0        | Concepts, relations, constraints, schema validation, 7 tests    |
+| rules_engine | 0.4.0        | Constraint evaluation, ValidMoveSet BFS, 8 tests                |
+| scripting    | 0.5.0        | Embedded Lua (LuaJIT), read-only registry access, 11 tests      |
+| persistence  | 0.6.0        | Save/load .hexorder RON files, keyboard shortcuts, 10 tests     |
 
 ## Plugin Load Order
 
@@ -39,8 +50,8 @@ Declared in `main.rs`. Update this when adding a new plugin.
 6. CellPlugin
 7. UnitPlugin
 8. RulesEnginePlugin (must be after OntologyPlugin, UnitPlugin)
-9. ScriptingPlugin (NEW M4.5 — after RulesEnginePlugin, before EditorUiPlugin)
-10. PersistencePlugin (NEW M5 — after GameSystemPlugin, before EditorUiPlugin)
+9. ScriptingPlugin (NEW 0.5.0 — after RulesEnginePlugin, before EditorUiPlugin)
+10. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
 11. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
 
 ## Pending Contract Changes
@@ -51,18 +62,18 @@ Contract change proposals are tracked as GitHub Issues with `area:contracts` lab
 Before changing a contract, create an issue describing the change, list affected features, and wait
 for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md.
 
-### Historical Contract Changes (through M5)
+### Historical Contract Changes (through 0.6.0)
 
-| Contract    | Milestone | Change                                                                |
-| ----------- | --------- | --------------------------------------------------------------------- |
-| game_system | M4        | EntityType unification, EntityTypeRegistry replaces CellType/UnitType |
-| ontology    | M4        | Concepts, relations, constraints, registries                          |
-| validation  | M4        | ValidMoveSet, SchemaValidation                                        |
-| hex_grid    | M4        | MoveOverlay, MoveOverlayState                                         |
-| persistence | M5        | AppScreen, GameSystemFile, save/load types, events                    |
-| game_system | M5        | Serialize/Deserialize + Clone on registries                           |
-| ontology    | M5        | Serialize/Deserialize + Clone on registries                           |
-| hex_grid    | M5        | Serialize/Deserialize on HexPosition                                  |
+| Contract    | Release | Change                                                                |
+| ----------- | ------- | --------------------------------------------------------------------- |
+| game_system | 0.4.0   | EntityType unification, EntityTypeRegistry replaces CellType/UnitType |
+| ontology    | 0.4.0   | Concepts, relations, constraints, registries                          |
+| validation  | 0.4.0   | ValidMoveSet, SchemaValidation                                        |
+| hex_grid    | 0.4.0   | MoveOverlay, MoveOverlayState                                         |
+| persistence | 0.6.0   | AppScreen, GameSystemFile, save/load types, events                    |
+| game_system | 0.6.0   | Serialize/Deserialize + Clone on registries                           |
+| ontology    | 0.6.0   | Serialize/Deserialize + Clone on registries                           |
+| hex_grid    | 0.6.0   | Serialize/Deserialize on HexPosition                                  |
 
 ## Cross-Cutting Concerns
 
@@ -76,16 +87,16 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
   relations, constraints). All design data lives inside the Game System.
 - **Property system**: Entity-agnostic. PropertyDefinition and PropertyValue are reused across all
   entity types regardless of role.
-- **Terminology (M4)**: Entity types have a role (BoardPosition or Token). Hex tiles on the board
+- **Terminology (0.4.0)**: Entity types have a role (BoardPosition or Token). Hex tiles on the board
   have EntityData with a BoardPosition-role type. Game pieces on tiles have EntityData with a
   Token-role type plus UnitInstance marker. "Cell" and "unit" are informal shorthand for
-  BoardPosition and Token entities respectively. CellType/UnitType terminology is retired in M4
+  BoardPosition and Token entities respectively. CellType/UnitType terminology is retired in 0.4.0
   (unified as EntityType).
 - **Entity placement**: Token entities are separate from hex tile entities. They share HexPosition
   for grid location. Multiple tokens can occupy the same tile.
-- **Enum definitions**: Consolidated into single EntityTypeRegistry (M4 resolves the M3 duplication
-  concern).
-- **Serialization (M5)**: All persistent types (registries, HexPosition, PropertyValue) derive
+- **Enum definitions**: Consolidated into single EntityTypeRegistry (0.4.0 resolves the 0.3.0
+  duplication concern).
+- **Serialization (0.6.0)**: All persistent types (registries, HexPosition, PropertyValue) derive
   Serialize/Deserialize. Save format is RON via `ron 0.12`. File extension: `.hexorder`.
 - **Editor tool mode**: `EditorTool` resource (owned by editor_ui) must be checked by cell and unit
   before painting/placing.
@@ -95,11 +106,11 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
   game terms — the tool understands only structural relationships, not domain semantics.
 - **Constraint evaluation**: The rules_engine evaluates constraints and produces ValidMoveSet. The
   unit plugin checks ValidMoveSet before allowing moves. If no constraints exist, all moves are
-  valid (backward compatible with M3).
+  valid (backward compatible with 0.3.0).
 - **Move overlays**: Separate lightweight entities above hex tiles, managed by hex_grid. Do not
   modify tile materials or interfere with cell visual sync.
 
-## Feature Dependency Graph (M5)
+## Feature Dependency Graph (0.6.0)
 
 ```
 game_system (contract) ──→ cell
@@ -120,7 +131,7 @@ validation (contract)  ──→ unit
 validation (contract)  ──→ editor_ui
 
 camera: independent
-hex_grid: depends on validation contract (M4: move overlays)
+hex_grid: depends on validation contract (0.4.0: move overlays)
 game_system: independent (provides EntityTypeRegistry)
 ontology: depends on game_system contract
 cell: depends on hex_grid + game_system + editor_ui contracts
@@ -130,12 +141,12 @@ persistence: depends on game_system + ontology + hex_grid + validation + persist
 editor_ui: depends on hex_grid + game_system + ontology + validation + persistence contracts
 ```
 
-## Implementation Phases (M4)
+## Implementation Phases (0.4.0)
 
-M4 proceeds in three phases:
+0.4.0 proceeds in three phases:
 
 1. **Phase 1 — Unify EntityType**: Migrate game_system, cell, unit, editor_ui to unified types. No
-   new behavior, all M3 tests updated and passing.
+   new behavior, all 0.3.0 tests updated and passing.
 2. **Phase 2 — Ontology Framework**: New ontology contract + OntologyPlugin. ConceptRegistry,
    RelationRegistry, ConstraintRegistry. Schema validation. Editor UI panels.
 3. **Phase 3 — Rules Engine + Visual Rendering**: New validation contract + RulesEnginePlugin.
@@ -145,9 +156,9 @@ M4 proceeds in three phases:
 
 > Only one merge to `main` at a time. See `docs/git-guide.md` → Merge Lock Protocol for full rules.
 
-| Branch                | Version | Claimed By | Status  |
-| --------------------- | ------- | ---------- | ------- |
-| m4/entity-unification | 0.4.0   | agent      | merging |
+| Branch                   | Version | Claimed By | Status  |
+| ------------------------ | ------- | ---------- | ------- |
+| 0.4.0/entity-unification | 0.4.0   | agent      | merging |
 
 Status values: `merging` | `done`
 
@@ -160,18 +171,18 @@ Rules:
 
 ## Integration Test Checkpoints
 
-| Date       | Features Tested | Result | Notes                                                                                                                                                                                                                                                                                                                                             |
-| ---------- | --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | all M1          | FAIL   | Constitution audit found 5 cross-feature internal imports. Promoted to contracts.                                                                                                                                                                                                                                                                 |
-| 2026-02-08 | all M1          | PASS   | Re-audit: 0 violations, 44 tests pass, clippy clean. Module privacy enforced.                                                                                                                                                                                                                                                                     |
-| 2026-02-09 | all M2          | PASS   | Full 9-point audit: 48 tests pass, clippy clean, no unwrap/unsafe in prod, all pub types Debug, no boundary violations, contracts spec-code parity fixed (terrain.md marked retired, editor_ui refs updated terrain→cell).                                                                                                                        |
-| 2026-02-09 | all M2 (final)  | PASS   | M2 Checkpoint audit: 53 tests pass (added 4 integration tests + 1 architecture test), clippy clean, all 9 constitution checks pass. M2 complete.                                                                                                                                                                                                  |
-| 2026-02-09 | all M3          | PASS   | 71 tests pass (9 unit tests, 5 game_system unit tests, 5 editor_ui tests, 4 integration tests added for M3), clippy clean, no unwrap/unsafe in prod, boundary tests pass.                                                                                                                                                                         |
-| 2026-02-10 | all M3 (final)  | PASS   | M3 Checkpoint audit: 71 tests, clippy clean, all 9 constitution checks pass. M3 complete.                                                                                                                                                                                                                                                         |
-| 2026-02-10 | all M3 (polish) | PASS   | Post-M3 polish audit: 71 tests, clippy clean, all 9 constitution checks pass. Ring border overlays for hover/selection, click/Escape deselect, camera pan rework, view shortcuts, resize compensation, TileBaseMaterial + PaintPreview contracts added. Specs, logs, and contract docs updated.                                                   |
-| 2026-02-11 | all M4          | PASS   | M4 constitution audit: 90 tests pass, clippy clean, no unwrap/unsafe in prod, all pub types Debug, no boundary violations, contracts spec-code parity verified, brand palette test passes. Phase 1 (EntityType unification), Phase 2 (ontology framework, 7 tests), Phase 3 (rules engine 8 tests, move overlays 4 tests, unit ValidMoveSet).     |
-| 2026-02-13 | all M4.5        | PASS   | M4.5 constitution audit: 129 tests pass (92 M4 + 26 egui_kittest UI tests + 11 Lua scripting tests), clippy clean, all automated checks pass. Phase 1 (Reflect derives on ~43 types), Phase 2 (editor_ui render function extraction), Phase 3 (egui_kittest UI tests), Phase 4 (mlua scripting plugin). Version 0.5.0.                            |
-| 2026-02-13 | all M5          | PASS   | M5 constitution audit: 139 tests pass (129 M4.5 + 3 serde round-trip + 4 file I/O + 3 persistence plugin), clippy clean, all automated checks pass. Phase 1 (serde), Phase 2 (RON file I/O), Phase 3 (AppScreen state machine), Phase 4 (save/load systems, rfd dialogs, keyboard shortcuts), Phase 5 (launcher UI, specs, audit). Version 0.6.0. |
+| Date       | Features Tested    | Result | Notes                                                                                                                                                                                                                                                                                                                                                      |
+| ---------- | ------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | all 0.1.0          | FAIL   | Constitution audit found 5 cross-feature internal imports. Promoted to contracts.                                                                                                                                                                                                                                                                          |
+| 2026-02-08 | all 0.1.0          | PASS   | Re-audit: 0 violations, 44 tests pass, clippy clean. Module privacy enforced.                                                                                                                                                                                                                                                                              |
+| 2026-02-09 | all 0.2.0          | PASS   | Full 9-point audit: 48 tests pass, clippy clean, no unwrap/unsafe in prod, all pub types Debug, no boundary violations, contracts spec-code parity fixed (terrain.md marked retired, editor_ui refs updated terrain→cell).                                                                                                                                 |
+| 2026-02-09 | all 0.2.0 (final)  | PASS   | 0.2.0 Checkpoint audit: 53 tests pass (added 4 integration tests + 1 architecture test), clippy clean, all 9 constitution checks pass. 0.2.0 complete.                                                                                                                                                                                                     |
+| 2026-02-09 | all 0.3.0          | PASS   | 71 tests pass (9 unit tests, 5 game_system unit tests, 5 editor_ui tests, 4 integration tests added for 0.3.0), clippy clean, no unwrap/unsafe in prod, boundary tests pass.                                                                                                                                                                               |
+| 2026-02-10 | all 0.3.0 (final)  | PASS   | 0.3.0 Checkpoint audit: 71 tests, clippy clean, all 9 constitution checks pass. 0.3.0 complete.                                                                                                                                                                                                                                                            |
+| 2026-02-10 | all 0.3.0 (polish) | PASS   | Post-0.3.0 polish audit: 71 tests, clippy clean, all 9 constitution checks pass. Ring border overlays for hover/selection, click/Escape deselect, camera pan rework, view shortcuts, resize compensation, TileBaseMaterial + PaintPreview contracts added. Specs, logs, and contract docs updated.                                                         |
+| 2026-02-11 | all 0.4.0          | PASS   | 0.4.0 constitution audit: 90 tests pass, clippy clean, no unwrap/unsafe in prod, all pub types Debug, no boundary violations, contracts spec-code parity verified, brand palette test passes. Phase 1 (EntityType unification), Phase 2 (ontology framework, 7 tests), Phase 3 (rules engine 8 tests, move overlays 4 tests, unit ValidMoveSet).           |
+| 2026-02-13 | all 0.5.0          | PASS   | 0.5.0 constitution audit: 129 tests pass (92 from 0.4.0 + 26 egui_kittest UI tests + 11 Lua scripting tests), clippy clean, all automated checks pass. Phase 1 (Reflect derives on ~43 types), Phase 2 (editor_ui render function extraction), Phase 3 (egui_kittest UI tests), Phase 4 (mlua scripting plugin). Version 0.5.0.                            |
+| 2026-02-13 | all 0.6.0          | PASS   | 0.6.0 constitution audit: 139 tests pass (129 from 0.5.0 + 3 serde round-trip + 4 file I/O + 3 persistence plugin), clippy clean, all automated checks pass. Phase 1 (serde), Phase 2 (RON file I/O), Phase 3 (AppScreen state machine), Phase 4 (save/load systems, rfd dialogs, keyboard shortcuts), Phase 5 (launcher UI, specs, audit). Version 0.6.0. |
 
 ## Known Blockers
 

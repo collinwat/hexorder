@@ -1771,7 +1771,7 @@ fn apply_actions(
                 }
                 // Token and unknown roles: unit_data_query is not passed to
                 // apply_actions; units with removed properties get defaults on
-                // next inspector render (consistent with M3 behavior).
+                // next inspector render (consistent with 0.3.0 behavior).
             }
             EditorAction::DeleteSelectedUnit => {
                 if let Some(entity) = selected_unit.entity {

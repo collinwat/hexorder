@@ -55,7 +55,9 @@ application consumes the exported assets for distribution.
 
 ## Coordination
 
+- Shape before schedule: promising ideas are shaped into pitches before entering a build cycle
 - Spec before code: `.specs/features/<name>/spec.md` must exist before implementation
 - Contracts before types: `.specs/contracts/<name>.md` must exist before `src/contracts/<name>.rs`
 - Log everything: decisions, test results, blockers go in the feature log
 - One owner per feature at a time (tracked in coordination.md)
+- Circuit breaker: unfinished cycles are cancelled by default, not extended

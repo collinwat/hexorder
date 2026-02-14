@@ -1,7 +1,7 @@
 //! Shared Game System types. See `.specs/contracts/game_system.md`.
 //!
 //! Contains the Game System container, the entity-agnostic property system,
-//! and the unified entity type system. M4 replaces separate `CellType`/`UnitType`
+//! and the unified entity type system. 0.4.0 replaces separate `CellType`/`UnitType`
 //! with `EntityType` + `EntityRole`.
 
 use std::collections::HashMap;
@@ -53,7 +53,7 @@ pub struct GameSystem {
 // ---------------------------------------------------------------------------
 
 /// The data type of a property definition.
-/// Extensible — future milestones will add `EntityRef`, List, Map, Struct, etc.
+/// Extensible — future releases will add `EntityRef`, List, Map, Struct, etc.
 #[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
 pub enum PropertyType {
     Bool,
@@ -112,7 +112,7 @@ pub struct EnumDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// Entity Types (M4 — unified, replaces CellType and UnitType)
+// Entity Types (0.4.0 — unified, replaces CellType and UnitType)
 // ---------------------------------------------------------------------------
 
 /// The role an entity type plays in the game system.

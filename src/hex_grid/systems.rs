@@ -290,7 +290,7 @@ pub fn setup_indicators(
         Visibility::Hidden,
     ));
 
-    // Move overlay materials (M4).
+    // Move overlay materials (0.4.0).
     let valid_material = materials.add(StandardMaterial {
         base_color: Color::srgba(0.2, 0.8, 0.2, 0.4),
         unlit: true,

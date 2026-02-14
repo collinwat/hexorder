@@ -1179,7 +1179,7 @@ let scroll_amount = match scroll.unit {
 ```
 
 **Touchpad gestures:** Bevy exposes macOS trackpad pinch-to-zoom and rotate gestures as events.
-These could be wired to camera zoom/rotate in future milestones.
+These could be wired to camera zoom/rotate in future releases.
 
 **Key mappings:** | macOS Key | Bevy KeyCode | |-----------|-------------| | Command (⌘) |
 `SuperLeft` / `SuperRight` | | Option (⌥) | `AltLeft` / `AltRight` | | Control (⌃) | `ControlLeft` /

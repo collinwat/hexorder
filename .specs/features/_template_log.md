@@ -32,10 +32,10 @@ will be done about failures]
 
 ## Deferred / Future Work
 
-Items discovered during implementation that are out of scope for this feature. Before merging,
-create a GitHub Issue for each item
-(`gh issue create --label "status:deferred" --label "type:<type>" --milestone "Backlog"`). Note the
-issue number next to each transferred item.
+Items discovered during implementation that are out of scope. Capture each as a GitHub Issue (raw
+idea) for potential future shaping. Use:
+`gh issue create --label "status:deferred" --label "type:<type>"`. Note the issue number next to
+each transferred item.
 
 - [None yet]
 

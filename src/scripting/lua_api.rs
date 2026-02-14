@@ -1,6 +1,6 @@
 //! Lua API: converts game system registries into Lua tables.
 //!
-//! All access is read-only for M4.5. The Lua side receives plain tables
+//! All access is read-only for 0.5.0. The Lua side receives plain tables
 //! (no `UserData` coupling), making the API stable across refactors.
 
 use mlua::{Lua, Result as LuaResult, Table, Value};

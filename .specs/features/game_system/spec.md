@@ -6,7 +6,7 @@ Provides the Game System container and the entity-agnostic property system. The 
 root design artifact — it holds all definitions. The property system defines schema types that any
 entity can use.
 
-M4 unifies CellType and UnitType into a single EntityType with a designer-assigned role
+0.4.0 unifies CellType and UnitType into a single EntityType with a designer-assigned role
 (BoardPosition or Token). The plugin produces a single EntityTypeRegistry.
 
 ## Plugin
@@ -25,7 +25,7 @@ M4 unifies CellType and UnitType into a single EntityType with a designer-assign
 
 ## Requirements
 
-### M2 (retained, evolved for M4)
+### 0.2.0 (retained, evolved for 0.4.0)
 
 1. [REQ-CONTAINER] Insert a `GameSystem` resource at startup with a generated `id` (UUID) and
    `version` string ("0.1.0" default).
@@ -36,7 +36,7 @@ M4 unifies CellType and UnitType into a single EntityType with a designer-assign
 4. [REQ-PROP-VALUE] Define `PropertyValue` — a concrete value matching a PropertyType.
 5. [REQ-ENUM-DEF] Define `EnumDefinition` — a named set of string options.
 
-### M4 (new — EntityType unification)
+### 0.4.0 (new — EntityType unification)
 
 6. [REQ-ENTITY-ROLE] Define `EntityRole` enum: BoardPosition, Token.
 7. [REQ-ENTITY-TYPE] Define `EntityType` — a unified type definition with id, name, role, color, and
@@ -54,14 +54,14 @@ M4 unifies CellType and UnitType into a single EntityType with a designer-assign
       "Movement Points" (Int, default 4) property; Mountain gets a "Movement Cost" (Int, default 3)
       property.
 
-### Removed (M4)
+### Removed (0.4.0)
 
 - CellType, CellTypeId, CellTypeRegistry, CellData, ActiveCellType — replaced by EntityType system
 - UnitType, UnitTypeId, UnitTypeRegistry, UnitData, ActiveUnitType — replaced by EntityType system
 
 ## Success Criteria
 
-### M2 (retained)
+### 0.2.0 (retained)
 
 - [x] [SC-1] GameSystem resource exists after Startup with a non-empty id and version
 - [x] [SC-2] All 6 PropertyType variants can be constructed and are distinct
@@ -69,7 +69,7 @@ M4 unifies CellType and UnitType into a single EntityType with a designer-assign
 - [x] [SC-4] PropertyValue round-trips correctly for each type
 - [x] [SC-5] EnumDefinition can hold options and be referenced by PropertyType::Enum
 
-### M4 (new)
+### 0.4.0 (new)
 
 - [ ] [SC-6] EntityTypeRegistry exists after Startup with starter types
 - [ ] [SC-7] `types_by_role(BoardPosition)` returns exactly the 5 board types
@@ -85,12 +85,12 @@ M4 unifies CellType and UnitType into a single EntityType with a designer-assign
 
 ## Constraints
 
-- PropertyType must be extensible — future milestones will add EntityRef, List, Map, Struct, etc.
-- TypeId uses UUID for stability across future serialization (M5)
+- PropertyType must be extensible — future releases will add EntityRef, List, Map, Struct, etc.
+- TypeId uses UUID for stability across future serialization (0.6.0)
 - The property system is entity-agnostic — not coupled to any specific EntityRole
 - GameSystem is a singleton (one game system per app session)
 - EntityTypeRegistry contains ALL types; use types_by_role() for filtered views
 
 ## Open Questions
 
-- None (EntityType unification design decided during M4 planning)
+- None (EntityType unification design decided during 0.4.0 planning)

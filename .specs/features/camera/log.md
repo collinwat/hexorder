@@ -6,13 +6,13 @@
 
 ### 2026-02-08 — Top-down orthographic camera with 2D constraint
 
-**Context**: M1 restricts camera to top-down view to keep the initial design cycle in 2D thinking.
-The code remains 3D-ready. **Decision**: Orthographic projection, locked perpendicular to ground
-plane, pan + zoom only. **Rationale**: Eliminates 3D navigation complexity. Lets the user focus on
-hex grid layout and terrain without perspective distortion. Rotation can be unlocked in a future
-milestone when 3D features (elevation, unit models) arrive. **Alternatives rejected**: Perspective
-camera with angle lock (still introduces foreshortening, makes hex selection math harder). Free
-orbit camera (too much complexity for M1).
+**Context**: 0.1.0 restricts camera to top-down view to keep the initial design cycle in 2D
+thinking. The code remains 3D-ready. **Decision**: Orthographic projection, locked perpendicular to
+ground plane, pan + zoom only. **Rationale**: Eliminates 3D navigation complexity. Lets the user
+focus on hex grid layout and terrain without perspective distortion. Rotation can be unlocked in a
+future release when 3D features (elevation, unit models) arrive. **Alternatives rejected**:
+Perspective camera with angle lock (still introduces foreshortening, makes hex selection math
+harder). Free orbit camera (too much complexity for 0.1.0).
 
 ### 2026-02-08 — Bevy 0.18 API adaptations
 
@@ -156,7 +156,7 @@ Tests:
 - smooth_camera_enforces_bounds: PASS
 - smooth_camera_enforces_rotation_lock: PASS
 
-### 2026-02-10 — Post-M3 polish, all tests passing
+### 2026-02-10 — Post-0.3.0 polish, all tests passing
 
 ```
 cargo test: 11/11 camera tests passed (71 total project-wide)
@@ -186,8 +186,8 @@ Tests:
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                                                                                                                             |
-| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | speccing | Initial spec created                                                                                                                                              |
-| 2026-02-08 | complete | Implementation done. All tests pass, clippy clean, build succeeds.                                                                                                |
-| 2026-02-10 | complete | Post-M3 polish: pan rework (right-click + left-click-drag with threshold), view shortcuts (C/F/0/-/=), resize compensation, startup fit+center with panel offset. |
+| Date       | Status   | Notes                                                                                                                                                                |
+| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | speccing | Initial spec created                                                                                                                                                 |
+| 2026-02-08 | complete | Implementation done. All tests pass, clippy clean, build succeeds.                                                                                                   |
+| 2026-02-10 | complete | Post-0.3.0 polish: pan rework (right-click + left-click-drag with threshold), view shortcuts (C/F/0/-/=), resize compensation, startup fit+center with panel offset. |

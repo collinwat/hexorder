@@ -10,23 +10,30 @@
 - Plugin struct: `[Name]Plugin`
 - Schedule: [which schedules does this plugin add systems to?]
 
+## Appetite
+
+- **Size**: [Small Batch (1-2 weeks) | Big Batch (full cycle)]
+- **Pitch**: [Link to the pitch Issue, e.g., #XX]
+
 ## Dependencies
 
 - **Contracts consumed**: [list contract names from .specs/contracts/]
 - **Contracts produced**: [list any new contracts this feature introduces]
 - **Crate dependencies**: [any new crates needed in Cargo.toml]
 
-## Requirements
+## Scope
 
-1. [REQ-1] [Clear, testable requirement]
-2. [REQ-2] [Another requirement]
+Scope items are discovered as work progresses. This list grows during implementation.
+
+1. [SCOPE-1] [Clear, testable scope item]
+2. [SCOPE-2] [Another scope item]
 
 ## Success Criteria
 
-Each criterion maps to a requirement. Mark [x] when passing.
+Each criterion maps to a scope item. Mark [x] when passing.
 
-- [ ] [SC-1] [How REQ-1 is verified — unit test, visual check, etc.]
-- [ ] [SC-2] [How REQ-2 is verified]
+- [ ] [SC-1] [How SCOPE-1 is verified — unit test, visual check, etc.]
+- [ ] [SC-2] [How SCOPE-2 is verified]
 - [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
 - [ ] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
 - [ ] [SC-TEST] `cargo test` passes (all tests, not just this feature's)
@@ -51,8 +58,8 @@ If this feature warrants parallel work, break it into subtasks here.
 
 ## Deferred Items
 
-Items explicitly out of scope for this feature. When the feature is complete, verify all items below
-have a corresponding GitHub Issue (create with `status:deferred` label if not). Note the issue
-number next to each item.
+Items explicitly out of scope for this feature (shaped out by the pitch's No Gos or discovered
+during implementation). Each item should be captured as a GitHub Issue (raw idea) for potential
+future shaping. Note the issue number next to each item.
 
 - [None yet]

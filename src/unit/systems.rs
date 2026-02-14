@@ -127,7 +127,7 @@ pub fn handle_unit_placement(
 ///
 /// If `ValidMoveSet` has valid positions, only allows movement to those
 /// positions. If `ValidMoveSet` is empty (no constraints), all in-bounds
-/// positions are allowed (backward compatible with M3).
+/// positions are allowed (backward compatible with 0.3.0).
 #[allow(clippy::too_many_arguments)]
 pub fn handle_unit_interaction(
     trigger: On<HexSelectedEvent>,

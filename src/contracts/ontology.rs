@@ -144,7 +144,7 @@ pub enum CompareOp {
     Ge,
 }
 
-/// A structured constraint expression. Deliberately limited for M4:
+/// A structured constraint expression. Deliberately limited for 0.4.0:
 /// property comparisons, cross-entity comparisons, path budgets,
 /// type checks, and boolean logic. Not a full DSL.
 #[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]

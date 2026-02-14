@@ -45,7 +45,7 @@ src/
 .specs/
   constitution.md      # Non-negotiable project rules
   coordination.md      # Active features, ownership, merge lock
-  roadmap.md           # Milestone plan and checkpoint history
+  roadmap.md           # Release plan and checkpoint history
   contracts/           # Shared type specifications
   features/            # Per-feature specs and logs
 
@@ -78,7 +78,7 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 | `cargo run --features dev`   | Launch with dynamic linking (faster rebuilds)                     |
 | `mise fix`                   | Run all fixers (fmt, taplo, prettier, typos)                      |
 | `mise check`                 | Run all checks (fmt, clippy, test, deny, typos, boundary, unwrap) |
-| `mise check:audit`           | Full constitution audit (pre-merge / milestone)                   |
+| `mise check:audit`           | Full constitution audit (pre-merge / release)                     |
 | `mise changelog`             | Preview unreleased changelog                                      |
 | `mise handoff`               | Session handoff — dump context for resuming work                  |
 | `mise setup`                 | First-time project setup (tools, hooks, LFS)                      |
@@ -86,8 +86,9 @@ and are specified in `.specs/contracts/`. Cross-feature communication uses Event
 
 ### Git workflow
 
-This project uses trunk-based development with git worktrees. See `docs/git-guide.md` for the full
-workflow, including:
+This project uses trunk-based development with git worktrees, operating within Shape Up build
+cycles. See `docs/git-guide.md` for the full workflow and `docs/shape-up-guide.md` for the
+methodology reference. The workflow includes:
 
 - Branch naming and worktree setup
 - Conventional commit message format

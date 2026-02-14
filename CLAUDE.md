@@ -26,7 +26,7 @@ game system assets.
 7. Read the relevant `.specs/features/<name>/spec.md` for your assigned feature
 8. Read `.specs/contracts/` for any shared types your feature depends on or exposes
 9. Check `.specs/features/<name>/log.md` for prior decisions and blockers
-10. Check GitHub Issues for the current milestone: `gh issue list --milestone "<milestone>"`
+10. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
 
 ## Architecture Rules
 
@@ -56,35 +56,65 @@ game system assets.
 - States: `app.init_state::<GameState>()`, `in_state(GameState::Playing)`
 - System ordering: use `.chain()` on tuples or `SystemSet` — `.after(bare_fn)` does not compile
 
-## Development Workflow
+## Development Workflow (Within a Build Cycle)
 
-> Git reference: `docs/git-guide.md` — branching, worktrees, commit format, merge checklists.
+> This workflow applies during the **build phase** of a Shape Up cycle. Before this workflow starts,
+> the pitch has been shaped, bet on, and assigned to a release. See `.specs/roadmap.md` for the
+> cycle loop and cool-down protocol.
 
-1. **Branch**: Run the Feature Branch Setup Checklist in `docs/git-guide.md` — creates branch,
+### Getting Oriented (first 1-2 days)
+
+When a cycle starts, do not jump straight into coding. Read the shaped pitch, explore the relevant
+code, and think through the approach. This orientation period is normal and expected.
+
+1. Read the pitch Issue for your assigned work
+2. Read `.specs/features/<name>/spec.md` and the pitch's solution sketch
+3. Read `.specs/contracts/` for any shared types your feature depends on or exposes
+4. Check `.specs/features/<name>/log.md` for prior decisions and blockers
+5. Explore relevant code paths and contracts
+6. Identify the first piece to build end-to-end (see "Get One Piece Done" below)
+
+### Get One Piece Done
+
+Pick the most core, small, novel piece and build it end-to-end — working code and working tests — in
+a few days. Vertical integration, not horizontal layers. This surfaces unknowns early.
+
+### Build Loop
+
+7. **Branch**: Run the Feature Branch Setup Checklist in `docs/git-guide.md` — creates branch,
    worktree, pre-release version, spec scaffolding, and claims ownership
-2. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
-3. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
-4. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
-5. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
-   spec success criteria
-6. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
-   the feature branch
-7. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
-   shared types must go through `src/contracts/`
-8. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
-9. **Backlog**: When you discover future work (tech debt, feature ideas, research needs, bugs),
-   create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create with the
-   appropriate template. Do not create ad-hoc TODO sections in markdown files. GitHub Issues are the
-   single source of truth for all future work items.
-10. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
-11. **Merge**: When the feature is complete, follow the Pre-Merge Checklist in `docs/git-guide.md` —
+8. **Spec first**: Read/update `.specs/features/<name>/spec.md` before coding
+9. **Contract check**: If your feature exposes or consumes shared types, check `.specs/contracts/`
+10. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
+11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
+    spec success criteria
+12. **Commit**: Follow the Pre-Commit Checklist in `docs/git-guide.md` — commit early and often on
+    the feature branch
+13. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
+    shared types must go through `src/contracts/`
+14. **Log**: Record decisions, test results, blockers in `.specs/features/<name>/log.md`
+
+### Scope Hammering
+
+Continuously distinguish must-haves from nice-to-haves. Compare to the current baseline (what exists
+today), not an imagined ideal. If time runs short, cut scope to ship — do not extend the cycle.
+
+### Finishing
+
+15. **Capture new ideas**: When you discover future work (tech debt, feature ideas, research needs,
+    bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
+    with the appropriate template. Issues are raw idea capture, not commitments.
+16. **Coordinate**: Update `.specs/coordination.md` status when starting/finishing work
+17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/git-guide.md` —
     version bump, changelog, tag
-12. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
+18. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
     `docs/git-guide.md` — remove worktree, delete branch, update ownership
 
-## Milestone Completion Gate
+## Ship Gate
 
-Before a milestone is marked complete, run a **constitution audit** across the full codebase.
+Before a cycle's work ships, run a **constitution audit** across the full codebase. This is the
+quality bar. If the cycle hits its deadline and the gate does not pass, the circuit breaker fires:
+work does not ship, and the problem must be re-shaped and re-pitched.
 
 **Automated checks** — run `mise check:audit` to verify all of these at once:
 
@@ -104,25 +134,34 @@ Before a milestone is marked complete, run a **constitution audit** across the f
 10. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
     passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
     test and documented in `.specs/brand.md`
-11. **No stray backlog items** — all deferred scope, future work notes, TODOs, and "coming soon"
+11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
     placeholders in specs, feature logs, and source code have corresponding GitHub Issues. Search
-    with `gh issue list --search "<keywords>"` to verify. GitHub Issues are the single source of
-    truth for future work.
+    with `gh issue list --search "<keywords>"` to verify.
 12. Record audit results in `.specs/coordination.md` under "Integration Test Checkpoints"
 
 This gate applies even if all individual features pass their own success criteria. Constitution
 violations that only emerge at the cross-feature level (like import boundary violations) are caught
 here.
 
-After the gate passes, follow the "Milestone final merge" steps in `docs/git-guide.md` — tag the
-milestone version and record it in coordination.md.
+After the gate passes, follow the "Cycle ship merge" steps in `docs/git-guide.md` — tag the release
+version and record it in coordination.md.
+
+### Circuit Breaker
+
+If a cycle does not finish by its deadline:
+
+- The work is cancelled by default — it does not automatically roll into the next cycle
+- The team re-shapes the problem, looking for a better approach
+- A new pitch must be brought to the next betting table
+- Extension is only granted if: (1) remaining tasks are true must-haves, and (2) all remaining work
+  is downhill (no unsolved problems, pure execution)
 
 ## Testing Commands
 
 - `mise test` — run all tests
 - `mise test:cargo` — run Rust unit and integration tests
 - `mise check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
-- `mise check:audit` — full constitution audit (same as `check`, used at milestone gates)
+- `mise check:audit` — full constitution audit (same as `check`, used at release gates)
 - `mise check:clippy` — lint check (pedantic, configured in Cargo.toml)
 - `mise check:boundary` — cross-feature import boundary check
 - `mise check:unwrap` — no unwrap() in production code
@@ -131,22 +170,27 @@ milestone version and record it in coordination.md.
 
 ## GitHub Issues Workflow
 
-Work items are tracked as GitHub Issues: `gh issue list --state open`
+GitHub Issues serve two purposes in Shape Up:
 
-### Creating Issues
+1. **Raw idea capture** — personal tracker for observations, bugs, feature ideas, tech debt
+2. **Shaped pitches** — formal proposals for the betting table (label: `type:pitch`)
 
-Agents create issues for deferred items, bugs found during testing, and new backlog items. Always
-search before creating to avoid duplicates:
+Issues are NOT a prioritized backlog. They are a capture tool. Only shaped pitches drive work.
+
+### Capturing Raw Ideas
+
+Agents create issues for deferred items, bugs found during testing, and new ideas. Always search
+before creating to avoid duplicates:
 
 ```bash
 gh issue list --search "<keywords>" --state all
 ```
 
 Create with the appropriate template (feature, bug, tech-debt, research). New issues get
-`status:triage` automatically. For items discovered during feature work, add `status:deferred`:
+`status:triage` automatically:
 
 ```bash
-gh issue create --title "<item>" --label "status:deferred" --label "type:<type>" --milestone "Backlog"
+gh issue create --title "<item>" --label "status:deferred" --label "type:<type>"
 ```
 
 ### Referencing Issues
@@ -160,21 +204,23 @@ the default branch.
 
 ### Issue Lifecycle
 
-1. **Created** — `status:triage` label applied automatically
-2. **Triaged** — human assigns type/area labels, removes triage label, sets priority
-3. **Promoted** — assigned to a milestone (moved from Backlog to target milestone)
-4. **Claimed** — agent self-assigns when starting work
-5. **Closed** — via closing keyword in commit/PR, or `gh issue close <number>`
+1. **Captured** — `status:triage` label applied automatically. Issue is a raw idea.
+2. **Triaged** — human assigns type/area labels, removes triage label
+3. **Shaped** — during cool-down, promising ideas are shaped into pitch Issues (`type:pitch`)
+4. **Bet** — pitch is selected at the betting table, assigned to a release milestone
+5. **Claimed** — agent self-assigns when starting work within the cycle
+6. **Closed** — via closing keyword in commit/PR, or `gh issue close <number>`
 
 ### Quick Reference
 
 ```bash
-gh issue list --milestone "Backlog"         # view backlog
-gh issue list --milestone "<milestone>"     # view current milestone
-gh issue list --label "status:triage"       # items needing triage
-gh issue list --search "<keywords>"         # search all issues
-gh issue create                             # create with template
-gh issue edit <n> --add-assignee @me        # claim an issue
+gh issue list --state open                     # all raw ideas
+gh issue list --label "type:pitch"             # shaped pitches
+gh issue list --label "type:pitch" -m "<rel>"  # pitches bet for a release
+gh issue list --label "status:triage"          # items needing triage
+gh issue list --search "<keywords>"            # search all issues
+gh issue create                                # capture a raw idea
+gh issue edit <n> --add-assignee @me           # claim a bet pitch
 ```
 
 ## Shared Contracts Protocol
@@ -188,6 +234,8 @@ When you need to ADD or CHANGE a contract:
 5. Notify affected features (check coordination.md for dependencies)
 
 ## Agent Coordination Model
+
+Agents are the "team" in Shape Up's building phase. The developer shapes and bets; agents build.
 
 ### Solo (simple feature, no dependencies)
 

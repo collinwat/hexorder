@@ -5,7 +5,7 @@
 Defines the Game System container, the entity-agnostic property system, and the unified entity type
 system. The Game System is the root design artifact that holds all user-defined definitions.
 
-M4 unifies CellType and UnitType into a single EntityType with a designer-assigned role. This
+0.4.0 unifies CellType and UnitType into a single EntityType with a designer-assigned role. This
 eliminates code duplication and enables the ontology framework to work across all entity categories.
 
 ## Types
@@ -15,7 +15,7 @@ eliminates code duplication and enables the ontology framework to work across al
 ```rust
 /// Unique identifier for entity types, enum definitions, property definitions,
 /// concepts, relations, constraints, etc.
-/// Uses UUID for stability across serialization (M5).
+/// Uses UUID for stability across serialization (0.6.0).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub uuid::Uuid);
 ```
@@ -36,7 +36,7 @@ pub struct GameSystem {
 ### Property Types
 
 ```rust
-/// The data type of a property definition. Extensible for future milestones.
+/// The data type of a property definition. Extensible for future releases.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyType {
     Bool,
@@ -76,7 +76,7 @@ pub struct EnumDefinition {
 }
 ```
 
-### Entity Types (M4 — replaces Cell Types and Unit Types)
+### Entity Types (0.4.0 — replaces Cell Types and Unit Types)
 
 ```rust
 /// The role an entity type plays in the game system.
@@ -152,9 +152,9 @@ pub struct UnitPlacedEvent {
 }
 ```
 
-### Removed Types (M4)
+### Removed Types (0.4.0)
 
-The following M3 types are removed in M4, replaced by the unified EntityType system:
+The following 0.3.0 types are removed in 0.4.0, replaced by the unified EntityType system:
 
 | Removed Type       | Replaced By          | Notes                                  |
 | ------------------ | -------------------- | -------------------------------------- |
@@ -202,7 +202,7 @@ The following M3 types are removed in M4, replaced by the unified EntityType sys
 
 | Date       | Change                           | Reason                                                                                                      |
 | ---------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition               | M2 Game System container and property system                                                                |
+| 2026-02-08 | Initial definition               | 0.2.0 Game System container and property system                                                             |
 | 2026-02-09 | Renamed Vertex->Cell terminology | Cell is mathematically correct for N-dimensional grid elements; Vertex means hex corner in grid terminology |
-| 2026-02-09 | Added unit types section         | M3 — units on the hex grid                                                                                  |
-| 2026-02-11 | Unified EntityType               | M4 — replace CellType/UnitType with EntityType + EntityRole                                                 |
+| 2026-02-09 | Added unit types section         | 0.3.0 — units on the hex grid                                                                               |
+| 2026-02-11 | Unified EntityType               | 0.4.0 — replace CellType/UnitType with EntityType + EntityRole                                              |

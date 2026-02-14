@@ -14,11 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - simplify getting started to 3 steps (project)
 - use mise shorthand instead of mise run (project)
 - add repo URL to getting started clone command (project)
-- spec M4 milestone — rules shape the world (project)
+- spec 0.4.0 release — rules shape the world (project)
 - add ontology framework and validation contracts (ontology)
 - add BFS valid move computation (rules_engine)
 - add move overlays and unit ValidMoveSet check (hex_grid)
-- update M4 coordination and feature logs (project)
+- update 0.4.0 coordination and feature logs (project)
 
 ### Changed
 
@@ -58,7 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
-- add M1-M3 codebase (project)
+- add 0.1.0-0.3.0 codebase (project)
 - add development process and tooling (project)
 
 ### Changed
