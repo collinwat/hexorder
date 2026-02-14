@@ -1,52 +1,32 @@
+---
+name: research
+description:
+    Consume existing research from the GitHub Wiki or perform new research. Use when a build task
+    needs domain context, when evaluating technology options, when a pitch references prior
+    research, or when investigating unknowns before committing to an implementation. Also use when a
+    GitHub Issue with type:research is assigned, or when the user invokes /research.
+---
+
 # Research
 
-Use this skill when you need domain context for a build task, when exploring unknowns before
-committing to an implementation, or when performing new research. This skill supports two workflows:
-consuming existing research and performing new research.
+This skill supports two workflows: consuming existing research and performing new research.
 
 ## Consuming Existing Research
 
-### When to Use
-
-- Starting work on a feature and you need domain context
-- Evaluating implementation options for a technology decision
-- A pitch or spec references prior research
-
-### Feature-to-Research Lookup
-
-| Your Feature   | Wiki Page                                                     | What to Look For                                            |
-| -------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| `editor_ui`    | `UI-Architecture-Survey`                                      | Architecture options, framework comparison, test strategies |
-| `game_system`  | `Hex-Wargame-Reference-Games`, `Game-Engine-Property-Types`   | Reference game rules, property type patterns                |
-| `hex_grid`     | `Hex-Wargame-Mechanics-Survey`                                | Hex grid systems, coordinates, adjacency                    |
-| `ontology`     | `Hex-Wargame-Mechanics-Survey`                                | Strategic systems, meta-mechanics, game concepts            |
-| `rules_engine` | `Hex-Wargame-Mechanics-Survey`                                | Combat resolution, movement rules, supply/logistics         |
-| `unit`         | `Hex-Wargame-Mechanics-Survey`, `Hex-Wargame-Reference-Games` | Counter properties, stacking, unit types                    |
-| `cell`         | `Hex-Wargame-Mechanics-Survey`                                | Terrain types, hex properties, terrain effects              |
-| `persistence`  | `Game-Engine-Property-Types`                                  | Serialization patterns across engines                       |
-| `scripting`    | `UI-Architecture-Survey`                                      | mlua integration, embedded scripting survey                 |
-
-### How to Read
-
-Research lives in the GitHub Wiki, cloned locally at `.wiki/`. Read pages directly:
-
-```
-.wiki/UI-Architecture-Survey.md
-.wiki/Hex-Wargame-Reference-Games.md
-.wiki/Hex-Wargame-Mechanics-Survey.md
-.wiki/Game-Engine-Property-Types.md
-.wiki/Research-Index.md              # full topic index
-```
-
-If `.wiki/` is missing, clone it:
+Research lives in the GitHub Wiki, cloned locally at `.wiki/`. If `.wiki/` is missing, run:
 
 ```bash
 mise run wiki:clone
 ```
 
+1. Read `.wiki/Research-Index.md` — this is the **single source of truth** for which research pages
+   are relevant to which feature areas and topics
+2. Read the relevant `.wiki/<Page-Name>.md` file(s) identified by the index
+3. Read `.wiki/Home.md` for a complete list of all available research pages
+
 ### How to Use Findings
 
-1. Read only the sections relevant to your current work (use Research-Index.md for section pointers)
+1. Read only the sections relevant to your current work (the Research Index has section pointers)
 2. Summarize key findings that affect your implementation decisions
 3. Reference the wiki page in your feature log entry
 4. Do not copy research content into specs or code comments — reference the wiki page
@@ -101,12 +81,11 @@ mise run wiki:clone
     # Update Home.md and Research-Index.md with the new entry
     git add Home.md Research-Index.md
     git commit -m "Add <topic> research"
+    git pull --rebase
     git push
     cd ..
     ```
 
-5. **Close the GitHub Issue.** Reference the wiki page URL in the closing comment.
+    If `git pull --rebase` surfaces conflicts, stop and resolve them with the user before pushing.
 
-6. **Update references.** Add the new page to:
-    - The lookup table in this skill file
-    - The lookup table in `docs/guides/research.md`
+5. **Close the GitHub Issue.** Reference the wiki page URL in the closing comment.

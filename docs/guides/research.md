@@ -19,38 +19,23 @@ mise run wiki:clone
 Research does NOT live in the main repo. The main repo contains code, specs, contracts, and process
 docs. Research is reference material consumed during builds but not part of the build artifact.
 
-## Current Research Pages
+### Finding Research
 
-| Page                         | Topic                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------- |
-| UI Architecture Survey       | Editor UI technology evaluation (egui, Qt, Dioxus, composable Rust stack) |
-| Hex Wargame Reference Games  | Reference game catalog with licensing analysis                            |
-| Hex Wargame Mechanics Survey | Comprehensive hex-and-counter wargame mechanics catalog                   |
-| Game Engine Property Types   | Property type systems across game engines                                 |
+- `.wiki/Home.md` — lists all available research pages
+- `.wiki/Research-Index.md` — maps feature areas and topics to specific research pages and sections
 
-## Feature-to-Research Lookup
-
-| Feature Area   | Relevant Research                 |
-| -------------- | --------------------------------- |
-| `editor_ui`    | UI Architecture Survey            |
-| `game_system`  | Reference Games, Property Types   |
-| `hex_grid`     | Mechanics Survey                  |
-| `ontology`     | Mechanics Survey                  |
-| `rules_engine` | Mechanics Survey                  |
-| `unit`         | Mechanics Survey, Reference Games |
-| `cell`         | Mechanics Survey                  |
-| `persistence`  | Property Types                    |
-| `scripting`    | UI Architecture Survey            |
+These two wiki pages are the **single source of truth** for what research exists and where to find
+it. Do not duplicate their content elsewhere.
 
 ## Consuming Research During Builds
 
-1. Check the lookup table above (or `.wiki/Research-Index.md` for section-level detail)
+1. Read `.wiki/Research-Index.md` to find research relevant to your feature area
 2. Read the relevant `.wiki/<Page-Name>.md` file
 3. Summarize relevant findings in your feature log
 4. Reference the wiki page when it informs a design decision
 
-The research skill (`.claude/skills/research/SKILL.md`) provides the same lookup table and
-step-by-step instructions for agents.
+The research skill (`.claude/skills/research/SKILL.md`) provides step-by-step instructions for
+agents.
 
 ## Performing New Research
 
@@ -85,15 +70,10 @@ GitHub Issue (type:research) → Investigation → Wiki page → Consumed during
     - Synthesis — cross-cutting analysis, common patterns, trade-offs
     - Recommendation — specific to Hexorder, with rationale
 
-4. **Push to the wiki.** Commit the new page in `.wiki/`, update Home.md and Research-Index.md,
-   push.
+4. **Push to the wiki.** Commit the new page in `.wiki/`, update Home.md and Research-Index.md, pull
+   with rebase to catch upstream changes, resolve any conflicts with the user, then push.
 
 5. **Close the GitHub Issue.** Reference the wiki page URL in the closing comment.
-
-6. **Update references.** Add the new page to:
-    - The wiki Home page and Research Index
-    - The lookup table in this guide
-    - The lookup table in `.claude/skills/research/SKILL.md`
 
 ### Quality Bar
 
