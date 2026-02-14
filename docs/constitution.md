@@ -48,8 +48,7 @@ application consumes the exported assets for distribution.
 ## Documentation
 
 - Markdown filenames are lowercase with hyphens as word separators (e.g., `game-system.md`, not
-  `game_system.md`)
-- A lefthook pre-commit check enforces this for staged `.md` files
+  `game_system.md`) — enforced by `mise check:filenames`
 
 ## Architecture
 

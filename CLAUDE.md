@@ -127,18 +127,19 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 3. `cargo build` — clean compilation
 4. **No `unwrap()` in production code** (test files exempt) — `mise check:unwrap`
 5. **No cross-feature internal imports** — `mise check:boundary`
-6. Formatting, typos, TOML, dependency audit — all covered by `mise check`
+6. **Filename conventions** (e.g., no underscores in `.md` filenames) — `mise check:filenames`
+7. Formatting, typos, TOML, dependency audit — all covered by `mise check`
 
 **Manual checks** — these require human judgment and cannot be automated:
 
-7. **No `unsafe` without documented justification**
-8. **All public types derive `Debug`**
-9. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
-   `docs/contracts/`, and vice versa
-10. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
+8. **No `unsafe` without documented justification**
+9. **All public types derive `Debug`**
+10. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
+    `docs/contracts/`, and vice versa
+11. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
     passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
     test and documented in `docs/brand.md`
-11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
+12. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
     placeholders in specs, feature logs, and source code have corresponding GitHub Issues. Search
     with `gh issue list --search "<keywords>"` to verify.
 
@@ -168,6 +169,7 @@ If a cycle does not finish by its deadline:
 - `mise check:clippy` — lint check (pedantic, configured in Cargo.toml)
 - `mise check:boundary` — cross-feature import boundary check
 - `mise check:unwrap` — no unwrap() in production code
+- `mise check:filenames` — filename convention checks (markdown hyphens, etc.)
 - `mise fix` — run all auto-fixers (fmt, clippy, taplo, prettier, typos)
 - `cargo test --lib <feature_name>` — feature-specific tests
 
