@@ -63,3 +63,85 @@ jobs:
         with:
           tool: taplo-cli
       - run: taplo fmt --check
+
+  prettier:
+    name: Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - run: npm install -g prettier
+      - run: prettier --check .
+
+  gitleaks:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  doc:
+    name: Documentation
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --no-deps --quiet
+
+  boundary:
+    name: Import Boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no cross-feature internal imports
+        run: |
+          violations=$(grep -rn 'use crate::' src/ --include='*.rs' | grep -v contracts | grep -v 'mod tests' | grep -v tests.rs | grep -v 'use crate::contracts' || true)
+          if [ -n "$violations" ]; then
+            echo "ERROR: Cross-feature import boundary violations found:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "No boundary violations found."
+
+  unwrap:
+    name: No Unwrap
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no unwrap() in production code
+        run: |
+          violations=$(grep -rn '\.unwrap()' src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\[cfg(test)\]' | grep -v '#\[test\]' || true)
+          if [ -n "$violations" ]; then
+            echo "ERROR: unwrap() found in production code (test files exempt):"
+            echo "$violations"
+            exit 1
+          fi
+          echo "No unwrap() in production code."
+
+  debug:
+    name: Debug Derive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all public types derive Debug
+        run: |
+          violations=$(find src -name '*.rs' ! -name 'tests.rs' -exec awk '
+            /^#\[derive\(/ { has_debug = ($0 ~ /Debug/) }
+            /^pub (struct|enum) / {
+              if (!has_debug) print FILENAME ":" NR ": " $0
+              has_debug = 0
+            }
+          ' {} + || true)
+          if [ -n "$violations" ]; then
+            echo "ERROR: Public types missing #[derive(Debug)]:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "All public types derive Debug."
