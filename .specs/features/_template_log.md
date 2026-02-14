@@ -30,6 +30,15 @@ will be done about failures]
 | ------- | ---------- | ------ | -------- |
 |         |            |        |          |
 
+## Deferred / Future Work
+
+Items discovered during implementation that are out of scope for this feature. Before merging,
+create a GitHub Issue for each item
+(`gh issue create --label "status:deferred" --label "type:<type>" --milestone "Backlog"`). Note the
+issue number next to each transferred item.
+
+- [None yet]
+
 ## Status Updates
 
 | Date | Status   | Notes                |

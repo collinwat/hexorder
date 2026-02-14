@@ -48,3 +48,11 @@ If this feature warrants parallel work, break it into subtasks here.
 ## Open Questions
 
 - [Things not yet decided — resolve these in the log]
+
+## Deferred Items
+
+Items explicitly out of scope for this feature. When the feature is complete, verify all items below
+have a corresponding GitHub Issue (create with `status:deferred` label if not). Note the issue
+number next to each item.
+
+- [None yet]

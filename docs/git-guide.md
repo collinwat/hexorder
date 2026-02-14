@@ -344,33 +344,51 @@ Every merge to `main` must pass all of these in order:
       it in the commit body.
 4. **Spec criteria met?** Open `.specs/features/<name>/spec.md`. Every success criterion is
    satisfied.
-5. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
+5. **Deferred items captured?** Check `.specs/features/<name>/spec.md` → Deferred Items and
+   `.specs/features/<name>/log.md` → Deferred / Future Work. Every item must have a corresponding
+   GitHub Issue (create with `gh issue create --label "status:deferred" --milestone "Backlog"`).
+   Also scan source code for TODO/FIXME comments or placeholder text (e.g., "coming soon") — these
+   must have corresponding issues or be removed.
+6. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
    `main` tip. If not, rebase first: `git rebase main`. If the rebase produces conflicts, follow the
    Conflict Resolution rules below.
-6. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced conflicts
+7. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced conflicts
    or breakage not caught earlier. All checks must pass before proceeding.
-7. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
+8. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
    `0.4.0`).
-8. **Merge.** From `main`: `git merge --ff-only <branch>`. The `--ff-only` flag ensures a
-   fast-forward (linear history). If it fails, the branch is not rebased — go back to step 5.
-9. **Generate changelog.** Run `mise changelog:generate`. Review the generated output to confirm
-   it's accurate. Make manual edits only if a commit message was unclear.
-10. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
+9. **Merge.** From `main`: `git merge --ff-only <branch>`. The `--ff-only` flag ensures a
+   fast-forward (linear history). If it fails, the branch is not rebased — go back to step 6.
+10. **Generate changelog.** Run `mise changelog:generate`. Review the generated output to confirm
+    it's accurate. Make manual edits only if a commit message was unclear.
+11. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
     `chore(project): bump version to <version>`.
-11. **Tag.** Create annotated tag: `git tag -a v<version> -m "<milestone>: <milestone title>"`.
-12. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
+12. **Tag.** Create annotated tag: `git tag -a v<version> -m "<milestone>: <milestone title>"`.
+13. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
     are correct.
-13. **Release lock.** Update your Merge Lock row in `.specs/coordination.md` to status `done`.
+14. **Release lock.** Update your Merge Lock row in `.specs/coordination.md` to status `done`.
+15. **Push tag.** Push the tag to the remote: `git push origin v<version>`.
+16. **Create GitHub Release.** Create a release from the tag:
+    `gh release create v<version> --title "<milestone>: <milestone title>" --notes-file CHANGELOG.md`
 
 ### Milestone final merge
 
 When the last feature of a milestone merges, also:
 
-14. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the Milestone
+17. **Milestone checkpoint audit.** Run `mise check:audit` plus the manual checks from the Milestone
     Completion Gate in CLAUDE.md.
-15. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
+18. **Record in coordination.** Add the audit result and tag to `.specs/coordination.md` under
     Integration Test Checkpoints.
+19. **Issue cleanup.** Close all GitHub Issues completed in this milestone:
+    `gh issue list --milestone "<milestone>" --state open` — close each with
+    `gh issue close <number> --reason completed`. Verify no open issues remain for the milestone.
+    Close the GitHub Milestone:
+    `gh api repos/collinwat/hexorder/milestones/<n> -X PATCH -f state=closed`.
+20. **Triage new items.** Review issues with `status:triage` label:
+    `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label, set
+    priority. Review open issues older than 2 milestones for staleness.
+21. **Run checkpoint.** Answer the Checkpoint Template questions in `.specs/roadmap.md`. The backlog
+    is now clean, so triage decisions for the next milestone are based on accurate remaining work.
 
 ### Conflict Resolution
 
@@ -449,6 +467,32 @@ before either merges to `main`, use a **temporary integration branch**:
 
 This branch exists solely for testing. It carries no version bump, no changelog entry, and no tag.
 The real merges happen through the normal Pre-Merge Checklist.
+
+### Rollback
+
+If a merge to `main` introduces a regression:
+
+1. **Revert the merge commit**: `git revert -m 1 <merge-sha>`
+2. **Tag the revert**: `git tag -a v<version>.1 -m "Revert: <reason>"`
+3. **Push**: `git push origin main v<version>.1`
+4. **Reopen the feature branch** to fix the issue
+5. **Re-merge** following the normal Pre-Merge Checklist once the fix is verified
+
+Do not delete or force-push tags. The revert creates a clean history record.
+
+### Breaking Changes
+
+For commits that introduce breaking changes, add a `BREAKING CHANGE:` footer to the commit body:
+
+```
+feat(game_system): replace PropertyValue with TypedValue
+
+BREAKING CHANGE: PropertyValue enum variants renamed. All save files
+using the old format must be migrated.
+```
+
+git-cliff renders these in a separate "Breaking Changes" section in the changelog. Include migration
+steps in the commit body or a linked document.
 
 ---
 
@@ -639,3 +683,9 @@ When a Claude Code session needs to commit:
 9. **Multi-terminal coordination**: each session works in its own worktree on its own branch
 10. **Merge lock**: always claim the Merge Lock in `.specs/coordination.md` before starting a merge
     to `main` — never merge without holding the lock
+11. **Issue references**: reference GitHub Issue numbers in commits when closing or addressing
+    tracked items (e.g., `fixes #42`, `ref #42`)
+12. **Deferred items**: create GitHub Issues for deferred items before merge — do not add to
+    roadmap.md
+13. **Duplicate check**: search existing issues before creating:
+    `gh issue list --search "<keywords>" --state all`

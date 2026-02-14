@@ -1,0 +1,50 @@
+name: Feature
+description: User-facing capability or product functionality
+labels: ["type:feature", "status:triage"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should the user be able to do?
+    validations:
+      required: true
+  - type: input
+    id: spec-link
+    attributes:
+      label: Spec file
+      description: >-
+        Path to the relevant spec file, if one exists (e.g., .specs/features/unit/spec.md)
+      placeholder: ".specs/features/..."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the system does this affect?
+      multiple: true
+      options:
+        - hex-grid
+        - camera
+        - game-system
+        - cell
+        - unit
+        - editor-ui
+        - ontology
+        - rules-engine
+        - scripting
+        - persistence
+        - contracts
+        - process
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: >-
+        Why is this needed? Link to milestone checkpoint notes, roadmap items, or prior decisions.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know this is done? One criterion per line.

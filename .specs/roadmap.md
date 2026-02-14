@@ -410,6 +410,92 @@ the relation system to work across all entity categories uniformly.
 - `cargo test` and `cargo clippy --all-targets` pass
 - Constitution audit passes (no contract boundary violations)
 
+### M4 Checkpoint (2026-02-13)
+
+**Status**: Complete. 92 tests, clippy clean, constitution audit passed (all checks green).
+
+**1. What did we learn?**
+
+- The ontology framework works — concepts, relations, constraints, and schema validation all
+  function as designed. The auto-constraint generation for Subtract relations is a clean pattern.
+- The OntologyParams SystemParam bundle was necessary to stay under Bevy's 16-parameter limit. This
+  is a sign the editor_ui system is accumulating too many dependencies — future milestones should
+  consider splitting the monolithic `editor_panel_system` into per-tab systems.
+- A UI architecture research effort (documented in `docs/research/ui-architecture-survey.md`)
+  surveyed how Unity, Autodesk (Maya), Unreal, and Blender build their editor UIs and test
+  interactions. Key findings:
+    - **egui has no built-in test driver for UI interactions.** Every major design tool platform has
+      one. egui_kittest + AccessKit now exists and should be adopted.
+    - **Reflection-driven form generation** (Unreal's UPROPERTY pattern) eliminates most manual form
+      building. Bevy's `Reflect` system enables this via bevy-inspector-egui patterns.
+    - **Embedded scripting** (Lua/Python) is the industry-standard test driver and user automation
+      layer for native design tools (Maya, Blender, Houdini).
+    - **Dioxus Native (Blitz)** is the most promising long-term migration target — HTML/CSS forms,
+      GPU-rendered via wgpu, AccessKit testable, shared lower crates with Bevy. Pre-alpha today.
+
+**2. What felt right? What felt wrong or missing?**
+
+- Right: The ontology editor tabs (Concepts, Relations, Constraints, Validation) organize complexity
+  well. The tabbed layout keeps the sidebar manageable.
+- Right: Schema validation with immediate visual feedback ("Schema Valid" / error list) gives the
+  designer confidence.
+- Wrong: **Editor forms are hand-built egui code.** Every new entity type, property, or concept
+  requires manual widget construction. This does not scale — future milestones will add more data
+  types and the editor code will grow linearly.
+- Wrong: **No UI interaction tests exist.** All 92 tests exercise logic and ECS systems. None test
+  that clicking a button or filling a form actually produces the correct state change through the
+  UI. We cannot verify the editor works without manual testing.
+- Missing: **Scripting layer.** Game rule definitions are structured data entered through forms.
+  Designers will eventually want to script rules, batch-process definitions, and automate
+  experiments. A scripting layer (Lua) would also serve as an integration test driver.
+- Missing: Persistence is still absent (expected — scoped for M5).
+
+**3. Does M5 still make sense?**
+
+Yes, but it should be preceded by a testing and infrastructure milestone. Persistence adds
+complexity (file I/O, serialization, migration) that will be hard to verify without UI interaction
+tests. Adding testability _before_ persistence means M5's save/load workflows can be tested from day
+one.
+
+**4. Reorder/insert/drop?**
+
+**Insert M4.5 — "The World Is Testable"** before M5. This is infrastructure, not features — but it
+directly enables testing every future milestone's UI.
+
+**5. Domain model changes?**
+
+No changes to the domain model. However, the _implementation architecture_ assumption has evolved:
+the editor UI should be driven by type reflection rather than hand-built forms, and a scripting
+layer is a product feature (not just tooling).
+
+**6. Revised sketches?**
+
+M5 stays as sketched. M4.5 inserted before it. M6+ gains "Embedded scripting (Lua)" as a known
+future need.
+
+**Carry-forward notes for M4.5:**
+
+- egui_kittest is the entry point — validate it works with bevy_egui before committing to the rest
+- `Reflect` derives should be additive (don't break existing code)
+- mlua integration should expose read-only access to registries first, write access later
+- The UI architecture research (`docs/research/ui-architecture-survey.md`) documents the full
+  strategy and long-term migration path toward Dioxus Native/Blitz
+
+---
+
+## Milestone 4.5 — "The World Is Testable" (sketch)
+
+Testing infrastructure and reflection-driven forms. No new user-facing features — this milestone
+makes the existing editor verifiable and reduces the cost of building future UI.
+
+- Add egui_kittest for AccessKit-based UI interaction testing
+- Derive `Reflect` on game system data types (EntityType, PropertyDefinition, Concept, Relation,
+  Constraint)
+- Explore bevy-inspector-egui patterns for auto-generated property editor panels
+- Add mlua (LuaJIT) as embedded scripting layer (read-only registry access first)
+- Write UI interaction tests covering the ontology editor panels
+- Consider splitting `editor_panel_system` into per-tab systems to reduce parameter accumulation
+
 ---
 
 ## Milestone 5 — "The World Remembers" (sketch)
@@ -420,35 +506,72 @@ and Game data model in storage.
 
 ---
 
-## Milestone 6+ — Future (sketch)
+## Backlog
 
-These are known needs, unordered and unrefined:
+Backlog items are tracked as GitHub Issues: `gh issue list --state open`
 
-- Game Sessions (play-test runtime with insight capture)
-- Scenarios, campaigns, situations within a Game
-- Game System versioning and change isolation model
-- Impact analysis for Game System changes across Games
-- Export pipeline for game system definitions
-- Combat resolution systems
-- Line of sight / visibility
-- Rich rule authoring UI
-- Undo/redo
+### Quick reference
+
+```bash
+gh issue list --milestone "Backlog"           # unscheduled items
+gh issue list --milestone "<milestone>"       # items for a specific milestone
+gh issue list --label "status:triage"         # items needing triage
+gh issue list --label "type:feature"          # all feature requests
+gh issue list --search "<keywords>"           # search by keyword
+```
+
+### How to add items
+
+1. Search existing issues first: `gh issue list --search "<keywords>" --state all`
+2. Create via `gh issue create` using the appropriate template (feature, bug, tech-debt, research)
+3. New issues automatically get `status:triage` label
+4. Assign to `Backlog` milestone unless targeting a specific milestone
+
+### How items get promoted
+
+Items are promoted into milestones during **checkpoint triage** (after a milestone ships). Promotion
+means reassigning the issue from the `Backlog` milestone to the target milestone. The checkpoint
+questions drive prioritization:
+
+- "What felt wrong or missing?" → surfaces feature and UX needs
+- "Does the next planned milestone still make sense?" → reorders priorities
+- "Do we need to insert, reorder, or drop anything?" → creates/adjusts milestones from backlog items
+
+Items that span multiple milestones should be split into separate issues linked via a parent issue
+(`meta:parent` label with task list).
 
 ---
 
 ## Checkpoint Template
 
-After each milestone, answer these before speccing the next:
+After each milestone, follow this sequence. Steps 1–4 happen before the checkpoint questions. Steps
+5–10 are the checkpoint itself. The full merge and tagging procedure is in `docs/git-guide.md` →
+Milestone final merge (steps 17–21).
 
-1. What did we learn by using the tool at this stage?
-2. What felt right? What felt wrong or missing?
-3. Does the next planned milestone still make sense?
-4. Do we need to insert, reorder, or drop anything?
-5. Have any domain model assumptions changed?
-6. Update this file with revised sketches.
+### Pre-Checkpoint
 
-### Pre-Checkpoint: Constitution Audit
+1. **Constitution audit.** The milestone must pass the **Milestone Completion Gate** defined in
+   CLAUDE.md. This is a full-codebase audit covering tests, lint, contract boundaries, and
+   architectural rules. No milestone is complete until the audit passes with zero violations.
+2. **Issue cleanup.** Close all GitHub Issues completed in this milestone. Verify via
+   `gh issue list --milestone "<milestone>" --state open`. Close the GitHub Milestone.
+3. **Triage new items.** Review all issues with `status:triage` label:
+   `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label, set
+   priority.
+4. **Review aging items.** Check open issues older than 2 milestones. Close or reprioritize stale
+   items.
 
-Before running the checkpoint, the milestone must pass the **Milestone Completion Gate** defined in
-CLAUDE.md. This is a full-codebase audit covering tests, lint, contract boundaries, and
-architectural rules. No milestone is complete until the audit passes with zero violations.
+### Checkpoint Questions
+
+Checkpoint decisions (reorder, insert, drop milestones) are made by the project owner (human).
+Agents provide data and recommendations but do not unilaterally change milestone order. Answer these
+before speccing the next milestone:
+
+5. What did we learn by using the tool at this stage?
+6. What felt right? What felt wrong or missing?
+7. Does the next planned milestone still make sense?
+8. Do we need to insert, reorder, or drop anything?
+9. Have any domain model assumptions changed?
+10. Update this file with revised sketches. A "sketch" is a milestone description with a goal
+    statement and bullet-point scope. No spec files, contracts, or success criteria until promoted
+    to active milestone during triage.

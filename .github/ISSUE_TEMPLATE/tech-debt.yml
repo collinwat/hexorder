@@ -1,0 +1,43 @@
+name: Tech Debt
+description: Infrastructure, architecture, developer experience improvement
+labels: ["type:tech-debt", "status:triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to change and why?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the system does this affect?
+      multiple: true
+      options:
+        - hex-grid
+        - camera
+        - game-system
+        - cell
+        - unit
+        - editor-ui
+        - ontology
+        - rules-engine
+        - scripting
+        - persistence
+        - contracts
+        - process
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: >-
+        Where was this identified? Link to checkpoint notes, code comments, or log entries.
+  - type: textarea
+    id: approach
+    attributes:
+      label: Suggested approach
+      description: Optional — initial thoughts on how to address this.

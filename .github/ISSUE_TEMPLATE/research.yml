@@ -1,0 +1,25 @@
+name: Research
+description: Investigation before committing to implementation
+labels: ["type:research", "status:triage"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question
+      description: What do we need to find out?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why does this matter? What decision does it unblock?
+    validations:
+      required: true
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Expected deliverables
+      description: >-
+        What does "done" look like? (e.g., a doc in docs/research/, a decision in a feature log, a
+        prototype branch)

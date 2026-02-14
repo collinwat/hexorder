@@ -176,3 +176,21 @@ echo ""
 echo "=== Changed Files (since main) ==="
 git diff main..HEAD --stat 2>/dev/null || echo "(on main — no diff)"
 """
+
+# --- Issue tasks ---
+
+[tasks."issue:triage"]
+description = "List issues needing triage"
+run = "gh issue list --label 'status:triage'"
+
+[tasks."issue:backlog"]
+description = "List backlog issues"
+run = "gh issue list --milestone Backlog --state open"
+
+[tasks."issue:open"]
+description = "List all open issues"
+run = "gh issue list --state open"
+
+[tasks."issue:search"]
+description = "Search issues (pass query as argument)"
+run = "gh issue list --search \"${1:-}\" --state all"
