@@ -51,7 +51,7 @@ run = "cargo clippy --all-targets"
 
 [tasks."check:test"]
 description = "Run all tests"
-run = "cargo test"
+depends = [ "test" ]
 
 [tasks."check:deny"]
 description = "Audit dependencies"
@@ -139,6 +139,16 @@ depends = [
 [tasks."check:audit"]
 description = "Full constitution audit (all automated checks)"
 depends = [ "check" ]
+
+# --- Test tasks ---
+
+[tasks.test]
+description = "Run all tests"
+depends = [ "test:cargo" ]
+
+[tasks."test:cargo"]
+description = "Run Rust unit and integration tests"
+run = "cargo test"
 
 # --- Workflow tasks ---
 

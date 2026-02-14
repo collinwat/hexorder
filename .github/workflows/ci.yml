@@ -15,65 +15,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: mise run check:fmt
 
   clippy:
     name: Clippy
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets
+      - run: mise run check:clippy
 
   test:
     name: Test
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test
+      - run: mise run test
 
   deny:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: jdx/mise-action@v2
+      - run: mise run check:deny
 
   typos:
     name: Spell Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: crate-ci/typos@master
+      - uses: jdx/mise-action@v2
+      - run: mise run check:typos
 
   toml:
     name: TOML Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: taplo-cli
-      - run: taplo fmt --check
+      - uses: jdx/mise-action@v2
+      - run: mise run check:taplo
 
   prettier:
     name: Prettier
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-      - run: npm install -g prettier
-      - run: prettier --check .
+      - uses: jdx/mise-action@v2
+      - run: mise run check:prettier
 
   gitleaks:
     name: Secret Scan
@@ -89,57 +89,31 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --no-deps --quiet
+      - run: mise run check:doc
 
   boundary:
     name: Import Boundaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check no cross-feature internal imports
-        run: |
-          violations=$(grep -rn 'use crate::' src/ --include='*.rs' | grep -v contracts | grep -v 'mod tests' | grep -v tests.rs | grep -v 'use crate::contracts' || true)
-          if [ -n "$violations" ]; then
-            echo "ERROR: Cross-feature import boundary violations found:"
-            echo "$violations"
-            exit 1
-          fi
-          echo "No boundary violations found."
+      - uses: jdx/mise-action@v2
+      - run: mise run check:boundary
 
   unwrap:
     name: No Unwrap
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check no unwrap() in production code
-        run: |
-          violations=$(grep -rn '\.unwrap()' src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\[cfg(test)\]' | grep -v '#\[test\]' || true)
-          if [ -n "$violations" ]; then
-            echo "ERROR: unwrap() found in production code (test files exempt):"
-            echo "$violations"
-            exit 1
-          fi
-          echo "No unwrap() in production code."
+      - uses: jdx/mise-action@v2
+      - run: mise run check:unwrap
 
   debug:
     name: Debug Derive
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check all public types derive Debug
-        run: |
-          violations=$(find src -name '*.rs' ! -name 'tests.rs' -exec awk '
-            /^#\[derive\(/ { has_debug = ($0 ~ /Debug/) }
-            /^pub (struct|enum) / {
-              if (!has_debug) print FILENAME ":" NR ": " $0
-              has_debug = 0
-            }
-          ' {} + || true)
-          if [ -n "$violations" ]; then
-            echo "ERROR: Public types missing #[derive(Debug)]:"
-            echo "$violations"
-            exit 1
-          fi
-          echo "All public types derive Debug."
+      - uses: jdx/mise-action@v2
+      - run: mise run check:debug

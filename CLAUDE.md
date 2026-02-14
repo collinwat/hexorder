@@ -119,13 +119,15 @@ milestone version and record it in coordination.md.
 
 ## Testing Commands
 
+- `mise test` — run all tests
+- `mise test:cargo` — run Rust unit and integration tests
 - `mise check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
 - `mise check:audit` — full constitution audit (same as `check`, used at milestone gates)
-- `cargo test` — all unit and integration tests
-- `cargo clippy --all-targets` — lint check (pedantic, configured in Cargo.toml)
-- `cargo test --lib <feature_name>` — feature-specific tests
+- `mise check:clippy` — lint check (pedantic, configured in Cargo.toml)
 - `mise check:boundary` — cross-feature import boundary check
 - `mise check:unwrap` — no unwrap() in production code
+- `mise fix` — run all auto-fixers (fmt, clippy, taplo, prettier, typos)
+- `cargo test --lib <feature_name>` — feature-specific tests
 
 ## GitHub Issues Workflow
 
