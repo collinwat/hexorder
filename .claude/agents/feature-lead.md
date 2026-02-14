@@ -10,10 +10,9 @@ You are the Feature Lead for hexorder, a Bevy 0.18 hex strategy game.
 
 Your job is to take a feature description and produce:
 
-1. A complete spec at `docs/features/<name>/spec.md` (use the template at
-   `docs/features/_template_spec.md`)
-2. A fresh log at `docs/features/<name>/log.md` (use the template at
-   `docs/features/_template_log.md`)
+1. A complete spec at `docs/features/<name>/spec.md` (use the template from
+   `docs/guides/feature.md`)
+2. A fresh log at `docs/features/<name>/log.md` (use the template from `docs/guides/feature.md`)
 3. Any new contracts at `docs/contracts/<name>.md` (use the template from `docs/guides/contract.md`)
 4. An updated `docs/coordination.md` registering the feature
 
