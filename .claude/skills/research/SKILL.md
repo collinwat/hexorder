@@ -9,15 +9,10 @@ description:
 
 # Research
 
-This skill supports two workflows: consuming existing research and performing new research.
+This skill supports two workflows: consuming existing research and performing new research. Wiki
+operations (reading, writing, pushing) are handled by the **wiki skill**.
 
 ## Consuming Existing Research
-
-Research lives in the GitHub Wiki, cloned locally at `.wiki/`. If `.wiki/` is missing, run:
-
-```bash
-mise run wiki:clone
-```
 
 1. Read `.wiki/Research-Index.md` — this is the **single source of truth** for which research pages
    are relevant to which feature areas and topics
@@ -73,19 +68,7 @@ mise run wiki:clone
     [Specific recommendation for Hexorder with rationale]
     ```
 
-4. **Commit and push to the wiki:**
-
-    ```bash
-    cd .wiki
-    git add <New-Page>.md
-    # Update Home.md and Research-Index.md with the new entry
-    git add Home.md Research-Index.md
-    git commit -m "Add <topic> research"
-    git pull --rebase
-    git push
-    cd ..
-    ```
-
-    If `git pull --rebase` surfaces conflicts, stop and resolve them with the user before pushing.
+4. **Publish.** Use the wiki skill to commit the new page, update Home.md and Research-Index.md, and
+   push.
 
 5. **Close the GitHub Issue.** Reference the wiki page URL in the closing comment.

@@ -10,11 +10,8 @@ implementation begins. Research outputs live in the GitHub Wiki, not in the main
 All research documents live in the **GitHub Wiki**: https://github.com/collinwat/hexorder/wiki
 
 The wiki is a separate git repo cloned locally at `.wiki/` (gitignored). Agents and developers read
-pages directly from this directory. If `.wiki/` is missing, run:
-
-```bash
-mise run wiki:clone
-```
+pages directly from this directory. The wiki skill (`.claude/skills/wiki/SKILL.md`) provides
+instructions for reading, writing, and pushing wiki content.
 
 Research does NOT live in the main repo. The main repo contains code, specs, contracts, and process
 docs. Research is reference material consumed during builds but not part of the build artifact.
@@ -70,8 +67,8 @@ GitHub Issue (type:research) → Investigation → Wiki page → Consumed during
     - Synthesis — cross-cutting analysis, common patterns, trade-offs
     - Recommendation — specific to Hexorder, with rationale
 
-4. **Push to the wiki.** Commit the new page in `.wiki/`, update Home.md and Research-Index.md, pull
-   with rebase to catch upstream changes, resolve any conflicts with the user, then push.
+4. **Push to the wiki.** Use the wiki skill to commit the new page, update Home.md and
+   Research-Index.md, and push.
 
 5. **Close the GitHub Issue.** Reference the wiki page URL in the closing comment.
 
