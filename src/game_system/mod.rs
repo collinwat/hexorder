@@ -1,4 +1,4 @@
-//! Game System feature plugin.
+//! Game System plugin.
 //!
 //! Provides the Game System container and the unified `EntityTypeRegistry`.
 //! This is the root design artifact that holds all user-defined definitions

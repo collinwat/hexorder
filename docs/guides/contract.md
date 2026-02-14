@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Contracts define shared interfaces between feature plugins. They are the **only** coupling points
-between features — all cross-feature communication flows through contract types. This keeps features
+Contracts define shared interfaces between plugins. They are the **only** coupling points between
+plugins — all cross-plugin communication flows through contract types. This keeps plugins
 independently buildable and testable.
 
 ## Where Contracts Live
@@ -37,11 +37,11 @@ Contracts expose **data types only** — no systems, no logic:
 
 ## When to Create or Change a Contract
 
-- **New contract**: When a feature needs to expose types consumed by other features
+- **New contract**: When a plugin needs to expose types consumed by other plugins
 - **Change contract**: When shared types need new fields, variants, or behavior
-- **No contract needed**: When types are internal to a single feature plugin
+- **No contract needed**: When types are internal to a single plugin
 
-Check `docs/architecture.md` for the feature dependency graph to understand which features consume
+Check `docs/architecture.md` for the plugin dependency graph to understand which plugins consume
 which contracts.
 
 ## The Protocol
@@ -61,11 +61,11 @@ which contracts.
 2. Update the spec in `docs/contracts/<name>.md`
 3. Update the implementation in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
-5. Notify affected features (check `docs/architecture.md` for the dependency graph)
+5. Notify affected plugins (check `docs/architecture.md` for the dependency graph)
 
 ### Multi-Agent Coordination
 
-Contract changes affect multiple features. When working in parallel:
+Contract changes affect multiple plugins. When working in parallel:
 
 - Before touching a contract, check `docs/coordination.md` for pending changes
 - After changing a contract, run `cargo build` to catch breakage
@@ -84,11 +84,11 @@ Use this template when creating a new contract spec at `docs/contracts/<name>.md
 
 ## Consumers
 
-- [Feature that reads/uses these types]
+- [Plugin that reads/uses these types]
 
 ## Producers
 
-- [Feature that creates/writes these types]
+- [Plugin that creates/writes these types]
 
 ## Types
 

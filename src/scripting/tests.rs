@@ -1,4 +1,4 @@
-//! Tests for the `scripting` feature plugin.
+//! Tests for the `scripting` plugin.
 
 use mlua::Lua;
 

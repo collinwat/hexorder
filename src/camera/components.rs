@@ -1,4 +1,4 @@
-//! Camera feature components.
+//! Camera plugin components.
 
 use bevy::prelude::*;
 

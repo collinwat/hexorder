@@ -24,20 +24,20 @@ game system assets.
 5. Read `docs/guides/git.md` — git workflow, branching, commit, and merge conventions
 6. Read `docs/guides/bevy.md` — Bevy 0.18 API reference, patterns, and pitfalls
 7. Read `docs/guides/bevy-egui.md` — bevy_egui 0.39 API reference (if working on UI features)
-8. Read `docs/guides/feature.md` — feature spec and log lifecycle
+8. Read `docs/guides/plugin.md` — plugin spec and log lifecycle
 9. Read `docs/guides/contract.md` — contract protocol and spec template (if exposing or consuming
    shared types)
 10. Read `docs/guides/research.md` — research workflow and wiki consumption (if exploring unknowns)
-11. Read the relevant `docs/features/<name>/spec.md` for your assigned feature
-12. Read `docs/contracts/` for any shared types your feature depends on or exposes
-13. Check `docs/features/<name>/log.md` for prior decisions and blockers
+11. Read the relevant `docs/plugins/<name>/spec.md` for your assigned plugin
+12. Read `docs/contracts/` for any shared types your plugin depends on or exposes
+13. Check `docs/plugins/<name>/log.md` for prior decisions and blockers
 14. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
 
 ## Architecture Rules
 
-- Every feature is a Bevy Plugin in its own module under `src/`
+- Every plugin is a Bevy Plugin in its own module under `src/`
 - Shared types live in `src/contracts/` and are mirrored in `docs/contracts/`
-- Use Events for cross-feature communication, never direct coupling
+- Use Events for cross-plugin communication, never direct coupling
 - Components, Resources, Events must derive standard Bevy traits + Debug
 - Prefer systems over methods; prefer queries over direct world access
 - All public API types go through contracts first (spec before code)
@@ -72,9 +72,9 @@ When a cycle starts, do not jump straight into coding. Read the shaped pitch, ex
 code, and think through the approach. This orientation period is normal and expected.
 
 1. Read the pitch Issue for your assigned work
-2. Read `docs/features/<name>/spec.md` and the pitch's solution sketch
-3. Read `docs/contracts/` for any shared types your feature depends on or exposes
-4. Check `docs/features/<name>/log.md` for prior decisions and blockers
+2. Read `docs/plugins/<name>/spec.md` and the pitch's solution sketch
+3. Read `docs/contracts/` for any shared types your plugin depends on or exposes
+4. Check `docs/plugins/<name>/log.md` for prior decisions and blockers
 5. Explore relevant code paths and contracts
 6. Identify the first piece to build end-to-end (see "Get One Piece Done" below)
 
@@ -87,16 +87,16 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 
 7. **Branch**: Run the Feature Branch Setup Checklist in `docs/guides/git.md` — creates branch,
    worktree, pre-release version, spec scaffolding, and claims ownership
-8. **Spec first**: Read/update `docs/features/<name>/spec.md` before coding
-9. **Contract check**: If your feature exposes or consumes shared types, check `docs/contracts/`
-10. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
+8. **Spec first**: Read/update `docs/plugins/<name>/spec.md` before coding
+9. **Contract check**: If your plugin exposes or consumes shared types, check `docs/contracts/`
+10. **Implement**: Write the plugin, systems, components in `src/<plugin_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
     spec success criteria
 12. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
     the feature branch
-13. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
+13. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
     shared types must go through `src/contracts/`
-14. **Log**: Record decisions, test results, blockers in `docs/features/<name>/log.md`
+14. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
 
 ### Scope Hammering
 
@@ -126,7 +126,7 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 2. `cargo clippy --all-targets` — zero warnings (pedantic lints via `[lints.clippy]` in Cargo.toml)
 3. `cargo build` — clean compilation
 4. **No `unwrap()` in production code** (test files exempt) — `mise check:unwrap`
-5. **No cross-feature internal imports** — `mise check:boundary`
+5. **No cross-plugin internal imports** — `mise check:boundary`
 6. Formatting, typos, TOML, dependency audit — all covered by `mise check`
 
 **Manual checks** — these require human judgment and cannot be automated:
@@ -139,11 +139,11 @@ work does not ship, and the problem must be re-shaped and re-pitched.
     passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
     test and documented in `docs/brand.md`
 11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
-    placeholders in specs, feature logs, and source code have corresponding GitHub Issues. Search
+    placeholders in specs, plugin logs, and source code have corresponding GitHub Issues. Search
     with `gh issue list --search "<keywords>"` to verify.
 
-This gate applies even if all individual features pass their own success criteria. Constitution
-violations that only emerge at the cross-feature level (like import boundary violations) are caught
+This gate applies even if all individual plugins pass their own success criteria. Constitution
+violations that only emerge at the cross-plugin level (like import boundary violations) are caught
 here.
 
 After the gate passes, follow the "Cycle ship merge" steps in `docs/guides/git.md` — tag the release
@@ -166,10 +166,10 @@ If a cycle does not finish by its deadline:
 - `mise check` — run all checks (fmt, clippy, test, deny, typos, taplo, boundary, unwrap)
 - `mise check:audit` — full constitution audit (same as `check`, used at release gates)
 - `mise check:clippy` — lint check (pedantic, configured in Cargo.toml)
-- `mise check:boundary` — cross-feature import boundary check
+- `mise check:boundary` — cross-plugin import boundary check
 - `mise check:unwrap` — no unwrap() in production code
 - `mise fix` — run all auto-fixers (fmt, clippy, taplo, prettier, typos)
-- `cargo test --lib <feature_name>` — feature-specific tests
+- `cargo test --lib <plugin_name>` — plugin-specific tests
 
 ## GitHub Issues Workflow
 
@@ -234,28 +234,28 @@ When you need to ADD or CHANGE a contract:
 2. Update the spec in `docs/contracts/<name>.md`
 3. Implement the Rust types in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
-5. Notify affected features (check `docs/architecture.md` for dependency graph)
+5. Notify affected plugins (check `docs/architecture.md` for dependency graph)
 
 ## Agent Coordination Model
 
 Agents are the "team" in Shape Up's building phase. The developer shapes and bets; agents build.
 
-### Solo (simple feature, no dependencies)
+### Solo (simple plugin, no dependencies)
 
 Work through the development workflow above.
 
-### Agent Teams (complex feature, internal parallelism)
+### Agent Teams (complex plugin, internal parallelism)
 
-Lead decomposes the feature into subtasks. Teammates each own a subsystem.
+Lead decomposes the plugin into subtasks. Teammates each own a subsystem.
 
 - Lead: owns the spec, decomposes work, reviews integration
-- Teammates: own individual systems/components within the feature plugin
+- Teammates: own individual systems/components within the plugin
 
-### Multi-Terminal (across-feature parallelism)
+### Multi-Terminal (across-plugin parallelism)
 
 Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 
-- Each terminal owns one feature in its own git worktree and branch (see `docs/guides/git.md`)
+- Each terminal owns one plugin in its own git worktree and branch (see `docs/guides/git.md`)
 - Coordination happens through `docs/coordination.md` and contracts
 - Before touching a contract, check coordination.md for pending changes
 - After changing a contract, run `cargo build` to catch breakage
@@ -265,9 +265,9 @@ Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 
 ## When to Spawn Teammates vs Work Solo
 
-- **Solo**: feature has < 3 systems, no internal parallelism opportunity
-- **Team**: feature has 3+ independent subsystems
-- **Always solo for**: contract changes, cross-feature integration testing
+- **Solo**: plugin has < 3 systems, no internal parallelism opportunity
+- **Team**: plugin has 3+ independent subsystems
+- **Always solo for**: contract changes, cross-plugin integration testing
 
 ## File Organization
 
@@ -276,10 +276,10 @@ src/
   main.rs              # App setup, plugin registration
   contracts/           # Shared types (mirrors docs/contracts/)
     mod.rs
-  <feature_name>/
+  <plugin_name>/
     mod.rs             # Plugin definition
-    components.rs      # Feature-local components
+    components.rs      # Plugin-local components
     systems.rs         # Systems
-    events.rs          # Feature-local events
+    events.rs          # Plugin-local events
     tests.rs           # Unit tests (#[cfg(test)])
 ```

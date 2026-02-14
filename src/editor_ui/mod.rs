@@ -1,4 +1,4 @@
-//! Editor UI feature plugin.
+//! Editor UI plugin.
 //!
 //! Provides the egui-based editor interface with dark theme, tool mode selector,
 //! cell type palette, cell type editor, property editors, and tile inspector.

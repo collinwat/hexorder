@@ -1,4 +1,4 @@
-//! Unit tests for the unit feature plugin.
+//! Unit tests for the unit plugin.
 
 use std::collections::HashMap;
 

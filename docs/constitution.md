@@ -6,18 +6,18 @@ These principles are NON-NEGOTIABLE. Every agent, every session, every commit mu
 
 - Edition 2024, stable toolchain
 - `cargo clippy -- -D warnings` must pass (zero warnings)
-- `cargo test` must pass before any feature is marked complete
-- No `unsafe` without documented justification in the feature log
+- `cargo test` must pass before any plugin is marked complete
+- No `unsafe` without documented justification in the plugin log
 - No `unwrap()` in production code; use `?` or explicit error handling
 - All public types: `#[derive(Debug)]` minimum
 
 ## Bevy 0.18
 
-- Every feature is a `Plugin` implementing `fn build(&self, app: &mut App)`
+- Every plugin is a Bevy `Plugin` implementing `fn build(&self, app: &mut App)`
 - Plugins are registered in `main.rs` and nowhere else
 - Components are data-only structs (no methods beyond trait impls)
 - Logic lives in systems, not in component methods
-- Cross-feature communication uses Events only
+- Cross-plugin communication uses Events only
 - Resources are for global singleton state; components for per-entity state
 - Systems must specify their schedule (Startup, Update, FixedUpdate, etc.)
 - Never use `World` directly in systems; use `Commands`, `Query`, `Res`, `EventReader`/`EventWriter`
@@ -52,17 +52,17 @@ application consumes the exported assets for distribution.
 
 ## Architecture
 
-- Feature boundaries align with plugin boundaries
+- Plugin boundaries align with module boundaries
 - Shared types live in `src/contracts/` and are specified in `docs/contracts/`
-- No circular dependencies between feature plugins
-- Features may depend on contracts but never on other features' internals
+- No circular dependencies between plugins
+- Plugins may depend on contracts but never on other plugins' internals
 - Plugin load order is declared in `main.rs` and documented in `docs/architecture.md`
 
 ## Coordination
 
 - Shape before schedule: promising ideas are shaped into pitches before entering a build cycle
-- Spec before code: `docs/features/<name>/spec.md` must exist before implementation
+- Spec before code: `docs/plugins/<name>/spec.md` must exist before implementation
 - Contracts before types: `docs/contracts/<name>.md` must exist before `src/contracts/<name>.rs`
-- Log everything: decisions, test results, blockers go in the feature log
-- One owner per feature at a time (tracked in coordination.md)
+- Log everything: decisions, test results, blockers go in the plugin log
+- One owner per plugin at a time (tracked in coordination.md)
 - Circuit breaker: unfinished cycles are cancelled by default, not extended

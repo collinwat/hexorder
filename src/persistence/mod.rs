@@ -1,4 +1,4 @@
-//! Persistence feature plugin.
+//! Persistence plugin.
 //!
 //! Handles saving and loading game system definitions and board state
 //! to `.hexorder` (RON) files. Provides keyboard shortcuts, file dialogs,

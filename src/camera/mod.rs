@@ -1,4 +1,4 @@
-//! Camera feature plugin.
+//! Camera plugin.
 //!
 //! Provides a top-down orthographic camera locked perpendicular to the XZ ground plane.
 //! Supports pan (middle-click drag, WASD, arrow keys) and zoom (scroll wheel).
@@ -14,7 +14,7 @@ mod systems;
 #[cfg(test)]
 mod tests;
 
-// Re-exported for other features that may query the camera entity or read camera state.
+// Re-exported for other plugins that may query the camera entity or read camera state.
 #[allow(unused_imports)]
 pub use components::{CameraState, TopDownCamera};
 

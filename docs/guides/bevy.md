@@ -324,9 +324,9 @@ commands.spawn((HexTile, HexPosition::new(0, 0)))
 
 ### Current Hexorder Pattern
 
-Hexorder currently uses the **observer pattern** (`Event` + `commands.trigger()`) for cross-feature
+Hexorder currently uses the **observer pattern** (`Event` + `commands.trigger()`) for cross-plugin
 events like `HexSelectedEvent`. This is correct for immediate, callback-style responses. For future
-features needing buffered multi-reader patterns, switch to `Message`.
+plugins needing buffered multi-reader patterns, switch to `Message`.
 
 ---
 
@@ -413,13 +413,13 @@ let count = query.iter(app.world()).count();
 
 ## 6. Plugin Architecture
 
-Every feature is a Bevy Plugin in its own module:
+Every plugin is a Bevy Plugin in its own module:
 
 ```rust
 #[derive(Debug)]
-pub struct MyFeaturePlugin;
+pub struct MyPlugin;
 
-impl Plugin for MyFeaturePlugin {
+impl Plugin for MyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MyResource>()
             .add_systems(Startup, (setup_a, setup_b).chain())
@@ -980,9 +980,9 @@ src/
     hex_grid.rs        # HexPosition, HexGridConfig, HexSelectedEvent, HexMoveEvent
     game_system.rs     # GameSystem, CellType, CellTypeRegistry, CellData, PropertyType, etc.
     editor_ui.rs       # EditorTool
-  <feature>/
+  <plugin>/
     mod.rs             # Plugin definition
-    components.rs      # Feature-local components
+    components.rs      # Plugin-local components
     systems.rs         # Systems
     tests.rs           # Unit tests (#[cfg(test)])
 ```
@@ -999,7 +999,7 @@ pub mod hex_grid;
 pub mod terrain;
 ```
 
-`#[allow(dead_code)]` is used because not all contract types are consumed by all features at every
+`#[allow(dead_code)]` is used because not all contract types are consumed by all plugins at every
 point in development.
 
 **Before changing a contract:**
@@ -1009,16 +1009,16 @@ point in development.
 3. Implement in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers compile
 
-### Cross-Feature Communication
+### Cross-Plugin Communication
 
-Features communicate exclusively via Events and shared Resources from contracts. No direct imports
-from other feature modules.
+Plugins communicate exclusively via Events and shared Resources from contracts. No direct imports
+from other plugin modules.
 
 ```rust
-// Feature A fires:
+// Plugin A fires:
 commands.trigger(HexSelectedEvent { position: pos });
 
-// Feature B observes:
+// Plugin B observes:
 app.add_observer(|trigger: On<HexSelectedEvent>| { /* ... */ });
 ```
 
@@ -1031,7 +1031,7 @@ app.add_observer(|trigger: On<HexSelectedEvent>| { /* ... */ });
 
 ### Quality Gates
 
-All code must pass before a feature is complete:
+All code must pass before a plugin is complete:
 
 - `cargo test` — all tests pass
 - `cargo clippy -- -D warnings` — zero warnings

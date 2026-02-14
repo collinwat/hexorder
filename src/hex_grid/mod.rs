@@ -1,4 +1,4 @@
-//! Hex grid feature plugin.
+//! Hex grid plugin.
 //!
 //! Spawns a hexagonal grid on the XZ ground plane, handles tile selection
 //! via mouse click, and provides hover feedback.

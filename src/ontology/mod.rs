@@ -1,4 +1,4 @@
-//! Ontology feature plugin.
+//! Ontology plugin.
 //!
 //! Manages the game ontology framework: concepts, relations, and constraints.
 //! Auto-generates companion constraints for `Subtract` relations and runs

@@ -1,4 +1,4 @@
-//! Rules Engine feature plugin.
+//! Rules Engine plugin.
 //!
 //! Evaluates ontology constraints against board state. Computes valid
 //! moves for selected units via BFS with constraint evaluation.

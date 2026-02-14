@@ -1,4 +1,4 @@
-//! UI interaction tests for the `editor_ui` feature plugin.
+//! UI interaction tests for the `editor_ui` plugin.
 //!
 //! Uses `egui_kittest` to test render functions in isolation.
 //! Each test creates a minimal `Harness` with the relevant state and

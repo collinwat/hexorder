@@ -66,11 +66,11 @@ description = "Check TOML formatting"
 run = "taplo fmt --check"
 
 [tasks."check:boundary"]
-description = "Check no cross-feature internal imports"
+description = "Check no cross-plugin internal imports"
 run = """
 violations=$(grep -rn 'use crate::' src/ --include='*.rs' | grep -v contracts | grep -v 'mod tests' | grep -v tests.rs | grep -v 'use crate::contracts' || true)
 if [ -n "$violations" ]; then
-  echo "ERROR: Cross-feature import boundary violations found:"
+  echo "ERROR: Cross-plugin import boundary violations found:"
   echo "$violations"
   exit 1
 fi

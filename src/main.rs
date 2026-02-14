@@ -74,11 +74,11 @@ mod architecture_tests {
     use std::fs;
     use std::path::Path;
 
-    /// Scans all feature mod.rs files and fails if any sub-module is declared
-    /// `pub mod` (except for re-exports). Feature internals must be private;
+    /// Scans all plugin mod.rs files and fails if any sub-module is declared
+    /// `pub mod` (except for re-exports). Plugin internals must be private;
     /// shared types go through `src/contracts/`.
     #[test]
-    fn feature_modules_are_private() {
+    fn plugin_modules_are_private() {
         let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut violations = Vec::new();
 
@@ -112,7 +112,7 @@ mod architecture_tests {
                 // Check for `pub mod <name>;` declarations (not inline modules).
                 if trimmed.starts_with("pub mod ") && trimmed.ends_with(';') {
                     violations.push(format!(
-                        "{}:{}: `{}` — feature sub-modules must be private (use `mod` not `pub mod`). \
+                        "{}:{}: `{}` — plugin sub-modules must be private (use `mod` not `pub mod`). \
                          Shared types belong in src/contracts/.",
                         mod_file.display(),
                         line_num + 1,

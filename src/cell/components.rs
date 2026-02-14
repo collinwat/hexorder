@@ -1,8 +1,8 @@
-//! Feature-local components and resources for the cell plugin.
+//! Plugin-local components and resources for the cell plugin.
 //!
 //! Contract types (`EntityData`, `EntityTypeRegistry`, `ActiveBoardType`)
 //! live in `crate::contracts::game_system`. This module holds types that are
-//! internal to the cell feature plugin.
+//! internal to the cell plugin.
 
 use std::collections::HashMap;
 

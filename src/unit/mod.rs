@@ -1,4 +1,4 @@
-//! Unit feature plugin.
+//! Unit plugin.
 //!
 //! Handles placing user-defined unit types onto hex tiles, unit selection,
 //! movement, deletion, and visual sync. Unit type definitions come from

@@ -1,4 +1,4 @@
-//! Systems for the unit feature plugin.
+//! Systems for the unit plugin.
 
 use std::collections::{HashMap, HashSet};
 

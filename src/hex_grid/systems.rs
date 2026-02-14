@@ -1,4 +1,4 @@
-//! Systems for the `hex_grid` feature plugin.
+//! Systems for the `hex_grid` plugin.
 
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;

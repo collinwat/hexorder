@@ -1,7 +1,7 @@
-//! Feature-local components and resources for `editor_ui`.
+//! Plugin-local components and resources for `editor_ui`.
 //!
 //! Contract types (`EditorTool`) live in `crate::contracts::editor_ui`.
-//! This module holds types that are internal to the `editor_ui` feature plugin.
+//! This module holds types that are internal to the `editor_ui` plugin.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;

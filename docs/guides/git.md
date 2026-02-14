@@ -62,8 +62,8 @@ When adding a **new binary file type** to the project, add a corresponding LFS t
 - `cliff.toml` — defines changelog generation template and commit parsers
 - `.gitattributes` — defines Git LFS tracking patterns for binary assets
 
-When adding a new feature scope (e.g., a new plugin), update the scope regex in `lefthook.yml`'s
-`commit-msg` hook to include it.
+When adding a new plugin scope (e.g., a new plugin module), update the scope regex in
+`lefthook.yml`'s `commit-msg` hook to include it.
 
 ---
 
@@ -79,10 +79,10 @@ When adding a new feature scope (e.g., a new plugin), update the scope regex in 
 
 ### Feature branches
 
-- One branch per feature or release task
-- Use **git worktrees** so each feature gets its own working directory, allowing parallel
-  development without stashing or switching
-- Keep branches short-lived — merge when the feature passes its spec criteria and tests
+- One branch per plugin or release task
+- Use **git worktrees** so each plugin gets its own working directory, allowing parallel development
+  without stashing or switching
+- Keep branches short-lived — merge when the plugin passes its spec criteria and tests
 - Rebase onto `main` before merging to keep history linear
 
 ### Branch naming
@@ -94,13 +94,13 @@ Branch names **must** follow this pattern:
 ```
 
 - `<release>` is the target release version: `0.1.0`, `0.2.0`, `0.3.0`, etc.
-- `<feature>` is the feature name as it appears in `docs/coordination.md`, using hyphens for
+- `<feature>` is the plugin name as it appears in `docs/coordination.md`, using hyphens for
   multi-word names
 
 **Valid**: `0.3.0/unit`, `0.3.0/editor-ui`, `0.4.0/movement-rules` **Invalid**: `feature/unit`,
 `unit-placement`, `m3_unit`, `0.3.0/Unit`
 
-For non-feature work (docs, process, tooling), use:
+For non-plugin work (docs, process, tooling), use:
 
 ```
 <release>/chore-<description>
@@ -112,7 +112,7 @@ For non-feature work (docs, process, tooling), use:
 
 ## Feature Branch Setup Checklist
 
-Run these steps in order when starting work on a new feature. No steps are optional.
+Run these steps in order when starting work on a new plugin. No steps are optional.
 
 1. **Branch name.** Determine the branch name: `<release>/<feature>` (e.g., `0.4.0/movement-rules`).
    Verify it follows the naming rules above.
@@ -130,16 +130,16 @@ Run these steps in order when starting work on a new feature. No steps are optio
     ```
     The suffix is the `<feature>` portion of the branch name. This identifies builds from this
     branch. The suffix is stripped at merge time when the final version is set.
-5. **Spec scaffolding.** Verify the feature has spec and log files. If they don't exist, create them
+5. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
    from the templates:
     ```
-    docs/features/<feature>/spec.md   ← copy from docs/features/_template_spec.md
-    docs/features/<feature>/log.md    ← copy from docs/features/_template_log.md
+    docs/plugins/<plugin>/spec.md   ← copy from docs/guides/plugin.md
+    docs/plugins/<plugin>/log.md    ← copy from docs/guides/plugin.md
     ```
     If the files already exist, read them to understand prior decisions.
-6. **Contract check.** Read `docs/contracts/` for any shared types the feature depends on or
+6. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
    introduces. If new contracts are needed, follow the Shared Contracts Protocol in CLAUDE.md.
-7. **Claim ownership.** Update `docs/coordination.md` → Active Features table: set Owner to your
+7. **Claim ownership.** Update `docs/coordination.md` → Active Plugins table: set Owner to your
    session identifier and Status to `in-progress`.
 8. **Initial commit.** Stage the `Cargo.toml` version change, any new spec/log files, and the
    coordination.md update. Commit:
@@ -172,12 +172,12 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```bash
     git branch -d <release>/<feature>
     ```
-4. **Update ownership.** In `docs/coordination.md` → Active Features table, set Status to `complete`
+4. **Update ownership.** In `docs/coordination.md` → Active Plugins table, set Status to `complete`
    and clear Owner.
 5. **Release merge lock.** If not already done in the Pre-Merge Checklist, confirm your Merge Lock
    row status is `done`.
 6. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
-   any other active feature worktrees).
+   any other active plugin worktrees).
 
 ---
 
@@ -244,11 +244,11 @@ Follow **conventional commit** practices. Every commit message **must** match th
 
 **Scope** — use exactly one of:
 
-| Scope        | When to use                                                                                     |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| Feature name | Work within a single feature (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`) |
-| `contracts`  | Shared type definitions in `src/contracts/` or `docs/contracts/`                                |
-| `project`    | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                        |
+| Scope       | When to use                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| Plugin name | Work within a single plugin (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`) |
+| `contracts` | Shared type definitions in `src/contracts/` or `docs/contracts/`                               |
+| `project`   | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                       |
 
 **Subject line rules**:
 
@@ -298,7 +298,7 @@ chore(project): bump version to 0.3.0
 automatically by lefthook** (see Setup above). Step 4 requires manual verification.
 
 1. **Files staged?** Run `git status`. Confirm only intended files are staged. No secrets (`.env`,
-   credentials). No files belonging to another feature. _(Secrets check enforced by `pre-commit`
+   credentials). No files belonging to another plugin. _(Secrets check enforced by `pre-commit`
    hook.)_
 2. **Compiles?** Run `cargo build`. Must succeed. _(Enforced by `pre-commit` hook.)_
 3. **Message format?** Confirm the commit message matches `<type>(<scope>): <summary>` with valid
@@ -306,7 +306,7 @@ automatically by lefthook** (see Setup above). Step 4 requires manual verificati
    characters. _(Enforced by `commit-msg` hook.)_
 4. **Specs with code?** If the commit includes changes to `src/contracts/`, confirm matching
    `docs/contracts/` changes are also staged. If the commit includes a new system or component,
-   confirm `docs/features/<name>/spec.md` is up to date. _(Manual — not automated.)_
+   confirm `docs/plugins/<name>/spec.md` is up to date. _(Manual — not automated.)_
 
 If any check fails (hook rejection or manual verification), fix the issue before committing.
 
@@ -341,16 +341,16 @@ Every merge to `main` must pass all of these in order:
    formatting, dependency audit, typos, boundary check, and unwrap check. All must pass.
 3. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
    these categories:
-    - Your feature's module: `src/<feature>/**`
-    - Your feature's specs: `docs/features/<feature>/**`
-    - Contracts your feature owns or extends: `src/contracts/**`, `docs/contracts/**`
+    - Your plugin's module: `src/<plugin>/**`
+    - Your plugin's specs: `docs/plugins/<plugin>/**`
+    - Contracts your plugin owns or extends: `src/contracts/**`, `docs/contracts/**`
     - Expected shared files: `docs/coordination.md`, `Cargo.toml`, `Cargo.lock`, `main.rs` (plugin
       registration)
     - If any file falls outside these categories, investigate. Either remove the change or justify
       it in the commit body.
-4. **Spec criteria met?** Open `docs/features/<name>/spec.md`. Every success criterion is satisfied.
-5. **Deferred items captured?** Check `docs/features/<name>/spec.md` → Deferred Items and
-   `docs/features/<name>/log.md` → Deferred / Future Work. Every item must have a corresponding
+4. **Spec criteria met?** Open `docs/plugins/<name>/spec.md`. Every success criterion is satisfied.
+5. **Deferred items captured?** Check `docs/plugins/<name>/spec.md` → Deferred Items and
+   `docs/plugins/<name>/log.md` → Deferred / Future Work. Every item must have a corresponding
    GitHub Issue (create with `gh issue create --label "status:deferred" --milestone "Backlog"`).
    Also scan source code for TODO/FIXME comments or placeholder text (e.g., "coming soon") — these
    must have corresponding issues or be removed.
@@ -388,7 +388,7 @@ When the last scope of a cycle merges, also run these steps:
 19. **Triage new items.** Review issues with `status:triage` label:
     `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label. Review
     open issues older than 2 cycles for staleness.
-20. **Run cool-down protocol.** Follow the Cool-Down Protocol in `CLAUDE.md`. This includes the
+20. **Run cool-down protocol.** Run `/cooldown` to start the protocol. This includes the
     retrospective, shaping, and betting for the next cycle.
 
 ### Conflict Resolution
@@ -397,9 +397,9 @@ When rebasing onto `main` produces merge conflicts, resolve them by file type:
 
 **`src/contracts/` (shared types)**
 
-1. Accept the version already on `main` — it was merged first and other features may depend on it.
+1. Accept the version already on `main` — it was merged first and other plugins may depend on it.
 2. Re-apply your additions on top. Do not remove or rename types that the other branch introduced.
-3. Update your feature's code to work with the merged contract state.
+3. Update your plugin's code to work with the merged contract state.
 4. If the conflict is structural (incompatible type changes), stop the rebase (`git rebase --abort`)
    and coordinate via `docs/coordination.md` Pending Contract Changes before proceeding.
 
@@ -421,10 +421,10 @@ When rebasing onto `main` produces merge conflicts, resolve them by file type:
    is between your pre-release suffix and the merged release version. Take the merged version;
    you'll set the final version in step 10.
 
-**`src/<feature>/` (your own feature code)**
+**`src/<plugin>/` (your own plugin code)**
 
-1. If `main` changed your feature's files (unlikely in the worktree model), investigate why. Another
-   session should not be modifying your feature.
+1. If `main` changed your plugin's files (unlikely in the worktree model), investigate why. Another
+   session should not be modifying your plugin.
 2. If the conflict is in shared infrastructure (e.g., `main.rs` plugin registration), accept
    `main`'s additions and add yours alongside.
 
@@ -456,9 +456,9 @@ before either merges to `main`, use a **temporary integration branch**:
     ```bash
     cargo build && cargo test && cargo clippy -- -D warnings
     ```
-5. **Evaluate results.** If tests pass, both features are compatible — proceed with merging them to
+5. **Evaluate results.** If tests pass, both plugins are compatible — proceed with merging them to
    `main` individually (one at a time, via the normal Pre-Merge Checklist). If tests fail, the
-   failing feature must fix its code on its own branch before retesting.
+   failing plugin must fix its code on its own branch before retesting.
 6. **Discard the integration branch** — it is never merged to `main`:
     ```bash
     cd ../hexorder
@@ -632,9 +632,9 @@ changed files. Then continue with the detailed steps below for anything that nee
     - If there are uncommitted changes, evaluate them: commit coherent work with a checkpoint commit
       (`chore(<feature>): recover uncommitted work from prior session`), or discard broken fragments
       with `git checkout -- .`.
-    - If the worktree is for a different feature than yours, leave it alone — another session may
-      own it.
-    - If the worktree is for your feature, continue working in it. If you need a fresh worktree,
+    - If the worktree is for a different plugin than yours, leave it alone — another session may own
+      it.
+    - If the worktree is for your plugin, continue working in it. If you need a fresh worktree,
       clean up the orphan first: `git worktree remove <path>`.
 2. **Identify the branch.** Run `git branch --show-current` to confirm you're on the correct feature
    branch.
@@ -645,7 +645,7 @@ changed files. Then continue with the detailed steps below for anything that nee
     - **Group by type** to understand what was done: `feat` = new functionality, `fix` = bug fixes,
       `refactor` = restructuring, `test` = test additions, `docs` = spec/doc updates, `chore` =
       setup/config.
-    - **Group by scope** to understand what was touched: each scope maps to a feature module or
+    - **Group by scope** to understand what was touched: each scope maps to a plugin module or
       `contracts`/`project`.
     - **Read commit bodies** (run `git log main..HEAD` without `--oneline`) for rationale and
       decisions — these serve as lightweight decision records between log entries.
@@ -654,7 +654,7 @@ changed files. Then continue with the detailed steps below for anything that nee
 5. **Load context from diff.** Run `git diff main..HEAD --stat` for a file-level summary, then
    `git diff main..HEAD` for the full delta. This is the fastest way to understand what this branch
    has changed relative to mainline.
-6. **Read the spec and log.** Open `docs/features/<name>/spec.md` and `docs/features/<name>/log.md`.
+6. **Read the spec and log.** Open `docs/plugins/<name>/spec.md` and `docs/plugins/<name>/log.md`.
    The log records decisions, blockers, and test results from prior sessions.
 7. **Check coordination.** Read `docs/coordination.md` for any contract changes or blockers that
    appeared since the last session.
@@ -677,7 +677,7 @@ When a Claude Code session needs to commit:
 5. **Never commit secrets** (`.env`, credentials, API keys)
 6. **Commit specs and code together** — a contract spec and its Rust implementation belong in the
    same commit
-7. **Use the worktree for your feature** — don't commit other features' work
+7. **Use the worktree for your plugin** — don't commit another plugin's work
 8. **When in doubt, commit** — it's easier to squash later than to recover lost work
 9. **Multi-terminal coordination**: each session works in its own worktree on its own branch
 10. **Merge lock**: always claim the Merge Lock in `docs/coordination.md` before starting a merge to

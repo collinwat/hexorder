@@ -1,4 +1,4 @@
-//! Cell feature plugin.
+//! Cell plugin.
 //!
 //! Replaces the 0.1.0 terrain plugin. Handles painting user-defined cell types
 //! onto hex tiles and syncing their visual appearance. Cell type definitions

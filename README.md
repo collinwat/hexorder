@@ -34,7 +34,7 @@ cargo run
 ```
 src/
   main.rs              # App setup, plugin registration
-  contracts/           # Shared types across features
+  contracts/           # Shared types across plugins
   camera/              # Orthographic top-down camera (pan, zoom)
   hex_grid/            # Hex grid rendering, tile selection, hover
   game_system/         # Game System container, type registries, properties
@@ -49,13 +49,13 @@ docs/
   brand.md             # Visual identity (colors, typography, icon)
   glossary.md          # Canonical terminology
   contracts/           # Shared type specifications
-  features/            # Per-feature specs and logs
+  plugins/             # Per-plugin specs and logs
   guides/
     git.md       # Git workflow, branching, commit, merge conventions
     bevy.md      # Bevy 0.18 API reference and patterns
     bevy-egui.md # bevy_egui 0.39 API reference
     contract.md  # Contract protocol and spec template
-    feature.md   # Feature spec and log lifecycle
+    plugin.md    # Plugin spec and log lifecycle
     research.md  # Research workflow and wiki consumption
 
 # Project root config
@@ -68,8 +68,8 @@ lefthook.yml           # Git hook definitions (fmt, build, secrets)
 
 ## Development
 
-Every feature is a Bevy Plugin in its own module under `src/`. Shared types live in `src/contracts/`
-and are specified in `docs/contracts/`. Cross-feature communication uses Events only.
+Every plugin is a Bevy Plugin in its own module under `src/`. Shared types live in `src/contracts/`
+and are specified in `docs/contracts/`. Cross-plugin communication uses Events only.
 
 ### Common commands
 

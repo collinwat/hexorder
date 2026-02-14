@@ -1,9 +1,9 @@
 ---
 name: contract
 description:
-    Create, modify, or consume shared contract types between feature plugins. Use when a feature
-    needs to expose or consume shared types, when adding cross-feature communication, or when
-    checking contract spec-code parity. Also use when the user invokes /contract.
+    Create, modify, or consume shared contract types between plugins. Use when a plugin needs to
+    expose or consume shared types, when adding cross-plugin communication, or when checking
+    contract spec-code parity. Also use when the user invokes /contract.
 ---
 
 # Contract

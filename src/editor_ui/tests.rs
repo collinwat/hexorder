@@ -1,4 +1,4 @@
-//! Unit tests for the `editor_ui` feature plugin.
+//! Unit tests for the `editor_ui` plugin.
 
 use bevy::prelude::*;
 

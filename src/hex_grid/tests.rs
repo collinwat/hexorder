@@ -1,4 +1,4 @@
-//! Unit tests for the `hex_grid` feature plugin.
+//! Unit tests for the `hex_grid` plugin.
 
 use std::sync::{Arc, Mutex};
 

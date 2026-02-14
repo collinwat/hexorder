@@ -1,4 +1,4 @@
-//! Unit tests for the `rules_engine` feature.
+//! Unit tests for the `rules_engine` plugin.
 
 use std::collections::HashMap;
 

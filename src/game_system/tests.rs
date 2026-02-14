@@ -1,4 +1,4 @@
-//! Unit tests for the `game_system` feature plugin.
+//! Unit tests for the `game_system` plugin.
 
 use std::collections::HashSet;
 

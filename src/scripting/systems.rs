@@ -1,4 +1,4 @@
-//! Systems for the `scripting` feature plugin.
+//! Systems for the `scripting` plugin.
 
 use bevy::prelude::*;
 use mlua::Lua;

@@ -1,4 +1,4 @@
-//! Tests for the persistence feature plugin.
+//! Tests for the persistence plugin.
 
 use std::collections::HashMap;
 

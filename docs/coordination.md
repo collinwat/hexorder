@@ -10,12 +10,12 @@
 | --------------------------------------- | ----------- | ----------- |
 | Shape Up workflow documentation rewrite | Small Batch | in-progress |
 
-_Bets are set at the betting table during cool-down. See CLAUDE.md → Cool-Down Protocol._
+_Bets are set at the betting table during cool-down. Run `/cooldown` to start the protocol._
 
-## Active Features
+## Active Plugins
 
-Features are scopes within a build cycle. Status and ownership are tracked in GitHub Issues and the
-GitHub Project:
+Plugins are permanent modules under `src/`. Status and ownership are tracked in GitHub Issues and
+the GitHub Project:
 
 ```bash
 gh issue list --state open                    # all open work items
@@ -28,7 +28,7 @@ gh project view 1 --owner collinwat           # project board
 Contract change proposals are tracked as GitHub Issues with `area:contracts` label:
 `gh issue list --label "area:contracts" --state open`
 
-Before changing a contract, create an issue describing the change, list affected features, and wait
+Before changing a contract, create an issue describing the change, list affected plugins, and wait
 for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md.
 
 ## Merge Lock

@@ -1,8 +1,8 @@
-//! Shared types between feature plugins.
+//! Shared types between plugins.
 //! Each module here corresponds to a contract in docs/contracts/.
 //!
 //! Contract types are defined ahead of their consumers. Allow `dead_code`
-//! since not all types are used by all features at every point in development.
+//! since not all types are used by all plugins at every point in development.
 
 #[allow(dead_code)]
 pub mod editor_ui;

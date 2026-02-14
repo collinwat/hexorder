@@ -1,4 +1,4 @@
-//! Unit tests for the cell feature plugin.
+//! Unit tests for the cell plugin.
 
 use std::collections::HashMap;
 

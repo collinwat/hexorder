@@ -1,4 +1,4 @@
-//! Systems for the cell feature plugin.
+//! Systems for the cell plugin.
 
 use std::collections::HashMap;
 

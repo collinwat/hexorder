@@ -1,4 +1,4 @@
-//! Systems for the persistence feature plugin.
+//! Systems for the persistence plugin.
 
 use std::collections::HashMap;
 

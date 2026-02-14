@@ -998,7 +998,7 @@ the system.
 
 ### Plugin Registration
 
-Each feature plugin registers its own egui systems:
+Each plugin registers its own egui systems:
 
 ```rust
 impl Plugin for EditorUiPlugin {

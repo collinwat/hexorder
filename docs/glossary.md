@@ -47,11 +47,11 @@ consistently.
 
 ## Bevy Architecture
 
-| Term         | Definition                                                                                                                                                            | Usage                                                                                             |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Plugin**   | A Bevy `Plugin` implementing `build()`. Each feature is exactly one plugin.                                                                                           | `HexGridPlugin`, `CameraPlugin`, `GameSystemPlugin`, `CellPlugin`, `UnitPlugin`, `EditorUiPlugin` |
-| **Contract** | A Rust module in `src/contracts/` containing shared types. Mirrored by a spec in `docs/contracts/`. Features depend on contracts, never on other features' internals. | `contracts::hex_grid`, `contracts::game_system`, `contracts::editor_ui`                           |
-| **Feature**  | A self-contained plugin under `src/<name>/`. Sub-modules are private (`mod`, not `pub mod`).                                                                          | `hex_grid`, `camera`, `game_system`, `cell`, `unit`, `editor_ui`                                  |
+| Term         | Definition                                                                                                                                                                                     | Usage                                                                                             |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Plugin**   | A Bevy Plugin implementing `build()`. Each plugin is a self-contained module under `src/<name>/` with documentation at `docs/plugins/<name>/`. Sub-modules are private (`mod`, not `pub mod`). | `HexGridPlugin`, `CameraPlugin`, `GameSystemPlugin`, `CellPlugin`, `UnitPlugin`, `EditorUiPlugin` |
+| **Contract** | A Rust module in `src/contracts/` containing shared types. Mirrored by a spec in `docs/contracts/`. Plugins depend on contracts, never on other plugins' internals.                            | `contracts::hex_grid`, `contracts::game_system`, `contracts::editor_ui`                           |
+| **Feature**  | A feature request or raw idea from a user. Captured as a GitHub Issue. Not a commitment — feeds into the Shape Up shaping process. See the Process table.                                      | GitHub Issues with `type:feature` label                                                           |
 
 ## Process (Shape Up)
 
@@ -72,17 +72,18 @@ consistently.
 
 These terms were used in earlier releases and must **not** appear in new code or specs.
 
-| Retired Term                                             | Replaced By                                  | Reason                                                                                                                          | When  |
-| -------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| **Terrain** / **TerrainType**                            | Cell / EntityType (BoardPosition)            | "Terrain" was 0.1.0's name for board position types. Replaced by the Game System's cell type model in 0.2.0.                    | 0.2.0 |
-| **Vertex** (as board position)                           | Cell                                         | "Vertex" in hex geometry means a corner point (0D), not the hexagonal area (2D). Confusing for the tabletop wargaming audience. | 0.2.0 |
-| **VertexType** / **VertexData** / **VertexTypeRegistry** | EntityType / EntityData / EntityTypeRegistry | Part of the Vertex → Cell rename, then unified in 0.4.0.                                                                        | 0.2.0 |
-| **TerrainPalette** / **ActiveTerrain**                   | EntityTypeRegistry / ActiveBoardType         | Part of the Terrain → Cell rename, then unified in 0.4.0.                                                                       | 0.2.0 |
-| **CellType** / **CellTypeRegistry** / **CellData**       | EntityType / EntityTypeRegistry / EntityData | Unified with UnitType into EntityType with role-based filtering.                                                                | 0.4.0 |
-| **ActiveCellType**                                       | ActiveBoardType                              | Renamed during EntityType unification.                                                                                          | 0.4.0 |
-| **UnitType** / **UnitTypeRegistry** / **UnitData**       | EntityType / EntityTypeRegistry / EntityData | Unified with CellType into EntityType with role-based filtering.                                                                | 0.4.0 |
-| **ActiveUnitType**                                       | ActiveTokenType                              | Renamed during EntityType unification.                                                                                          | 0.4.0 |
-| **Milestone** (M1, M2, M3, M4, M5)                       | Release (0.1.0, 0.2.0, etc.)                 | Replaced by semver release versions. Shape Up uses "cycle" for the time-boxed work period.                                      | 0.7.0 |
+| Retired Term                                             | Replaced By                                  | Reason                                                                                                                                | When  |
+| -------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **Terrain** / **TerrainType**                            | Cell / EntityType (BoardPosition)            | "Terrain" was 0.1.0's name for board position types. Replaced by the Game System's cell type model in 0.2.0.                          | 0.2.0 |
+| **Vertex** (as board position)                           | Cell                                         | "Vertex" in hex geometry means a corner point (0D), not the hexagonal area (2D). Confusing for the tabletop wargaming audience.       | 0.2.0 |
+| **VertexType** / **VertexData** / **VertexTypeRegistry** | EntityType / EntityData / EntityTypeRegistry | Part of the Vertex → Cell rename, then unified in 0.4.0.                                                                              | 0.2.0 |
+| **TerrainPalette** / **ActiveTerrain**                   | EntityTypeRegistry / ActiveBoardType         | Part of the Terrain → Cell rename, then unified in 0.4.0.                                                                             | 0.2.0 |
+| **CellType** / **CellTypeRegistry** / **CellData**       | EntityType / EntityTypeRegistry / EntityData | Unified with UnitType into EntityType with role-based filtering.                                                                      | 0.4.0 |
+| **ActiveCellType**                                       | ActiveBoardType                              | Renamed during EntityType unification.                                                                                                | 0.4.0 |
+| **UnitType** / **UnitTypeRegistry** / **UnitData**       | EntityType / EntityTypeRegistry / EntityData | Unified with CellType into EntityType with role-based filtering.                                                                      | 0.4.0 |
+| **ActiveUnitType**                                       | ActiveTokenType                              | Renamed during EntityType unification.                                                                                                | 0.4.0 |
+| **Milestone** (M1, M2, M3, M4, M5)                       | Release (0.1.0, 0.2.0, etc.)                 | Replaced by semver release versions. Shape Up uses "cycle" for the time-boxed work period.                                            | 0.7.0 |
+| **Feature** (as plugin)                                  | Plugin                                       | Feature previously meant a self-contained plugin module. Now Feature means a feature request (raw idea). Use Plugin for code modules. | 0.7.0 |
 
 ## Disambiguation
 

@@ -1,4 +1,4 @@
-//! Unit tests for the camera feature.
+//! Unit tests for the camera plugin.
 
 use bevy::prelude::*;
 

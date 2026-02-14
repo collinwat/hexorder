@@ -1,4 +1,4 @@
-//! Systems for the `editor_ui` feature plugin.
+//! Systems for the `editor_ui` plugin.
 
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};

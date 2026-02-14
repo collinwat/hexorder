@@ -19,7 +19,7 @@ Declared in `main.rs`. Update this when adding a new plugin.
 ## Cross-Cutting Concerns
 
 - **3D rendering**: Application uses Camera3d with orthographic projection, locked top-down
-- **Hex coordinate system**: All features using hex positions must use `HexPosition` from
+- **Hex coordinate system**: All plugins using hex positions must use `HexPosition` from
   `contracts::hex_grid`
 - **Input separation**: Left-click for selection/painting, middle-click for camera pan, scroll for
   zoom. bevy_egui consumes input when mouse is over UI panels (via `egui_wants_any_pointer_input`
@@ -41,8 +41,8 @@ Declared in `main.rs`. Update this when adding a new plugin.
   Serialize/Deserialize. Save format is RON via `ron 0.12`. File extension: `.hexorder`.
 - **Editor tool mode**: `EditorTool` resource (owned by editor_ui) must be checked by cell and unit
   before painting/placing.
-- **Module privacy enforcement**: Feature sub-modules are `mod` (private). Contract boundary
-  violations are compile errors + enforced by `architecture_tests::feature_modules_are_private`.
+- **Module privacy enforcement**: Plugin sub-modules are `mod` (private). Contract boundary
+  violations are compile errors + enforced by `architecture_tests::plugin_modules_are_private`.
 - **Ontology**: Concepts, relations, and constraints are designer-defined abstractions. No hardcoded
   game terms — the tool understands only structural relationships, not domain semantics.
 - **Constraint evaluation**: The rules_engine evaluates constraints and produces ValidMoveSet. The
@@ -51,7 +51,7 @@ Declared in `main.rs`. Update this when adding a new plugin.
 - **Move overlays**: Separate lightweight entities above hex tiles, managed by hex_grid. Do not
   modify tile materials or interfere with cell visual sync.
 
-## Feature Dependency Graph (0.6.0)
+## Plugin Dependency Graph (0.6.0)
 
 ```
 game_system (contract) ──→ cell

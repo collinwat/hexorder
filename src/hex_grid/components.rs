@@ -1,8 +1,8 @@
-//! Feature-local components and resources for `hex_grid`.
+//! Plugin-local components and resources for `hex_grid`.
 //!
 //! Contract types (`HexPosition`, `HexGridConfig`, `HexTile`, `SelectedHex`, etc.)
 //! live in `crate::contracts::hex_grid`.
-//! This module holds types that are internal to the `hex_grid` feature plugin.
+//! This module holds types that are internal to the `hex_grid` plugin.
 
 use bevy::prelude::*;
 
