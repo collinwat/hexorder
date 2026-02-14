@@ -1,5 +1,5 @@
 # Hexorder Git Hooks — managed by lefthook
-# See docs/guides/git-guide.md for the conventions these hooks enforce.
+# See docs/guides/git.md for the conventions these hooks enforce.
 #
 # Setup: mise install && lefthook install
 

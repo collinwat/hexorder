@@ -53,9 +53,9 @@ docs/
   contracts/           # Shared type specifications
   features/            # Per-feature specs and logs
   guides/
-    git-guide.md       # Git workflow, branching, commit, merge conventions
-    bevy-guide.md      # Bevy 0.18 API reference and patterns
-    bevy-egui-guide.md # bevy_egui 0.39 API reference
+    git.md       # Git workflow, branching, commit, merge conventions
+    bevy.md      # Bevy 0.18 API reference and patterns
+    bevy-egui.md # bevy_egui 0.39 API reference
 
 # Project root config
 CLAUDE.md              # Agent workflow and architecture rules
@@ -90,8 +90,8 @@ and are specified in `docs/contracts/`. Cross-feature communication uses Events 
 ### Git workflow
 
 This project uses trunk-based development with git worktrees, operating within Shape Up build
-cycles. See `docs/guides/git-guide.md` for the full workflow and `docs/guides/shape-up-guide.md` for
-the methodology reference. The workflow includes:
+cycles. See `docs/guides/git.md` for the full workflow and `docs/guides/shape-up.md` for the
+methodology reference. The workflow includes:
 
 - Branch naming and worktree setup
 - Conventional commit message format
@@ -131,7 +131,7 @@ the methodology reference. The workflow includes:
 
 1. Read `CLAUDE.md` for agent workflow and architecture rules
 2. Read `docs/constitution.md` for non-negotiable project rules
-3. Read `docs/guides/git-guide.md` for git conventions
+3. Read `docs/guides/git.md` for git conventions
 4. Check `docs/coordination.md` for active cycle and ownership
 5. Check `docs/architecture.md` for cross-cutting concerns and dependencies
 

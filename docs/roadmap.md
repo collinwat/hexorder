@@ -63,9 +63,8 @@ scenarios, workspace persistence, or launcher exist yet. The app boots directly 
   spec template, pre-checkpoint audit requirement in this roadmap, and a compile-time enforcement
   via private modules + `architecture_tests::feature_modules_are_private` test.
 - Searching repeatedly for framework API patterns (Bevy 0.18, bevy_egui 0.39) was a significant time
-  cost. Solved by creating `docs/guides/bevy-guide.md` and `docs/guides/bevy-egui-guide.md` as
-  persistent references. Future releases should create guides for any new library before
-  implementation begins.
+  cost. Solved by creating `docs/guides/bevy.md` and `docs/guides/bevy-egui.md` as persistent
+  references. Future releases should create guides for any new library before implementation begins.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -172,13 +171,13 @@ is replaced entirely. The editor gets a dark theme and an inspector panel.
 - GPU rendering impacts window lifecycle. Bevy's render pipeline causes a white flash on the
   OS-default window surface before the first GPU frame lands. We solved this with a hidden-window
   pattern (start `visible: false`, reveal after 3 frames once the GPU has rendered dark content).
-  This is now documented in `docs/guides/bevy-guide.md` Section 19. Future releases should account
-  for GPU pipeline timing when adding new windows or render targets.
+  This is now documented in `docs/guides/bevy.md` Section 19. Future releases should account for GPU
+  pipeline timing when adding new windows or render targets.
 - Brand palette enforcement via architecture tests (`editor_ui_colors_match_brand_palette`) catches
   color drift at compile time. This worked well and should be extended to any future UI surfaces.
-- Library reference guides (`docs/guides/bevy-guide.md`, `docs/guides/bevy-egui-guide.md`) continue
-  to pay off — created at 0.1.0 and expanded throughout 0.2.0. Any new crate dependency should get a
-  guide before implementation.
+- Library reference guides (`docs/guides/bevy.md`, `docs/guides/bevy-egui.md`) continue to pay off —
+  created at 0.1.0 and expanded throughout 0.2.0. Any new crate dependency should get a guide before
+  implementation.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -222,8 +221,8 @@ yet, just placement and relocation.
 
 - bevy_egui text input silently fails without `enable_absorb_bevy_input_system = true`. Run
   conditions on game systems are not sufficient — Bevy's internal systems consume keyboard events
-  before egui processes them. Fixed and documented in bevy-egui-guide.md (Section 7 + Pitfall #10)
-  and editor_ui log.
+  before egui processes them. Fixed and documented in bevy-egui.md (Section 7 + Pitfall #10) and
+  editor_ui log.
 
 **2. What felt right? What felt wrong or missing?**
 
@@ -538,7 +537,7 @@ protocol, and the betting table process.
 
 - Rewrite roadmap strategy to Shape Up cycle model
 - Rewrite CLAUDE.md workflow sections for Shape Up
-- Rewrite git-guide.md to frame branches within cycles
+- Rewrite git.md to frame branches within cycles
 - Update coordination.md with current bets
 - Create pitch Issue template (`type:pitch`)
 - Update spec and log templates with Shape Up terminology

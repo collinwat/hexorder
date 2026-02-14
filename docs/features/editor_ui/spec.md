@@ -22,7 +22,7 @@ dark theme + cell type editor + inspector, 0.3.0 unit palette + unit type editor
   Relation, RelationTrigger, RelationEffect, ModifyOperation, Constraint, ConstraintExpr,
   CompareOp), `validation` (SchemaValidation, SchemaError, ValidMoveSet, ValidationResult)
 - **Contracts produced**: `editor_ui` (EditorTool, PaintPreview)
-- **Crate dependencies**: `bevy_egui` (see `docs/guides/bevy-egui-guide.md`)
+- **Crate dependencies**: `bevy_egui` (see `docs/guides/bevy-egui.md`)
 
 ## Requirements
 

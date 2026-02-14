@@ -33,8 +33,7 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 
 ## Merge Lock
 
-> Only one merge to `main` at a time. See `docs/guides/git-guide.md` → Merge Lock Protocol for full
-> rules.
+> Only one merge to `main` at a time. See `docs/guides/git.md` → Merge Lock Protocol for full rules.
 
 | Branch                   | Version | Claimed By | Status  |
 | ------------------------ | ------- | ---------- | ------- |
@@ -51,5 +50,5 @@ Rules:
 
 ## Known Blockers
 
-- Bevy 0.18 and bevy_egui 0.39 API patterns are documented in `docs/guides/bevy-guide.md` and
-  `docs/guides/bevy-egui-guide.md`.
+- Bevy 0.18 and bevy_egui 0.39 API patterns are documented in `docs/guides/bevy.md` and
+  `docs/guides/bevy-egui.md`.

@@ -21,9 +21,9 @@ game system assets.
 2. Read `docs/constitution.md` — non-negotiable project rules
 3. Read `docs/coordination.md` — active cycle, ownership, merge lock
 4. Read `docs/architecture.md` — plugin load order, cross-cutting concerns, dependency graph
-5. Read `docs/guides/git-guide.md` — git workflow, branching, commit, and merge conventions
-6. Read `docs/guides/bevy-guide.md` — Bevy 0.18 API reference, patterns, and pitfalls
-7. Read `docs/guides/bevy-egui-guide.md` — bevy_egui 0.39 API reference (if working on UI features)
+5. Read `docs/guides/git.md` — git workflow, branching, commit, and merge conventions
+6. Read `docs/guides/bevy.md` — Bevy 0.18 API reference, patterns, and pitfalls
+7. Read `docs/guides/bevy-egui.md` — bevy_egui 0.39 API reference (if working on UI features)
 8. Read the relevant `docs/features/<name>/spec.md` for your assigned feature
 9. Read `docs/contracts/` for any shared types your feature depends on or exposes
 10. Check `docs/features/<name>/log.md` for prior decisions and blockers
@@ -40,9 +40,9 @@ game system assets.
 
 ## Bevy 0.18 Conventions
 
-> Full reference: `docs/guides/bevy-guide.md` — covers API, patterns, testing, migration notes, and
-> pitfalls. egui reference: `docs/guides/bevy-egui-guide.md` — covers bevy_egui 0.39 setup,
-> scheduling, widgets, input passthrough, and styling.
+> Full reference: `docs/guides/bevy.md` — covers API, patterns, testing, migration notes, and
+> pitfalls. egui reference: `docs/guides/bevy-egui.md` — covers bevy_egui 0.39 setup, scheduling,
+> widgets, input passthrough, and styling.
 
 - App builder: `app.add_plugins(MyPlugin)`
 - Systems: `add_systems(Update, my_system)` with explicit schedule labels
@@ -82,15 +82,15 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 
 ### Build Loop
 
-7. **Branch**: Run the Feature Branch Setup Checklist in `docs/guides/git-guide.md` — creates
-   branch, worktree, pre-release version, spec scaffolding, and claims ownership
+7. **Branch**: Run the Feature Branch Setup Checklist in `docs/guides/git.md` — creates branch,
+   worktree, pre-release version, spec scaffolding, and claims ownership
 8. **Spec first**: Read/update `docs/features/<name>/spec.md` before coding
 9. **Contract check**: If your feature exposes or consumes shared types, check `docs/contracts/`
 10. **Implement**: Write the plugin, systems, components in `src/<feature_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
     spec success criteria
-12. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git-guide.md` — commit early and
-    often on the feature branch
+12. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
+    the feature branch
 13. **Boundary check**: Run `mise check:boundary` — verifies no cross-feature internal imports. All
     shared types must go through `src/contracts/`
 14. **Log**: Record decisions, test results, blockers in `docs/features/<name>/log.md`
@@ -106,10 +106,10 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
     bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
     with the appropriate template. Issues are raw idea capture, not commitments.
 16. **Coordinate**: Update `docs/coordination.md` status when starting/finishing work
-17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in
-    `docs/guides/git-guide.md` — version bump, changelog, tag
+17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
+    version bump, changelog, tag
 18. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
-    `docs/guides/git-guide.md` — remove worktree, delete branch, update ownership
+    `docs/guides/git.md` — remove worktree, delete branch, update ownership
 
 ## Ship Gate
 
@@ -144,8 +144,8 @@ This gate applies even if all individual features pass their own success criteri
 violations that only emerge at the cross-feature level (like import boundary violations) are caught
 here.
 
-After the gate passes, follow the "Cycle ship merge" steps in `docs/guides/git-guide.md` — tag the
-release version and record it in coordination.md.
+After the gate passes, follow the "Cycle ship merge" steps in `docs/guides/git.md` — tag the release
+version and record it in coordination.md.
 
 ### Circuit Breaker
 
@@ -253,13 +253,13 @@ Lead decomposes the feature into subtasks. Teammates each own a subsystem.
 
 Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 
-- Each terminal owns one feature in its own git worktree and branch (see `docs/guides/git-guide.md`)
+- Each terminal owns one feature in its own git worktree and branch (see `docs/guides/git.md`)
 - Coordination happens through `docs/coordination.md` and contracts
 - Before touching a contract, check coordination.md for pending changes
 - After changing a contract, run `cargo build` to catch breakage
 - **Before merging to `main`**: claim the Merge Lock in `docs/coordination.md` — only one merge at a
-  time (see `docs/guides/git-guide.md` → Merge Lock Protocol)
-- Merges to `main` follow the Pre-Merge Checklist in `docs/guides/git-guide.md`
+  time (see `docs/guides/git.md` → Merge Lock Protocol)
+- Merges to `main` follow the Pre-Merge Checklist in `docs/guides/git.md`
 
 ## When to Spawn Teammates vs Work Solo
 
