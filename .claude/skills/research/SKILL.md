@@ -11,6 +11,12 @@ description:
 
 For process details, rationale, and quality expectations, see `docs/guides/research.md`.
 
+## Which Workflow?
+
+1. Read `.wiki/Research-Index.md` to check if relevant research already exists
+2. If it does → **Consume** (below)
+3. If it does not and the question warrants investigation → **Perform** (further below)
+
 ## Consuming Existing Research
 
 1. Read `.wiki/Research-Index.md` — **single source of truth** for which research pages are relevant
