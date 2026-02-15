@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumDefinition, GameSystem,
-    PropertyType, PropertyValue, SelectedUnit, TypeId,
+    ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry,
+    GameSystem, PropertyType, PropertyValue, SelectedUnit, StructRegistry, TypeId,
 };
 use crate::contracts::persistence::AppScreen;
 
@@ -382,4 +382,27 @@ fn property_value_default_for_new_types() {
         PropertyValue::default_for(&PropertyType::FloatRange { min: 0.0, max: 1.0 }),
         PropertyValue::FloatRange(0.0)
     );
+}
+
+#[test]
+fn enum_registry_exists_after_startup() {
+    let mut app = test_app();
+    app.update();
+    let reg = app
+        .world()
+        .get_resource::<EnumRegistry>()
+        .expect("EnumRegistry should exist");
+    assert!(
+        !reg.definitions.is_empty(),
+        "EnumRegistry should not be empty (starter enums)"
+    );
+}
+
+#[test]
+fn struct_registry_exists_after_startup() {
+    let mut app = test_app();
+    app.update();
+    app.world()
+        .get_resource::<StructRegistry>()
+        .expect("StructRegistry should exist");
 }

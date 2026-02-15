@@ -6,7 +6,9 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit};
+use crate::contracts::game_system::{
+    ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit, StructRegistry,
+};
 
 mod systems;
 
@@ -23,6 +25,9 @@ pub struct GameSystemPlugin;
 
 impl Plugin for GameSystemPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(systems::create_enum_registry());
+        app.insert_resource(StructRegistry::default());
+
         let registry = systems::create_entity_type_registry();
         let first_board_id = registry
             .first_by_role(EntityRole::BoardPosition)

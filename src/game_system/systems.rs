@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    EntityRole, EntityType, EntityTypeRegistry, GameSystem, PropertyDefinition, PropertyType,
-    PropertyValue, TypeId,
+    EntityRole, EntityType, EntityTypeRegistry, EnumDefinition, EnumRegistry, GameSystem,
+    PropertyDefinition, PropertyType, PropertyValue, TypeId,
 };
 
 /// Creates a new `GameSystem` resource with a fresh UUID and default version.
@@ -91,4 +91,33 @@ pub fn create_entity_type_registry() -> EntityTypeRegistry {
         ],
         enum_definitions: Vec::new(),
     }
+}
+
+/// Creates the default `EnumRegistry` with starter enum definitions.
+pub fn create_enum_registry() -> EnumRegistry {
+    let mut reg = EnumRegistry::default();
+
+    let terrain_id = TypeId::new();
+    reg.insert(EnumDefinition {
+        id: terrain_id,
+        name: "Terrain Type".to_string(),
+        options: vec![
+            "Open".to_string(),
+            "Rough".to_string(),
+            "Impassable".to_string(),
+        ],
+    });
+
+    let movement_id = TypeId::new();
+    reg.insert(EnumDefinition {
+        id: movement_id,
+        name: "Movement Mode".to_string(),
+        options: vec![
+            "Foot".to_string(),
+            "Wheeled".to_string(),
+            "Tracked".to_string(),
+        ],
+    });
+
+    reg
 }
