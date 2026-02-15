@@ -171,17 +171,19 @@ https://plantuml.com.
 ditaa converts ASCII art box drawings into clean rendered images.
 
 ```
-@startditaa
-+-------------------------------------------------------------------+
-|              Top Section Label                                     |
-+------------+------------------------------+------------------------+
-|            |                              |                        |
-|  Left      |        CENTER                |  Right                 |
-|  Panel     |       (dominant)             |  Panel                 |
-|            |                              |                        |
-+------------+------------------------------+------------------------+
-|  Bottom Section Label                                             |
-+-------------------------------------------------------------------+
+@startditaa(--no-shadows,--no-separation)
++------------+---------------------------------------+------------------------+
+|            | Menu Bar / Toolbar / Ribbon           |                        |
++------------+---------------------------------------+------------------------+
+|            |                                       |                        |
+|  Left      |             CENTER                    |  Right                 |
+|  Panel     |            (dominant)                 |  Panel                 |
+|            |                                       |                        |
++------------+---------------------------------------+------------------------+
+|            | Scene Hierarchy / Outliner / Layers   | (left-bottom or left)  |
++------------+---------------------------------------+------------------------+
+|            | Timeline / Console / Status Bar       | (bottom)               |
++------------+---------------------------------------+------------------------+
 @endditaa
 ```
 
@@ -191,18 +193,32 @@ ditaa converts ASCII art box drawings into clean rendered images.
 - Text must be INSIDE boxes, not on border lines (text on a `+---+` line breaks rendering)
 - Column widths are driven by the widest content in each column
 - Rows are separated by `+---+---+` lines
+- **Every line** in the diagram (content and separator) must be the **same character length** — a
+  single character mismatch causes border misalignment
+
+**Alignment — consistent column positions:**
+
+ditaa renders rows with different numbers of `|` characters as separate box groups. If some rows
+span the full width (single cell) while others have internal column dividers, the borders will be
+offset by a few pixels. To avoid this:
+
+- Use the **same `+` column positions** in every separator line throughout the diagram
+- Every content row must have `|` at those same column positions
+- For "full-width" labels that span multiple columns, place the text in the widest column and leave
+  other cells empty — ditaa cannot do column spanning
 
 **Common flags** (passed in the directive):
 
 - `--no-shadows` — flat rendering, no drop shadows
-- `--no-separation` — no padding between boxes
+- `--no-separation` — no padding between boxes (use with consistent column positions)
 - `scale=1.5` — scale the output (useful for higher resolution)
 
-Example with flags: `@startditaa(scale=1.5,--no-shadows)`
+Example with flags: `@startditaa(scale=1.5,--no-shadows,--no-separation)`
 
 **Limitations:**
 
 - Output is always PNG — the `-tsvg` flag is silently ignored
+- No column spanning — every row must have the same column structure
 - No font styling (bold, italic) — text is rendered as-is
 - Round corners are applied to standalone boxes by default
 
