@@ -52,6 +52,17 @@ overlaid with green (valid) or red (blocked) indicators based on the ValidMoveSe
 12. [REQ-OVERLAY-VISUALS] Valid positions get the green overlay material. Blocked positions get the
     red overlay material. Use the hollow hexagon ring mesh (same shape as hover/select indicators).
 
+### M7 (new — hex algorithms and LOS)
+
+13. [REQ-ALGORITHMS] Expose hexx pathfinding (A\*), field-of-view, line-drawing, neighbor, ring, and
+    range algorithms through `HexPosition`-native pure functions in a private `algorithms` module.
+14. [REQ-LOS] Given two hex positions and a blocking predicate, compute line of sight returning
+    path, clear/blocked status, and first blocker (if any).
+15. [REQ-LOS-VISUAL] When a unit is selected and the mouse hovers a different hex, draw a gizmo line
+    from unit to hover target. Green if LOS is clear, red if blocked.
+16. [REQ-VIS-RANGE] `VisibilityRange` component available for units (foundation for future fog of
+    war).
+
 ## Success Criteria
 
 ### M1 (retained)
@@ -80,6 +91,12 @@ overlaid with green (valid) or red (blocked) indicators based on the ValidMoveSe
 - [ ] [SC-CLIPPY] `cargo clippy --all-targets` passes
 - [ ] [SC-TEST] `cargo test` passes
 - [ ] [SC-BOUNDARY] No imports from other features' internals
+
+### M7 (new)
+
+- [ ] [SC-14] Algorithm unit tests pass: LOS, field-of-view, pathfinding, neighbors, ring, range
+- [ ] [SC-15] `draw_los_ray` system registered and does not panic without a selected unit
+- [ ] [SC-16] `LineOfSightResult` and `VisibilityRange` contract types exist with required derives
 
 ## Constraints
 

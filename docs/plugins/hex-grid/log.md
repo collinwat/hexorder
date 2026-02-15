@@ -1,6 +1,6 @@
 # Plugin Log: hex_grid
 
-## Status: complete (0.4.0)
+## Status: in-progress (0.7.0)
 
 ## Decision Log
 
@@ -121,6 +121,23 @@ with a left-click press) were incorrectly registering as tile selections. **Deci
 purposes. **Rationale**: Standard UX pattern for distinguishing click from drag in applications with
 both selection and camera manipulation.
 
+### 2026-02-15 — Hex algorithms and LOS (0.7.0)
+
+**Context**: Pitch #78 calls for hexx integration, LOS, and fog of war. After scope hammering, fog
+of war was deferred (needs sides/factions) and elevation-based LOS was deferred (future cycle). LOS
+terrain blocking uses a placeholder predicate until property system (#81) ships.
+
+**Decision**: Add `algorithms.rs` private module with pure functions wrapping hexx behind
+`HexPosition`. LOS visual uses Bevy gizmos (zero allocation, auto-cleared). No entity spawning for
+the ray — gizmos are the right tool for transient hover feedback.
+
+**Rationale**: Pure functions are testable without a Bevy app. Closure-based blocking predicates
+decouple the algorithm from the data source. Gizmos avoid the complexity of managing overlay
+entities for a visual that changes every frame.
+
+**Deferred**: Fog of war (needs factions), elevation LOS (needs per-tile height), LOS terrain
+blocking (needs property system #81).
+
 ## Test Results
 
 ### 2026-02-08 — All 13 tests passing
@@ -160,6 +177,12 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 - `cargo clippy -- -D warnings` -- passes (0 warnings)
 - `cargo test` -- 90/90 tests pass (19 hex_grid tests including 4 new overlay tests)
 
+### 2026-02-15 — All 156 tests passing (0.7.0 algorithms + LOS)
+
+- `cargo build` -- passes
+- `cargo clippy --all-targets` -- passes (0 warnings)
+- `cargo test` -- 156/156 tests pass (33 hex_grid tests including 11 new algorithm/LOS tests)
+
 ## Blockers
 
 | Blocker                                           | Waiting On           | Raised     | Resolved                         |
@@ -168,9 +191,10 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                                    |
-| ---------- | -------- | ------------------------------------------------------------------------ |
-| 2026-02-08 | speccing | Initial spec created                                                     |
-| 2026-02-08 | complete | Implementation done, all tests passing, clippy clean                     |
-| 2026-02-10 | complete | Post-0.3.0 polish: ring overlays, deselect, mesh fixes                   |
-| 2026-02-11 | complete | 0.4.0: move overlays (sync_move_overlays), OverlayMaterials, 4 new tests |
+| Date       | Status      | Notes                                                                    |
+| ---------- | ----------- | ------------------------------------------------------------------------ |
+| 2026-02-08 | speccing    | Initial spec created                                                     |
+| 2026-02-08 | complete    | Implementation done, all tests passing, clippy clean                     |
+| 2026-02-10 | complete    | Post-0.3.0 polish: ring overlays, deselect, mesh fixes                   |
+| 2026-02-11 | complete    | 0.4.0: move overlays (sync_move_overlays), OverlayMaterials, 4 new tests |
+| 2026-02-15 | in-progress | 0.7.0: hexx algorithms, LOS algorithm + gizmo visual                     |
