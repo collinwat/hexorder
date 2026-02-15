@@ -93,3 +93,29 @@ pub struct MoveOverlay {
     pub state: MoveOverlayState,
     pub position: HexPosition,
 }
+
+// ---------------------------------------------------------------------------
+// Line of Sight & Visibility (0.7.0)
+// ---------------------------------------------------------------------------
+
+/// Result of a line-of-sight query between two hexes.
+#[derive(Debug, Clone)]
+pub struct LineOfSightResult {
+    /// Origin hex of the LOS query.
+    pub origin: HexPosition,
+    /// Target hex of the LOS query.
+    pub target: HexPosition,
+    /// Whether the line of sight is clear (no blocking hexes).
+    pub clear: bool,
+    /// All hexes along the line from origin to target.
+    pub path: Vec<HexPosition>,
+    /// The first hex that blocks the line of sight, if any.
+    pub blocked_by: Option<HexPosition>,
+}
+
+/// Component giving a unit a visibility range (in hexes).
+/// Used by field-of-view queries and future fog of war.
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+pub struct VisibilityRange {
+    pub range: u32,
+}

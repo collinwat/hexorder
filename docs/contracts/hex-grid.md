@@ -121,6 +121,26 @@ pub struct MoveOverlay {
 }
 ```
 
+### Line of Sight & Visibility (0.7.0)
+
+```rust
+/// Result of a line-of-sight query between two hexes.
+#[derive(Debug, Clone)]
+pub struct LineOfSightResult {
+    pub origin: HexPosition,
+    pub target: HexPosition,
+    pub clear: bool,
+    pub path: Vec<HexPosition>,
+    pub blocked_by: Option<HexPosition>,
+}
+
+/// Component giving a unit a visibility range (in hexes).
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+pub struct VisibilityRange {
+    pub range: u32,
+}
+```
+
 ## Invariants
 
 - `HexPosition` coordinates are always valid axial coordinates
@@ -131,9 +151,10 @@ pub struct MoveOverlay {
 
 ## Changelog
 
-| Date       | Change                              | Reason                                                                    |
-| ---------- | ----------------------------------- | ------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition                  | Foundation for all hex-based features                                     |
-| 2026-02-08 | Added HexTile, SelectedHex          | Promoted from hex_grid internals to fix contract boundary violations      |
-| 2026-02-10 | Added TileBaseMaterial component    | Needed so hover/selection ring overlays can coexist with cell type colors |
-| 2026-02-11 | Added MoveOverlay, MoveOverlayState | M4 — visual feedback for valid/blocked move destinations                  |
+| Date       | Change                                   | Reason                                                                    |
+| ---------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition                       | Foundation for all hex-based features                                     |
+| 2026-02-08 | Added HexTile, SelectedHex               | Promoted from hex_grid internals to fix contract boundary violations      |
+| 2026-02-10 | Added TileBaseMaterial component         | Needed so hover/selection ring overlays can coexist with cell type colors |
+| 2026-02-11 | Added MoveOverlay, MoveOverlayState      | M4 — visual feedback for valid/blocked move destinations                  |
+| 2026-02-15 | Added LineOfSightResult, VisibilityRange | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
