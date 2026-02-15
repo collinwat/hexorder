@@ -1,45 +1,57 @@
 ---
 name: hex-wiki
 description:
-    Read, create, and update pages in the GitHub Wiki. The wiki is a separate git repo cloned
-    locally at .wiki/ (gitignored). Use this skill whenever you need to access wiki content, write a
-    new wiki page, or push changes to the wiki. Other skills (e.g., research) depend on this skill
-    for wiki operations.
+    Read, create, and update pages in the GitHub Wiki. Use when accessing wiki content, writing new
+    pages, or pushing changes. Other skills depend on this for wiki operations. Also use when the
+    user invokes /hex-wiki.
 ---
 
 # Wiki
 
-The GitHub Wiki lives at `.wiki/`, a separately-managed git repo (gitignored by the main repo).
+Manage the GitHub Wiki — read, create, edit, and publish pages.
 
-## Ensure `.wiki/` Exists
+## Assumptions
 
-If `.wiki/` is missing, clone it:
+These values are referenced throughout the workflow using `{{ name }}` syntax. The `{{ }}`
+delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
+project structure changes, update them here.
+
+| Name              | Value                    | Description                                       |
+| ----------------- | ------------------------ | ------------------------------------------------- |
+| `project_root`    | repository root          | Base directory; all paths are relative to this    |
+| `wiki_dir`        | `.wiki`                  | GitHub Wiki local clone (gitignored by main repo) |
+| `wiki_home`       | `{{ wiki_dir }}/Home.md` | Wiki landing page with links to all pages         |
+| `wiki_clone_task` | `mise run wiki:clone`    | Task to clone the wiki repo                       |
+
+## Ensure `{{ wiki_dir }}/` Exists
+
+If `{{ wiki_dir }}/` is missing, clone it:
 
 ```bash
-mise run wiki:clone
+{{ wiki_clone_task }}
 ```
 
 To pull the latest content:
 
 ```bash
-git -C .wiki pull
+git -C {{ wiki_dir }} pull
 ```
 
 ## Reading Pages
 
-- `.wiki/Home.md` — landing page with links to all wiki pages
-- Read any page directly: `.wiki/<Page-Name>.md`
+- `{{ wiki_home }}` — landing page with links to all wiki pages
+- Read any page directly: `{{ wiki_dir }}/<Page-Name>.md`
 
 ## Creating or Editing Pages
 
-1. Write the page file at `.wiki/<Page-Name>.md`
-2. Update `.wiki/Home.md` to include a link to the new page
-3. Update any relevant index pages (e.g., `.wiki/Research-Index.md` for research content)
+1. Write the page file at `{{ wiki_dir }}/<Page-Name>.md`
+2. Update `{{ wiki_home }}` to include a link to the new page
+3. Update any relevant index pages (e.g., `{{ wiki_dir }}/Research-Index.md` for research content)
 
 ## Committing and Pushing
 
 ```bash
-cd .wiki
+cd {{ wiki_dir }}
 git add <files>
 git commit -m "<descriptive message>"
 git pull --rebase

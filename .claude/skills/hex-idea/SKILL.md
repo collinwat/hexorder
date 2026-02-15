@@ -3,9 +3,7 @@ name: hex-idea
 description:
     Capture a raw idea as a GitHub Issue ad-hoc — outside the retrospective or triage workflow. Use
     when the user has a feature request, bug report, tech debt observation, or research question
-    they want to record for future pitch consideration. Walks through type selection, optional
-    brainstorming, template-guided questions, duplicate check, and user confirmation before posting.
-    Also use when the user invokes /hex-idea.
+    they want to record for future pitch consideration. Also use when the user invokes /hex-idea.
 ---
 
 # Idea

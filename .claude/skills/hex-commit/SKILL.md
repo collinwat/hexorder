@@ -1,10 +1,8 @@
 ---
 name: hex-commit
 description:
-    Commit staged or unstaged changes with proper atomic commit hygiene. Analyzes changes for
-    distinct concerns, proposes splitting when appropriate, generates conventional commit messages
-    that pass the project's commit-msg hook, and handles failures. Use when the user wants to commit
-    work, or when the user invokes /hex-commit.
+    Commit staged or unstaged changes with proper atomic commit hygiene. Use when the user wants to
+    commit work. Also use when the user invokes /hex-commit.
 ---
 
 # Commit

@@ -10,14 +10,29 @@ description:
 
 Review all shaped pitches and decide what to commit to for the next build cycle.
 
+## Assumptions
+
+These values are referenced throughout the workflow using `{{ name }}` syntax. The `{{ }}`
+delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
+project structure changes, update them here.
+
+| Name             | Value                                                 | Description                                    |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| `project_root`   | repository root                                       | Base directory; all paths are relative to this |
+| `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch issue template (labels and fields)       |
+| `coordination`   | `{{ project_root }}/docs/coordination.md`             | Active cycle, bets, ownership                  |
+| `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                 |
+
 ## Review Pitches
 
-1. List open pitches:
+1. Read `{{ pitch_template }}` to extract the label applied to pitch issues (from the `labels:`
+   field). Use the discovered label in the search below.
+2. List open pitches:
     ```bash
-    gh issue list --label "type:pitch" --state open
+    gh issue list --label "<discovered label>" --state open
     ```
-2. Read each pitch: `gh issue view <number>`
-3. For each pitch, evaluate:
+3. Read each pitch: `gh issue view <number>`
+4. For each pitch, evaluate:
     - Does the problem matter right now?
     - Is the appetite right?
     - Is the solution attractive?
@@ -34,7 +49,7 @@ For each selected pitch:
     ```bash
     gh issue edit <number> --milestone "<milestone>"
     ```
-2. Record the bet in `docs/coordination.md`:
+2. Record the bet in `{{ coordination }}`:
     - Set the new cycle name, type, and appetite under Active Cycle
     - Add the pitch to the Current Bets table with status `pending`
 
@@ -45,4 +60,4 @@ the problem is still relevant. This is intentional — important ideas come back
 
 ## After Betting
 
-The next build cycle begins with orientation (see CLAUDE.md → Development Workflow).
+The next build cycle begins with orientation (see `{{ claude_md }}` → Development Workflow).

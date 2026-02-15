@@ -10,20 +10,31 @@ description:
 # Triage
 
 Survey the full pool of open issues, identify themes and clusters, and present them for review. The
-output feeds into `/hex-pitch` when the user is ready to shape.
+output feeds into `{{ pitch_skill }}` when the user is ready to shape.
+
+## Assumptions
+
+These values are referenced throughout the workflow using `{{ name }}` syntax. The `{{ }}`
+delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
+project structure changes, update them here.
+
+| Name           | Value                                       | Description                                    |
+| -------------- | ------------------------------------------- | ---------------------------------------------- |
+| `project_root` | repository root                             | Base directory; all paths are relative to this |
+| `template_dir` | `{{ project_root }}/.github/ISSUE_TEMPLATE` | Issue templates with type and status labels    |
+| `pitch_skill`  | `/hex-pitch`                                | Pitch shaping skill                            |
 
 ## Gather Issues
 
-Pull issues from all relevant sources:
+Read `{{ template_dir }}` to discover available issue templates and their `labels:` fields. For each
+type and status label discovered, search for matching open issues:
 
 ```bash
-gh issue list --state open --label "status:triage"      # unprocessed raw ideas
-gh issue list --state open --label "status:deferred"     # deferred from prior cycles
-gh issue list --state open --label "type:feature"        # feature requests
-gh issue list --state open --label "type:bug"            # bugs
-gh issue list --state open --label "type:tech-debt"      # tech debt
-gh issue list --state open --label "type:research"       # open research questions
+gh issue list --state open --label "<label>"
 ```
+
+Run this for every label found across all templates. Deduplicate issues that appear under multiple
+labels.
 
 For each issue, note the title, labels, and area.
 
@@ -56,10 +67,10 @@ During review, handle housekeeping:
 
 - Close stale issues: `gh issue close <number> --reason "not planned"`
 - Close duplicates: `gh issue close <number> --comment "Duplicate of #<other>"`
-- Add labels to untriaged issues: `gh issue edit <number> --add-label "type:<type>"`
-- Remove `status:triage` after processing: `gh issue edit <number> --remove-label "status:triage"`
+- Add labels to untriaged issues: `gh issue edit <number> --add-label "<label>"`
+- Remove triage status after processing: `gh issue edit <number> --remove-label "<label>"`
 
 ## Output
 
-The result is a short list of clusters the user considers worth shaping. For each, run `/hex-pitch`
-to shape it into a formal pitch for the betting table.
+The result is a short list of clusters the user considers worth shaping. For each, run
+`{{ pitch_skill }}` to shape it into a formal pitch for the betting table.

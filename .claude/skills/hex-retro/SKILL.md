@@ -11,14 +11,29 @@ description:
 Run a structured retrospective at the end of a build cycle. The goal is reflection and idea capture
 — not commitments. New ideas become GitHub Issues for potential future shaping.
 
+## Assumptions
+
+These values are referenced throughout the workflow using `{{ name }}` syntax. The `{{ }}`
+delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
+project structure changes, update them here.
+
+| Name           | Value                                       | Description                                    |
+| -------------- | ------------------------------------------- | ---------------------------------------------- |
+| `project_root` | repository root                             | Base directory; all paths are relative to this |
+| `coordination` | `{{ project_root }}/docs/coordination.md`   | Active cycle, bets, milestones                 |
+| `plugins_dir`  | `{{ project_root }}/docs/plugins`           | Plugin spec and log directory                  |
+| `template_dir` | `{{ project_root }}/.github/ISSUE_TEMPLATE` | Issue templates with type labels               |
+| `wiki_dir`     | `.wiki`                                     | GitHub Wiki local clone                        |
+| `wiki_home`    | `{{ wiki_dir }}/Home.md`                    | Wiki landing page                              |
+
 ## Gather Context
 
-1. Read `docs/coordination.md` — what was bet this cycle?
+1. Read `{{ coordination }}` to extract the current cycle's bets and milestones.
 2. Review the cycle's git history:
     ```bash
     git log --oneline --since="<cycle-start>" --until="<cycle-end>"
     ```
-3. Read plugin logs for plugins worked on this cycle: `docs/plugins/<name>/log.md`
+3. Read plugin logs for plugins worked on this cycle: `{{ plugins_dir }}/<name>/log.md`
 4. **Read the build agent's voice** — fetch comments from the cycle's pitch issues. These contain
    the agent's progress updates and build reflection posted during the build phase:
     ```bash
@@ -81,17 +96,17 @@ Walk through these questions with the user:
 For each new idea, observation, or improvement surfaced during reflection:
 
 1. Search for existing issues first: `gh issue list --search "<keywords>" --state all`
-2. If no duplicate, create a new issue with the appropriate template:
+2. Read `{{ template_dir }}` to discover available issue types and their labels. Create each issue
+   using the labels from the matching template:
     ```bash
-    gh issue create --title "<idea>" --label "status:triage" --label "type:<type>"
+    gh issue create --title "<idea>" --label "<labels from template>"
     ```
-    Types: `feature`, `bug`, `tech-debt`, `research`
 3. Present the captured issues to the user for review
 
 ## Record
 
 Summarize the retrospective as a wiki page using the wiki skill:
 
-- Page name: `Retro-Cycle-<N>.md`
+- Page name: `Retro-Cycle-<N>.md` (stored in `{{ wiki_dir }}`)
 - Include: what shipped, what was cut, key learnings, captured issue numbers
-- Update `.wiki/Home.md` to link the new page
+- Update `{{ wiki_home }}` to link the new page

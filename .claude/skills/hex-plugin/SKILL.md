@@ -8,19 +8,46 @@ description:
 
 # Plugin
 
-For the full lifecycle, rationale, and templates, see `docs/guides/plugin.md`.
+Create or update plugin documentation — specs and logs — throughout the plugin lifecycle.
+
+## Assumptions
+
+These values are referenced throughout the workflow using `{{ name }}` syntax. The `{{ }}`
+delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
+project structure changes, update them here.
+
+| Name           | Value                                      | Description                                           |
+| -------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `project_root` | repository root                            | Base directory; all paths are relative to this        |
+| `plugin_guide` | `{{ project_root }}/docs/guides/plugin.md` | Plugin lifecycle, spec and log templates, conventions |
+| `plugins_dir`  | `{{ project_root }}/docs/plugins`          | Plugin documentation directory                        |
+| `coordination` | `{{ project_root }}/docs/coordination.md`  | Plugin registration and ownership                     |
+
+## 1. Learn the Plugin Lifecycle
+
+Read `{{ plugin_guide }}` to extract the spec template, log template, and lifecycle conventions.
+Specifically, find and hold in memory:
+
+- **Spec template** — the required structure for plugin spec documents
+- **Log template** — the required structure for plugin log documents
+- **Lifecycle phases** — how plugins move through creation, implementation, and completion
+- **Naming and scope conventions** — how to name plugins and define scope boundaries
+
+Do NOT hardcode template structure or lifecycle rules — always read them fresh from the file.
 
 ## Which Workflow?
 
-1. Check `docs/plugins/` for an existing plugin directory matching your work
+1. Check `{{ plugins_dir }}` for an existing plugin directory matching your work
 2. If it exists → **update** the spec and log as you work
 3. If it does not → **create** new plugin docs (below)
 
 ## Creating Plugin Docs
 
-1. Create `docs/plugins/<name>/spec.md` using the template from `docs/guides/plugin.md`
-2. Create `docs/plugins/<name>/log.md` using the template from `docs/guides/plugin.md`
-3. Register the plugin in `docs/coordination.md`
+1. Create `{{ plugins_dir }}/<name>/spec.md` using the spec template extracted from
+   `{{ plugin_guide }}`
+2. Create `{{ plugins_dir }}/<name>/log.md` using the log template extracted from
+   `{{ plugin_guide }}`
+3. Register the plugin in `{{ coordination }}`
 4. If the plugin introduces shared types, use the contract skill
 
 ## Updating During Implementation
