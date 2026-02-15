@@ -253,8 +253,7 @@ fn registry_get_by_id() {
 }
 
 #[test]
-fn registry_get_enum_by_id() {
-    // Create a registry with a manually-added enum definition.
+fn enum_registry_get_by_id() {
     let enum_id = TypeId::new();
     let enum_def = EnumDefinition {
         id: enum_id,
@@ -262,24 +261,21 @@ fn registry_get_enum_by_id() {
         options: vec!["A".to_string(), "B".to_string()],
     };
 
-    let registry = EntityTypeRegistry {
-        types: Vec::new(),
-        enum_definitions: vec![enum_def],
-    };
+    let mut enum_registry = EnumRegistry::default();
+    enum_registry.insert(enum_def);
 
-    let found = registry.get_enum(enum_id);
-    assert!(found.is_some(), "get_enum() should find the enum by id");
+    let found = enum_registry.get(enum_id);
+    assert!(found.is_some(), "get() should find the enum by id");
     assert_eq!(
         found.expect("already checked is_some").name,
         "TestEnum",
-        "get_enum() should return the correct enum definition"
+        "get() should return the correct enum definition"
     );
 
-    // Non-existent id returns None.
     let other_id = TypeId::new();
     assert!(
-        registry.get_enum(other_id).is_none(),
-        "get_enum() should return None for unknown id"
+        enum_registry.get(other_id).is_none(),
+        "get() should return None for unknown id"
     );
 }
 

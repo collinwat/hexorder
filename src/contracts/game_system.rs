@@ -241,23 +241,17 @@ pub struct EntityType {
     pub properties: Vec<PropertyDefinition>,
 }
 
-/// Unified registry of all entity types and enum definitions.
+/// Unified registry of all entity types.
 /// Replaces `CellTypeRegistry` and `UnitTypeRegistry`.
 #[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
 pub struct EntityTypeRegistry {
     pub types: Vec<EntityType>,
-    pub enum_definitions: Vec<EnumDefinition>,
 }
 
 impl EntityTypeRegistry {
     /// Look up an entity type by its ID.
     pub fn get(&self, id: TypeId) -> Option<&EntityType> {
         self.types.iter().find(|t| t.id == id)
-    }
-
-    /// Look up an enum definition by its ID.
-    pub fn get_enum(&self, id: TypeId) -> Option<&EnumDefinition> {
-        self.enum_definitions.iter().find(|e| e.id == id)
     }
 
     /// Returns all entity types with the given role.
@@ -343,11 +337,6 @@ mod tests {
                     properties: Vec::new(),
                 },
             ],
-            enum_definitions: vec![EnumDefinition {
-                id: TypeId::new(),
-                name: "Terrain Type".to_string(),
-                options: vec!["Grass".to_string(), "Sand".to_string()],
-            }],
         };
 
         let ron_str = ron::to_string(&registry).expect("serialize");
@@ -359,8 +348,6 @@ mod tests {
         assert_eq!(deserialized.types[0].properties.len(), 1);
         assert_eq!(deserialized.types[1].name, "Infantry");
         assert_eq!(deserialized.types[1].role, EntityRole::Token);
-        assert_eq!(deserialized.enum_definitions.len(), 1);
-        assert_eq!(deserialized.enum_definitions[0].options.len(), 2);
     }
 
     #[test]

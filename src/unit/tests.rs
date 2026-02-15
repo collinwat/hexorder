@@ -46,7 +46,6 @@ fn test_registry() -> EntityTypeRegistry {
                 properties: Vec::new(),
             },
         ],
-        enum_definitions: Vec::new(),
     }
 }
 

@@ -6,8 +6,8 @@ use bevy_egui::{EguiContexts, egui};
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
-    EnumDefinition, GameSystem, PropertyDefinition, PropertyType, PropertyValue, SelectedUnit,
-    TypeId, UnitInstance,
+    EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
+    SelectedUnit, TypeId, UnitInstance,
 };
 use crate::contracts::hex_grid::{HexPosition, HexTile, SelectedHex};
 use crate::contracts::ontology::{
@@ -109,6 +109,7 @@ pub fn editor_panel_system(
     selected_hex: Res<SelectedHex>,
     game_system: Res<GameSystem>,
     mut registry: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
     mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
     mut unit_data_query: Query<&mut EntityData, With<UnitInstance>>,
     tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
@@ -220,6 +221,7 @@ pub fn editor_panel_system(
                         &selected_unit,
                         &mut unit_data_query,
                         &registry,
+                        &enum_registry,
                         &mut actions,
                     );
                 } else {
@@ -230,6 +232,7 @@ pub fn editor_panel_system(
                         &tile_query,
                         &mut tile_data_query,
                         &registry,
+                        &enum_registry,
                     );
                 }
             });
@@ -239,6 +242,7 @@ pub fn editor_panel_system(
     apply_actions(
         actions,
         &mut registry,
+        &mut enum_registry,
         &mut tile_data_query,
         &mut active_board,
         &mut active_token,
@@ -1463,6 +1467,7 @@ pub(crate) fn render_inspector(
     tile_query: &Query<(&HexPosition, Entity), With<HexTile>>,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
     registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Inspector").strong())
         .default_open(true)
@@ -1509,7 +1514,8 @@ pub(crate) fn render_inspector(
                 return;
             }
 
-            let enum_defs: Vec<EnumDefinition> = registry.enum_definitions.clone();
+            let enum_defs: Vec<EnumDefinition> =
+                enum_registry.definitions.values().cloned().collect();
 
             ui.separator();
             ui.label(egui::RichText::new("Properties").small());
@@ -1534,6 +1540,7 @@ pub(crate) fn render_unit_inspector(
     selected_unit: &SelectedUnit,
     unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
     registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
     actions: &mut Vec<EditorAction>,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Unit Inspector").strong())
@@ -1561,7 +1568,8 @@ pub(crate) fn render_unit_inspector(
                 .map(|et| et.properties.clone())
                 .unwrap_or_default();
 
-            let enum_defs: Vec<EnumDefinition> = registry.enum_definitions.clone();
+            let enum_defs: Vec<EnumDefinition> =
+                enum_registry.definitions.values().cloned().collect();
 
             if !prop_defs.is_empty() {
                 ui.separator();
@@ -1677,6 +1685,7 @@ fn render_property_value_editor(
 fn apply_actions(
     actions: Vec<EditorAction>,
     registry: &mut EntityTypeRegistry,
+    enum_registry: &mut EnumRegistry,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
     active_board: &mut ActiveBoardType,
     active_token: &mut ActiveTokenType,
@@ -1752,7 +1761,7 @@ fn apply_actions(
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
-                    registry.enum_definitions.push(EnumDefinition {
+                    enum_registry.insert(EnumDefinition {
                         id: enum_id,
                         name: name.clone(),
                         options,

@@ -58,7 +58,6 @@ fn test_registry() -> EntityTypeRegistry {
                 }],
             },
         ],
-        enum_definitions: vec![],
     }
 }
 

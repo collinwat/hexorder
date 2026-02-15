@@ -93,7 +93,6 @@ fn test_entity_type_registry() -> EntityTypeRegistry {
                 }],
             },
         ],
-        enum_definitions: vec![],
     }
 }
 

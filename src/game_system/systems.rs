@@ -89,7 +89,6 @@ pub fn create_entity_type_registry() -> EntityTypeRegistry {
                 properties: Vec::new(),
             },
         ],
-        enum_definitions: Vec::new(),
     }
 }
 

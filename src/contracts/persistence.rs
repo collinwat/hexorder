@@ -197,7 +197,6 @@ mod tests {
                     color: bevy::color::Color::srgb(0.6, 0.8, 0.4),
                     properties: Vec::new(),
                 }],
-                enum_definitions: Vec::new(),
             },
             concepts: ConceptRegistry::default(),
             relations: RelationRegistry::default(),

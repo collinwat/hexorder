@@ -43,7 +43,6 @@ fn test_game_system_file() -> GameSystemFile {
                 color: bevy::color::Color::srgb(0.5, 0.5, 0.5),
                 properties: Vec::new(),
             }],
-            enum_definitions: Vec::new(),
         },
         concepts: ConceptRegistry::default(),
         relations: RelationRegistry::default(),
