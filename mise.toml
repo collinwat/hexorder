@@ -8,6 +8,7 @@ prettier = "latest"
 typos = "latest"
 taplo = "latest"
 "cargo:bacon" = "latest"
+d2 = "latest"
 
 # --- Fix tasks (auto-fix) ---
 
