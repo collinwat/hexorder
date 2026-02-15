@@ -65,11 +65,23 @@ topic being diagrammed). The filename must use kebab-case with no extension.
 
 ## 4. Render to SVG
 
-Run the D2 compiler to produce the SVG:
+Check the first line of the `.d2` file for a render directive comment:
+
+```
+# render: <flags>
+```
+
+If present, extract the flags (e.g., `--pad 20`) and append them to the render command. If no render
+directive is found, default to `--pad 5` — enough breathing room without the excessive whitespace of
+D2's built-in 100px default.
 
 ```bash
-d2 {{ diagram_dir }}/<name>.d2 {{ diagram_dir }}/<name>.svg
+{{ d2_command }} <flags> {{ diagram_dir }}/<name>.d2 {{ diagram_dir }}/<name>.svg
 ```
+
+When creating a new diagram, include a render directive as the first line. Choose a pad value
+appropriate for the embedding context — `--pad 0` for tight embedding, `--pad 5` for minimal
+breathing room.
 
 If the render fails, show the error output. Fix the D2 source and retry.
 
@@ -84,3 +96,105 @@ Present the paths as both absolute and relative-to-`target_root` forms. Callers 
 
 - Embed the SVG in markdown: `![<alt>](<relative path to .svg>)`
 - Reference the D2 source for readers: `<!-- diagram source: <relative path to .d2> -->`
+
+## Quick Reference
+
+Compact reference for common D2 patterns. For full documentation, see https://d2lang.com.
+
+### Render Directive
+
+D2 does not support in-file render options. This project uses a comment convention on the first line
+of the `.d2` file to declare CLI flags:
+
+```d2
+# render: --pad 5
+```
+
+The skill parses this line and passes the flags to the `{{ d2_command }}` invocation. If no render
+directive is present, the skill defaults to `--pad 5`.
+
+### Padding
+
+D2 defaults to `--pad 100`, adding 100px of whitespace on all sides of the diagram. This is almost
+always excessive for diagrams embedded in markdown or wiki pages.
+
+- `--pad 5` — project default; minimal breathing room (applied when no render directive is present)
+- `--pad 0` — no outer whitespace
+- `--pad 20` — moderate spacing if the diagram feels cramped
+
+### Grid Layouts
+
+D2 grids arrange children into rows or columns. Use nested grids for layouts that mix full-width
+rows with multi-column sections.
+
+**Basic structure:**
+
+```d2
+grid-rows: 3
+
+header: {
+  label: "Full-width header"
+  shape: rectangle
+}
+
+middle: "" {
+  grid-columns: 3
+
+  sidebar: { label: "Left panel"; shape: rectangle }
+  canvas: { label: "Center"; shape: rectangle }
+  panel: { label: "Right panel"; shape: rectangle }
+}
+
+footer: {
+  label: "Full-width footer"
+  shape: rectangle
+}
+```
+
+**Key patterns:**
+
+- `grid-rows` on the outer container, `grid-columns` on nested containers
+- `grid-gap: 0` — no spacing between grid cells
+- **Empty label trick**: `name: "" {` prevents the container name from rendering as a visible label.
+  Without the empty string, D2 displays the key name (e.g., "middle") as text.
+- **Cell sizing**: Set `height` proportional to content. Oversized heights (e.g., `height: 180` for
+  two lines of text) create disproportionate whitespace. Two lines of 14-18px text need roughly
+  60-80px of height.
+- `style.fill: transparent` and `style.stroke: transparent` on wrapper containers to make them
+  invisible
+- **Reserved keywords**: `left`, `right`, `top`, `bottom`, `center` are reserved by D2 for
+  positioning. Do not use them as element keys — they cause compile errors. Use descriptive names
+  like `sidebar`, `panel`, `canvas` instead.
+
+### Labels
+
+D2 supports string labels and markdown labels. They render differently in the SVG output.
+
+**String labels** (recommended):
+
+```d2
+box: {
+  label: "Line one\nLine two"
+}
+```
+
+String labels render as SVG `<text>` elements with `<tspan>` for each line. They work in all SVG
+viewers, browsers, and PNG converters.
+
+**Markdown labels** (use with caution):
+
+```d2
+box: {
+  label: |md
+    # Heading
+    Body text
+  |
+}
+```
+
+Markdown labels render inside `<foreignObject>` HTML elements in the SVG. These display correctly in
+browsers but **fail to render** in PNG conversion tools (macOS `sips`, `rsvg-convert`). If the
+diagram may be converted to PNG or viewed outside a browser, use string labels instead.
+
+**Text wrapping**: D2 does not auto-wrap text within constrained cells. Use `\n` in string labels
+for explicit line breaks. Without `\n`, long text overflows the cell boundary.
