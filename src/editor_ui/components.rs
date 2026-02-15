@@ -141,10 +141,29 @@ pub struct EditorState {
     pub new_type_role_index: usize,
     /// Name for a new property being added to an entity type.
     pub new_prop_name: String,
-    /// Selected property type index (0=Bool, 1=Int, 2=Float, 3=String, 4=Color, 5=Enum).
+    /// Selected property type index (0=Bool, 1=Int, 2=Float, 3=String, 4=Color, 5=Enum,
+    /// 6=EntityRef, 7=List, 8=Map, 9=Struct, 10=IntRange, 11=FloatRange).
     pub new_prop_type_index: usize,
     /// Comma-separated enum options when adding an Enum property.
     pub new_enum_options: String,
+    /// Role filter for `EntityRef`: 0=Any, 1=`BoardPosition`, 2=Token.
+    pub new_prop_entity_ref_role: usize,
+    /// Inner type index for List properties (indexes into base types).
+    pub new_prop_list_inner_type: usize,
+    /// Enum key ID for Map properties.
+    pub new_prop_map_enum_id: Option<TypeId>,
+    /// Value type index for Map properties.
+    pub new_prop_map_value_type: usize,
+    /// Struct ID for Struct properties.
+    pub new_prop_struct_id: Option<TypeId>,
+    /// Min for `IntRange` properties.
+    pub new_prop_int_range_min: i64,
+    /// Max for `IntRange` properties.
+    pub new_prop_int_range_max: i64,
+    /// Min for `FloatRange` properties.
+    pub new_prop_float_range_min: f64,
+    /// Max for `FloatRange` properties.
+    pub new_prop_float_range_max: f64,
 
     // Enum editor
     pub new_enum_name: String,
@@ -207,6 +226,15 @@ impl Default for EditorState {
             new_prop_name: String::new(),
             new_prop_type_index: 0,
             new_enum_options: String::new(),
+            new_prop_entity_ref_role: 0,
+            new_prop_list_inner_type: 0,
+            new_prop_map_enum_id: None,
+            new_prop_map_value_type: 0,
+            new_prop_struct_id: None,
+            new_prop_int_range_min: 0,
+            new_prop_int_range_max: 100,
+            new_prop_float_range_min: 0.0,
+            new_prop_float_range_max: 1.0,
             new_enum_name: String::new(),
             new_enum_option_text: String::new(),
             new_struct_name: String::new(),

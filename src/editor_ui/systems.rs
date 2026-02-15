@@ -169,6 +169,8 @@ pub fn editor_panel_system(
                             &mut registry,
                             &mut editor_state,
                             &mut actions,
+                            &enum_registry,
+                            &struct_registry,
                         );
                     }
                     OntologyTab::Enums => {
@@ -235,6 +237,7 @@ pub fn editor_panel_system(
                         &mut unit_data_query,
                         &registry,
                         &enum_registry,
+                        &struct_registry,
                         &mut actions,
                     );
                 } else {
@@ -246,6 +249,7 @@ pub fn editor_panel_system(
                         &mut tile_data_query,
                         &registry,
                         &enum_registry,
+                        &struct_registry,
                     );
                 }
             });
@@ -436,6 +440,8 @@ pub(crate) fn render_entity_type_editor(
     registry: &mut EntityTypeRegistry,
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
 ) {
     // -- Cell Types (BoardPosition) --
     render_entity_type_section(
@@ -446,6 +452,8 @@ pub(crate) fn render_entity_type_editor(
         EntityRole::BoardPosition,
         "Cell Types",
         "ct",
+        enum_registry,
+        struct_registry,
     );
 
     // -- Unit Types (Token) --
@@ -457,6 +465,8 @@ pub(crate) fn render_entity_type_editor(
         EntityRole::Token,
         "Unit Types",
         "ut",
+        enum_registry,
+        struct_registry,
     );
 }
 
@@ -469,6 +479,8 @@ pub(crate) fn render_entity_type_section(
     role: EntityRole,
     section_label: &str,
     id_prefix: &str,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new(section_label).strong())
         .default_open(false)
@@ -589,7 +601,20 @@ pub(crate) fn render_entity_type_section(
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Type:");
-                                    let types = ["Bool", "Int", "Float", "String", "Color", "Enum"];
+                                    let types = [
+                                        "Bool",
+                                        "Int",
+                                        "Float",
+                                        "String",
+                                        "Color",
+                                        "Enum",
+                                        "EntityRef",
+                                        "List",
+                                        "Map",
+                                        "Struct",
+                                        "IntRange",
+                                        "FloatRange",
+                                    ];
                                     egui::ComboBox::from_id_salt(format!(
                                         "{id_prefix}_pt_{display_idx}"
                                     ))
@@ -614,6 +639,189 @@ pub(crate) fn render_entity_type_section(
                                             .small()
                                             .color(egui::Color32::GRAY),
                                     );
+                                }
+                                // EntityRef (index 6) — role filter
+                                if editor_state.new_prop_type_index == 6 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Role:");
+                                        let roles = ["Any", "BoardPosition", "Token"];
+                                        egui::ComboBox::from_id_salt(format!(
+                                            "{id_prefix}_eref_{display_idx}"
+                                        ))
+                                        .selected_text(roles[editor_state.new_prop_entity_ref_role])
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for (idx, name) in roles.iter().enumerate() {
+                                                    ui.selectable_value(
+                                                        &mut editor_state.new_prop_entity_ref_role,
+                                                        idx,
+                                                        *name,
+                                                    );
+                                                }
+                                            },
+                                        );
+                                    });
+                                }
+                                // List (index 7) — inner type
+                                if editor_state.new_prop_type_index == 7 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Item type:");
+                                        let inner_types =
+                                            ["Bool", "Int", "Float", "String", "Color"];
+                                        egui::ComboBox::from_id_salt(format!(
+                                            "{id_prefix}_list_{display_idx}"
+                                        ))
+                                        .selected_text(
+                                            inner_types[editor_state.new_prop_list_inner_type],
+                                        )
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for (idx, name) in inner_types.iter().enumerate() {
+                                                    ui.selectable_value(
+                                                        &mut editor_state.new_prop_list_inner_type,
+                                                        idx,
+                                                        *name,
+                                                    );
+                                                }
+                                            },
+                                        );
+                                    });
+                                }
+                                // Map (index 8) — enum key + value type
+                                if editor_state.new_prop_type_index == 8 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Key enum:");
+                                        let enum_names: Vec<(TypeId, String)> = enum_registry
+                                            .definitions
+                                            .values()
+                                            .map(|e| (e.id, e.name.clone()))
+                                            .collect();
+                                        let selected_name = editor_state
+                                            .new_prop_map_enum_id
+                                            .and_then(|id| {
+                                                enum_names.iter().find(|(eid, _)| *eid == id)
+                                            })
+                                            .map_or("(select)", |(_, n)| n.as_str())
+                                            .to_string();
+                                        egui::ComboBox::from_id_salt(format!(
+                                            "{id_prefix}_mapk_{display_idx}"
+                                        ))
+                                        .selected_text(&selected_name)
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for (eid, ename) in &enum_names {
+                                                    if ui
+                                                        .selectable_label(
+                                                            editor_state.new_prop_map_enum_id
+                                                                == Some(*eid),
+                                                            ename,
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        editor_state.new_prop_map_enum_id =
+                                                            Some(*eid);
+                                                    }
+                                                }
+                                            },
+                                        );
+                                    });
+                                    ui.horizontal(|ui| {
+                                        ui.label("Value type:");
+                                        let val_types = ["Bool", "Int", "Float", "String", "Color"];
+                                        egui::ComboBox::from_id_salt(format!(
+                                            "{id_prefix}_mapv_{display_idx}"
+                                        ))
+                                        .selected_text(
+                                            val_types[editor_state.new_prop_map_value_type],
+                                        )
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for (idx, name) in val_types.iter().enumerate() {
+                                                    ui.selectable_value(
+                                                        &mut editor_state.new_prop_map_value_type,
+                                                        idx,
+                                                        *name,
+                                                    );
+                                                }
+                                            },
+                                        );
+                                    });
+                                }
+                                // Struct (index 9)
+                                if editor_state.new_prop_type_index == 9 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Struct:");
+                                        let struct_names: Vec<(TypeId, String)> = struct_registry
+                                            .definitions
+                                            .values()
+                                            .map(|s| (s.id, s.name.clone()))
+                                            .collect();
+                                        let selected_name = editor_state
+                                            .new_prop_struct_id
+                                            .and_then(|id| {
+                                                struct_names.iter().find(|(sid, _)| *sid == id)
+                                            })
+                                            .map_or("(select)", |(_, n)| n.as_str())
+                                            .to_string();
+                                        egui::ComboBox::from_id_salt(format!(
+                                            "{id_prefix}_struct_{display_idx}"
+                                        ))
+                                        .selected_text(&selected_name)
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for (sid, sname) in &struct_names {
+                                                    if ui
+                                                        .selectable_label(
+                                                            editor_state.new_prop_struct_id
+                                                                == Some(*sid),
+                                                            sname,
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        editor_state.new_prop_struct_id =
+                                                            Some(*sid);
+                                                    }
+                                                }
+                                            },
+                                        );
+                                    });
+                                }
+                                // IntRange (index 10)
+                                if editor_state.new_prop_type_index == 10 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Min:");
+                                        ui.add(egui::DragValue::new(
+                                            &mut editor_state.new_prop_int_range_min,
+                                        ));
+                                        ui.label("Max:");
+                                        ui.add(egui::DragValue::new(
+                                            &mut editor_state.new_prop_int_range_max,
+                                        ));
+                                    });
+                                }
+                                // FloatRange (index 11)
+                                if editor_state.new_prop_type_index == 11 {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Min:");
+                                        ui.add(
+                                            egui::DragValue::new(
+                                                &mut editor_state.new_prop_float_range_min,
+                                            )
+                                            .speed(0.1),
+                                        );
+                                        ui.label("Max:");
+                                        ui.add(
+                                            egui::DragValue::new(
+                                                &mut editor_state.new_prop_float_range_max,
+                                            )
+                                            .speed(0.1),
+                                        );
+                                    });
                                 }
                                 let prop_valid = !editor_state.new_prop_name.trim().is_empty();
                                 ui.add_enabled_ui(prop_valid, |ui| {
@@ -1712,7 +1920,7 @@ pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValida
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub(crate) fn render_inspector(
     ui: &mut egui::Ui,
     selected_hex: &SelectedHex,
@@ -1720,6 +1928,7 @@ pub(crate) fn render_inspector(
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
     registry: &EntityTypeRegistry,
     enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Inspector").strong())
         .default_open(true)
@@ -1766,9 +1975,6 @@ pub(crate) fn render_inspector(
                 return;
             }
 
-            let enum_defs: Vec<EnumDefinition> =
-                enum_registry.definitions.values().cloned().collect();
-
             ui.separator();
             ui.label(egui::RichText::new("Properties").small());
 
@@ -1781,18 +1987,28 @@ pub(crate) fn render_inspector(
                         .entry(prop_def.id)
                         .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
 
-                    render_property_value_editor(ui, value, &prop_def.property_type, &enum_defs);
+                    render_property_value_editor(
+                        ui,
+                        value,
+                        &prop_def.property_type,
+                        enum_registry,
+                        struct_registry,
+                        registry,
+                        0,
+                    );
                 });
             }
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_unit_inspector(
     ui: &mut egui::Ui,
     selected_unit: &SelectedUnit,
     unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
     registry: &EntityTypeRegistry,
     enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
     actions: &mut Vec<EditorAction>,
 ) {
     egui::CollapsingHeader::new(egui::RichText::new("Unit Inspector").strong())
@@ -1820,9 +2036,6 @@ pub(crate) fn render_unit_inspector(
                 .map(|et| et.properties.clone())
                 .unwrap_or_default();
 
-            let enum_defs: Vec<EnumDefinition> =
-                enum_registry.definitions.values().cloned().collect();
-
             if !prop_defs.is_empty() {
                 ui.separator();
                 ui.label(egui::RichText::new("Properties").small());
@@ -1840,7 +2053,10 @@ pub(crate) fn render_unit_inspector(
                             ui,
                             value,
                             &prop_def.property_type,
-                            &enum_defs,
+                            enum_registry,
+                            struct_registry,
+                            registry,
+                            0,
                         );
                     });
                 }
@@ -1860,11 +2076,15 @@ pub(crate) fn render_unit_inspector(
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_property_value_editor(
     ui: &mut egui::Ui,
     value: &mut PropertyValue,
     prop_type: &PropertyType,
-    enum_defs: &[EnumDefinition],
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+    entity_registry: &EntityTypeRegistry,
+    depth: usize,
 ) {
     match value {
         PropertyValue::Bool(b) => {
@@ -1893,9 +2113,8 @@ fn render_property_value_editor(
         }
         PropertyValue::Enum(selected) => {
             if let PropertyType::Enum(enum_id) = prop_type {
-                let options: Vec<String> = enum_defs
-                    .iter()
-                    .find(|e| e.id == *enum_id)
+                let options: Vec<String> = enum_registry
+                    .get(*enum_id)
                     .map(|ed| ed.options.clone())
                     .unwrap_or_default();
 
@@ -1908,23 +2127,197 @@ fn render_property_value_editor(
                     });
             }
         }
-        PropertyValue::EntityRef(_) => {
-            ui.label("(EntityRef editor pending)");
+        PropertyValue::EntityRef(selected) => {
+            let role_filter = if let PropertyType::EntityRef(filter) = prop_type {
+                *filter
+            } else {
+                None
+            };
+            let candidates: Vec<_> = entity_registry
+                .types
+                .iter()
+                .filter(|et| role_filter.is_none() || Some(et.role) == role_filter)
+                .map(|et| (et.id, et.name.clone()))
+                .collect();
+            let selected_name = selected
+                .and_then(|id| candidates.iter().find(|(eid, _)| *eid == id))
+                .map_or("(none)".to_string(), |(_, n)| n.clone());
+            egui::ComboBox::from_id_salt(format!("eref_{depth}"))
+                .selected_text(&selected_name)
+                .show_ui(ui, |ui| {
+                    if ui.selectable_label(selected.is_none(), "(none)").clicked() {
+                        *selected = None;
+                    }
+                    for (eid, ename) in &candidates {
+                        if ui
+                            .selectable_label(*selected == Some(*eid), ename)
+                            .clicked()
+                        {
+                            *selected = Some(*eid);
+                        }
+                    }
+                });
         }
-        PropertyValue::List(_) => {
-            ui.label("(List editor pending)");
+        PropertyValue::List(items) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+                return;
+            }
+            let inner_type = if let PropertyType::List(inner) = prop_type {
+                inner.as_ref()
+            } else {
+                return;
+            };
+            egui::CollapsingHeader::new(format!("List ({})", items.len()))
+                .id_salt(format!("list_{depth}"))
+                .show(ui, |ui| {
+                    let mut remove_idx = None;
+                    for (idx, item) in items.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("[{idx}]"));
+                            render_property_value_editor(
+                                ui,
+                                item,
+                                inner_type,
+                                enum_registry,
+                                struct_registry,
+                                entity_registry,
+                                depth + 1,
+                            );
+                            if ui.small_button("x").clicked() {
+                                remove_idx = Some(idx);
+                            }
+                        });
+                    }
+                    if let Some(idx) = remove_idx {
+                        items.remove(idx);
+                    }
+                    if ui.button("+ Add").clicked() {
+                        items.push(PropertyValue::default_for(inner_type));
+                    }
+                });
         }
-        PropertyValue::Map(_) => {
-            ui.label("(Map editor pending)");
+        PropertyValue::Map(entries) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+                return;
+            }
+            let (enum_id, value_type) = if let PropertyType::Map(eid, vt) = prop_type {
+                (*eid, vt.as_ref())
+            } else {
+                return;
+            };
+            let enum_options = enum_registry
+                .get(enum_id)
+                .map(|ed| ed.options.clone())
+                .unwrap_or_default();
+            egui::CollapsingHeader::new(format!("Map ({})", entries.len()))
+                .id_salt(format!("map_{depth}"))
+                .show(ui, |ui| {
+                    for opt in &enum_options {
+                        let entry = entries.iter_mut().find(|(k, _)| k == opt);
+                        if let Some((_, val)) = entry {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{opt}:"));
+                                render_property_value_editor(
+                                    ui,
+                                    val,
+                                    value_type,
+                                    enum_registry,
+                                    struct_registry,
+                                    entity_registry,
+                                    depth + 1,
+                                );
+                            });
+                        } else {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{opt}:"));
+                                ui.label(
+                                    egui::RichText::new("(default)")
+                                        .small()
+                                        .color(egui::Color32::GRAY),
+                                );
+                                if ui.small_button("+").clicked() {
+                                    entries.push((
+                                        opt.clone(),
+                                        PropertyValue::default_for(value_type),
+                                    ));
+                                }
+                            });
+                        }
+                    }
+                });
         }
-        PropertyValue::Struct(_) => {
-            ui.label("(Struct editor pending)");
+        PropertyValue::Struct(fields) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+                return;
+            }
+            let struct_id = if let PropertyType::Struct(sid) = prop_type {
+                *sid
+            } else {
+                return;
+            };
+            let struct_def = struct_registry.get(struct_id);
+            egui::CollapsingHeader::new(
+                struct_def
+                    .map_or("Struct", |sd| sd.name.as_str())
+                    .to_string(),
+            )
+            .id_salt(format!("struct_{depth}"))
+            .show(ui, |ui| {
+                if let Some(sd) = struct_def {
+                    for field in &sd.fields {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}:", field.name));
+                            let val = fields.entry(field.id).or_insert_with(|| {
+                                PropertyValue::default_for(&field.property_type)
+                            });
+                            render_property_value_editor(
+                                ui,
+                                val,
+                                &field.property_type,
+                                enum_registry,
+                                struct_registry,
+                                entity_registry,
+                                depth + 1,
+                            );
+                        });
+                    }
+                } else {
+                    ui.label(
+                        egui::RichText::new("(unknown struct)")
+                            .small()
+                            .color(egui::Color32::GRAY),
+                    );
+                }
+            });
         }
         PropertyValue::IntRange(v) => {
-            ui.add(egui::DragValue::new(v));
+            if let PropertyType::IntRange { min, max } = prop_type {
+                ui.add(egui::DragValue::new(v).range(*min..=*max));
+            } else {
+                ui.add(egui::DragValue::new(v));
+            }
         }
         PropertyValue::FloatRange(v) => {
-            ui.add(egui::DragValue::new(v).speed(0.1));
+            if let PropertyType::FloatRange { min, max } = prop_type {
+                ui.add(egui::DragValue::new(v).range(*min..=*max).speed(0.1));
+            } else {
+                ui.add(egui::DragValue::new(v).speed(0.1));
+            }
         }
     }
 }
@@ -2007,21 +2400,63 @@ fn apply_actions(
                 prop_type,
                 enum_options,
             } => {
-                let final_type = if matches!(prop_type, PropertyType::Enum(_)) {
-                    let enum_id = TypeId::new();
-                    let options: Vec<String> = enum_options
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                    enum_registry.insert(EnumDefinition {
-                        id: enum_id,
-                        name: name.clone(),
-                        options,
-                    });
-                    PropertyType::Enum(enum_id)
-                } else {
-                    prop_type
+                let final_type = match &prop_type {
+                    PropertyType::Enum(_) => {
+                        let enum_id = TypeId::new();
+                        let options: Vec<String> = enum_options
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        enum_registry.insert(EnumDefinition {
+                            id: enum_id,
+                            name: name.clone(),
+                            options,
+                        });
+                        PropertyType::Enum(enum_id)
+                    }
+                    PropertyType::EntityRef(_) => {
+                        let role = match editor_state.new_prop_entity_ref_role {
+                            1 => Some(EntityRole::BoardPosition),
+                            2 => Some(EntityRole::Token),
+                            _ => None,
+                        };
+                        PropertyType::EntityRef(role)
+                    }
+                    PropertyType::List(_) => {
+                        let inner = match editor_state.new_prop_list_inner_type {
+                            1 => PropertyType::Int,
+                            2 => PropertyType::Float,
+                            3 => PropertyType::String,
+                            4 => PropertyType::Color,
+                            _ => PropertyType::Bool,
+                        };
+                        PropertyType::List(Box::new(inner))
+                    }
+                    PropertyType::Map(_, _) => {
+                        let enum_id = editor_state.new_prop_map_enum_id.unwrap_or_default();
+                        let val_type = match editor_state.new_prop_map_value_type {
+                            1 => PropertyType::Int,
+                            2 => PropertyType::Float,
+                            3 => PropertyType::String,
+                            4 => PropertyType::Color,
+                            _ => PropertyType::Bool,
+                        };
+                        PropertyType::Map(enum_id, Box::new(val_type))
+                    }
+                    PropertyType::Struct(_) => {
+                        let sid = editor_state.new_prop_struct_id.unwrap_or_default();
+                        PropertyType::Struct(sid)
+                    }
+                    PropertyType::IntRange { .. } => PropertyType::IntRange {
+                        min: editor_state.new_prop_int_range_min,
+                        max: editor_state.new_prop_int_range_max,
+                    },
+                    PropertyType::FloatRange { .. } => PropertyType::FloatRange {
+                        min: editor_state.new_prop_float_range_min,
+                        max: editor_state.new_prop_float_range_max,
+                    },
+                    other => other.clone(),
                 };
 
                 let default_value = PropertyValue::default_for(&final_type);
@@ -2259,6 +2694,12 @@ fn index_to_property_type(index: usize) -> PropertyType {
         3 => PropertyType::String,
         4 => PropertyType::Color,
         5 => PropertyType::Enum(TypeId::new()),
+        6 => PropertyType::EntityRef(None),
+        7 => PropertyType::List(Box::new(PropertyType::Int)),
+        8 => PropertyType::Map(TypeId::new(), Box::new(PropertyType::Int)),
+        9 => PropertyType::Struct(TypeId::new()),
+        10 => PropertyType::IntRange { min: 0, max: 100 },
+        11 => PropertyType::FloatRange { min: 0.0, max: 1.0 },
         _ => PropertyType::Bool,
     }
 }

@@ -12,8 +12,8 @@ use egui_kittest::kittest::Queryable as _;
 
 use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
-    EntityRole, EntityType, EntityTypeRegistry, GameSystem, PropertyDefinition, PropertyType,
-    PropertyValue, TypeId,
+    EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, PropertyDefinition,
+    PropertyType, PropertyValue, StructRegistry, TypeId,
 };
 use crate::contracts::ontology::{
     CompareOp, Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -265,8 +265,17 @@ fn types_tab_shows_cell_and_unit_headings() {
     let mut registry = test_registry();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
+    let enum_registry = EnumRegistry::default();
+    let struct_registry = StructRegistry::default();
     let harness = Harness::new_ui(|ui| {
-        systems::render_entity_type_editor(ui, &mut registry, &mut state, &mut actions);
+        systems::render_entity_type_editor(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            &enum_registry,
+            &struct_registry,
+        );
     });
     harness.get_by_label("Cell Types");
     harness.get_by_label("Unit Types");
