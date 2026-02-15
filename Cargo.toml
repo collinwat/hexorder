@@ -11,7 +11,7 @@ dev = [ "bevy/dynamic_linking" ]
 [dependencies]
 bevy = "0.18"
 bevy_egui = "0.39"
-hexx = "0.22"
+hexx = { version = "0.22", features = [ "algorithms" ] }
 mlua = { version = "0.11", features = [ "luajit", "vendored" ] }
 rfd = "0.15"
 ron = "0.12"
