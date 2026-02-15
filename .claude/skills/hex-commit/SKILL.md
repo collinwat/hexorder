@@ -55,32 +55,27 @@ Display what's available to commit:
 
 Present a clear summary so the user can see the full picture.
 
-## 4. Select Scope
+## 4. Determine What to Commit
 
-Ask the user what to commit. Offer options based on what exists:
+Decide what to include based on the current state:
 
-- **Staged only** — commit exactly what's staged (skip to step 6)
-- **All changes** — stage and commit everything (proceed to step 5)
-- **Specific files** — let the user pick which files to include (proceed to step 5)
+- **Staged changes exist** — commit exactly what's staged. Trust the user's staging.
+- **No staged changes** — include all unstaged and untracked changes.
 
-## 5. Analyze for Atomic Commits
-
-If committing unstaged or all changes that span multiple unrelated concerns, identify distinct
-changesets that should be separate commits. Look for:
+If including unstaged/untracked changes that span multiple unrelated concerns, analyze for
+splitting. Look for:
 
 - **Different types** — a bug fix mixed with a new feature
 - **Different scopes** — changes to one plugin mixed with changes to another
 - **Different purposes** — a refactor mixed with a documentation update
 - **Unrelated file groups** — files that serve independent goals
 
-If the changes are naturally atomic (single concern, single scope), proceed to step 6.
+If the changes are naturally atomic (single concern, single scope), proceed to step 5.
 
 If splitting is warranted, propose the split to the user. Show which files belong to each proposed
 commit and what the commit message would be. Let the user confirm or override.
 
-Skip this step if the user selected "staged only" — trust that they staged intentionally.
-
-## 6. Generate Commit Message
+## 5. Generate Commit Message
 
 Using the types, scopes, and format rules learned in step 1, draft a commit message:
 
@@ -93,26 +88,22 @@ Using the types, scopes, and format rules learned in step 1, draft a commit mess
 Verify the message would pass the `commit-msg` hook validation from `{{ hook_config }}` before
 presenting it.
 
-## 7. Confirm
+## 6. Commit
 
-Display the full commit message in plain text (not a code block). Then ask: "Ready to commit, or
-would you like to change anything?"
+Present the proposed commit message, then stage files as needed and create the commit in a single
+step. The user's approval of the git command serves as confirmation — do not ask separately.
 
-Never commit without explicit confirmation.
+Verify with `git log -1 --oneline`.
 
-## 8. Commit
-
-Stage files as needed and create the commit. Verify with `git log -1 --oneline`.
-
-## 9. Handle Failures
+## 7. Handle Failures
 
 - **Pre-commit hook fails**: Show the error output. Ask permission before attempting to fix. If
   allowed, fix the issue and loop back to step 2.
 - **Commit-msg hook fails**: The message didn't match the format. Re-read `{{ hook_config }}` to
-  understand the rejection, regenerate the message, and loop back to step 7.
+  understand the rejection, regenerate the message, and loop back to step 5.
 - **Other errors**: Show the error and stop. Let the user decide next steps.
 
-## 10. Repeat if Splitting
+## 8. Repeat if Splitting
 
-If changes were split into multiple commits in step 5, loop back to step 4 for the remaining
+If changes were split into multiple commits in step 4, loop back to step 4 for the remaining
 changes. Continue until all proposed commits are made or the user stops.
