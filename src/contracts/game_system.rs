@@ -111,6 +111,72 @@ pub struct EnumDefinition {
     pub options: Vec<String>,
 }
 
+/// Standalone registry of all designer-defined enum definitions.
+/// Replaces `EntityTypeRegistry.enum_definitions` (0.7.0).
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct EnumRegistry {
+    pub definitions: HashMap<TypeId, EnumDefinition>,
+}
+
+impl EnumRegistry {
+    /// Look up an enum definition by its ID.
+    pub fn get(&self, id: TypeId) -> Option<&EnumDefinition> {
+        self.definitions.get(&id)
+    }
+
+    /// Look up a mutable enum definition by its ID.
+    pub fn get_mut(&mut self, id: TypeId) -> Option<&mut EnumDefinition> {
+        self.definitions.get_mut(&id)
+    }
+
+    /// Insert or replace an enum definition.
+    pub fn insert(&mut self, def: EnumDefinition) {
+        self.definitions.insert(def.id, def);
+    }
+
+    /// Remove an enum definition by ID. Returns the removed definition.
+    pub fn remove(&mut self, id: TypeId) -> Option<EnumDefinition> {
+        self.definitions.remove(&id)
+    }
+}
+
+/// A named composite type — a list of typed, named fields.
+/// Registered centrally so multiple entity types can reference the same struct schema.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct StructDefinition {
+    pub id: TypeId,
+    pub name: String,
+    pub fields: Vec<PropertyDefinition>,
+}
+
+/// Standalone registry of all designer-defined struct definitions (0.7.0).
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct StructRegistry {
+    pub definitions: HashMap<TypeId, StructDefinition>,
+}
+
+impl StructRegistry {
+    /// Look up a struct definition by its ID.
+    pub fn get(&self, id: TypeId) -> Option<&StructDefinition> {
+        self.definitions.get(&id)
+    }
+
+    /// Look up a mutable struct definition by its ID.
+    pub fn get_mut(&mut self, id: TypeId) -> Option<&mut StructDefinition> {
+        self.definitions.get_mut(&id)
+    }
+
+    /// Insert or replace a struct definition.
+    pub fn insert(&mut self, def: StructDefinition) {
+        self.definitions.insert(def.id, def);
+    }
+
+    /// Remove a struct definition by ID. Returns the removed definition.
+    pub fn remove(&mut self, id: TypeId) -> Option<StructDefinition> {
+        self.definitions.remove(&id)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Entity Types (0.4.0 — unified, replaces CellType and UnitType)
 // ---------------------------------------------------------------------------
@@ -258,5 +324,90 @@ mod tests {
         assert_eq!(deserialized.types[1].role, EntityRole::Token);
         assert_eq!(deserialized.enum_definitions.len(), 1);
         assert_eq!(deserialized.enum_definitions[0].options.len(), 2);
+    }
+
+    #[test]
+    fn enum_registry_insert_and_get() {
+        let mut reg = EnumRegistry::default();
+        let id = TypeId::new();
+        let def = EnumDefinition {
+            id,
+            name: "Terrain".to_string(),
+            options: vec!["Grass".to_string(), "Sand".to_string()],
+        };
+        reg.definitions.insert(id, def);
+        assert_eq!(reg.definitions.len(), 1);
+        assert_eq!(reg.get(id).expect("should find").name, "Terrain");
+        assert!(reg.get(TypeId::new()).is_none());
+    }
+
+    #[test]
+    fn enum_registry_ron_round_trip() {
+        let mut reg = EnumRegistry::default();
+        let id = TypeId::new();
+        reg.definitions.insert(
+            id,
+            EnumDefinition {
+                id,
+                name: "Side".to_string(),
+                options: vec!["Axis".to_string(), "Allied".to_string()],
+            },
+        );
+        let ron_str = ron::to_string(&reg).expect("serialize");
+        let loaded: EnumRegistry = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(loaded.definitions.len(), 1);
+        assert_eq!(loaded.get(id).expect("should find").options.len(), 2);
+    }
+
+    #[test]
+    fn struct_registry_insert_and_get() {
+        let mut reg = StructRegistry::default();
+        let id = TypeId::new();
+        let def = StructDefinition {
+            id,
+            name: "CombatProfile".to_string(),
+            fields: vec![
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "attack".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "defense".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+            ],
+        };
+        reg.definitions.insert(id, def);
+        assert_eq!(reg.definitions.len(), 1);
+        assert_eq!(reg.get(id).expect("should find").name, "CombatProfile");
+        assert_eq!(reg.get(id).expect("should find").fields.len(), 2);
+        assert!(reg.get(TypeId::new()).is_none());
+    }
+
+    #[test]
+    fn struct_registry_ron_round_trip() {
+        let mut reg = StructRegistry::default();
+        let id = TypeId::new();
+        reg.definitions.insert(
+            id,
+            StructDefinition {
+                id,
+                name: "Stats".to_string(),
+                fields: vec![PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "hp".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(10),
+                }],
+            },
+        );
+        let ron_str = ron::to_string(&reg).expect("serialize");
+        let loaded: StructRegistry = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(loaded.definitions.len(), 1);
+        assert_eq!(loaded.get(id).expect("should find").fields.len(), 1);
     }
 }
