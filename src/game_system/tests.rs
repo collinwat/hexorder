@@ -352,3 +352,34 @@ fn mountain_has_movement_cost_property() {
     assert_eq!(mountain.properties[0].property_type, PropertyType::Int);
     assert_eq!(mountain.properties[0].default_value, PropertyValue::Int(3));
 }
+
+#[test]
+fn property_value_default_for_new_types() {
+    let enum_id = TypeId::new();
+    let struct_id = TypeId::new();
+
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::EntityRef(None)),
+        PropertyValue::EntityRef(None)
+    );
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::List(Box::new(PropertyType::Int))),
+        PropertyValue::List(Vec::new())
+    );
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::Map(enum_id, Box::new(PropertyType::Int))),
+        PropertyValue::Map(Vec::new())
+    );
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::Struct(struct_id)),
+        PropertyValue::Struct(std::collections::HashMap::new())
+    );
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::IntRange { min: 1, max: 10 }),
+        PropertyValue::IntRange(1)
+    );
+    assert_eq!(
+        PropertyValue::default_for(&PropertyType::FloatRange { min: 0.0, max: 1.0 }),
+        PropertyValue::FloatRange(0.0)
+    );
+}

@@ -1648,6 +1648,24 @@ fn render_property_value_editor(
                     });
             }
         }
+        PropertyValue::EntityRef(_) => {
+            ui.label("(EntityRef editor pending)");
+        }
+        PropertyValue::List(_) => {
+            ui.label("(List editor pending)");
+        }
+        PropertyValue::Map(_) => {
+            ui.label("(Map editor pending)");
+        }
+        PropertyValue::Struct(_) => {
+            ui.label("(Struct editor pending)");
+        }
+        PropertyValue::IntRange(v) => {
+            ui.add(egui::DragValue::new(v));
+        }
+        PropertyValue::FloatRange(v) => {
+            ui.add(egui::DragValue::new(v).speed(0.1));
+        }
     }
 }
 
@@ -1910,6 +1928,12 @@ fn format_property_type(pt: &PropertyType) -> &'static str {
         PropertyType::String => "String",
         PropertyType::Color => "Color",
         PropertyType::Enum(_) => "Enum",
+        PropertyType::EntityRef(_) => "EntityRef",
+        PropertyType::List(_) => "List",
+        PropertyType::Map(_, _) => "Map",
+        PropertyType::Struct(_) => "Struct",
+        PropertyType::IntRange { .. } => "IntRange",
+        PropertyType::FloatRange { .. } => "FloatRange",
     }
 }
 

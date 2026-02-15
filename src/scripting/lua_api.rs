@@ -79,6 +79,33 @@ fn property_value_to_lua(lua: &Lua, val: &PropertyValue) -> LuaResult<Value> {
             t.set("a", linear.alpha)?;
             Ok(Value::Table(t))
         }
+        PropertyValue::EntityRef(opt) => match opt {
+            Some(id) => Ok(Value::String(lua.create_string(id.0.to_string())?)),
+            None => Ok(Value::Nil),
+        },
+        PropertyValue::List(items) => {
+            let t = lua.create_table()?;
+            for (i, item) in items.iter().enumerate() {
+                t.set(i + 1, property_value_to_lua(lua, item)?)?;
+            }
+            Ok(Value::Table(t))
+        }
+        PropertyValue::Map(entries) => {
+            let t = lua.create_table()?;
+            for (key, val) in entries {
+                t.set(key.as_str(), property_value_to_lua(lua, val)?)?;
+            }
+            Ok(Value::Table(t))
+        }
+        PropertyValue::Struct(fields) => {
+            let t = lua.create_table()?;
+            for (id, val) in fields {
+                t.set(id.0.to_string(), property_value_to_lua(lua, val)?)?;
+            }
+            Ok(Value::Table(t))
+        }
+        PropertyValue::IntRange(v) => Ok(Value::Integer(*v)),
+        PropertyValue::FloatRange(v) => Ok(Value::Number(*v)),
     }
 }
 
@@ -99,6 +126,12 @@ fn property_type_to_string(pt: &PropertyType) -> &'static str {
         PropertyType::String => "string",
         PropertyType::Color => "color",
         PropertyType::Enum(_) => "enum",
+        PropertyType::EntityRef(_) => "entity_ref",
+        PropertyType::List(_) => "list",
+        PropertyType::Map(_, _) => "map",
+        PropertyType::Struct(_) => "struct",
+        PropertyType::IntRange { .. } => "int_range",
+        PropertyType::FloatRange { .. } => "float_range",
     }
 }
 

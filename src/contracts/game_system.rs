@@ -53,8 +53,8 @@ pub struct GameSystem {
 // ---------------------------------------------------------------------------
 
 /// The data type of a property definition.
-/// Extensible — future releases will add `EntityRef`, List, Map, Struct, etc.
 #[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
 pub enum PropertyType {
     Bool,
     Int,
@@ -63,11 +63,30 @@ pub enum PropertyType {
     Color,
     /// References an `EnumDefinition` by its `TypeId`.
     Enum(TypeId),
+    /// Reference to an entity type, optionally filtered by role.
+    EntityRef(Option<EntityRole>),
+    /// Ordered collection of a single inner property type.
+    List(Box<PropertyType>),
+    /// Map with enum keys (by `TypeId`) and typed values.
+    Map(TypeId, Box<PropertyType>),
+    /// Named composite referencing a `StructDefinition` by `TypeId`.
+    Struct(TypeId),
+    /// Bounded integer with min/max validation.
+    IntRange {
+        min: i64,
+        max: i64,
+    },
+    /// Bounded float with min/max validation.
+    FloatRange {
+        min: f64,
+        max: f64,
+    },
 }
 
 /// A concrete value for a property instance.
 /// The variant must match the corresponding `PropertyType`.
 #[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
 pub enum PropertyValue {
     Bool(bool),
     Int(i64),
@@ -76,6 +95,18 @@ pub enum PropertyValue {
     Color(bevy::color::Color),
     /// The selected option name from the referenced `EnumDefinition`.
     Enum(String),
+    /// Reference to an entity type, or None if unset.
+    EntityRef(Option<TypeId>),
+    /// Ordered collection of values.
+    List(Vec<PropertyValue>),
+    /// Enum key name to value pairs (preserves insertion order for display).
+    Map(Vec<(String, PropertyValue)>),
+    /// Field values keyed by `PropertyDefinition` ID from the `StructDefinition`.
+    Struct(HashMap<TypeId, PropertyValue>),
+    /// Bounded integer value.
+    IntRange(i64),
+    /// Bounded float value.
+    FloatRange(f64),
 }
 
 impl PropertyValue {
@@ -88,6 +119,12 @@ impl PropertyValue {
             PropertyType::String => PropertyValue::String(String::new()),
             PropertyType::Color => PropertyValue::Color(bevy::color::Color::WHITE),
             PropertyType::Enum(_) => PropertyValue::Enum(String::new()),
+            PropertyType::EntityRef(_) => PropertyValue::EntityRef(None),
+            PropertyType::List(_) => PropertyValue::List(Vec::new()),
+            PropertyType::Map(_, _) => PropertyValue::Map(Vec::new()),
+            PropertyType::Struct(_) => PropertyValue::Struct(HashMap::new()),
+            PropertyType::IntRange { min, .. } => PropertyValue::IntRange(*min),
+            PropertyType::FloatRange { min, .. } => PropertyValue::FloatRange(*min),
         }
     }
 }
@@ -409,5 +446,74 @@ mod tests {
         let loaded: StructRegistry = ron::from_str(&ron_str).expect("deserialize");
         assert_eq!(loaded.definitions.len(), 1);
         assert_eq!(loaded.get(id).expect("should find").fields.len(), 1);
+    }
+
+    #[test]
+    fn compound_property_value_ron_round_trip() {
+        use std::collections::HashMap;
+
+        let values: Vec<PropertyValue> = vec![
+            PropertyValue::EntityRef(Some(TypeId::new())),
+            PropertyValue::EntityRef(None),
+            PropertyValue::List(vec![PropertyValue::Int(1), PropertyValue::Int(2)]),
+            PropertyValue::Map(vec![
+                ("Grass".to_string(), PropertyValue::Int(1)),
+                ("Sand".to_string(), PropertyValue::Int(2)),
+            ]),
+            PropertyValue::Struct({
+                let mut m = HashMap::new();
+                m.insert(TypeId::new(), PropertyValue::Int(5));
+                m.insert(TypeId::new(), PropertyValue::String("test".to_string()));
+                m
+            }),
+            PropertyValue::IntRange(7),
+            PropertyValue::FloatRange(0.5),
+        ];
+
+        for value in &values {
+            let ron_str = ron::to_string(value).expect("serialize");
+            let loaded: PropertyValue = ron::from_str(&ron_str).expect("deserialize");
+            assert_eq!(&loaded, value, "Round-trip failed for {value:?}");
+        }
+    }
+
+    #[test]
+    fn nested_compound_type_ron_round_trip() {
+        let field_id = TypeId::new();
+        let inner = PropertyValue::Struct({
+            let mut m = std::collections::HashMap::new();
+            m.insert(
+                field_id,
+                PropertyValue::List(vec![PropertyValue::Int(1), PropertyValue::Int(2)]),
+            );
+            m
+        });
+        let map_val = PropertyValue::Map(vec![("Key".to_string(), inner)]);
+
+        let ron_str = ron::to_string(&map_val).expect("serialize");
+        let loaded: PropertyValue = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(loaded, map_val);
+    }
+
+    #[test]
+    fn property_type_new_variants_are_distinct() {
+        let enum_id = TypeId::new();
+        let struct_id = TypeId::new();
+        let variants: Vec<PropertyType> = vec![
+            PropertyType::EntityRef(None),
+            PropertyType::EntityRef(Some(EntityRole::Token)),
+            PropertyType::List(Box::new(PropertyType::Int)),
+            PropertyType::Map(enum_id, Box::new(PropertyType::Int)),
+            PropertyType::Struct(struct_id),
+            PropertyType::IntRange { min: 0, max: 10 },
+            PropertyType::FloatRange { min: 0.0, max: 1.0 },
+        ];
+        for (i, a) in variants.iter().enumerate() {
+            for (j, b) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a, b, "Variants {i} and {j} should differ");
+                }
+            }
+        }
     }
 }
