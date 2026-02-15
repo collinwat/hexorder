@@ -82,6 +82,36 @@ pub(crate) enum EditorAction {
     DeleteConstraint {
         id: TypeId,
     },
+    CreateEnum {
+        name: String,
+        options: Vec<String>,
+    },
+    DeleteEnum {
+        id: TypeId,
+    },
+    AddEnumOption {
+        enum_id: TypeId,
+        option: String,
+    },
+    RemoveEnumOption {
+        enum_id: TypeId,
+        option: String,
+    },
+    CreateStruct {
+        name: String,
+    },
+    DeleteStruct {
+        id: TypeId,
+    },
+    AddStructField {
+        struct_id: TypeId,
+        name: String,
+        prop_type: PropertyType,
+    },
+    RemoveStructField {
+        struct_id: TypeId,
+        field_id: TypeId,
+    },
 }
 
 /// Which tab is active in the ontology editor panel.
@@ -89,6 +119,8 @@ pub(crate) enum EditorAction {
 pub enum OntologyTab {
     #[default]
     Types,
+    Enums,
+    Structs,
     Concepts,
     Relations,
     Constraints,
@@ -113,6 +145,14 @@ pub struct EditorState {
     pub new_prop_type_index: usize,
     /// Comma-separated enum options when adding an Enum property.
     pub new_enum_options: String,
+
+    // Enum editor
+    pub new_enum_name: String,
+    pub new_enum_option_text: String,
+    // Struct editor
+    pub new_struct_name: String,
+    pub new_struct_field_name: String,
+    pub new_struct_field_type_index: usize,
 
     // -- Ontology tab state --
     /// Which ontology tab is active.
@@ -167,6 +207,11 @@ impl Default for EditorState {
             new_prop_name: String::new(),
             new_prop_type_index: 0,
             new_enum_options: String::new(),
+            new_enum_name: String::new(),
+            new_enum_option_text: String::new(),
+            new_struct_name: String::new(),
+            new_struct_field_name: String::new(),
+            new_struct_field_type_index: 0,
             active_tab: OntologyTab::default(),
             new_concept_name: String::new(),
             new_concept_description: String::new(),

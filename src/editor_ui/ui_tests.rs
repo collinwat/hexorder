@@ -248,6 +248,8 @@ fn tab_bar_shows_all_tabs() {
         systems::render_tab_bar(ui, &mut state);
     });
     harness.get_by_label("Types");
+    harness.get_by_label("Enums");
+    harness.get_by_label("Structs");
     harness.get_by_label("Concepts");
     harness.get_by_label("Relations");
     harness.get_by_label_contains("Constr");

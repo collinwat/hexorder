@@ -7,7 +7,7 @@ use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
-    SelectedUnit, TypeId, UnitInstance,
+    SelectedUnit, StructDefinition, StructRegistry, TypeId, UnitInstance,
 };
 use crate::contracts::hex_grid::{HexPosition, HexTile, SelectedHex};
 use crate::contracts::ontology::{
@@ -110,6 +110,7 @@ pub fn editor_panel_system(
     game_system: Res<GameSystem>,
     mut registry: ResMut<EntityTypeRegistry>,
     mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
     mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
     mut unit_data_query: Query<&mut EntityData, With<UnitInstance>>,
     tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
@@ -166,6 +167,18 @@ pub fn editor_panel_system(
                         render_entity_type_editor(
                             ui,
                             &mut registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Enums => {
+                        render_enums_tab(ui, &enum_registry, &mut editor_state, &mut actions);
+                    }
+                    OntologyTab::Structs => {
+                        render_structs_tab(
+                            ui,
+                            &struct_registry,
+                            &enum_registry,
                             &mut editor_state,
                             &mut actions,
                         );
@@ -243,6 +256,7 @@ pub fn editor_panel_system(
         actions,
         &mut registry,
         &mut enum_registry,
+        &mut struct_registry,
         &mut tile_data_query,
         &mut active_board,
         &mut active_token,
@@ -312,6 +326,8 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
     ui.horizontal_wrapped(|ui| {
         for tab in [
             OntologyTab::Types,
+            OntologyTab::Enums,
+            OntologyTab::Structs,
             OntologyTab::Concepts,
             OntologyTab::Relations,
             OntologyTab::Constraints,
@@ -319,6 +335,8 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
         ] {
             let label = match tab {
                 OntologyTab::Types => "Types",
+                OntologyTab::Enums => "Enums",
+                OntologyTab::Structs => "Structs",
                 OntologyTab::Concepts => "Concepts",
                 OntologyTab::Relations => "Relations",
                 OntologyTab::Constraints => "Constr.",
@@ -637,6 +655,240 @@ pub(crate) fn render_entity_type_section(
                 }
             }
         });
+}
+
+pub(crate) fn render_enums_tab(
+    ui: &mut egui::Ui,
+    enum_registry: &EnumRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(egui::RichText::new("Enums").strong());
+
+    // Create new enum form
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("New Enum").small());
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut editor_state.new_enum_name);
+        });
+        ui.horizontal(|ui| {
+            ui.label("Options:");
+            ui.text_edit_singleline(&mut editor_state.new_enum_option_text);
+        });
+        ui.label(
+            egui::RichText::new("(comma-separated)")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+        let name_valid = !editor_state.new_enum_name.trim().is_empty();
+        ui.add_enabled_ui(name_valid, |ui| {
+            if ui.button("+ Create Enum").clicked() && name_valid {
+                let options: Vec<String> = editor_state
+                    .new_enum_option_text
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                actions.push(EditorAction::CreateEnum {
+                    name: editor_state.new_enum_name.trim().to_string(),
+                    options,
+                });
+                editor_state.new_enum_name.clear();
+                editor_state.new_enum_option_text.clear();
+            }
+        });
+    });
+
+    ui.add_space(4.0);
+
+    // List existing enums
+    if enum_registry.definitions.is_empty() {
+        ui.label(
+            egui::RichText::new("No enums defined")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+        return;
+    }
+
+    let enum_snapshots: Vec<_> = enum_registry
+        .definitions
+        .values()
+        .map(|e| (e.id, e.name.clone(), e.options.clone()))
+        .collect();
+
+    for (enum_id, name, options) in &enum_snapshots {
+        let mut delete = false;
+
+        egui::CollapsingHeader::new(name)
+            .id_salt(format!("enum_{enum_id:?}"))
+            .show(ui, |ui| {
+                for opt in options {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("  {opt}"));
+                        if ui.small_button("x").clicked() {
+                            actions.push(EditorAction::RemoveEnumOption {
+                                enum_id: *enum_id,
+                                option: opt.clone(),
+                            });
+                        }
+                    });
+                }
+
+                // Add option inline
+                ui.horizontal(|ui| {
+                    ui.label("Add:");
+                    ui.text_edit_singleline(&mut editor_state.new_enum_option_text);
+                    let opt_valid = !editor_state.new_enum_option_text.trim().is_empty();
+                    if ui.add_enabled(opt_valid, egui::Button::new("+")).clicked() && opt_valid {
+                        actions.push(EditorAction::AddEnumOption {
+                            enum_id: *enum_id,
+                            option: editor_state.new_enum_option_text.trim().to_string(),
+                        });
+                        editor_state.new_enum_option_text.clear();
+                    }
+                });
+
+                ui.add_space(4.0);
+                if ui
+                    .button(
+                        egui::RichText::new("Delete Enum")
+                            .color(egui::Color32::from_rgb(200, 80, 80)),
+                    )
+                    .clicked()
+                {
+                    delete = true;
+                }
+            });
+
+        if delete {
+            actions.push(EditorAction::DeleteEnum { id: *enum_id });
+        }
+    }
+}
+
+pub(crate) fn render_structs_tab(
+    ui: &mut egui::Ui,
+    struct_registry: &StructRegistry,
+    enum_registry: &EnumRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(egui::RichText::new("Structs").strong());
+
+    // Suppress unused warning for enum_registry (will be used for Map key picker later).
+    let _ = enum_registry;
+
+    // Create new struct form
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("New Struct").small());
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut editor_state.new_struct_name);
+        });
+        let name_valid = !editor_state.new_struct_name.trim().is_empty();
+        ui.add_enabled_ui(name_valid, |ui| {
+            if ui.button("+ Create Struct").clicked() && name_valid {
+                actions.push(EditorAction::CreateStruct {
+                    name: editor_state.new_struct_name.trim().to_string(),
+                });
+                editor_state.new_struct_name.clear();
+            }
+        });
+    });
+
+    ui.add_space(4.0);
+
+    if struct_registry.definitions.is_empty() {
+        ui.label(
+            egui::RichText::new("No structs defined")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+        return;
+    }
+
+    let struct_snapshots: Vec<_> = struct_registry
+        .definitions
+        .values()
+        .map(|s| (s.id, s.name.clone(), s.fields.clone()))
+        .collect();
+
+    for (struct_id, name, fields) in &struct_snapshots {
+        let mut delete = false;
+
+        egui::CollapsingHeader::new(name)
+            .id_salt(format!("struct_{struct_id:?}"))
+            .show(ui, |ui| {
+                for field in fields {
+                    ui.horizontal(|ui| {
+                        ui.label(format!(
+                            "  {}: {}",
+                            field.name,
+                            format_property_type(&field.property_type)
+                        ));
+                        if ui.small_button("x").clicked() {
+                            actions.push(EditorAction::RemoveStructField {
+                                struct_id: *struct_id,
+                                field_id: field.id,
+                            });
+                        }
+                    });
+                }
+
+                // Add field form
+                ui.horizontal(|ui| {
+                    ui.label("Field:");
+                    ui.text_edit_singleline(&mut editor_state.new_struct_field_name);
+                });
+                let base_types = ["Bool", "Int", "Float", "String", "Color"];
+                egui::ComboBox::from_id_salt(format!("sf_type_{struct_id:?}"))
+                    .selected_text(
+                        base_types
+                            .get(editor_state.new_struct_field_type_index)
+                            .copied()
+                            .unwrap_or("Bool"),
+                    )
+                    .show_ui(ui, |ui| {
+                        for (i, t) in base_types.iter().enumerate() {
+                            ui.selectable_value(
+                                &mut editor_state.new_struct_field_type_index,
+                                i,
+                                *t,
+                            );
+                        }
+                    });
+                let field_name_valid = !editor_state.new_struct_field_name.trim().is_empty();
+                ui.add_enabled_ui(field_name_valid, |ui| {
+                    if ui.button("+ Add Field").clicked() && field_name_valid {
+                        let prop_type =
+                            index_to_property_type(editor_state.new_struct_field_type_index);
+                        actions.push(EditorAction::AddStructField {
+                            struct_id: *struct_id,
+                            name: editor_state.new_struct_field_name.trim().to_string(),
+                            prop_type,
+                        });
+                        editor_state.new_struct_field_name.clear();
+                    }
+                });
+
+                ui.add_space(4.0);
+                if ui
+                    .button(
+                        egui::RichText::new("Delete Struct")
+                            .color(egui::Color32::from_rgb(200, 80, 80)),
+                    )
+                    .clicked()
+                {
+                    delete = true;
+                }
+            });
+
+        if delete {
+            actions.push(EditorAction::DeleteStruct { id: *struct_id });
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1686,6 +1938,7 @@ fn apply_actions(
     actions: Vec<EditorAction>,
     registry: &mut EntityTypeRegistry,
     enum_registry: &mut EnumRegistry,
+    struct_registry: &mut StructRegistry,
     tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
     active_board: &mut ActiveBoardType,
     active_token: &mut ActiveTokenType,
@@ -1917,6 +2170,59 @@ fn apply_actions(
             }
             EditorAction::DeleteConstraint { id } => {
                 constraint_registry.constraints.retain(|c| c.id != id);
+            }
+            EditorAction::CreateEnum { name, options } => {
+                enum_registry.insert(EnumDefinition {
+                    id: TypeId::new(),
+                    name,
+                    options,
+                });
+            }
+            EditorAction::DeleteEnum { id } => {
+                enum_registry.remove(id);
+            }
+            EditorAction::AddEnumOption { enum_id, option } => {
+                if let Some(def) = enum_registry.get_mut(enum_id) {
+                    def.options.push(option);
+                }
+            }
+            EditorAction::RemoveEnumOption { enum_id, option } => {
+                if let Some(def) = enum_registry.get_mut(enum_id) {
+                    def.options.retain(|o| o != &option);
+                }
+            }
+            EditorAction::CreateStruct { name } => {
+                struct_registry.insert(StructDefinition {
+                    id: TypeId::new(),
+                    name,
+                    fields: Vec::new(),
+                });
+            }
+            EditorAction::DeleteStruct { id } => {
+                struct_registry.remove(id);
+            }
+            EditorAction::AddStructField {
+                struct_id,
+                name,
+                prop_type,
+            } => {
+                if let Some(def) = struct_registry.get_mut(struct_id) {
+                    let default_value = PropertyValue::default_for(&prop_type);
+                    def.fields.push(PropertyDefinition {
+                        id: TypeId::new(),
+                        name,
+                        property_type: prop_type,
+                        default_value,
+                    });
+                }
+            }
+            EditorAction::RemoveStructField {
+                struct_id,
+                field_id,
+            } => {
+                if let Some(def) = struct_registry.get_mut(struct_id) {
+                    def.fields.retain(|f| f.id != field_id);
+                }
             }
         }
     }

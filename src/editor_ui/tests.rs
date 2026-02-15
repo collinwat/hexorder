@@ -38,6 +38,11 @@ fn editor_state_defaults() {
     assert!(state.new_prop_name.is_empty());
     assert_eq!(state.new_prop_type_index, 0);
     assert!(state.new_enum_options.is_empty());
+    assert!(state.new_enum_name.is_empty());
+    assert!(state.new_enum_option_text.is_empty());
+    assert!(state.new_struct_name.is_empty());
+    assert!(state.new_struct_field_name.is_empty());
+    assert_eq!(state.new_struct_field_type_index, 0);
     assert_eq!(state.active_tab, OntologyTab::Types);
     assert!(state.new_concept_name.is_empty());
     assert!(state.new_relation_name.is_empty());
@@ -64,9 +69,12 @@ fn ontology_tab_default_is_types() {
 
 #[test]
 fn ontology_tab_variants_are_distinct() {
+    assert_ne!(OntologyTab::Types, OntologyTab::Enums);
+    assert_ne!(OntologyTab::Types, OntologyTab::Structs);
     assert_ne!(OntologyTab::Types, OntologyTab::Concepts);
     assert_ne!(OntologyTab::Types, OntologyTab::Relations);
     assert_ne!(OntologyTab::Types, OntologyTab::Constraints);
     assert_ne!(OntologyTab::Types, OntologyTab::Validation);
+    assert_ne!(OntologyTab::Enums, OntologyTab::Structs);
     assert_ne!(OntologyTab::Concepts, OntologyTab::Relations);
 }
