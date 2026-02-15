@@ -1,6 +1,6 @@
 # Plugin Log: game_system
 
-## Status: complete
+## Status: in-progress
 
 ## Decision Log
 
@@ -11,6 +11,25 @@
 | 2026-02-09 | Moved resource creation from Startup systems to `build()` using `app.insert_resource()`            | Deferred `commands.insert_resource()` in Startup caused cross-plugin ordering crash — CellPlugin's Startup expected resources before they were flushed. Factory functions replace systems. |
 | 2026-02-09 | Active cell type defaults to first registry entry using `registry.first().map(...)`                | Avoids unwrap; returns None if registry happens to be empty                                                                                                                                |
 | 2026-02-09 | Plugin placed before cell/editor_ui in main.rs load order                                          | Required by coordination.md -- cell and editor_ui plugins depend on game_system resources                                                                                                  |
+
+### 2026-02-15 — Registry-based type system architecture (0.7.0)
+
+**Context**: Pitch #81 requires compound property types (EntityRef, List, Map, Struct, IntRange,
+FloatRange), reflection-driven form generation, and enum consolidation. Two approaches considered.
+
+**Decision**: Registry-based type system with recursive rendering (Approach B). Separate
+`EnumRegistry` and `StructRegistry` resources. Recursive match-based property renderer with 3-level
+depth cap. New Enums/Structs editor tabs.
+
+**Rationale**: Reusable definitions (enum used as Map keys and standalone, struct shared across
+entity types), clean separation from EntityTypeRegistry, consistent with project's registry pattern
+(ConceptRegistry, RelationRegistry, etc.), recursive renderer keeps code in one place.
+
+**Alternatives rejected**: Flat extensions (add variants, keep enums in EntityTypeRegistry, extend
+hand-coded editor). Rejected because no definition reuse, editor code grows linearly with type
+count, enums stay coupled to entity registry.
+
+**Full design**: `docs/plans/2026-02-15-property-system-design.md`
 
 ## Test Results
 

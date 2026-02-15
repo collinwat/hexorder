@@ -6,18 +6,18 @@
 
 ### Current Bets
 
-| Pitch                                                             | Issue | Appetite  | Owner | Status  |
-| ----------------------------------------------------------------- | ----- | --------- | ----- | ------- |
-| Property system foundation — type extensions, reflection, enums   | #81   | Big Batch | agent-a | in-progress |
-| Hex grid foundation — hexx crate, line of sight, and fog of war   | #78   | Big Batch | TBD   | pending |
+| Pitch                                                           | Issue | Appetite  | Owner   | Status      |
+| --------------------------------------------------------------- | ----- | --------- | ------- | ----------- |
+| Property system foundation — type extensions, reflection, enums | #81   | Big Batch | agent-a | in-progress |
+| Hex grid foundation — hexx crate, line of sight, and fog of war | #78   | Big Batch | TBD     | pending     |
 
 _Bets are set at the betting table during cool-down. Run `/hex-cooldown` to start the protocol._
 
 ### Prior Cycles
 
-| Cycle | Name                 | Type    | Result    |
-| ----- | -------------------- | ------- | --------- |
-| 1     | The Process Matures  | Process | completed |
+| Cycle | Name                | Type    | Result    |
+| ----- | ------------------- | ------- | --------- |
+| 1     | The Process Matures | Process | completed |
 
 ## Active Plugins
 
