@@ -623,3 +623,30 @@ fn find_path_no_route() {
     });
     assert!(path.is_none(), "Walled-off path should return None");
 }
+
+// ---------------------------------------------------------------------------
+// LOS system tests (0.7.0)
+// ---------------------------------------------------------------------------
+
+use crate::contracts::game_system::SelectedUnit;
+
+#[test]
+fn los_ray_not_drawn_without_unit() {
+    // Verify draw_los_ray does not panic when SelectedUnit has no entity.
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+    app.insert_resource(SelectedUnit::default());
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup
+    app.update(); // Update — should not panic
+}
