@@ -4,6 +4,8 @@
 //! with `hexx::Hex` directly. No ECS dependencies — these are testable
 //! without a Bevy app.
 
+use std::collections::HashSet;
+
 use crate::contracts::hex_grid::{HexPosition, LineOfSightResult};
 
 /// Returns the 6 adjacent hex positions around `pos`.
@@ -64,4 +66,50 @@ pub fn line_of_sight(
         path,
         blocked_by,
     }
+}
+
+/// Computes field of view from `origin` within `range` hexes.
+///
+/// Casts rays from `origin` to each hex on the outer ring and walks inward.
+/// Blocking hexes themselves are visible (you can see a wall), but hexes
+/// behind them are hidden. Based on `hexx` ray-casting with inclusive
+/// blocker semantics.
+pub fn field_of_view(
+    origin: HexPosition,
+    range: u32,
+    is_blocking: impl Fn(HexPosition) -> bool,
+) -> HashSet<HexPosition> {
+    let origin_hex = origin.to_hex();
+    origin_hex
+        .ring(range)
+        .flat_map(|target| {
+            // `scan` state: `true` means the ray is still open (not yet blocked).
+            origin_hex.line_to(target).scan(true, |open, h| {
+                if !*open {
+                    return None; // Ray was blocked on a previous hex.
+                }
+                let pos = HexPosition::from_hex(h);
+                if is_blocking(pos) {
+                    *open = false; // Include blocker, then close the ray.
+                }
+                Some(pos)
+            })
+        })
+        .collect()
+}
+
+/// Finds the shortest path between two hex positions using A*.
+///
+/// Wraps `hexx::algorithms::a_star`. The `cost` function receives the current
+/// hex and the candidate next hex. Return `Some(cost)` for traversable hexes
+/// or `None` for impassable ones.
+pub fn find_path(
+    from: HexPosition,
+    to: HexPosition,
+    cost: impl Fn(HexPosition, HexPosition) -> Option<u32>,
+) -> Option<Vec<HexPosition>> {
+    hexx::algorithms::a_star(from.to_hex(), to.to_hex(), |current, next| {
+        cost(HexPosition::from_hex(current), HexPosition::from_hex(next))
+    })
+    .map(|path| path.into_iter().map(HexPosition::from_hex).collect())
 }

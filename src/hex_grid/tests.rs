@@ -534,3 +534,92 @@ fn line_of_sight_adjacent() {
     assert_eq!(result.path[0], from);
     assert_eq!(result.path[1], to);
 }
+
+#[test]
+fn field_of_view_no_blockers() {
+    let origin = HexPosition::new(0, 0);
+    let visible = algorithms::field_of_view(origin, 2, |_| false);
+    let expected = algorithms::hex_range(origin, 2);
+    assert_eq!(
+        visible.len(),
+        expected.len(),
+        "With no blockers, visible set should equal full range"
+    );
+    for pos in &expected {
+        assert!(visible.contains(pos), "Visible set should contain {pos:?}");
+    }
+}
+
+#[test]
+fn field_of_view_with_blocker() {
+    let origin = HexPosition::new(0, 0);
+    // Block hex (1,0) — hexes behind it in that direction should be hidden.
+    let blocker = HexPosition::new(1, 0);
+    let visible = algorithms::field_of_view(origin, 3, |pos| pos == blocker);
+    // The blocker itself should be visible (you can see the wall).
+    assert!(
+        visible.contains(&blocker),
+        "Blocker itself should be visible"
+    );
+    // But (2,0) directly behind the blocker should be hidden.
+    let behind = HexPosition::new(2, 0);
+    assert!(
+        !visible.contains(&behind),
+        "Hex directly behind blocker should be hidden"
+    );
+}
+
+#[test]
+fn field_of_view_range_zero() {
+    let origin = HexPosition::new(5, -3);
+    let visible = algorithms::field_of_view(origin, 0, |_| false);
+    assert_eq!(visible.len(), 1, "Range 0 should return only origin");
+    assert!(visible.contains(&origin));
+}
+
+#[test]
+fn find_path_straight_line() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(3, 0);
+    let path = algorithms::find_path(from, to, |_, _| Some(1));
+    assert!(path.is_some(), "Unobstructed path should exist");
+    let path = path.expect("already checked");
+    assert_eq!(*path.first().expect("path is non-empty"), from);
+    assert_eq!(*path.last().expect("path is non-empty"), to);
+}
+
+#[test]
+fn find_path_around_obstacle() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(2, 0);
+    let wall = HexPosition::new(1, 0);
+    let path = algorithms::find_path(
+        from,
+        to,
+        |_, next| {
+            if next == wall { None } else { Some(1) }
+        },
+    );
+    assert!(path.is_some(), "Path around obstacle should exist");
+    let path = path.expect("already checked");
+    assert!(!path.contains(&wall), "Path should not go through wall");
+    assert_eq!(*path.first().expect("path is non-empty"), from);
+    assert_eq!(*path.last().expect("path is non-empty"), to);
+}
+
+#[test]
+fn find_path_no_route() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(3, 0);
+    // Block all neighbors of origin — no way out.
+    let blocked: std::collections::HashSet<HexPosition> =
+        algorithms::neighbors(from).into_iter().collect();
+    let path = algorithms::find_path(from, to, |_, next| {
+        if blocked.contains(&next) {
+            None
+        } else {
+            Some(1)
+        }
+    });
+    assert!(path.is_none(), "Walled-off path should return None");
+}
