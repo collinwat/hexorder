@@ -487,3 +487,50 @@ fn hex_range_count() {
         assert!(dist <= 3, "All range hexes should be within distance 3");
     }
 }
+
+#[test]
+fn line_of_sight_clear_path() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(3, 0);
+    let result = algorithms::line_of_sight(from, to, |_| false);
+    assert!(result.clear, "Path with no blockers should be clear");
+    assert!(result.blocked_by.is_none());
+    assert_eq!(result.origin, from);
+    assert_eq!(result.target, to);
+    assert!(
+        result.path.len() >= 2,
+        "Path should include at least origin and target"
+    );
+    assert_eq!(*result.path.first().expect("path is non-empty"), from);
+    assert_eq!(*result.path.last().expect("path is non-empty"), to);
+}
+
+#[test]
+fn line_of_sight_blocked() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(3, 0);
+    let blocker = HexPosition::new(2, 0);
+    let result = algorithms::line_of_sight(from, to, |pos| pos == blocker);
+    assert!(!result.clear, "Path should be blocked");
+    assert_eq!(result.blocked_by, Some(blocker));
+}
+
+#[test]
+fn line_of_sight_same_hex() {
+    let pos = HexPosition::new(2, -1);
+    let result = algorithms::line_of_sight(pos, pos, |_| false);
+    assert!(result.clear);
+    assert_eq!(result.path.len(), 1);
+    assert_eq!(result.path[0], pos);
+}
+
+#[test]
+fn line_of_sight_adjacent() {
+    let from = HexPosition::new(0, 0);
+    let to = HexPosition::new(1, 0);
+    let result = algorithms::line_of_sight(from, to, |_| false);
+    assert!(result.clear);
+    assert_eq!(result.path.len(), 2);
+    assert_eq!(result.path[0], from);
+    assert_eq!(result.path[1], to);
+}
