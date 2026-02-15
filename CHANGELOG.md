@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+
+- release merge lock for 0.7.0/hex-grid-foundation (project)
+
+## [0.7.0] — 2026-02-15
+
 ### Added
 
 - require --ff-only for merges to main (project)
@@ -72,6 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - set up feature branch (hex_grid)
 - enable hexx algorithms feature (hex_grid)
 - bump version to 0.7.0 and claim merge lock (project)
+- bump version to 0.7.0 (project)
 
 ### Fixed
 
