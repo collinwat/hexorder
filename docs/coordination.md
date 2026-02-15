@@ -42,10 +42,11 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 
 > Only one merge to `main` at a time. See `docs/guides/git.md` → Merge Lock Protocol for full rules.
 
-| Branch                   | Version | Claimed By | Status  |
-| ------------------------ | ------- | ---------- | ------- |
-| 0.4.0/entity-unification | 0.4.0   | agent      | done    |
-| 0.7.0/property-system    | 0.7.0   | agent-a    | merging |
+| Branch                    | Version | Claimed By | Status  |
+| ------------------------- | ------- | ---------- | ------- |
+| 0.4.0/entity-unification  | 0.4.0   | agent      | done    |
+| 0.7.0/property-system     | 0.7.0   | agent-a    | done    |
+| 0.7.0/hex-grid-foundation | 0.7.0   | agent-b    | merging |
 
 Status values: `merging` | `done`
 
