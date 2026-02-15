@@ -44,7 +44,13 @@ pub enum PropertyType {
     Float,
     String,
     Color,
-    Enum(TypeId),  // references an EnumDefinition
+    Enum(TypeId),                          // references an EnumDefinition
+    EntityRef(Option<EntityRole>),         // reference to an entity type, optionally filtered by role (0.7.0)
+    List(Box<PropertyType>),              // ordered collection of a single inner type (0.7.0)
+    Map(TypeId, Box<PropertyType>),       // enum-keyed map with typed values (0.7.0)
+    Struct(TypeId),                        // named composite referencing a StructDefinition (0.7.0)
+    IntRange { min: i64, max: i64 },      // bounded integer (0.7.0)
+    FloatRange { min: f64, max: f64 },    // bounded float (0.7.0)
 }
 
 /// A concrete value for a property instance.
@@ -55,7 +61,13 @@ pub enum PropertyValue {
     Float(f64),
     String(String),
     Color(bevy::color::Color),
-    Enum(String),  // the selected option name
+    Enum(String),                          // the selected option name
+    EntityRef(Option<TypeId>),             // reference to an entity type, or None (0.7.0)
+    List(Vec<PropertyValue>),             // ordered collection of values (0.7.0)
+    Map(Vec<(String, PropertyValue)>),    // enum key name to value pairs (0.7.0)
+    Struct(HashMap<TypeId, PropertyValue>), // field values keyed by PropertyDefinition ID (0.7.0)
+    IntRange(i64),                         // bounded integer value (0.7.0)
+    FloatRange(f64),                       // bounded float value (0.7.0)
 }
 
 /// A property schema entry: name, type, and default value.
@@ -73,6 +85,31 @@ pub struct EnumDefinition {
     pub id: TypeId,
     pub name: String,
     pub options: Vec<String>,
+}
+```
+
+### Registries (0.7.0)
+
+```rust
+/// Standalone registry of all designer-defined enum definitions.
+/// Replaces EntityTypeRegistry.enum_definitions (0.7.0).
+#[derive(Resource, Debug, Clone, Default)]
+pub struct EnumRegistry {
+    pub definitions: HashMap<TypeId, EnumDefinition>,
+}
+
+/// A named composite type — a list of typed, named fields.
+#[derive(Debug, Clone)]
+pub struct StructDefinition {
+    pub id: TypeId,
+    pub name: String,
+    pub fields: Vec<PropertyDefinition>,
+}
+
+/// Standalone registry of all designer-defined struct definitions (0.7.0).
+#[derive(Resource, Debug, Clone, Default)]
+pub struct StructRegistry {
+    pub definitions: HashMap<TypeId, StructDefinition>,
 }
 ```
 
@@ -102,12 +139,12 @@ pub struct EntityType {
     pub properties: Vec<PropertyDefinition>,
 }
 
-/// Unified registry of all entity types and enum definitions.
+/// Unified registry of all entity types.
 /// Replaces CellTypeRegistry and UnitTypeRegistry.
+/// Enum definitions moved to standalone EnumRegistry (0.7.0).
 #[derive(Resource, Debug, Default)]
 pub struct EntityTypeRegistry {
     pub types: Vec<EntityType>,
-    pub enum_definitions: Vec<EnumDefinition>,
 }
 
 /// Component attached to any entity on the hex grid (tiles and tokens).
@@ -176,13 +213,14 @@ The following 0.3.0 types are removed in 0.4.0, replaced by the unified EntityTy
 - unit (reads EntityTypeRegistry filtered by Token, EntityData, SelectedUnit)
 - ontology (reads EntityTypeRegistry for concept bindings and schema validation)
 - rules_engine (reads EntityTypeRegistry for constraint evaluation)
-- editor_ui (reads/writes GameSystem, EntityTypeRegistry, ActiveBoardType, ActiveTokenType,
-  SelectedUnit, PropertyDefinition, PropertyValue)
+- editor_ui (reads/writes GameSystem, EntityTypeRegistry, EnumRegistry, StructRegistry,
+  ActiveBoardType, ActiveTokenType, SelectedUnit, PropertyDefinition, PropertyValue)
+- persistence (reads/writes EntityTypeRegistry, EnumRegistry, StructRegistry via GameSystemFile)
 
 ## Producers
 
-- game_system (inserts GameSystem, EntityTypeRegistry, ActiveBoardType, ActiveTokenType,
-  SelectedUnit resources at startup)
+- game_system (inserts GameSystem, EntityTypeRegistry, EnumRegistry, StructRegistry,
+  ActiveBoardType, ActiveTokenType, SelectedUnit resources at startup)
 
 ## Invariants
 
@@ -206,3 +244,4 @@ The following 0.3.0 types are removed in 0.4.0, replaced by the unified EntityTy
 | 2026-02-09 | Renamed Vertex->Cell terminology | Cell is mathematically correct for N-dimensional grid elements; Vertex means hex corner in grid terminology |
 | 2026-02-09 | Added unit types section         | 0.3.0 — units on the hex grid                                                                               |
 | 2026-02-11 | Unified EntityType               | 0.4.0 — replace CellType/UnitType with EntityType + EntityRole                                              |
+| 2026-02-15 | Property system foundation       | 0.7.0 — 6 compound PropertyType/PropertyValue variants, EnumRegistry, StructRegistry, persistence v2        |

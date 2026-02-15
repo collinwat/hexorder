@@ -18,7 +18,9 @@ Top-level container for a saved game system + board state.
 | ---------------- | -------------------- | ------------------------------- |
 | `format_version` | `u32`                | File format version (migration) |
 | `game_system`    | `GameSystem`         | Game system metadata            |
-| `entity_types`   | `EntityTypeRegistry` | All entity types + enum defs    |
+| `entity_types`   | `EntityTypeRegistry` | All entity types                |
+| `enums`          | `EnumRegistry`       | Enum definitions (0.7.0)        |
+| `structs`        | `StructRegistry`     | Struct definitions (0.7.0)      |
 | `concepts`       | `ConceptRegistry`    | Concepts + bindings             |
 | `relations`      | `RelationRegistry`   | Relations                       |
 | `constraints`    | `ConstraintRegistry` | Constraints                     |
@@ -116,6 +118,7 @@ Read a RON file from disk and deserialize to `GameSystemFile`.
 
 ## Dependencies
 
-- `game_system` contract — `GameSystem`, `EntityTypeRegistry`, `TypeId`, `PropertyValue`
+- `game_system` contract — `GameSystem`, `EntityTypeRegistry`, `EnumRegistry`, `StructRegistry`,
+  `TypeId`, `PropertyValue`
 - `ontology` contract — `ConceptRegistry`, `RelationRegistry`, `ConstraintRegistry`
 - `hex_grid` contract — `HexPosition`

@@ -60,7 +60,32 @@ count, enums stay coupled to entity registry.
 
 ## Status Updates
 
-| Date       | Status   | Notes                                            |
-| ---------- | -------- | ------------------------------------------------ |
-| 2026-02-08 | speccing | Initial spec created for M2                      |
-| 2026-02-09 | complete | Plugin implemented, all tests pass, clippy clean |
+| Date       | Status      | Notes                                            |
+| ---------- | ----------- | ------------------------------------------------ |
+| 2026-02-08 | speccing    | Initial spec created for M2                      |
+| 2026-02-09 | complete    | Plugin implemented, all tests pass, clippy clean |
+| 2026-02-15 | in-progress | 0.7.0 property system foundation (pitch #81)     |
+
+### 2026-02-15 — 0.7.0 Build Results
+
+| Command                      | Result | Notes                             |
+| ---------------------------- | ------ | --------------------------------- |
+| `mise check:audit`           | PASS   | Full constitution audit clean     |
+| `cargo test`                 | PASS   | 151 tests pass (11 new)           |
+| `cargo clippy --all-targets` | PASS   | Zero warnings                     |
+| `mise check:boundary`        | PASS   | No cross-plugin import violations |
+| `mise check:unwrap`          | PASS   | No unwrap() in production code    |
+
+**New tests added (11):**
+
+1. `enum_registry_insert_and_get` — CRUD on EnumRegistry
+2. `enum_registry_ron_round_trip` — RON serialization for EnumRegistry
+3. `struct_registry_insert_and_get` — CRUD on StructRegistry
+4. `struct_registry_ron_round_trip` — RON serialization for StructRegistry
+5. `property_type_new_variants_are_distinct` — 6 new PropertyType variants are distinguishable
+6. `compound_property_value_ron_round_trip` — RON round-trip for compound PropertyValue variants
+7. `nested_compound_type_ron_round_trip` — 3-level nested compound type serialization
+8. `property_value_default_for_new_types` — default_for() returns correct defaults for new types
+9. `enum_registry_exists_after_startup` — EnumRegistry resource inserted with starter data
+10. `struct_registry_exists_after_startup` — StructRegistry resource inserted
+11. `v2_save_and_load_includes_registries` — persistence v2 round-trip with registries
