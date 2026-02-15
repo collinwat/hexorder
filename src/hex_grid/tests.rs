@@ -425,3 +425,65 @@ fn no_overlays_when_valid_move_set_empty() {
         "No overlays when ValidMoveSet is empty"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Algorithm tests (0.7.0)
+// ---------------------------------------------------------------------------
+
+use super::algorithms;
+
+#[test]
+fn neighbors_returns_six() {
+    let center = HexPosition::new(0, 0);
+    let result = algorithms::neighbors(center);
+    assert_eq!(result.len(), 6, "Should have exactly 6 neighbors");
+}
+
+#[test]
+fn neighbors_are_adjacent() {
+    let center = HexPosition::new(3, -2);
+    let result = algorithms::neighbors(center);
+    let center_hex = center.to_hex();
+    for neighbor in &result {
+        let dist = center_hex.unsigned_distance_to(neighbor.to_hex());
+        assert_eq!(dist, 1, "Each neighbor should be distance 1 from center");
+    }
+}
+
+#[test]
+fn ring_at_radius() {
+    let center = HexPosition::new(0, 0);
+    let result = algorithms::ring(center, 2);
+    assert_eq!(result.len(), 12, "Ring at radius 2 should have 12 hexes");
+    let center_hex = center.to_hex();
+    for pos in &result {
+        let dist = center_hex.unsigned_distance_to(pos.to_hex());
+        assert_eq!(dist, 2, "All ring hexes should be at exact distance 2");
+    }
+}
+
+#[test]
+fn ring_at_radius_zero() {
+    let center = HexPosition::new(1, 1);
+    let result = algorithms::ring(center, 0);
+    assert_eq!(result.len(), 1, "Ring at radius 0 is just the center");
+    assert_eq!(result[0], center);
+}
+
+#[test]
+fn hex_range_count() {
+    let center = HexPosition::new(0, 0);
+    let result = algorithms::hex_range(center, 3);
+    // 3*3*(3+1)+1 = 37
+    let expected = 3 * 3 * (3 + 1) + 1;
+    assert_eq!(
+        result.len(),
+        expected as usize,
+        "Range at radius 3 should have {expected} hexes"
+    );
+    let center_hex = center.to_hex();
+    for pos in &result {
+        let dist = center_hex.unsigned_distance_to(pos.to_hex());
+        assert!(dist <= 3, "All range hexes should be within distance 3");
+    }
+}

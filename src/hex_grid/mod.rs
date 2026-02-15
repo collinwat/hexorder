@@ -8,6 +8,8 @@ use bevy_egui::input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_inp
 
 use crate::contracts::persistence::AppScreen;
 
+#[allow(dead_code)]
+mod algorithms;
 mod components;
 mod systems;
 
