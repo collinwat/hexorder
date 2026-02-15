@@ -1,15 +1,16 @@
 ---
 name: hex-plantuml
 description:
-    Create or update PlantUML diagrams (including Salt wireframes) and render them to SVG. Use when
-    a document, wiki page, or spec needs a UML diagram, wireframe, or any PlantUML-supported
-    visualization. Also use when the user invokes /hex-plantuml.
+    Create or update PlantUML diagrams (including Salt wireframes and ditaa ASCII art) and render
+    them to image files. Use when a document, wiki page, or spec needs a UML diagram, wireframe,
+    spatial layout diagram, or any PlantUML-supported visualization. Also use when the user invokes
+    /hex-plantuml.
 ---
 
 # PlantUML
 
-Create or update a PlantUML diagram source file, render it to SVG, and return the paths so callers
-can embed the result.
+Create or update a PlantUML diagram source file, render it, and return the paths so callers can
+embed the result.
 
 ## Assumptions
 
@@ -83,7 +84,28 @@ Search for an existing diagrams directory within `target_root`:
 
 Set `diagram_dir` to the resolved directory for the rest of the workflow.
 
-## 4. Create or Update the .puml File
+## 4. Choose the Diagram Type
+
+Select the PlantUML dialect based on what is being diagrammed:
+
+| Need                                                        | Dialect | Directive     | Output Format |
+| ----------------------------------------------------------- | ------- | ------------- | ------------- |
+| Form-like UI wireframe (buttons, inputs, dropdowns, panels) | Salt    | `@startsalt`  | SVG           |
+| Spatial layout or ASCII art box diagram                     | ditaa   | `@startditaa` | **PNG only**  |
+| Sequence, component, activity, class, or state diagram      | UML     | `@startuml`   | SVG           |
+
+**When to use Salt vs ditaa:**
+
+- **Salt** is best for interactive UI mockups — forms, toolbars, menus, trees, tabbed panels. It has
+  widgets (buttons, checkboxes, dropdowns) and layout containers.
+- **ditaa** is best for spatial arrangement diagrams — layouts with labeled regions, architecture
+  boxes, network topology. It renders ASCII art directly into clean images. ditaa does NOT support
+  SVG output — it always produces PNG regardless of the `-tsvg` flag. Using `-tsvg` with ditaa will
+  produce a PNG file with an `.svg` extension, corrupting the output.
+
+If the choice is unclear, ask the user.
+
+## 5. Create or Update the .puml File
 
 Determine the diagram filename. The caller may provide a name, or derive one from context (e.g., the
 topic being diagrammed). The filename must use kebab-case with no extension.
@@ -92,36 +114,101 @@ topic being diagrammed). The filename must use kebab-case with no extension.
 - **Existing diagram**: Read `{{ diagram_dir }}/<name>.puml`, apply the requested changes, and write
   it back.
 
-## 5. Render to SVG
+## 6. Render
 
-Run the PlantUML compiler to produce the SVG:
+Run the PlantUML compiler. The output format depends on the diagram type chosen in step 4.
+
+**For Salt and UML** (SVG output):
 
 ```bash
 {{ plantuml_command }} -tsvg {{ diagram_dir }}/<name>.puml
 ```
 
-PlantUML outputs `<name>.svg` in the same directory as the source file.
+Output: `<name>.svg`
+
+**For ditaa** (PNG output — SVG is not supported):
+
+```bash
+{{ plantuml_command }} -tpng {{ diagram_dir }}/<name>.puml
+```
+
+Output: `<name>.png`
+
+**Validate the output.** After rendering, verify the output file exists and its format matches
+expectations:
+
+```bash
+file {{ diagram_dir }}/<name>.<ext>
+```
+
+- SVG files should report as "SVG Scalable Vector Graphics image" or "XML"
+- PNG files should report as "PNG image data"
+
+If the format does not match (e.g., the `file` command reports PNG data for a `.svg` file), the
+wrong render flag was used. Fix the render command and re-run.
 
 If the render fails, show the error output. Fix the PlantUML source and retry.
 
-## 6. Return Paths
+## 7. Return Paths
 
 Report both paths to the caller:
 
 - **PlantUML source**: `{{ diagram_dir }}/<name>.puml`
-- **SVG output**: `{{ diagram_dir }}/<name>.svg`
+- **Output image**: `{{ diagram_dir }}/<name>.<ext>` (`.svg` or `.png` depending on type)
 
 Present the paths as both absolute and relative-to-`target_root` forms. Callers use these to:
 
-- Embed the SVG in markdown: `![<alt>](<relative path to .svg>)`
-- Reference the PlantUML source for readers: `<!-- diagram source: <relative path to .puml> -->`
+- Embed in markdown: `![<alt>](<relative path to output>)`
+- Reference the source for readers: `<!-- diagram source: <relative path to .puml> -->`
 
 ## Quick Reference
 
 Compact syntax reference for the most common diagram types. For full documentation, see
 https://plantuml.com.
 
+### ditaa (ASCII Art Diagrams)
+
+ditaa converts ASCII art box drawings into clean rendered images.
+
+```
+@startditaa
++-------------------------------------------------------------------+
+|              Top Section Label                                     |
++------------+------------------------------+------------------------+
+|            |                              |                        |
+|  Left      |        CENTER                |  Right                 |
+|  Panel     |       (dominant)             |  Panel                 |
+|            |                              |                        |
++------------+------------------------------+------------------------+
+|  Bottom Section Label                                             |
++-------------------------------------------------------------------+
+@endditaa
+```
+
+**Formatting rules:**
+
+- Corners use `+`, horizontal lines use `-`, vertical lines use `|`
+- Text must be INSIDE boxes, not on border lines (text on a `+---+` line breaks rendering)
+- Column widths are driven by the widest content in each column
+- Rows are separated by `+---+---+` lines
+
+**Common flags** (passed in the directive):
+
+- `--no-shadows` — flat rendering, no drop shadows
+- `--no-separation` — no padding between boxes
+- `scale=1.5` — scale the output (useful for higher resolution)
+
+Example with flags: `@startditaa(scale=1.5,--no-shadows)`
+
+**Limitations:**
+
+- Output is always PNG — the `-tsvg` flag is silently ignored
+- No font styling (bold, italic) — text is rendered as-is
+- Round corners are applied to standalone boxes by default
+
 ### Salt (Wireframes)
+
+Salt is for interactive UI mockups with form widgets.
 
 ```
 @startsalt
@@ -140,18 +227,20 @@ https://plantuml.com.
 @endsalt
 ```
 
-**Layout containers:**
+**Layout containers** — the opening brace character controls the layout:
 
-- `{` — default vertical layout
-- `{+` — outer border with title
-- `{#` — grid with all lines
-- `{!` — grid with vertical lines only
-- `{-` — grid with horizontal lines only
-- `{/` — tabs: `{/ Tab1 | Tab2 | Tab3 }`
-- `{*` — menu: `{* File | Edit | View }`
-- `{T` — tree view: `{T + Parent | ++ Child | +++ Grandchild }`
-- `{S` — scroll area: `{S scrollable content }`
-- `{^` — group box with title
+```
+{     default vertical layout
+{+    outer border with title
+{#    grid with all lines
+{!    grid with vertical lines only
+{-    grid with horizontal lines only
+{/    tabs          {/ Tab1 | Tab2 | Tab3 }
+{*    menu          {* File | Edit | View }
+{T    tree view     {T + Parent | ++ Child | +++ Grandchild }
+{S    scroll area   {S scrollable content }
+{^    group box with title
+```
 
 **Grid (table) example:**
 
@@ -164,6 +253,13 @@ https://plantuml.com.
 }
 @endsalt
 ```
+
+**Limitations:**
+
+- No column spanning — every row in a `{#` grid has the same number of columns
+- Column widths are driven by content — use padding text to force wider columns
+- Separate `{#` blocks do not share column alignment
+- Best for form-like layouts, not spatial arrangement diagrams (use ditaa instead)
 
 ### Sequence Diagrams
 
