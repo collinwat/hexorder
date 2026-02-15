@@ -1,9 +1,9 @@
 ---
-name: bet
+name: hex-bet
 description:
     Run the betting table to review shaped pitches and decide what to build in the next cycle. Use
     during cool-down after pitches have been shaped, or independently when revisiting cycle scope.
-    Also use when the user invokes /bet.
+    Also use when the user invokes /hex-bet.
 ---
 
 # Bet

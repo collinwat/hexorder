@@ -1,9 +1,9 @@
 ---
-name: plugin
+name: hex-plugin
 description:
     Create or update plugin documentation (specs and logs). Use when starting a new plugin, updating
     a spec during implementation, logging decisions or test results, or scaffolding plugin docs for
-    a shaped pitch. Also use when the user invokes /plugin.
+    a shaped pitch. Also use when the user invokes /hex-plugin.
 ---
 
 # Plugin

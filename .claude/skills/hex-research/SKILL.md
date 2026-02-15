@@ -1,10 +1,10 @@
 ---
-name: research
+name: hex-research
 description:
     Consume existing research from the GitHub Wiki or perform new research. Use when a build task
     needs domain context, when evaluating technology options, when a pitch references prior
     research, or when investigating unknowns before committing to an implementation. Also use when a
-    GitHub Issue with type:research is assigned, or when the user invokes /research.
+    GitHub Issue with type:research is assigned, or when the user invokes /hex-research.
 ---
 
 # Research

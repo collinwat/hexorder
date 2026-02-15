@@ -1,16 +1,16 @@
 ---
-name: triage
+name: hex-triage
 description:
     Survey and group open GitHub Issues to identify clusters worth shaping into pitches. Use during
     cool-down to review the landscape of raw ideas, feature requests, bugs, and deferred items. Also
     use ad-hoc when exploring what problems exist before committing to shape anything. Also use when
-    the user invokes /triage.
+    the user invokes /hex-triage.
 ---
 
 # Triage
 
 Survey the full pool of open issues, identify themes and clusters, and present them for review. The
-output feeds into `/pitch` when the user is ready to shape.
+output feeds into `/hex-pitch` when the user is ready to shape.
 
 ## Gather Issues
 
@@ -61,5 +61,5 @@ During review, handle housekeeping:
 
 ## Output
 
-The result is a short list of clusters the user considers worth shaping. For each, run `/pitch` to
-shape it into a formal pitch for the betting table.
+The result is a short list of clusters the user considers worth shaping. For each, run `/hex-pitch`
+to shape it into a formal pitch for the betting table.

@@ -1,5 +1,5 @@
 ---
-name: wiki
+name: hex-wiki
 description:
     Read, create, and update pages in the GitHub Wiki. The wiki is a separate git repo cloned
     locally at .wiki/ (gitignored). Use this skill whenever you need to access wiki content, write a

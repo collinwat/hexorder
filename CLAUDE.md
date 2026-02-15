@@ -98,6 +98,25 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
     shared types must go through `src/contracts/`
 14. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
 
+### Progress Updates
+
+Post comments on the pitch issue as you build. These comments are the agent's narrative of the build
+— the retro will read them later. Post when something worth noting happens:
+
+- A scope is completed or a piece clicks into place
+- Something is harder or easier than the pitch anticipated
+- A rabbit hole was encountered (or avoided thanks to the pitch calling it out)
+- Scope was hammered — what was cut and why
+- A dead end was explored before finding the right approach
+- An assumption from the pitch turned out wrong
+
+Keep updates concise — a few sentences, not an essay. The comment thread should read like a build
+journal, not a status report.
+
+```bash
+gh issue comment <pitch-number> --body "<update>"
+```
+
 ### Scope Hammering
 
 Continuously distinguish must-haves from nice-to-haves. Compare to the current baseline (what exists
@@ -109,9 +128,16 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
     bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
     with the appropriate template. Issues are raw idea capture, not commitments.
 16. **Coordinate**: Update `docs/coordination.md` status when starting/finishing work
-17. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
+17. **Build reflection**: Post a final comment on the pitch issue summarizing the build experience.
+    This is the agent's retrospective testimony — the `/hex-retro` skill will surface it later.
+    Cover:
+    - What was the final shape vs. the original pitch?
+    - What was harder or easier than expected?
+    - What would you do differently if building this scope again?
+    - What did you learn that future agents (or future cycles) should know?
+18. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
     version bump, changelog, tag
-18. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
+19. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
     `docs/guides/git.md` — remove worktree, delete branch, update ownership
 
 ## Ship Gate
@@ -182,8 +208,11 @@ Issues are NOT a prioritized backlog. They are a capture tool. Only shaped pitch
 
 ### Capturing Raw Ideas
 
-Agents create issues for deferred items, bugs found during testing, and new ideas. Always search
-before creating to avoid duplicates:
+Use `/hex-idea` to interactively capture a raw idea as a GitHub Issue. The skill walks through type
+selection, optional brainstorming, template-guided questions, duplicate checking, and confirmation.
+
+Agents also create issues programmatically for deferred items, bugs found during testing, and new
+ideas. Always search before creating to avoid duplicates:
 
 ```bash
 gh issue list --search "<keywords>" --state all

@@ -1,9 +1,9 @@
 ---
-name: ship
+name: hex-ship
 description:
     Run the ship gate audit and verify a cycle is ready to close. Use when a cycle's work is
     complete and ready to ship, when running the constitution audit before tagging a release, or
-    when the user invokes /ship.
+    when the user invokes /hex-ship.
 ---
 
 # Ship
@@ -58,4 +58,4 @@ Follow steps 17-20 in `docs/guides/git.md` → Cycle ship merge:
 
 1. Issue cleanup — close completed issues for the milestone
 2. Triage new items — review `status:triage` issues
-3. Run cool-down protocol — retrospective (`/retro`), shaping (`/pitch`), betting
+3. Run cool-down protocol — retrospective (`/hex-retro`), shaping (`/hex-pitch`), betting

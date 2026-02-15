@@ -1,10 +1,10 @@
 ---
-name: pitch
+name: hex-pitch
 description:
     Shape raw ideas into formal pitches for the betting table. Use during cool-down to transform
     GitHub Issues, observations, or fresh ideas into shaped proposals. Handles pitches built from
     existing issues, pitches created from scratch, or a mix of both. Also use when the user invokes
-    /pitch.
+    /hex-pitch.
 ---
 
 # Pitch

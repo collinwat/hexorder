@@ -1,9 +1,9 @@
 ---
-name: contract
+name: hex-contract
 description:
     Create, modify, or consume shared contract types between plugins. Use when a plugin needs to
     expose or consume shared types, when adding cross-plugin communication, or when checking
-    contract spec-code parity. Also use when the user invokes /contract.
+    contract spec-code parity. Also use when the user invokes /hex-contract.
 ---
 
 # Contract

@@ -1,9 +1,9 @@
 ---
-name: kickoff
+name: hex-kickoff
 description:
     Start a new build cycle by orienting on the selected pitch, setting up the feature branch, and
     identifying the first piece to build. Use after bets are placed and the cycle is ready to begin.
-    Also use when the user invokes /kickoff.
+    Also use when the user invokes /hex-kickoff.
 ---
 
 # Kickoff
@@ -28,8 +28,8 @@ Follow the Feature Branch Setup Checklist in `docs/guides/git.md`:
 2. Create branch and worktree
 3. Install hooks in worktree: `lefthook install`
 4. Set pre-release version in `Cargo.toml`
-5. Scaffold plugin docs via `/plugin` (if new plugin)
-6. Check contracts via `/contract` (if dependencies exist)
+5. Scaffold plugin docs via `/hex-plugin` (if new plugin)
+6. Check contracts via `/hex-contract` (if dependencies exist)
 7. Claim ownership in `docs/coordination.md`
 8. Initial commit
 
@@ -39,7 +39,7 @@ Check if relevant research exists for this pitch:
 
 1. Read `.wiki/Research-Index.md` for relevant pages
 2. If research exists, read it and summarize key findings in the plugin log
-3. If unknowns remain, run `/research` to investigate before building
+3. If unknowns remain, run `/hex-research` to investigate before building
 
 ## Identify the First Piece
 
@@ -50,6 +50,25 @@ Pick the first scope to build end-to-end. It must be all three:
 - **Novel** — involves something new or uncertain, to surface unknowns early
 
 Record the chosen first piece in the plugin log with rationale.
+
+## Post to the Pitch Issue
+
+Post a kickoff comment on the pitch issue to start the build narrative. This comment thread becomes
+the agent's progress log for the cycle — the retro will read it later.
+
+```bash
+gh issue comment <number> --body "$(cat <<'EOF'
+## Build started
+
+**Branch:** `<branch-name>`
+**First piece:** <chosen scope and rationale>
+**Initial observations:** <anything notable from orientation — surprises, open questions, early reads on complexity>
+EOF
+)"
+```
+
+This is the first entry in a running thread. During the build, post follow-up comments on this same
+issue for progress updates (see CLAUDE.md → Development Workflow → Progress Updates).
 
 ## After Kickoff
 
