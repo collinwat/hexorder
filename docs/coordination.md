@@ -6,10 +6,10 @@
 
 ### Current Bets
 
-| Pitch                                                           | Issue | Appetite  | Owner   | Status      |
-| --------------------------------------------------------------- | ----- | --------- | ------- | ----------- |
-| Property system foundation — type extensions, reflection, enums | #81   | Big Batch | agent-a | in-progress |
-| Hex grid foundation — hexx crate, line of sight, and fog of war | #78   | Big Batch | agent-b | in-progress |
+| Pitch                                                           | Issue | Appetite  | Owner   | Status  |
+| --------------------------------------------------------------- | ----- | --------- | ------- | ------- |
+| Property system foundation — type extensions, reflection, enums | #81   | Big Batch | agent-a | shipped |
+| Hex grid foundation — hexx crate, line of sight, and fog of war | #78   | Big Batch | agent-b | shipped |
 
 _Bets are set at the betting table during cool-down. Run `/hex-cooldown` to start the protocol._
 
@@ -42,11 +42,11 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 
 > Only one merge to `main` at a time. See `docs/guides/git.md` → Merge Lock Protocol for full rules.
 
-| Branch                    | Version | Claimed By | Status  |
-| ------------------------- | ------- | ---------- | ------- |
-| 0.4.0/entity-unification  | 0.4.0   | agent      | done    |
-| 0.7.0/property-system     | 0.7.0   | agent-a    | done    |
-| 0.7.0/hex-grid-foundation | 0.7.0   | agent-b    | merging |
+| Branch                    | Version | Claimed By | Status |
+| ------------------------- | ------- | ---------- | ------ |
+| 0.4.0/entity-unification  | 0.4.0   | agent      | done   |
+| 0.7.0/property-system     | 0.7.0   | agent-a    | done   |
+| 0.7.0/hex-grid-foundation | 0.7.0   | agent-b    | done   |
 
 Status values: `merging` | `done`
 
