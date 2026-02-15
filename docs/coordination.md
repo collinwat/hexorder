@@ -44,7 +44,8 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 
 | Branch                   | Version | Claimed By | Status  |
 | ------------------------ | ------- | ---------- | ------- |
-| 0.4.0/entity-unification | 0.4.0   | agent      | merging |
+| 0.4.0/entity-unification | 0.4.0   | agent      | done    |
+| 0.7.0/property-system    | 0.7.0   | agent-a    | merging |
 
 Status values: `merging` | `done`
 
