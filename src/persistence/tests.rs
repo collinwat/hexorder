@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    EntityData, EntityRole, EntityType, EntityTypeRegistry, GameSystem, TypeId, UnitInstance,
+    EntityData, EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem,
+    StructRegistry, TypeId, UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
@@ -44,6 +45,8 @@ fn test_game_system_file() -> GameSystemFile {
                 properties: Vec::new(),
             }],
         },
+        enums: EnumRegistry::default(),
+        structs: StructRegistry::default(),
         concepts: ConceptRegistry::default(),
         relations: RelationRegistry::default(),
         constraints: ConstraintRegistry::default(),
@@ -151,6 +154,8 @@ fn save_empty_board_succeeds() {
             version: "0.1.0".to_string(),
         },
         entity_types: EntityTypeRegistry::default(),
+        enums: EnumRegistry::default(),
+        structs: StructRegistry::default(),
         concepts: ConceptRegistry::default(),
         relations: RelationRegistry::default(),
         constraints: ConstraintRegistry::default(),

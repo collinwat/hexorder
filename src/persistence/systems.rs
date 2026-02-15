@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::contracts::game_system::{
-    EntityData, EntityTypeRegistry, GameSystem, SelectedUnit, UnitInstance,
+    EntityData, EntityTypeRegistry, EnumRegistry, GameSystem, SelectedUnit, StructRegistry,
+    UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
@@ -26,6 +27,8 @@ pub fn handle_save_request(
     trigger: On<SaveRequestEvent>,
     game_system: Res<GameSystem>,
     entity_types: Res<EntityTypeRegistry>,
+    enum_registry: Res<EnumRegistry>,
+    struct_registry: Res<StructRegistry>,
     concepts: Res<ConceptRegistry>,
     relations: Res<RelationRegistry>,
     constraints: Res<ConstraintRegistry>,
@@ -73,6 +76,8 @@ pub fn handle_save_request(
         format_version: FORMAT_VERSION,
         game_system: game_system.clone(),
         entity_types: entity_types.clone(),
+        enums: enum_registry.clone(),
+        structs: struct_registry.clone(),
         concepts: concepts.clone(),
         relations: relations.clone(),
         constraints: constraints.clone(),
@@ -99,6 +104,8 @@ pub fn handle_load_request(
     _trigger: On<LoadRequestEvent>,
     mut game_system: ResMut<GameSystem>,
     mut entity_types: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
     mut concepts: ResMut<ConceptRegistry>,
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
@@ -123,6 +130,8 @@ pub fn handle_load_request(
     // Overwrite registries.
     *game_system = file.game_system;
     *entity_types = file.entity_types;
+    *enum_registry = file.enums;
+    *struct_registry = file.structs;
     *concepts = file.concepts;
     *relations = file.relations;
     *constraints = file.constraints;
@@ -152,6 +161,8 @@ pub fn handle_new_project(
     _trigger: On<NewProjectEvent>,
     mut game_system: ResMut<GameSystem>,
     mut entity_types: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
     mut concepts: ResMut<ConceptRegistry>,
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
@@ -164,6 +175,8 @@ pub fn handle_new_project(
     *game_system = crate::game_system::create_game_system();
     let registry = crate::game_system::create_entity_type_registry();
     *entity_types = registry;
+    *enum_registry = crate::game_system::create_enum_registry();
+    *struct_registry = StructRegistry::default();
 
     // Reset ontology.
     *concepts = ConceptRegistry::default();

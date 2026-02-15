@@ -13,7 +13,7 @@ use crate::contracts::game_system::{
 mod systems;
 
 // Re-export factory functions for use by persistence plugin.
-pub(crate) use systems::{create_entity_type_registry, create_game_system};
+pub(crate) use systems::{create_entity_type_registry, create_enum_registry, create_game_system};
 
 #[cfg(test)]
 mod tests;

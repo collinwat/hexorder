@@ -9,12 +9,14 @@ use std::path::{Path, PathBuf};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::game_system::{EntityTypeRegistry, GameSystem, PropertyValue, TypeId};
+use super::game_system::{
+    EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
+};
 use super::hex_grid::HexPosition;
 use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -75,6 +77,10 @@ pub struct GameSystemFile {
     pub game_system: GameSystem,
     /// Entity type registry.
     pub entity_types: EntityTypeRegistry,
+    /// Enum definitions registry (0.7.0).
+    pub enums: EnumRegistry,
+    /// Struct definitions registry (0.7.0).
+    pub structs: StructRegistry,
     /// Ontology data.
     pub concepts: ConceptRegistry,
     pub relations: RelationRegistry,
@@ -177,7 +183,8 @@ pub fn load_from_file(path: &Path) -> Result<GameSystemFile, PersistenceError> {
 mod tests {
     use super::*;
     use crate::contracts::game_system::{
-        EntityRole, EntityType, EntityTypeRegistry, GameSystem, TypeId,
+        EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, StructRegistry,
+        TypeId,
     };
 
     /// Helper: create a minimal `GameSystemFile` for testing.
@@ -198,6 +205,8 @@ mod tests {
                     properties: Vec::new(),
                 }],
             },
+            enums: EnumRegistry::default(),
+            structs: StructRegistry::default(),
             concepts: ConceptRegistry::default(),
             relations: RelationRegistry::default(),
             constraints: ConstraintRegistry::default(),
@@ -261,8 +270,35 @@ mod tests {
         let result = load_from_file(&dir);
         assert!(matches!(
             result,
-            Err(PersistenceError::UnsupportedVersion { found: 999, max: 1 })
+            Err(PersistenceError::UnsupportedVersion { found: 999, max: 2 })
         ));
+        let _ = std::fs::remove_file(&dir);
+    }
+
+    #[test]
+    fn v2_save_and_load_includes_registries() {
+        use crate::contracts::game_system::{EnumDefinition, EnumRegistry, StructRegistry, TypeId};
+
+        let dir = std::env::temp_dir().join("hexorder_test_v2.hexorder");
+        let mut data = test_file();
+
+        let mut enums = EnumRegistry::default();
+        let eid = TypeId::new();
+        enums.insert(EnumDefinition {
+            id: eid,
+            name: "Side".to_string(),
+            options: vec!["Axis".to_string(), "Allied".to_string()],
+        });
+        data.enums = enums;
+        data.structs = StructRegistry::default();
+
+        save_to_file(&dir, &data).expect("save");
+        let loaded = load_from_file(&dir).expect("load");
+
+        assert_eq!(loaded.format_version, FORMAT_VERSION);
+        assert_eq!(loaded.enums.definitions.len(), 1);
+        assert_eq!(loaded.enums.get(eid).expect("should find").name, "Side");
+
         let _ = std::fs::remove_file(&dir);
     }
 }
