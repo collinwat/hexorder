@@ -40,6 +40,7 @@ impl Plugin for HexGridPlugin {
                 systems::deselect_on_escape.run_if(not(egui_wants_any_keyboard_input)),
                 systems::update_indicators,
                 systems::sync_move_overlays,
+                systems::draw_los_ray,
             )
                 .chain()
                 .run_if(in_state(AppScreen::Editor)),

@@ -6,12 +6,14 @@ use bevy::window::PrimaryWindow;
 use hexx::shapes;
 
 use crate::contracts::editor_ui::{EditorTool, PaintPreview};
+use crate::contracts::game_system::{SelectedUnit, UnitInstance};
 use crate::contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex, TileBaseMaterial,
 };
 use crate::contracts::validation::ValidMoveSet;
 
+use super::algorithms;
 use super::components::{
     HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, OverlayMaterials, SelectIndicator,
 };
@@ -434,6 +436,46 @@ pub fn sync_move_overlays(
             MeshMaterial3d(overlay_materials.blocked.clone()),
             Transform::from_xyz(wp.x, 0.015, wp.y).with_rotation(flat_rotation),
         ));
+    }
+}
+
+/// Draws a LOS ray from the selected unit to the hovered hex using gizmos.
+///
+/// Green line if line of sight is clear, red if blocked. Only active when
+/// a unit is selected and the mouse hovers a different hex.
+pub fn draw_los_ray(
+    selected_unit: Res<SelectedUnit>,
+    hovered: Res<HoveredHex>,
+    config: Res<HexGridConfig>,
+    unit_positions: Query<&HexPosition, With<UnitInstance>>,
+    mut gizmos: Gizmos,
+) {
+    let Some(unit_entity) = selected_unit.entity else {
+        return;
+    };
+    let Ok(&unit_pos) = unit_positions.get(unit_entity) else {
+        return;
+    };
+    let Some(hover_pos) = hovered.position else {
+        return;
+    };
+    if unit_pos == hover_pos {
+        return;
+    }
+
+    // Placeholder: nothing blocks LOS until property system (#81) ships.
+    let result = algorithms::line_of_sight(unit_pos, hover_pos, |_| false);
+
+    let color = if result.clear {
+        Color::srgb(0.2, 0.9, 0.2)
+    } else {
+        Color::srgb(0.9, 0.2, 0.2)
+    };
+
+    for window in result.path.windows(2) {
+        let a = config.layout.hex_to_world_pos(window[0].to_hex());
+        let b = config.layout.hex_to_world_pos(window[1].to_hex());
+        gizmos.line(Vec3::new(a.x, 0.03, a.y), Vec3::new(b.x, 0.03, b.y), color);
     }
 }
 
