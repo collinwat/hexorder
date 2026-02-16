@@ -18,7 +18,7 @@ use crate::contracts::ontology::{
 use crate::contracts::persistence::{LoadRequestEvent, NewProjectEvent, SaveRequestEvent};
 use crate::contracts::validation::SchemaValidation;
 
-use super::components::{EditorAction, EditorState, OntologyParams, OntologyTab};
+use super::components::{BrandTheme, EditorAction, EditorState, OntologyParams, OntologyTab};
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
@@ -29,33 +29,44 @@ pub fn configure_theme(mut contexts: EguiContexts) {
     };
 
     let mut visuals = egui::Visuals::dark();
-    visuals.panel_fill = egui::Color32::from_gray(25);
-    visuals.window_fill = egui::Color32::from_gray(25);
-    visuals.extreme_bg_color = egui::Color32::from_gray(10);
-    visuals.faint_bg_color = egui::Color32::from_gray(35);
-    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_gray(30);
-    visuals.widgets.inactive.bg_fill = egui::Color32::from_gray(40);
-    visuals.widgets.hovered.bg_fill = egui::Color32::from_gray(55);
-    visuals.widgets.active.bg_fill = egui::Color32::from_gray(70);
-    visuals.selection.bg_fill = egui::Color32::from_rgb(0, 92, 128);
-    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+    visuals.panel_fill = BrandTheme::BG_PANEL;
+    visuals.window_fill = BrandTheme::BG_PANEL;
+    visuals.extreme_bg_color = BrandTheme::BG_DEEP;
+    visuals.faint_bg_color = BrandTheme::BG_SURFACE;
+    visuals.widgets.noninteractive.bg_fill = BrandTheme::WIDGET_NONINTERACTIVE;
+    visuals.widgets.inactive.bg_fill = BrandTheme::WIDGET_INACTIVE;
+    visuals.widgets.hovered.bg_fill = BrandTheme::WIDGET_HOVERED;
+    visuals.widgets.active.bg_fill = BrandTheme::WIDGET_ACTIVE;
+    visuals.selection.bg_fill = BrandTheme::ACCENT_TEAL;
+    visuals.window_stroke = egui::Stroke::new(1.0, BrandTheme::BORDER_SUBTLE);
+
+    // Text colors (fg_stroke)
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_SECONDARY);
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
+    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
     ctx.set_visuals(visuals);
 
     let mut style = (*ctx.style()).clone();
     style.text_styles.insert(
         egui::TextStyle::Heading,
-        egui::FontId::new(20.0, egui::FontFamily::Monospace),
+        egui::FontId::new(20.0, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Body,
-        egui::FontId::new(15.0, egui::FontFamily::Monospace),
+        egui::FontId::new(15.0, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Small,
-        egui::FontId::new(13.0, egui::FontFamily::Monospace),
+        egui::FontId::new(13.0, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Button,
+        egui::FontId::new(15.0, egui::FontFamily::Proportional),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Monospace,
         egui::FontId::new(15.0, egui::FontFamily::Monospace),
     );
     ctx.set_style(style);
@@ -71,17 +82,33 @@ pub fn launcher_system(mut contexts: EguiContexts, mut commands: Commands) {
         ui.vertical_centered(|ui| {
             ui.add_space(ui.available_height() * 0.3);
 
-            ui.label(egui::RichText::new("hexorder").size(32.0).strong());
+            ui.label(
+                egui::RichText::new("HEXORDER")
+                    .size(32.0)
+                    .strong()
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            ui.label(
+                egui::RichText::new("Game System Design Tool")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
             ui.add_space(4.0);
             ui.label(
                 egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
                     .small()
-                    .color(egui::Color32::GRAY),
+                    .monospace()
+                    .color(BrandTheme::TEXT_SECONDARY),
             );
             ui.add_space(24.0);
 
             if ui
-                .add(egui::Button::new("New Game System").min_size(egui::vec2(200.0, 36.0)))
+                .add(
+                    egui::Button::new(
+                        egui::RichText::new("New Game System").color(BrandTheme::ACCENT_AMBER),
+                    )
+                    .min_size(egui::vec2(200.0, 36.0)),
+                )
                 .clicked()
             {
                 commands.trigger(NewProjectEvent);
@@ -149,7 +176,7 @@ pub fn editor_panel_system(
     });
 
     egui::SidePanel::left("editor_panel")
-        .default_width(260.0)
+        .default_width(280.0)
         .show(ctx, |ui| {
             // -- Game System Info --
             render_game_system_info(ui, &game_system);
@@ -279,12 +306,18 @@ pub fn editor_panel_system(
 
 pub(crate) fn render_game_system_info(ui: &mut egui::Ui, gs: &GameSystem) {
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new("Hexorder").strong().size(15.0));
+        ui.label(
+            egui::RichText::new("Hexorder")
+                .strong()
+                .size(15.0)
+                .color(BrandTheme::ACCENT_AMBER),
+        );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(
                 egui::RichText::new(format!("v{}", gs.version))
                     .small()
-                    .color(egui::Color32::GRAY),
+                    .monospace()
+                    .color(BrandTheme::TEXT_SECONDARY),
             );
         });
     });
@@ -296,13 +329,19 @@ pub(crate) fn render_game_system_info(ui: &mut egui::Ui, gs: &GameSystem) {
     ui.label(
         egui::RichText::new(format!("ID: {id_short}"))
             .small()
-            .color(egui::Color32::from_gray(120)),
+            .monospace()
+            .color(BrandTheme::TEXT_TERTIARY),
     );
     ui.separator();
 }
 
 pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) {
-    ui.label(egui::RichText::new("Tool Mode").strong());
+    ui.label(
+        egui::RichText::new("Tool Mode")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
         if ui
             .selectable_label(*editor_tool == EditorTool::Select, "Select")
@@ -346,8 +385,13 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
                 OntologyTab::Constraints => "Constr.",
                 OntologyTab::Validation => "Valid.",
             };
+            let text = if editor_state.active_tab == tab {
+                egui::RichText::new(label).color(BrandTheme::ACCENT_AMBER)
+            } else {
+                egui::RichText::new(label)
+            };
             if ui
-                .selectable_label(editor_state.active_tab == tab, label)
+                .selectable_label(editor_state.active_tab == tab, text)
                 .clicked()
             {
                 editor_state.active_tab = tab;
@@ -362,7 +406,12 @@ pub(crate) fn render_cell_palette(
     registry: &EntityTypeRegistry,
     active_board: &mut ActiveBoardType,
 ) {
-    ui.label(egui::RichText::new("Cell Palette").strong());
+    ui.label(
+        egui::RichText::new("Cell Palette")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     for et in registry.types_by_role(EntityRole::BoardPosition) {
         let is_active = active_board.entity_type_id == Some(et.id);
@@ -379,7 +428,7 @@ pub(crate) fn render_cell_palette(
                     ui.painter().rect_stroke(
                         rect,
                         2.0,
-                        egui::Stroke::new(2.0, egui::Color32::WHITE),
+                        egui::Stroke::new(2.0, BrandTheme::ACCENT_AMBER),
                         egui::StrokeKind::Outside,
                     );
                 }
@@ -401,7 +450,12 @@ pub(crate) fn render_unit_palette(
     registry: &EntityTypeRegistry,
     active_token: &mut ActiveTokenType,
 ) {
-    ui.label(egui::RichText::new("Unit Palette").strong());
+    ui.label(
+        egui::RichText::new("Unit Palette")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     for et in registry.types_by_role(EntityRole::Token) {
         let is_active = active_token.entity_type_id == Some(et.id);
@@ -418,7 +472,7 @@ pub(crate) fn render_unit_palette(
                     ui.painter().rect_stroke(
                         rect,
                         2.0,
-                        egui::Stroke::new(2.0, egui::Color32::WHITE),
+                        egui::Stroke::new(2.0, BrandTheme::ACCENT_AMBER),
                         egui::StrokeKind::Outside,
                     );
                 }
@@ -482,387 +536,378 @@ pub(crate) fn render_entity_type_section(
     enum_registry: &EnumRegistry,
     struct_registry: &StructRegistry,
 ) {
-    egui::CollapsingHeader::new(egui::RichText::new(section_label).strong())
-        .default_open(false)
-        .show(ui, |ui| {
-            // -- Create new type --
-            ui.group(|ui| {
-                ui.label(egui::RichText::new("New Type").small());
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut editor_state.new_type_name);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Color:");
-                    let mut c32 = rgb_to_color32(editor_state.new_type_color);
-                    if egui::color_picker::color_edit_button_srgba(
-                        ui,
-                        &mut c32,
-                        egui::color_picker::Alpha::Opaque,
-                    )
-                    .changed()
-                    {
-                        editor_state.new_type_color = color32_to_rgb(c32);
-                    }
-                });
-                let name_valid = !editor_state.new_type_name.trim().is_empty();
-                ui.add_enabled_ui(name_valid, |ui| {
-                    if ui.button("+ Create").clicked() && name_valid {
-                        let [r, g, b] = editor_state.new_type_color;
-                        actions.push(EditorAction::CreateEntityType {
-                            name: editor_state.new_type_name.trim().to_string(),
-                            role,
-                            color: Color::srgb(r, g, b),
-                        });
-                        editor_state.new_type_name.clear();
-                        editor_state.new_type_color = [0.5, 0.5, 0.5];
-                    }
-                });
+    egui::CollapsingHeader::new(
+        egui::RichText::new(section_label)
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    )
+    .default_open(false)
+    .show(ui, |ui| {
+        // -- Create new type --
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("New Type").small());
+            ui.horizontal(|ui| {
+                ui.label("Name:");
+                ui.text_edit_singleline(&mut editor_state.new_type_name);
             });
+            ui.horizontal(|ui| {
+                ui.label("Color:");
+                let mut c32 = rgb_to_color32(editor_state.new_type_color);
+                if egui::color_picker::color_edit_button_srgba(
+                    ui,
+                    &mut c32,
+                    egui::color_picker::Alpha::Opaque,
+                )
+                .changed()
+                {
+                    editor_state.new_type_color = color32_to_rgb(c32);
+                }
+            });
+            let name_valid = !editor_state.new_type_name.trim().is_empty();
+            ui.add_enabled_ui(name_valid, |ui| {
+                if ui
+                    .button(egui::RichText::new("+ Create").color(BrandTheme::ACCENT_AMBER))
+                    .clicked()
+                    && name_valid
+                {
+                    let [r, g, b] = editor_state.new_type_color;
+                    actions.push(EditorAction::CreateEntityType {
+                        name: editor_state.new_type_name.trim().to_string(),
+                        role,
+                        color: Color::srgb(r, g, b),
+                    });
+                    editor_state.new_type_name.clear();
+                    editor_state.new_type_color = [0.5, 0.5, 0.5];
+                }
+            });
+        });
 
-            ui.add_space(4.0);
+        ui.add_space(4.0);
 
-            // -- Edit existing types --
-            {
-                // Collect indices and ids for types with the matching role.
-                let role_indices: Vec<usize> = registry
-                    .types
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, t)| t.role == role)
-                    .map(|(i, _)| i)
-                    .collect();
+        // -- Edit existing types --
+        {
+            // Collect indices and ids for types with the matching role.
+            let role_indices: Vec<usize> = registry
+                .types
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| t.role == role)
+                .map(|(i, _)| i)
+                .collect();
 
-                let role_type_count = role_indices.len();
-                let mut delete_id = None;
+            let role_type_count = role_indices.len();
+            let mut delete_id = None;
 
-                for (display_idx, &type_idx) in role_indices.iter().enumerate() {
-                    let type_id = registry.types[type_idx].id;
-                    let header_name = registry.types[type_idx].name.clone();
+            for (display_idx, &type_idx) in role_indices.iter().enumerate() {
+                let type_id = registry.types[type_idx].id;
+                let header_name = registry.types[type_idx].name.clone();
 
-                    egui::CollapsingHeader::new(&header_name)
-                        .id_salt(format!("{id_prefix}_{display_idx}"))
-                        .show(ui, |ui| {
-                            // Name
+                egui::CollapsingHeader::new(&header_name)
+                    .id_salt(format!("{id_prefix}_{display_idx}"))
+                    .show(ui, |ui| {
+                        // Name
+                        ui.horizontal(|ui| {
+                            ui.label("Name:");
+                            ui.text_edit_singleline(&mut registry.types[type_idx].name);
+                        });
+
+                        // Color
+                        ui.horizontal(|ui| {
+                            ui.label("Color:");
+                            let mut c32 = bevy_color_to_egui(registry.types[type_idx].color);
+                            if egui::color_picker::color_edit_button_srgba(
+                                ui,
+                                &mut c32,
+                                egui::color_picker::Alpha::Opaque,
+                            )
+                            .changed()
+                            {
+                                registry.types[type_idx].color = egui_color_to_bevy(c32);
+                            }
+                        });
+
+                        // Properties list
+                        ui.label(egui::RichText::new("Properties:").small());
+                        if registry.types[type_idx].properties.is_empty() {
+                            ui.label(
+                                egui::RichText::new("  (none)")
+                                    .small()
+                                    .color(BrandTheme::TEXT_SECONDARY),
+                            );
+                        } else {
+                            let mut remove_prop_id = None;
+                            for prop in &registry.types[type_idx].properties {
+                                ui.horizontal(|ui| {
+                                    ui.label(format!(
+                                        "  {} ({})",
+                                        prop.name,
+                                        format_property_type(&prop.property_type)
+                                    ));
+                                    if ui.small_button("x").clicked() {
+                                        remove_prop_id = Some(prop.id);
+                                    }
+                                });
+                            }
+                            if let Some(prop_id) = remove_prop_id {
+                                actions.push(EditorAction::RemoveProperty { type_id, prop_id });
+                            }
+                        }
+
+                        // Add property
+                        ui.add_space(2.0);
+                        ui.group(|ui| {
+                            ui.label(egui::RichText::new("Add Property").small());
                             ui.horizontal(|ui| {
                                 ui.label("Name:");
-                                ui.text_edit_singleline(&mut registry.types[type_idx].name);
+                                ui.text_edit_singleline(&mut editor_state.new_prop_name);
                             });
-
-                            // Color
                             ui.horizontal(|ui| {
-                                ui.label("Color:");
-                                let mut c32 = bevy_color_to_egui(registry.types[type_idx].color);
-                                if egui::color_picker::color_edit_button_srgba(
-                                    ui,
-                                    &mut c32,
-                                    egui::color_picker::Alpha::Opaque,
-                                )
-                                .changed()
-                                {
-                                    registry.types[type_idx].color = egui_color_to_bevy(c32);
-                                }
-                            });
-
-                            // Properties list
-                            ui.label(egui::RichText::new("Properties:").small());
-                            if registry.types[type_idx].properties.is_empty() {
-                                ui.label(
-                                    egui::RichText::new("  (none)")
-                                        .small()
-                                        .color(egui::Color32::GRAY),
-                                );
-                            } else {
-                                let mut remove_prop_id = None;
-                                for prop in &registry.types[type_idx].properties {
-                                    ui.horizontal(|ui| {
-                                        ui.label(format!(
-                                            "  {} ({})",
-                                            prop.name,
-                                            format_property_type(&prop.property_type)
-                                        ));
-                                        if ui.small_button("x").clicked() {
-                                            remove_prop_id = Some(prop.id);
-                                        }
-                                    });
-                                }
-                                if let Some(prop_id) = remove_prop_id {
-                                    actions.push(EditorAction::RemoveProperty { type_id, prop_id });
-                                }
-                            }
-
-                            // Add property
-                            ui.add_space(2.0);
-                            ui.group(|ui| {
-                                ui.label(egui::RichText::new("Add Property").small());
-                                ui.horizontal(|ui| {
-                                    ui.label("Name:");
-                                    ui.text_edit_singleline(&mut editor_state.new_prop_name);
+                                ui.label("Type:");
+                                let types = [
+                                    "Bool",
+                                    "Int",
+                                    "Float",
+                                    "String",
+                                    "Color",
+                                    "Enum",
+                                    "EntityRef",
+                                    "List",
+                                    "Map",
+                                    "Struct",
+                                    "IntRange",
+                                    "FloatRange",
+                                ];
+                                egui::ComboBox::from_id_salt(format!(
+                                    "{id_prefix}_pt_{display_idx}"
+                                ))
+                                .selected_text(types[editor_state.new_prop_type_index])
+                                .show_ui(ui, |ui| {
+                                    for (idx, name) in types.iter().enumerate() {
+                                        ui.selectable_value(
+                                            &mut editor_state.new_prop_type_index,
+                                            idx,
+                                            *name,
+                                        );
+                                    }
                                 });
+                            });
+                            if editor_state.new_prop_type_index == 5 {
                                 ui.horizontal(|ui| {
-                                    ui.label("Type:");
-                                    let types = [
-                                        "Bool",
-                                        "Int",
-                                        "Float",
-                                        "String",
-                                        "Color",
-                                        "Enum",
-                                        "EntityRef",
-                                        "List",
-                                        "Map",
-                                        "Struct",
-                                        "IntRange",
-                                        "FloatRange",
-                                    ];
+                                    ui.label("Opts:");
+                                    ui.text_edit_singleline(&mut editor_state.new_enum_options);
+                                });
+                                ui.label(
+                                    egui::RichText::new("(comma-separated)")
+                                        .small()
+                                        .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                            }
+                            // EntityRef (index 6) — role filter
+                            if editor_state.new_prop_type_index == 6 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Role:");
+                                    let roles = ["Any", "BoardPosition", "Token"];
                                     egui::ComboBox::from_id_salt(format!(
-                                        "{id_prefix}_pt_{display_idx}"
+                                        "{id_prefix}_eref_{display_idx}"
                                     ))
-                                    .selected_text(types[editor_state.new_prop_type_index])
+                                    .selected_text(roles[editor_state.new_prop_entity_ref_role])
                                     .show_ui(ui, |ui| {
-                                        for (idx, name) in types.iter().enumerate() {
+                                        for (idx, name) in roles.iter().enumerate() {
                                             ui.selectable_value(
-                                                &mut editor_state.new_prop_type_index,
+                                                &mut editor_state.new_prop_entity_ref_role,
                                                 idx,
                                                 *name,
                                             );
                                         }
                                     });
                                 });
-                                if editor_state.new_prop_type_index == 5 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Opts:");
-                                        ui.text_edit_singleline(&mut editor_state.new_enum_options);
+                            }
+                            // List (index 7) — inner type
+                            if editor_state.new_prop_type_index == 7 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Item type:");
+                                    let inner_types = ["Bool", "Int", "Float", "String", "Color"];
+                                    egui::ComboBox::from_id_salt(format!(
+                                        "{id_prefix}_list_{display_idx}"
+                                    ))
+                                    .selected_text(
+                                        inner_types[editor_state.new_prop_list_inner_type],
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for (idx, name) in inner_types.iter().enumerate() {
+                                            ui.selectable_value(
+                                                &mut editor_state.new_prop_list_inner_type,
+                                                idx,
+                                                *name,
+                                            );
+                                        }
                                     });
-                                    ui.label(
-                                        egui::RichText::new("(comma-separated)")
-                                            .small()
-                                            .color(egui::Color32::GRAY),
-                                    );
-                                }
-                                // EntityRef (index 6) — role filter
-                                if editor_state.new_prop_type_index == 6 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Role:");
-                                        let roles = ["Any", "BoardPosition", "Token"];
-                                        egui::ComboBox::from_id_salt(format!(
-                                            "{id_prefix}_eref_{display_idx}"
-                                        ))
-                                        .selected_text(roles[editor_state.new_prop_entity_ref_role])
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for (idx, name) in roles.iter().enumerate() {
-                                                    ui.selectable_value(
-                                                        &mut editor_state.new_prop_entity_ref_role,
-                                                        idx,
-                                                        *name,
-                                                    );
-                                                }
-                                            },
-                                        );
-                                    });
-                                }
-                                // List (index 7) — inner type
-                                if editor_state.new_prop_type_index == 7 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Item type:");
-                                        let inner_types =
-                                            ["Bool", "Int", "Float", "String", "Color"];
-                                        egui::ComboBox::from_id_salt(format!(
-                                            "{id_prefix}_list_{display_idx}"
-                                        ))
-                                        .selected_text(
-                                            inner_types[editor_state.new_prop_list_inner_type],
-                                        )
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for (idx, name) in inner_types.iter().enumerate() {
-                                                    ui.selectable_value(
-                                                        &mut editor_state.new_prop_list_inner_type,
-                                                        idx,
-                                                        *name,
-                                                    );
-                                                }
-                                            },
-                                        );
-                                    });
-                                }
-                                // Map (index 8) — enum key + value type
-                                if editor_state.new_prop_type_index == 8 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Key enum:");
-                                        let enum_names: Vec<(TypeId, String)> = enum_registry
-                                            .definitions
-                                            .values()
-                                            .map(|e| (e.id, e.name.clone()))
-                                            .collect();
-                                        let selected_name = editor_state
-                                            .new_prop_map_enum_id
-                                            .and_then(|id| {
-                                                enum_names.iter().find(|(eid, _)| *eid == id)
-                                            })
-                                            .map_or("(select)", |(_, n)| n.as_str())
-                                            .to_string();
-                                        egui::ComboBox::from_id_salt(format!(
-                                            "{id_prefix}_mapk_{display_idx}"
-                                        ))
-                                        .selected_text(&selected_name)
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for (eid, ename) in &enum_names {
-                                                    if ui
-                                                        .selectable_label(
-                                                            editor_state.new_prop_map_enum_id
-                                                                == Some(*eid),
-                                                            ename,
-                                                        )
-                                                        .clicked()
-                                                    {
-                                                        editor_state.new_prop_map_enum_id =
-                                                            Some(*eid);
-                                                    }
-                                                }
-                                            },
-                                        );
-                                    });
-                                    ui.horizontal(|ui| {
-                                        ui.label("Value type:");
-                                        let val_types = ["Bool", "Int", "Float", "String", "Color"];
-                                        egui::ComboBox::from_id_salt(format!(
-                                            "{id_prefix}_mapv_{display_idx}"
-                                        ))
-                                        .selected_text(
-                                            val_types[editor_state.new_prop_map_value_type],
-                                        )
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for (idx, name) in val_types.iter().enumerate() {
-                                                    ui.selectable_value(
-                                                        &mut editor_state.new_prop_map_value_type,
-                                                        idx,
-                                                        *name,
-                                                    );
-                                                }
-                                            },
-                                        );
-                                    });
-                                }
-                                // Struct (index 9)
-                                if editor_state.new_prop_type_index == 9 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Struct:");
-                                        let struct_names: Vec<(TypeId, String)> = struct_registry
-                                            .definitions
-                                            .values()
-                                            .map(|s| (s.id, s.name.clone()))
-                                            .collect();
-                                        let selected_name = editor_state
-                                            .new_prop_struct_id
-                                            .and_then(|id| {
-                                                struct_names.iter().find(|(sid, _)| *sid == id)
-                                            })
-                                            .map_or("(select)", |(_, n)| n.as_str())
-                                            .to_string();
-                                        egui::ComboBox::from_id_salt(format!(
-                                            "{id_prefix}_struct_{display_idx}"
-                                        ))
-                                        .selected_text(&selected_name)
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for (sid, sname) in &struct_names {
-                                                    if ui
-                                                        .selectable_label(
-                                                            editor_state.new_prop_struct_id
-                                                                == Some(*sid),
-                                                            sname,
-                                                        )
-                                                        .clicked()
-                                                    {
-                                                        editor_state.new_prop_struct_id =
-                                                            Some(*sid);
-                                                    }
-                                                }
-                                            },
-                                        );
-                                    });
-                                }
-                                // IntRange (index 10)
-                                if editor_state.new_prop_type_index == 10 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Min:");
-                                        ui.add(egui::DragValue::new(
-                                            &mut editor_state.new_prop_int_range_min,
-                                        ));
-                                        ui.label("Max:");
-                                        ui.add(egui::DragValue::new(
-                                            &mut editor_state.new_prop_int_range_max,
-                                        ));
-                                    });
-                                }
-                                // FloatRange (index 11)
-                                if editor_state.new_prop_type_index == 11 {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Min:");
-                                        ui.add(
-                                            egui::DragValue::new(
-                                                &mut editor_state.new_prop_float_range_min,
-                                            )
-                                            .speed(0.1),
-                                        );
-                                        ui.label("Max:");
-                                        ui.add(
-                                            egui::DragValue::new(
-                                                &mut editor_state.new_prop_float_range_max,
-                                            )
-                                            .speed(0.1),
-                                        );
-                                    });
-                                }
-                                let prop_valid = !editor_state.new_prop_name.trim().is_empty();
-                                ui.add_enabled_ui(prop_valid, |ui| {
-                                    if ui.button("+ Add").clicked() && prop_valid {
-                                        let prop_type = index_to_property_type(
-                                            editor_state.new_prop_type_index,
-                                        );
-                                        actions.push(EditorAction::AddProperty {
-                                            type_id,
-                                            name: editor_state.new_prop_name.trim().to_string(),
-                                            prop_type,
-                                            enum_options: editor_state.new_enum_options.clone(),
-                                        });
-                                        editor_state.new_prop_name.clear();
-                                        editor_state.new_prop_type_index = 0;
-                                        editor_state.new_enum_options.clear();
-                                    }
                                 });
-                            });
-
-                            // Delete type
-                            if role_type_count > 1 {
-                                ui.add_space(4.0);
+                            }
+                            // Map (index 8) — enum key + value type
+                            if editor_state.new_prop_type_index == 8 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Key enum:");
+                                    let enum_names: Vec<(TypeId, String)> = enum_registry
+                                        .definitions
+                                        .values()
+                                        .map(|e| (e.id, e.name.clone()))
+                                        .collect();
+                                    let selected_name = editor_state
+                                        .new_prop_map_enum_id
+                                        .and_then(|id| {
+                                            enum_names.iter().find(|(eid, _)| *eid == id)
+                                        })
+                                        .map_or("(select)", |(_, n)| n.as_str())
+                                        .to_string();
+                                    egui::ComboBox::from_id_salt(format!(
+                                        "{id_prefix}_mapk_{display_idx}"
+                                    ))
+                                    .selected_text(&selected_name)
+                                    .show_ui(ui, |ui| {
+                                        for (eid, ename) in &enum_names {
+                                            if ui
+                                                .selectable_label(
+                                                    editor_state.new_prop_map_enum_id == Some(*eid),
+                                                    ename,
+                                                )
+                                                .clicked()
+                                            {
+                                                editor_state.new_prop_map_enum_id = Some(*eid);
+                                            }
+                                        }
+                                    });
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Value type:");
+                                    let val_types = ["Bool", "Int", "Float", "String", "Color"];
+                                    egui::ComboBox::from_id_salt(format!(
+                                        "{id_prefix}_mapv_{display_idx}"
+                                    ))
+                                    .selected_text(val_types[editor_state.new_prop_map_value_type])
+                                    .show_ui(ui, |ui| {
+                                        for (idx, name) in val_types.iter().enumerate() {
+                                            ui.selectable_value(
+                                                &mut editor_state.new_prop_map_value_type,
+                                                idx,
+                                                *name,
+                                            );
+                                        }
+                                    });
+                                });
+                            }
+                            // Struct (index 9)
+                            if editor_state.new_prop_type_index == 9 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Struct:");
+                                    let struct_names: Vec<(TypeId, String)> = struct_registry
+                                        .definitions
+                                        .values()
+                                        .map(|s| (s.id, s.name.clone()))
+                                        .collect();
+                                    let selected_name = editor_state
+                                        .new_prop_struct_id
+                                        .and_then(|id| {
+                                            struct_names.iter().find(|(sid, _)| *sid == id)
+                                        })
+                                        .map_or("(select)", |(_, n)| n.as_str())
+                                        .to_string();
+                                    egui::ComboBox::from_id_salt(format!(
+                                        "{id_prefix}_struct_{display_idx}"
+                                    ))
+                                    .selected_text(&selected_name)
+                                    .show_ui(ui, |ui| {
+                                        for (sid, sname) in &struct_names {
+                                            if ui
+                                                .selectable_label(
+                                                    editor_state.new_prop_struct_id == Some(*sid),
+                                                    sname,
+                                                )
+                                                .clicked()
+                                            {
+                                                editor_state.new_prop_struct_id = Some(*sid);
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                            // IntRange (index 10)
+                            if editor_state.new_prop_type_index == 10 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Min:");
+                                    ui.add(egui::DragValue::new(
+                                        &mut editor_state.new_prop_int_range_min,
+                                    ));
+                                    ui.label("Max:");
+                                    ui.add(egui::DragValue::new(
+                                        &mut editor_state.new_prop_int_range_max,
+                                    ));
+                                });
+                            }
+                            // FloatRange (index 11)
+                            if editor_state.new_prop_type_index == 11 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Min:");
+                                    ui.add(
+                                        egui::DragValue::new(
+                                            &mut editor_state.new_prop_float_range_min,
+                                        )
+                                        .speed(0.1),
+                                    );
+                                    ui.label("Max:");
+                                    ui.add(
+                                        egui::DragValue::new(
+                                            &mut editor_state.new_prop_float_range_max,
+                                        )
+                                        .speed(0.1),
+                                    );
+                                });
+                            }
+                            let prop_valid = !editor_state.new_prop_name.trim().is_empty();
+                            ui.add_enabled_ui(prop_valid, |ui| {
                                 if ui
                                     .button(
-                                        egui::RichText::new("Delete Type")
-                                            .color(egui::Color32::from_rgb(200, 80, 80)),
+                                        egui::RichText::new("+ Add")
+                                            .color(BrandTheme::ACCENT_AMBER),
                                     )
                                     .clicked()
+                                    && prop_valid
                                 {
-                                    delete_id = Some(type_id);
+                                    let prop_type =
+                                        index_to_property_type(editor_state.new_prop_type_index);
+                                    actions.push(EditorAction::AddProperty {
+                                        type_id,
+                                        name: editor_state.new_prop_name.trim().to_string(),
+                                        prop_type,
+                                        enum_options: editor_state.new_enum_options.clone(),
+                                    });
+                                    editor_state.new_prop_name.clear();
+                                    editor_state.new_prop_type_index = 0;
+                                    editor_state.new_enum_options.clear();
                                 }
-                            }
+                            });
                         });
-                }
 
-                if let Some(id) = delete_id {
-                    actions.push(EditorAction::DeleteEntityType { id });
-                }
+                        // Delete type
+                        if role_type_count > 1 {
+                            ui.add_space(4.0);
+                            if ui
+                                .button(
+                                    egui::RichText::new("Delete Type").color(BrandTheme::DANGER),
+                                )
+                                .clicked()
+                            {
+                                delete_id = Some(type_id);
+                            }
+                        }
+                    });
             }
-        });
+
+            if let Some(id) = delete_id {
+                actions.push(EditorAction::DeleteEntityType { id });
+            }
+        }
+    });
 }
 
 pub(crate) fn render_enums_tab(
@@ -871,7 +916,12 @@ pub(crate) fn render_enums_tab(
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
-    ui.label(egui::RichText::new("Enums").strong());
+    ui.label(
+        egui::RichText::new("Enums")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     // Create new enum form
     ui.group(|ui| {
@@ -887,11 +937,15 @@ pub(crate) fn render_enums_tab(
         ui.label(
             egui::RichText::new("(comma-separated)")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
         let name_valid = !editor_state.new_enum_name.trim().is_empty();
         ui.add_enabled_ui(name_valid, |ui| {
-            if ui.button("+ Create Enum").clicked() && name_valid {
+            if ui
+                .button(egui::RichText::new("+ Create Enum").color(BrandTheme::ACCENT_AMBER))
+                .clicked()
+                && name_valid
+            {
                 let options: Vec<String> = editor_state
                     .new_enum_option_text
                     .split(',')
@@ -915,7 +969,7 @@ pub(crate) fn render_enums_tab(
         ui.label(
             egui::RichText::new("No enums defined")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
         return;
     }
@@ -960,10 +1014,7 @@ pub(crate) fn render_enums_tab(
 
                 ui.add_space(4.0);
                 if ui
-                    .button(
-                        egui::RichText::new("Delete Enum")
-                            .color(egui::Color32::from_rgb(200, 80, 80)),
-                    )
+                    .button(egui::RichText::new("Delete Enum").color(BrandTheme::DANGER))
                     .clicked()
                 {
                     delete = true;
@@ -983,7 +1034,12 @@ pub(crate) fn render_structs_tab(
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
-    ui.label(egui::RichText::new("Structs").strong());
+    ui.label(
+        egui::RichText::new("Structs")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     // Suppress unused warning for enum_registry (will be used for Map key picker later).
     let _ = enum_registry;
@@ -997,7 +1053,11 @@ pub(crate) fn render_structs_tab(
         });
         let name_valid = !editor_state.new_struct_name.trim().is_empty();
         ui.add_enabled_ui(name_valid, |ui| {
-            if ui.button("+ Create Struct").clicked() && name_valid {
+            if ui
+                .button(egui::RichText::new("+ Create Struct").color(BrandTheme::ACCENT_AMBER))
+                .clicked()
+                && name_valid
+            {
                 actions.push(EditorAction::CreateStruct {
                     name: editor_state.new_struct_name.trim().to_string(),
                 });
@@ -1012,7 +1072,7 @@ pub(crate) fn render_structs_tab(
         ui.label(
             egui::RichText::new("No structs defined")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
         return;
     }
@@ -1069,7 +1129,11 @@ pub(crate) fn render_structs_tab(
                     });
                 let field_name_valid = !editor_state.new_struct_field_name.trim().is_empty();
                 ui.add_enabled_ui(field_name_valid, |ui| {
-                    if ui.button("+ Add Field").clicked() && field_name_valid {
+                    if ui
+                        .button(egui::RichText::new("+ Add Field").color(BrandTheme::ACCENT_AMBER))
+                        .clicked()
+                        && field_name_valid
+                    {
                         let prop_type =
                             index_to_property_type(editor_state.new_struct_field_type_index);
                         actions.push(EditorAction::AddStructField {
@@ -1083,10 +1147,7 @@ pub(crate) fn render_structs_tab(
 
                 ui.add_space(4.0);
                 if ui
-                    .button(
-                        egui::RichText::new("Delete Struct")
-                            .color(egui::Color32::from_rgb(200, 80, 80)),
-                    )
+                    .button(egui::RichText::new("Delete Struct").color(BrandTheme::DANGER))
                     .clicked()
                 {
                     delete = true;
@@ -1107,7 +1168,12 @@ pub(crate) fn render_concepts_tab(
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
-    ui.label(egui::RichText::new("Concepts").strong());
+    ui.label(
+        egui::RichText::new("Concepts")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     // -- Create new concept --
     ui.group(|ui| {
@@ -1122,7 +1188,11 @@ pub(crate) fn render_concepts_tab(
         });
         let name_valid = !editor_state.new_concept_name.trim().is_empty();
         ui.add_enabled_ui(name_valid, |ui| {
-            if ui.button("+ Create Concept").clicked() && name_valid {
+            if ui
+                .button(egui::RichText::new("+ Create Concept").color(BrandTheme::ACCENT_AMBER))
+                .clicked()
+                && name_valid
+            {
                 actions.push(EditorAction::CreateConcept {
                     name: editor_state.new_concept_name.trim().to_string(),
                     description: editor_state.new_concept_description.trim().to_string(),
@@ -1140,7 +1210,7 @@ pub(crate) fn render_concepts_tab(
         ui.label(
             egui::RichText::new("No concepts defined")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
         return;
     }
@@ -1183,7 +1253,7 @@ pub(crate) fn render_concepts_tab(
                 ui.label(
                     egui::RichText::new(concept_desc)
                         .small()
-                        .color(egui::Color32::GRAY),
+                        .color(BrandTheme::TEXT_SECONDARY),
                 );
 
                 // -- Role Slots --
@@ -1192,7 +1262,7 @@ pub(crate) fn render_concepts_tab(
                     ui.label(
                         egui::RichText::new("  (none)")
                             .small()
-                            .color(egui::Color32::GRAY),
+                            .color(BrandTheme::TEXT_SECONDARY),
                     );
                 } else {
                     let mut remove_role_id = None;
@@ -1234,7 +1304,13 @@ pub(crate) fn render_concepts_tab(
                     let role_valid = !editor_state.new_role_name.trim().is_empty()
                         && editor_state.new_role_allowed_roles.iter().any(|&v| v);
                     ui.add_enabled_ui(role_valid, |ui| {
-                        if ui.button("+ Add Role").clicked() && role_valid {
+                        if ui
+                            .button(
+                                egui::RichText::new("+ Add Role").color(BrandTheme::ACCENT_AMBER),
+                            )
+                            .clicked()
+                            && role_valid
+                        {
                             let mut allowed = Vec::new();
                             if editor_state.new_role_allowed_roles[0] {
                                 allowed.push(EntityRole::BoardPosition);
@@ -1266,7 +1342,7 @@ pub(crate) fn render_concepts_tab(
                     ui.label(
                         egui::RichText::new("  (none)")
                             .small()
-                            .color(egui::Color32::GRAY),
+                            .color(BrandTheme::TEXT_SECONDARY),
                     );
                 } else {
                     let mut unbind_id = None;
@@ -1292,7 +1368,7 @@ pub(crate) fn render_concepts_tab(
                                     pb.property_id, pb.concept_local_name
                                 ))
                                 .small()
-                                .color(egui::Color32::GRAY),
+                                .color(BrandTheme::TEXT_SECONDARY),
                             );
                         }
                     }
@@ -1356,7 +1432,11 @@ pub(crate) fn render_concepts_tab(
                         let bind_valid = editor_state.binding_entity_type_id.is_some()
                             && editor_state.binding_concept_role_id.is_some();
                         ui.add_enabled_ui(bind_valid, |ui| {
-                            if ui.button("+ Bind").clicked()
+                            if ui
+                                .button(
+                                    egui::RichText::new("+ Bind").color(BrandTheme::ACCENT_AMBER),
+                                )
+                                .clicked()
                                 && bind_valid
                                 && let (Some(et_id), Some(cr_id)) = (
                                     editor_state.binding_entity_type_id,
@@ -1378,10 +1458,7 @@ pub(crate) fn render_concepts_tab(
                 // Delete concept
                 ui.add_space(4.0);
                 if ui
-                    .button(
-                        egui::RichText::new("Delete Concept")
-                            .color(egui::Color32::from_rgb(200, 80, 80)),
-                    )
+                    .button(egui::RichText::new("Delete Concept").color(BrandTheme::DANGER))
                     .clicked()
                 {
                     delete_concept = true;
@@ -1402,7 +1479,12 @@ pub(crate) fn render_relations_tab(
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
-    ui.label(egui::RichText::new("Relations").strong());
+    ui.label(
+        egui::RichText::new("Relations")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     let concepts: Vec<_> = concept_registry
         .concepts
@@ -1530,7 +1612,11 @@ pub(crate) fn render_relations_tab(
         // Create button
         let name_valid = !editor_state.new_relation_name.trim().is_empty() && !concepts.is_empty();
         ui.add_enabled_ui(name_valid, |ui| {
-            if ui.button("+ Create Relation").clicked() && name_valid {
+            if ui
+                .button(egui::RichText::new("+ Create Relation").color(BrandTheme::ACCENT_AMBER))
+                .clicked()
+                && name_valid
+            {
                 let concept_idx = editor_state.new_relation_concept_index;
                 if let Some((concept_id, _, roles)) = concepts.get(concept_idx) {
                     let subject_id = roles
@@ -1584,7 +1670,7 @@ pub(crate) fn render_relations_tab(
         ui.label(
             egui::RichText::new("No relations defined")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
         return;
     }
@@ -1644,9 +1730,7 @@ pub(crate) fn render_relations_tab(
                 ui.label(format!("Effect: {effect_str}"));
 
                 if ui
-                    .button(
-                        egui::RichText::new("Delete").color(egui::Color32::from_rgb(200, 80, 80)),
-                    )
+                    .button(egui::RichText::new("Delete").color(BrandTheme::DANGER))
                     .clicked()
                 {
                     delete_rel = true;
@@ -1667,7 +1751,12 @@ pub(crate) fn render_constraints_tab(
     editor_state: &mut EditorState,
     actions: &mut Vec<EditorAction>,
 ) {
-    ui.label(egui::RichText::new("Constraints").strong());
+    ui.label(
+        egui::RichText::new("Constraints")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     let concepts: Vec<_> = concept_registry
         .concepts
@@ -1694,7 +1783,7 @@ pub(crate) fn render_constraints_tab(
         ui.label(
             egui::RichText::new("No constraints defined")
                 .small()
-                .color(egui::Color32::GRAY),
+                .color(BrandTheme::TEXT_SECONDARY),
         );
     } else {
         for (cst_id, cst_name, _cst_desc, auto_gen, expr) in &constraint_snapshots {
@@ -1703,7 +1792,7 @@ pub(crate) fn render_constraints_tab(
                     ui.label(
                         egui::RichText::new("[auto]")
                             .small()
-                            .color(egui::Color32::from_rgb(200, 150, 64)),
+                            .color(BrandTheme::ACCENT_AMBER),
                     );
                 }
                 ui.label(&**cst_name);
@@ -1714,7 +1803,7 @@ pub(crate) fn render_constraints_tab(
             ui.label(
                 egui::RichText::new(format_constraint_expr(expr))
                     .small()
-                    .color(egui::Color32::GRAY),
+                    .color(BrandTheme::TEXT_SECONDARY),
             );
             ui.add_space(2.0);
         }
@@ -1848,7 +1937,7 @@ pub(crate) fn render_constraints_tab(
                     ui.label(
                         egui::RichText::new("(full editor coming soon)")
                             .small()
-                            .color(egui::Color32::GRAY),
+                            .color(BrandTheme::TEXT_SECONDARY),
                     );
                 }
             }
@@ -1856,7 +1945,13 @@ pub(crate) fn render_constraints_tab(
             let name_valid =
                 !editor_state.new_constraint_name.trim().is_empty() && !concepts.is_empty();
             ui.add_enabled_ui(name_valid, |ui| {
-                if ui.button("+ Create Constraint").clicked() && name_valid {
+                if ui
+                    .button(
+                        egui::RichText::new("+ Create Constraint").color(BrandTheme::ACCENT_AMBER),
+                    )
+                    .clicked()
+                    && name_valid
+                {
                     let concept_idx = editor_state.new_constraint_concept_index;
                     if let Some((concept_id, _, roles)) = concepts.get(concept_idx) {
                         let expression = build_constraint_expression(editor_state, roles);
@@ -1877,14 +1972,19 @@ pub(crate) fn render_constraints_tab(
 }
 
 pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValidation) {
-    ui.label(egui::RichText::new("Validation").strong());
+    ui.label(
+        egui::RichText::new("Validation")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
 
     if validation.is_valid {
-        ui.label(egui::RichText::new("Schema Valid").color(egui::Color32::from_rgb(80, 152, 80)));
+        ui.label(egui::RichText::new("Schema Valid").color(BrandTheme::SUCCESS));
     } else {
         ui.label(
             egui::RichText::new(format!("{} Error(s)", validation.errors.len()))
-                .color(egui::Color32::from_rgb(200, 80, 80)),
+                .color(BrandTheme::DANGER),
         );
     }
 
@@ -1912,7 +2012,7 @@ pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValida
                 ui.label(
                     egui::RichText::new(category_str)
                         .small()
-                        .color(egui::Color32::from_rgb(200, 150, 64)),
+                        .color(BrandTheme::ACCENT_AMBER),
                 );
                 ui.label(egui::RichText::new(&error.message).small());
             });
@@ -1930,51 +2030,121 @@ pub(crate) fn render_inspector(
     enum_registry: &EnumRegistry,
     struct_registry: &StructRegistry,
 ) {
-    egui::CollapsingHeader::new(egui::RichText::new("Inspector").strong())
-        .default_open(true)
-        .show(ui, |ui| {
-            let Some(pos) = selected_hex.position else {
-                ui.label(egui::RichText::new("No tile selected").color(egui::Color32::GRAY));
-                return;
-            };
+    egui::CollapsingHeader::new(
+        egui::RichText::new("Inspector")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    )
+    .default_open(true)
+    .show(ui, |ui| {
+        let Some(pos) = selected_hex.position else {
+            ui.label(egui::RichText::new("No tile selected").color(BrandTheme::TEXT_SECONDARY));
+            return;
+        };
 
-            ui.label(format!("Position: ({}, {})", pos.q, pos.r));
+        ui.label(egui::RichText::new(format!("Position: ({}, {})", pos.q, pos.r)).monospace());
 
-            let Some(entity) = tile_query
-                .iter()
-                .find(|(tp, _)| **tp == pos)
-                .map(|(_, e)| e)
-            else {
-                ui.label("Tile not found");
-                return;
-            };
+        let Some(entity) = tile_query
+            .iter()
+            .find(|(tp, _)| **tp == pos)
+            .map(|(_, e)| e)
+        else {
+            ui.label("Tile not found");
+            return;
+        };
 
-            let Ok(mut entity_data) = tile_data_query.get_mut(entity) else {
-                ui.label("No cell data");
-                return;
-            };
+        let Ok(mut entity_data) = tile_data_query.get_mut(entity) else {
+            ui.label("No cell data");
+            return;
+        };
 
-            // Cell type name
-            let type_name = registry
-                .get(entity_data.entity_type_id)
-                .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
-            ui.label(format!("Type: {type_name}"));
+        // Cell type name
+        let type_name = registry
+            .get(entity_data.entity_type_id)
+            .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
+        ui.label(format!("Type: {type_name}"));
 
-            // Property value editors
-            let prop_defs: Vec<_> = registry
-                .get(entity_data.entity_type_id)
-                .map(|et| et.properties.clone())
-                .unwrap_or_default();
+        // Property value editors
+        let prop_defs: Vec<_> = registry
+            .get(entity_data.entity_type_id)
+            .map(|et| et.properties.clone())
+            .unwrap_or_default();
 
-            if prop_defs.is_empty() {
-                ui.label(
-                    egui::RichText::new("No properties")
-                        .small()
-                        .color(egui::Color32::GRAY),
+        if prop_defs.is_empty() {
+            ui.label(
+                egui::RichText::new("No properties")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            return;
+        }
+
+        ui.separator();
+        ui.label(egui::RichText::new("Properties").small());
+
+        for prop_def in &prop_defs {
+            ui.horizontal(|ui| {
+                ui.label(format!("{}:", prop_def.name));
+
+                let value = entity_data
+                    .properties
+                    .entry(prop_def.id)
+                    .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
+
+                render_property_value_editor(
+                    ui,
+                    value,
+                    &prop_def.property_type,
+                    enum_registry,
+                    struct_registry,
+                    registry,
+                    0,
                 );
-                return;
-            }
+            });
+        }
+    });
+}
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_unit_inspector(
+    ui: &mut egui::Ui,
+    selected_unit: &SelectedUnit,
+    unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
+    registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+    actions: &mut Vec<EditorAction>,
+) {
+    egui::CollapsingHeader::new(
+        egui::RichText::new("Unit Inspector")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    )
+    .default_open(true)
+    .show(ui, |ui| {
+        let Some(entity) = selected_unit.entity else {
+            ui.label(egui::RichText::new("No unit selected").color(BrandTheme::TEXT_SECONDARY));
+            return;
+        };
+
+        let Ok(mut entity_data) = unit_data_query.get_mut(entity) else {
+            ui.label("Unit entity not found");
+            return;
+        };
+
+        // Unit type name
+        let type_name = registry
+            .get(entity_data.entity_type_id)
+            .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
+        ui.label(format!("Unit Type: {type_name}"));
+
+        // Property value editors
+        let prop_defs: Vec<_> = registry
+            .get(entity_data.entity_type_id)
+            .map(|et| et.properties.clone())
+            .unwrap_or_default();
+
+        if !prop_defs.is_empty() {
             ui.separator();
             ui.label(egui::RichText::new("Properties").small());
 
@@ -1998,82 +2168,18 @@ pub(crate) fn render_inspector(
                     );
                 });
             }
-        });
-}
+        }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn render_unit_inspector(
-    ui: &mut egui::Ui,
-    selected_unit: &SelectedUnit,
-    unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
-    registry: &EntityTypeRegistry,
-    enum_registry: &EnumRegistry,
-    struct_registry: &StructRegistry,
-    actions: &mut Vec<EditorAction>,
-) {
-    egui::CollapsingHeader::new(egui::RichText::new("Unit Inspector").strong())
-        .default_open(true)
-        .show(ui, |ui| {
-            let Some(entity) = selected_unit.entity else {
-                ui.label(egui::RichText::new("No unit selected").color(egui::Color32::GRAY));
-                return;
-            };
+        ui.separator();
 
-            let Ok(mut entity_data) = unit_data_query.get_mut(entity) else {
-                ui.label("Unit entity not found");
-                return;
-            };
-
-            // Unit type name
-            let type_name = registry
-                .get(entity_data.entity_type_id)
-                .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
-            ui.label(format!("Unit Type: {type_name}"));
-
-            // Property value editors
-            let prop_defs: Vec<_> = registry
-                .get(entity_data.entity_type_id)
-                .map(|et| et.properties.clone())
-                .unwrap_or_default();
-
-            if !prop_defs.is_empty() {
-                ui.separator();
-                ui.label(egui::RichText::new("Properties").small());
-
-                for prop_def in &prop_defs {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{}:", prop_def.name));
-
-                        let value = entity_data
-                            .properties
-                            .entry(prop_def.id)
-                            .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
-
-                        render_property_value_editor(
-                            ui,
-                            value,
-                            &prop_def.property_type,
-                            enum_registry,
-                            struct_registry,
-                            registry,
-                            0,
-                        );
-                    });
-                }
-            }
-
-            ui.separator();
-
-            // Delete unit button
-            if ui
-                .button(
-                    egui::RichText::new("Delete Unit").color(egui::Color32::from_rgb(200, 80, 80)),
-                )
-                .clicked()
-            {
-                actions.push(EditorAction::DeleteSelectedUnit);
-            }
-        });
+        // Delete unit button
+        if ui
+            .button(egui::RichText::new("Delete Unit").color(BrandTheme::DANGER))
+            .clicked()
+        {
+            actions.push(EditorAction::DeleteSelectedUnit);
+        }
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2163,7 +2269,7 @@ fn render_property_value_editor(
                 ui.label(
                     egui::RichText::new("(nested limit)")
                         .small()
-                        .color(egui::Color32::GRAY),
+                        .color(BrandTheme::TEXT_SECONDARY),
                 );
                 return;
             }
@@ -2196,7 +2302,10 @@ fn render_property_value_editor(
                     if let Some(idx) = remove_idx {
                         items.remove(idx);
                     }
-                    if ui.button("+ Add").clicked() {
+                    if ui
+                        .button(egui::RichText::new("+ Add").color(BrandTheme::ACCENT_AMBER))
+                        .clicked()
+                    {
                         items.push(PropertyValue::default_for(inner_type));
                     }
                 });
@@ -2206,7 +2315,7 @@ fn render_property_value_editor(
                 ui.label(
                     egui::RichText::new("(nested limit)")
                         .small()
-                        .color(egui::Color32::GRAY),
+                        .color(BrandTheme::TEXT_SECONDARY),
                 );
                 return;
             }
@@ -2243,7 +2352,7 @@ fn render_property_value_editor(
                                 ui.label(
                                     egui::RichText::new("(default)")
                                         .small()
-                                        .color(egui::Color32::GRAY),
+                                        .color(BrandTheme::TEXT_SECONDARY),
                                 );
                                 if ui.small_button("+").clicked() {
                                     entries.push((
@@ -2261,7 +2370,7 @@ fn render_property_value_editor(
                 ui.label(
                     egui::RichText::new("(nested limit)")
                         .small()
-                        .color(egui::Color32::GRAY),
+                        .color(BrandTheme::TEXT_SECONDARY),
                 );
                 return;
             }
@@ -2300,7 +2409,7 @@ fn render_property_value_editor(
                     ui.label(
                         egui::RichText::new("(unknown struct)")
                             .small()
-                            .color(egui::Color32::GRAY),
+                            .color(BrandTheme::TEXT_SECONDARY),
                     );
                 }
             });
@@ -2721,7 +2830,7 @@ fn bevy_color_to_egui(color: Color) -> egui::Color32 {
                 (srgba.alpha * 255.0) as u8,
             )
         }
-        _ => egui::Color32::GRAY,
+        _ => BrandTheme::TEXT_SECONDARY,
     }
 }
 

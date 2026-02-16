@@ -1,8 +1,30 @@
 # Plugin Log: editor_ui
 
-## Status: complete (M4)
+## Status: in-progress (0.9.0 visual polish)
 
 ## Decision Log
+
+### 2026-02-16 — 0.9.0: BrandTheme struct for named color constants
+
+**Decision**: Introduce `BrandTheme` as a plain struct with `const` associated constants in
+`components.rs`. Not a Bevy Resource — consumed at compile time by `configure_theme` and render
+functions. **Rationale**: Zero runtime overhead, no system parameter slot consumed. Provides
+namespaced vocabulary (`BrandTheme::ACCENT_AMBER`) for all 17 brand palette colors.
+
+### 2026-02-16 — 0.9.0: Fonts from Monospace to Proportional
+
+**Decision**: Switch Heading, Body, Small, Button TextStyles from `FontFamily::Monospace` to
+`FontFamily::Proportional`. Add explicit `Monospace` TextStyle entry. Add `.monospace()` to
+coordinate displays, IDs, and version strings. **Rationale**: Brand doc specifies proportional for
+UI text, monospace for data values. System sans-serif (SF Pro on macOS) gives the editor a more
+polished feel.
+
+### 2026-02-16 — 0.9.0: fg_stroke text color hierarchy
+
+**Decision**: Set explicit `fg_stroke` colors in Visuals: noninteractive = TEXT_PRIMARY (224),
+inactive = TEXT_SECONDARY (128), hovered/active/open = TEXT_PRIMARY. Do not override disabled
+fg_stroke. **Rationale**: Creates visual hierarchy — body text is brighter than egui defaults,
+inactive controls are dimmer. Egui's disabled opacity handling is sufficient without override.
 
 ### 2026-02-08 — bevy_egui for M1 editor UI
 
@@ -113,6 +135,8 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-12 | `cargo build`                 | PASS   | Clean compilation                    |
 | 2026-02-12 | `cargo clippy -- -D warnings` | PASS   | Zero warnings                        |
 | 2026-02-12 | `cargo test`                  | PASS   | 90/90 tests pass (5 editor_ui tests) |
+| 2026-02-16 | `mise check`                  | PASS   | All checks pass                      |
+| 2026-02-16 | `cargo test`                  | PASS   | 167/167 tests pass                   |
 
 ### Tests (5):
 
@@ -130,10 +154,11 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                                                                          |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | speccing | Initial spec created                                                                                           |
-| 2026-02-08 | complete | M1 plugin implemented                                                                                          |
-| 2026-02-08 | speccing | M2 evolution: dark theme, cell type editor, inspector panel                                                    |
-| 2026-02-09 | complete | M2 evolution implemented: dark theme, cell palette, type editor, property editors, inspector, game system info |
-| 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.         |
+| Date       | Status   | Notes                                                                                                           |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | speccing | Initial spec created                                                                                            |
+| 2026-02-08 | complete | M1 plugin implemented                                                                                           |
+| 2026-02-08 | speccing | M2 evolution: dark theme, cell type editor, inspector panel                                                     |
+| 2026-02-09 | complete | M2 evolution implemented: dark theme, cell palette, type editor, property editors, inspector, game system info  |
+| 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.          |
+| 2026-02-16 | building | 0.9.0 visual polish: BrandTheme, color audit, amber accents, font change, launcher restyle. 167/167 tests pass. |

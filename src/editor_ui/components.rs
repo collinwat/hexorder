@@ -5,6 +5,54 @@
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy_egui::egui;
+
+/// Brand palette constants for the editor UI.
+/// Source of truth: `docs/brand.md`
+pub(crate) struct BrandTheme;
+
+impl BrandTheme {
+    // -- Backgrounds --
+    /// Deep background (#0a0a0a) — deepest UI panels
+    pub const BG_DEEP: egui::Color32 = egui::Color32::from_gray(10);
+    /// Panel fill (#191919) — panel backgrounds
+    pub const BG_PANEL: egui::Color32 = egui::Color32::from_gray(25);
+    /// Surface (#232323) — interactive surface areas / faint bg
+    pub const BG_SURFACE: egui::Color32 = egui::Color32::from_gray(35);
+
+    // -- Widget fills (graduated brightness for state) --
+    pub const WIDGET_NONINTERACTIVE: egui::Color32 = egui::Color32::from_gray(30);
+    pub const WIDGET_INACTIVE: egui::Color32 = egui::Color32::from_gray(40);
+    pub const WIDGET_HOVERED: egui::Color32 = egui::Color32::from_gray(55);
+    pub const WIDGET_ACTIVE: egui::Color32 = egui::Color32::from_gray(70);
+
+    // -- Accent --
+    /// Teal (#005c80) — selection highlights, active states
+    pub const ACCENT_TEAL: egui::Color32 = egui::Color32::from_rgb(0, 92, 128);
+    /// Amber/gold (#c89640) — emphasis, headings, primary actions
+    pub const ACCENT_AMBER: egui::Color32 = egui::Color32::from_rgb(200, 150, 64);
+
+    // -- Text --
+    /// Primary text (#e0e0e0) — body text, labels
+    pub const TEXT_PRIMARY: egui::Color32 = egui::Color32::from_gray(224);
+    /// Secondary text (#808080) — secondary labels, hints
+    pub const TEXT_SECONDARY: egui::Color32 = egui::Color32::from_gray(128);
+    /// Disabled text (#505050) — inactive elements
+    #[allow(dead_code)]
+    pub const TEXT_DISABLED: egui::Color32 = egui::Color32::from_gray(80);
+    /// Tertiary text — used for IDs, de-emphasized metadata
+    pub const TEXT_TERTIARY: egui::Color32 = egui::Color32::from_gray(120);
+
+    // -- Border --
+    /// Subtle border (#3c3c3c) — panel borders, dividers
+    pub const BORDER_SUBTLE: egui::Color32 = egui::Color32::from_gray(60);
+
+    // -- Semantic --
+    /// Danger (#c85050) — destructive actions, error states
+    pub const DANGER: egui::Color32 = egui::Color32::from_rgb(200, 80, 80);
+    /// Success (#509850) — valid states, confirmations
+    pub const SUCCESS: egui::Color32 = egui::Color32::from_rgb(80, 152, 80);
+}
 
 use crate::contracts::game_system::{EntityRole, PropertyType, TypeId};
 use crate::contracts::ontology::{

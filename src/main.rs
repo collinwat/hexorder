@@ -191,27 +191,30 @@ mod architecture_tests {
         // --- Approved brand palette ---
         // from_gray(N) values
         let approved_grays: &[u8] = &[
-            10,  // #0a0a0a — deep background
-            25,  // #191919 — panel fill
-            30,  // widget noninteractive
-            35,  // #232323 — surface / faint bg
-            40,  // widget inactive
-            55,  // widget hovered
-            60,  // #3c3c3c — border
-            70,  // widget active
-            120, // secondary label text
+            10,  // #0a0a0a — deep background (BG_DEEP)
+            25,  // #191919 — panel fill (BG_PANEL)
+            30,  // widget noninteractive (WIDGET_NONINTERACTIVE)
+            35,  // #232323 — surface / faint bg (BG_SURFACE)
+            40,  // widget inactive (WIDGET_INACTIVE)
+            55,  // widget hovered (WIDGET_HOVERED)
+            60,  // #3c3c3c — border (BORDER_SUBTLE)
+            70,  // widget active (WIDGET_ACTIVE)
+            80,  // #505050 — disabled text (TEXT_DISABLED)
+            120, // tertiary text (TEXT_TERTIARY)
+            128, // #808080 — secondary text (TEXT_SECONDARY)
+            224, // #e0e0e0 — primary text (TEXT_PRIMARY)
         ];
 
         // from_rgb(R, G, B) values
         let approved_rgb: &[(u8, u8, u8)] = &[
-            (0, 92, 128),   // #005c80 — teal accent
-            (200, 80, 80),  // #c85050 — danger red
-            (200, 150, 64), // #c89640 — amber/gold accent
-            (80, 152, 80),  // #509850 — success green
+            (0, 92, 128),   // #005c80 — teal accent (ACCENT_TEAL)
+            (200, 80, 80),  // #c85050 — danger red (DANGER)
+            (200, 150, 64), // #c89640 — amber/gold accent (ACCENT_AMBER)
+            (80, 152, 80),  // #509850 — success green (SUCCESS)
         ];
 
         // Named constants that are allowed
-        let approved_named: &[&str] = &["Color32::GRAY", "Color32::WHITE"];
+        let approved_named: &[&str] = &[];
 
         let mut violations = Vec::new();
 
