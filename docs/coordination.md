@@ -11,7 +11,7 @@
 | #77   | Core mechanic primitives — turn structure and combat resolution | Big Batch   | pending |
 | #80   | Keyboard-first command access — shortcuts, palette              | Small Batch | pending |
 | #53   | Workspace lifecycle — create, name, save, launcher              | Small Batch | pending |
-| #54   | Editor Visual Polish — brand theme, fonts                       | Small Batch | pending |
+| #54   | Editor Visual Polish — brand theme, fonts                       | Small Batch | merged  |
 
 ### Prior Cycles
 
@@ -47,7 +47,7 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 
 | Cycle | Branch  | Pitches Merged | Status |
 | ----- | ------- | -------------- | ------ |
-| 4     | `0.9.0` | —              | active |
+| 4     | `0.9.0` | #54            | active |
 
 Status values: `active` | `shipping` | `shipped`
 
@@ -68,7 +68,7 @@ Status values: `active` | `shipping` | `shipped`
 | ----- | ---------- | -------------- | ------- |
 | #77   | —          | 1              | planned |
 | #80   | —          | 1              | planned |
-| #54   | —          | 1              | planned |
+| #54   | —          | 1              | done    |
 | #53   | #54        | 2              | planned |
 
 Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
