@@ -53,6 +53,13 @@ For each selected pitch:
     - Set the new cycle name, type, and appetite under Active Cycle
     - Add the pitch to the Current Bets table with status `pending`
 
+## Scaffold Dependencies (multi-pitch cycles)
+
+If more than one pitch is selected, scaffold the Pitch Dependencies table in `{{ coordination }}`.
+Add one row per bet pitch with Depends On, Delivery Order, and Status columns left blank (`—`, `—`,
+`planned`). The kickoff phase will populate the actual dependencies after generating implementation
+plans.
+
 ## Unselected Pitches
 
 Pitches not selected are NOT queued or carried forward. They can be re-pitched in a future cycle if

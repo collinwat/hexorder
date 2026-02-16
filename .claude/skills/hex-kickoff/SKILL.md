@@ -40,6 +40,21 @@ project structure changes, update them here.
 2. Read the full pitch: `gh issue view <number>`
 3. Note the five ingredients: Problem, Appetite, Solution, Rabbit Holes, No Gos
 
+## Map Dependencies (multi-pitch cycles)
+
+If the cycle has multiple pitches, map cross-pitch dependencies before setting up branches:
+
+1. Read all bet pitches for the cycle
+2. For each pitch, identify shared types, contracts, or features it depends on from other pitches
+3. Populate the Pitch Dependencies table in `{{ coordination }}`:
+    - **Depends On**: list pitch numbers this pitch requires (or `—` for none)
+    - **Delivery Order**: `1` for pitches with no dependencies, `2` for pitches that depend on
+      order-1 work, etc. Pitches with the same order number can build in parallel.
+    - **Status**: set all to `planned`
+4. Present the dependency table to the user for review before proceeding
+
+If the cycle has only one pitch, skip this step.
+
 ## Set Up the Integration Branch (if needed)
 
 Read `{{ git_guide }}` to extract the Integration branch section. If this cycle has multiple pitches

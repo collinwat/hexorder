@@ -56,6 +56,17 @@ Status values: `active` | `shipping` | `shipped`
 > **Note**: Cycles 1 and 2 predated the integration branch model. They used the merge lock protocol
 > (now retired).
 
+## Pitch Dependencies
+
+> After betting, map cross-pitch dependencies to determine delivery order. Populated during kickoff
+> when implementation plans are generated.
+
+| Pitch | Depends On | Delivery Order | Status |
+| ----- | ---------- | -------------- | ------ |
+
+Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
+values: `planned` | `in-progress` | `done`
+
 ## Known Blockers
 
 - Bevy 0.18 and bevy_egui 0.39 API patterns are documented in `docs/guides/bevy.md` and
