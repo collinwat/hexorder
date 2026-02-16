@@ -11,6 +11,7 @@ mod ontology;
 mod persistence;
 mod rules_engine;
 mod scripting;
+mod shortcuts;
 mod unit;
 
 use contracts::persistence::AppScreen;
@@ -35,6 +36,7 @@ fn main() {
         }))
         .init_state::<AppScreen>()
         .add_plugins(hex_grid::HexGridPlugin)
+        .add_plugins(shortcuts::ShortcutsPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(game_system::GameSystemPlugin)
         .add_plugins(ontology::OntologyPlugin)
