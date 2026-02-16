@@ -16,7 +16,7 @@ use super::hex_grid::HexPosition;
 use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -32,10 +32,18 @@ pub enum AppScreen {
     Editor,
 }
 
-/// Tracks the path to the currently open file.
-#[derive(Resource, Debug, Default, Reflect)]
-pub struct CurrentFilePath {
-    pub path: Option<PathBuf>,
+/// Tool-level session state for the currently open project.
+/// Initialized on `NewProjectEvent` and `LoadRequestEvent`.
+/// Reset on `CloseProjectEvent` / return-to-launcher.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct Workspace {
+    /// Human-readable project name (display only, not an identifier).
+    pub name: String,
+    /// Path to the last-saved file. `None` if never saved.
+    pub file_path: Option<PathBuf>,
+    /// Whether the project has unsaved changes.
+    /// Placeholder for future use — not actively tracked in this pitch.
+    pub dirty: bool,
 }
 
 /// Temporary resource for deferred board state application after load.
@@ -60,9 +68,16 @@ pub struct SaveRequestEvent {
 #[derive(Event, Debug)]
 pub struct LoadRequestEvent;
 
-/// Triggers creation of a new empty project.
+/// Triggers creation of a new empty project with the given name.
 #[derive(Event, Debug)]
-pub struct NewProjectEvent;
+pub struct NewProjectEvent {
+    /// Display name for the new workspace.
+    pub name: String,
+}
+
+/// Triggers closing the current project and returning to the launcher.
+#[derive(Event, Debug)]
+pub struct CloseProjectEvent;
 
 // ---------------------------------------------------------------------------
 // File Container
@@ -73,6 +88,9 @@ pub struct NewProjectEvent;
 pub struct GameSystemFile {
     /// File format version (for future migration).
     pub format_version: u32,
+    /// Workspace display name. Empty in v2 files (derived from filename on load).
+    #[serde(default)]
+    pub name: String,
     /// The game system definitions.
     pub game_system: GameSystem,
     /// Entity type registry.
@@ -192,6 +210,7 @@ mod tests {
         let type_id = TypeId::new();
         GameSystemFile {
             format_version: FORMAT_VERSION,
+            name: "Test Project".to_string(),
             game_system: GameSystem {
                 id: "test-id".to_string(),
                 version: "0.1.0".to_string(),
@@ -270,7 +289,7 @@ mod tests {
         let result = load_from_file(&dir);
         assert!(matches!(
             result,
-            Err(PersistenceError::UnsupportedVersion { found: 999, max: 2 })
+            Err(PersistenceError::UnsupportedVersion { found: 999, max: 3 })
         ));
         let _ = std::fs::remove_file(&dir);
     }
@@ -298,6 +317,28 @@ mod tests {
         assert_eq!(loaded.format_version, FORMAT_VERSION);
         assert_eq!(loaded.enums.definitions.len(), 1);
         assert_eq!(loaded.enums.get(eid).expect("should find").name, "Side");
+
+        let _ = std::fs::remove_file(&dir);
+    }
+
+    #[test]
+    fn workspace_default_has_empty_name_and_no_path() {
+        let ws = Workspace::default();
+        assert!(ws.name.is_empty());
+        assert!(ws.file_path.is_none());
+        assert!(!ws.dirty);
+    }
+
+    #[test]
+    fn game_system_file_name_round_trips() {
+        let dir = std::env::temp_dir().join("hexorder_test_name_rt.hexorder");
+        let mut data = test_file();
+        data.name = "My WW2 Campaign".to_string();
+
+        save_to_file(&dir, &data).expect("save");
+        let loaded = load_from_file(&dir).expect("load");
+
+        assert_eq!(loaded.name, "My WW2 Campaign");
 
         let _ = std::fs::remove_file(&dir);
     }

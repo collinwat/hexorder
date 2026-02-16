@@ -20,6 +20,7 @@ use crate::contracts::ontology::{
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
+use crate::contracts::persistence::Workspace;
 use crate::contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::components::{EditorAction, EditorState};
@@ -136,41 +137,47 @@ fn test_constraint_registry() -> ConstraintRegistry {
 }
 
 // ---------------------------------------------------------------------------
-// Game System Info
+// Workspace Header
 // ---------------------------------------------------------------------------
 
 #[test]
-fn game_system_info_shows_hexorder_label() {
+fn workspace_header_shows_project_name() {
+    let workspace = Workspace {
+        name: "My Campaign".to_string(),
+        ..Workspace::default()
+    };
     let gs = GameSystem {
         id: "abc12345-long-id".to_string(),
         version: "0.1.0".to_string(),
     };
     let harness = Harness::new_ui(|ui| {
-        systems::render_game_system_info(ui, &gs);
+        systems::render_workspace_header(ui, &workspace, &gs);
     });
-    harness.get_by_label("Hexorder");
+    harness.get_by_label("My Campaign");
 }
 
 #[test]
-fn game_system_info_shows_version() {
+fn workspace_header_shows_hexorder_label() {
+    let workspace = Workspace::default();
     let gs = GameSystem {
         id: "test-id".to_string(),
         version: "0.2.0".to_string(),
     };
     let harness = Harness::new_ui(|ui| {
-        systems::render_game_system_info(ui, &gs);
+        systems::render_workspace_header(ui, &workspace, &gs);
     });
-    harness.get_by_label_contains("v0.2.0");
+    harness.get_by_label_contains("hexorder");
 }
 
 #[test]
-fn game_system_info_truncates_long_id() {
+fn workspace_header_truncates_long_id() {
+    let workspace = Workspace::default();
     let gs = GameSystem {
         id: "abcdefghijklmnop".to_string(),
         version: "0.1.0".to_string(),
     };
     let harness = Harness::new_ui(|ui| {
-        systems::render_game_system_info(ui, &gs);
+        systems::render_workspace_header(ui, &workspace, &gs);
     });
     harness.get_by_label_contains("abcdefgh...");
 }

@@ -54,11 +54,12 @@ impl BrandTheme {
     pub const SUCCESS: egui::Color32 = egui::Color32::from_rgb(80, 152, 80);
 }
 
-use crate::contracts::game_system::{EntityRole, PropertyType, TypeId};
+use crate::contracts::game_system::{EntityRole, GameSystem, PropertyType, TypeId};
 use crate::contracts::ontology::{
     ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
+use crate::contracts::persistence::Workspace;
 use crate::contracts::validation::SchemaValidation;
 
 /// Deferred actions to apply after the egui closure completes.
@@ -252,6 +253,14 @@ pub struct EditorState {
     /// 0=Add, 1=Subtract, 2=Multiply, 3=Min, 4=Max.
     pub new_relation_operation_index: usize,
 
+    // Launcher state
+    /// Whether the new project name input is visible on the launcher.
+    pub launcher_name_input_visible: bool,
+    /// Text content of the new project name input.
+    pub launcher_project_name: String,
+    /// Whether to request focus on the name input next frame.
+    pub launcher_request_focus: bool,
+
     // Constraint editor
     pub new_constraint_name: String,
     pub new_constraint_description: String,
@@ -289,6 +298,9 @@ impl Default for EditorState {
             new_struct_field_name: String::new(),
             new_struct_field_type_index: 0,
             active_tab: OntologyTab::default(),
+            launcher_name_input_visible: false,
+            launcher_project_name: String::new(),
+            launcher_request_focus: false,
             new_concept_name: String::new(),
             new_concept_description: String::new(),
             new_role_name: String::new(),
@@ -315,6 +327,14 @@ impl Default for EditorState {
             new_constraint_value_str: String::new(),
         }
     }
+}
+
+/// Bundled system parameter for project-level read-only resources.
+/// Reduces the system parameter count in `editor_panel_system`.
+#[derive(SystemParam)]
+pub(super) struct ProjectParams<'w> {
+    pub(super) workspace: Res<'w, Workspace>,
+    pub(super) game_system: Res<'w, GameSystem>,
 }
 
 /// Bundled system parameter for ontology-related resources.

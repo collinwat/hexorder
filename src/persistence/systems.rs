@@ -1,6 +1,7 @@
 //! Systems for the persistence plugin.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -8,13 +9,70 @@ use crate::contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, GameSystem, SelectedUnit, StructRegistry,
     UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, MoveOverlay};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::{
-    AppScreen, CurrentFilePath, FORMAT_VERSION, GameSystemFile, LoadRequestEvent, NewProjectEvent,
-    PendingBoardLoad, SaveRequestEvent, TileSaveData, UnitSaveData,
+    AppScreen, CloseProjectEvent, FORMAT_VERSION, GameSystemFile, LoadRequestEvent,
+    NewProjectEvent, PendingBoardLoad, SaveRequestEvent, TileSaveData, UnitSaveData, Workspace,
 };
 use crate::contracts::validation::SchemaValidation;
+
+// ---------------------------------------------------------------------------
+// Shared Helpers
+// ---------------------------------------------------------------------------
+
+/// Reset all registries and derived state to factory defaults.
+/// Used by both `handle_new_project` and `handle_close_project`.
+#[allow(clippy::too_many_arguments)]
+fn reset_all_registries(
+    game_system: &mut GameSystem,
+    entity_types: &mut EntityTypeRegistry,
+    enum_registry: &mut EnumRegistry,
+    struct_registry: &mut StructRegistry,
+    concepts: &mut ConceptRegistry,
+    relations: &mut RelationRegistry,
+    constraints: &mut ConstraintRegistry,
+    schema: &mut SchemaValidation,
+    selected_unit: &mut SelectedUnit,
+) {
+    *game_system = crate::game_system::create_game_system();
+    *entity_types = crate::game_system::create_entity_type_registry();
+    *enum_registry = crate::game_system::create_enum_registry();
+    *struct_registry = StructRegistry::default();
+    *concepts = ConceptRegistry::default();
+    *relations = RelationRegistry::default();
+    *constraints = ConstraintRegistry::default();
+    *schema = SchemaValidation::default();
+    selected_unit.entity = None;
+}
+
+/// Sanitize a workspace name for use as a filename.
+/// Replaces disallowed characters with hyphens, trims, and falls back to "untitled".
+pub(crate) fn sanitize_filename(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let trimmed = sanitized.trim().to_string();
+    if trimmed.is_empty() {
+        "untitled".to_string()
+    } else {
+        trimmed
+    }
+}
+
+/// Returns the default save directory for new projects: `~/Documents/Hexorder/`.
+fn default_save_directory() -> Option<PathBuf> {
+    std::env::var("HOME")
+        .ok()
+        .map(|home| PathBuf::from(home).join("Documents").join("Hexorder"))
+}
 
 // ---------------------------------------------------------------------------
 // Observer Systems
@@ -35,22 +93,39 @@ pub fn handle_save_request(
     config: Res<HexGridConfig>,
     tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    mut file_path: ResMut<CurrentFilePath>,
+    mut workspace: ResMut<Workspace>,
 ) {
     let event = trigger.event();
 
     // Determine target path.
-    let path = if event.save_as || file_path.path.is_none() {
-        // Show save dialog.
-        let dialog = rfd::FileDialog::new()
+    let path = if event.save_as || workspace.file_path.is_none() {
+        // Pre-fill with sensible defaults.
+        let sanitized_name = sanitize_filename(&workspace.name);
+        let file_name = format!("{sanitized_name}.hexorder");
+
+        let mut dialog = rfd::FileDialog::new()
             .add_filter("Hexorder", &["hexorder"])
-            .set_file_name("untitled.hexorder");
+            .set_file_name(&file_name);
+
+        // Pre-fill default directory on first save.
+        if let Some(ref existing) = workspace.file_path {
+            if let Some(parent) = existing.parent() {
+                dialog = dialog.set_directory(parent);
+            }
+        } else if let Some(default_dir) = default_save_directory() {
+            // Attempt to create the directory; set it if successful.
+            #[allow(clippy::collapsible_if)]
+            if std::fs::create_dir_all(&default_dir).is_ok() {
+                dialog = dialog.set_directory(&default_dir);
+            }
+        }
+
         match dialog.save_file() {
             Some(p) => p,
             None => return, // User cancelled.
         }
     } else {
-        file_path.path.clone().expect("checked is_some above")
+        workspace.file_path.clone().expect("checked is_some above")
     };
 
     // Build save data.
@@ -74,6 +149,7 @@ pub fn handle_save_request(
 
     let file = GameSystemFile {
         format_version: FORMAT_VERSION,
+        name: workspace.name.clone(),
         game_system: game_system.clone(),
         entity_types: entity_types.clone(),
         enums: enum_registry.clone(),
@@ -89,7 +165,8 @@ pub fn handle_save_request(
     match crate::contracts::persistence::save_to_file(&path, &file) {
         Ok(()) => {
             info!("Saved to {}", path.display());
-            file_path.path = Some(path);
+            workspace.file_path = Some(path);
+            workspace.dirty = false;
         }
         Err(e) => {
             error!("Failed to save: {e}");
@@ -110,7 +187,7 @@ pub fn handle_load_request(
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
     mut schema: ResMut<SchemaValidation>,
-    mut file_path: ResMut<CurrentFilePath>,
+    mut workspace: ResMut<Workspace>,
     mut next_state: ResMut<NextState<AppScreen>>,
     mut commands: Commands,
 ) {
@@ -139,8 +216,20 @@ pub fn handle_load_request(
     // Reset derived state.
     *schema = SchemaValidation::default();
 
-    // Store file path.
-    file_path.path = Some(path);
+    // Derive workspace name: use file name field if present (v3+),
+    // otherwise derive from filename stem (v2 backward compat).
+    let name = if file.name.is_empty() {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Untitled")
+            .to_string()
+    } else {
+        file.name
+    };
+
+    workspace.name = name;
+    workspace.file_path = Some(path);
+    workspace.dirty = false;
 
     // Insert pending board load for deferred application.
     commands.insert_resource(PendingBoardLoad {
@@ -154,11 +243,11 @@ pub fn handle_load_request(
     info!("Loaded game system: {}", game_system.id);
 }
 
-/// Handles new project requests. Resets all registries to defaults and
-/// transitions to the editor.
+/// Handles new project requests. Resets all registries to defaults,
+/// sets workspace name, and transitions to the editor.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_new_project(
-    _trigger: On<NewProjectEvent>,
+    trigger: On<NewProjectEvent>,
     mut game_system: ResMut<GameSystem>,
     mut entity_types: ResMut<EntityTypeRegistry>,
     mut enum_registry: ResMut<EnumRegistry>,
@@ -168,27 +257,61 @@ pub fn handle_new_project(
     mut constraints: ResMut<ConstraintRegistry>,
     mut schema: ResMut<SchemaValidation>,
     mut selected_unit: ResMut<SelectedUnit>,
-    mut file_path: ResMut<CurrentFilePath>,
+    mut workspace: ResMut<Workspace>,
     mut next_state: ResMut<NextState<AppScreen>>,
 ) {
-    // Reset to factory defaults (reuse game_system plugin's factory functions).
-    *game_system = crate::game_system::create_game_system();
-    let registry = crate::game_system::create_entity_type_registry();
-    *entity_types = registry;
-    *enum_registry = crate::game_system::create_enum_registry();
-    *struct_registry = StructRegistry::default();
+    let event = trigger.event();
 
-    // Reset ontology.
-    *concepts = ConceptRegistry::default();
-    *relations = RelationRegistry::default();
-    *constraints = ConstraintRegistry::default();
+    reset_all_registries(
+        &mut game_system,
+        &mut entity_types,
+        &mut enum_registry,
+        &mut struct_registry,
+        &mut concepts,
+        &mut relations,
+        &mut constraints,
+        &mut schema,
+        &mut selected_unit,
+    );
 
-    // Reset derived state.
-    *schema = SchemaValidation::default();
-    selected_unit.entity = None;
-    file_path.path = None;
+    workspace.name.clone_from(&event.name);
+    workspace.file_path = None;
+    workspace.dirty = false;
 
     next_state.set(AppScreen::Editor);
+}
+
+/// Handles close project requests. Resets all state and returns to launcher.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_close_project(
+    _trigger: On<CloseProjectEvent>,
+    mut workspace: ResMut<Workspace>,
+    mut game_system: ResMut<GameSystem>,
+    mut entity_types: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
+    mut concepts: ResMut<ConceptRegistry>,
+    mut relations: ResMut<RelationRegistry>,
+    mut constraints: ResMut<ConstraintRegistry>,
+    mut schema: ResMut<SchemaValidation>,
+    mut selected_unit: ResMut<SelectedUnit>,
+    mut next_state: ResMut<NextState<AppScreen>>,
+) {
+    *workspace = Workspace::default();
+
+    reset_all_registries(
+        &mut game_system,
+        &mut entity_types,
+        &mut enum_registry,
+        &mut struct_registry,
+        &mut concepts,
+        &mut relations,
+        &mut constraints,
+        &mut schema,
+        &mut selected_unit,
+    );
+
+    next_state.set(AppScreen::Launcher);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +322,7 @@ pub fn handle_new_project(
 /// - `Cmd+S`: Save (to current path, or Save As if no path)
 /// - `Cmd+Shift+S`: Save As (always show dialog)
 /// - `Cmd+O`: Open
-/// - `Cmd+N`: New project
+/// - `Cmd+N`: Close project (return to launcher)
 pub fn keyboard_shortcuts(input: Option<Res<ButtonInput<KeyCode>>>, mut commands: Commands) {
     let Some(input) = input else {
         return;
@@ -216,7 +339,26 @@ pub fn keyboard_shortcuts(input: Option<Res<ButtonInput<KeyCode>>>, mut commands
     } else if input.just_pressed(KeyCode::KeyO) {
         commands.trigger(LoadRequestEvent);
     } else if input.just_pressed(KeyCode::KeyN) {
-        commands.trigger(NewProjectEvent);
+        commands.trigger(CloseProjectEvent);
+    }
+}
+
+/// Despawns all editor-spawned entities on `OnExit(AppScreen::Editor)`.
+/// Ensures a clean slate when returning to the launcher or re-entering the editor.
+pub fn cleanup_editor_entities(
+    mut commands: Commands,
+    tiles: Query<Entity, With<HexTile>>,
+    units: Query<Entity, With<UnitInstance>>,
+    cameras: Query<Entity, With<Camera3d>>,
+    overlays: Query<Entity, With<MoveOverlay>>,
+) {
+    for entity in tiles
+        .iter()
+        .chain(units.iter())
+        .chain(cameras.iter())
+        .chain(overlays.iter())
+    {
+        commands.entity(entity).despawn();
     }
 }
 

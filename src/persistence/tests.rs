@@ -32,6 +32,7 @@ fn test_game_system_file() -> GameSystemFile {
     let type_id = TypeId::new();
     GameSystemFile {
         format_version: FORMAT_VERSION,
+        name: "Test Project".to_string(),
         game_system: GameSystem {
             id: "test-save".to_string(),
             version: "0.1.0".to_string(),
@@ -149,6 +150,7 @@ fn save_load_round_trip_via_file() {
 fn save_empty_board_succeeds() {
     let file = GameSystemFile {
         format_version: FORMAT_VERSION,
+        name: String::new(),
         game_system: GameSystem {
             id: "empty".to_string(),
             version: "0.1.0".to_string(),

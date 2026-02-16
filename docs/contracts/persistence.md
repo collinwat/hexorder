@@ -14,19 +14,20 @@ Types for saving and loading game system definitions and board state to `.hexord
 
 Top-level container for a saved game system + board state.
 
-| Field            | Type                 | Description                     |
-| ---------------- | -------------------- | ------------------------------- |
-| `format_version` | `u32`                | File format version (migration) |
-| `game_system`    | `GameSystem`         | Game system metadata            |
-| `entity_types`   | `EntityTypeRegistry` | All entity types                |
-| `enums`          | `EnumRegistry`       | Enum definitions (0.7.0)        |
-| `structs`        | `StructRegistry`     | Struct definitions (0.7.0)      |
-| `concepts`       | `ConceptRegistry`    | Concepts + bindings             |
-| `relations`      | `RelationRegistry`   | Relations                       |
-| `constraints`    | `ConstraintRegistry` | Constraints                     |
-| `map_radius`     | `u32`                | Hex grid radius                 |
-| `tiles`          | `Vec<TileSaveData>`  | Per-tile cell data              |
-| `units`          | `Vec<UnitSaveData>`  | Placed unit data                |
+| Field            | Type                 | Description                                     |
+| ---------------- | -------------------- | ----------------------------------------------- |
+| `format_version` | `u32`                | File format version (migration), currently `3`  |
+| `name`           | `String`             | Human-readable project name (v3+, default `""`) |
+| `game_system`    | `GameSystem`         | Game system metadata                            |
+| `entity_types`   | `EntityTypeRegistry` | All entity types                                |
+| `enums`          | `EnumRegistry`       | Enum definitions (0.7.0)                        |
+| `structs`        | `StructRegistry`     | Struct definitions (0.7.0)                      |
+| `concepts`       | `ConceptRegistry`    | Concepts + bindings                             |
+| `relations`      | `RelationRegistry`   | Relations                                       |
+| `constraints`    | `ConstraintRegistry` | Constraints                                     |
+| `map_radius`     | `u32`                | Hex grid radius                                 |
+| `tiles`          | `Vec<TileSaveData>`  | Per-tile cell data                              |
+| `units`          | `Vec<UnitSaveData>`  | Placed unit data                                |
 
 ### `TileSaveData`
 
@@ -68,13 +69,15 @@ Application screen state.
 | `Launcher` | Startup screen — new/open project      |
 | `Editor`   | Main editor — all editing tools active |
 
-### `CurrentFilePath`
+### `Workspace`
 
-Tracks the path to the currently open file.
+Tool-level session state for the currently open project.
 
-| Field  | Type              | Description         |
-| ------ | ----------------- | ------------------- |
-| `path` | `Option<PathBuf>` | None if never saved |
+| Field       | Type              | Description                                       |
+| ----------- | ----------------- | ------------------------------------------------- |
+| `name`      | `String`          | Human-readable project name (display only)        |
+| `file_path` | `Option<PathBuf>` | Path to last-saved file; `None` if unsaved        |
+| `dirty`     | `bool`            | Whether project has unsaved changes (placeholder) |
 
 ### `PendingBoardLoad`
 
@@ -99,7 +102,15 @@ Triggers a load operation. No fields.
 
 ### `NewProjectEvent`
 
-Triggers creation of a new empty project. No fields.
+Triggers creation of a new empty project.
+
+| Field  | Type     | Description                     |
+| ------ | -------- | ------------------------------- |
+| `name` | `String` | Human-readable name for project |
+
+### `CloseProjectEvent`
+
+Triggers close of the current project and return to the launcher. No fields.
 
 ## Functions
 

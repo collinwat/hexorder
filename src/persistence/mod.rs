@@ -6,7 +6,7 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::{AppScreen, CurrentFilePath};
+use crate::contracts::persistence::{AppScreen, Workspace};
 
 mod systems;
 
@@ -20,7 +20,7 @@ pub struct PersistencePlugin;
 
 impl Plugin for PersistencePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CurrentFilePath>();
+        app.init_resource::<Workspace>();
         app.add_systems(
             Update,
             (
@@ -32,5 +32,7 @@ impl Plugin for PersistencePlugin {
         app.add_observer(systems::handle_save_request);
         app.add_observer(systems::handle_load_request);
         app.add_observer(systems::handle_new_project);
+        app.add_observer(systems::handle_close_project);
+        app.add_systems(OnExit(AppScreen::Editor), systems::cleanup_editor_entities);
     }
 }

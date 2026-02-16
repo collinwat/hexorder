@@ -15,10 +15,14 @@ use crate::contracts::ontology::{
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
-use crate::contracts::persistence::{LoadRequestEvent, NewProjectEvent, SaveRequestEvent};
+use crate::contracts::persistence::{
+    CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
+};
 use crate::contracts::validation::SchemaValidation;
 
-use super::components::{BrandTheme, EditorAction, EditorState, OntologyParams, OntologyTab};
+use super::components::{
+    BrandTheme, EditorAction, EditorState, OntologyParams, OntologyTab, ProjectParams,
+};
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
@@ -73,7 +77,12 @@ pub fn configure_theme(mut contexts: EguiContexts) {
 }
 
 /// Launcher screen system. Renders a centered panel with New / Open buttons.
-pub fn launcher_system(mut contexts: EguiContexts, mut commands: Commands) {
+/// When "New Game System" is clicked, reveals an inline name input with Create/Cancel.
+pub fn launcher_system(
+    mut contexts: EguiContexts,
+    mut editor_state: ResMut<EditorState>,
+    mut commands: Commands,
+) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
@@ -102,17 +111,66 @@ pub fn launcher_system(mut contexts: EguiContexts, mut commands: Commands) {
             );
             ui.add_space(24.0);
 
-            if ui
-                .add(
-                    egui::Button::new(
-                        egui::RichText::new("New Game System").color(BrandTheme::ACCENT_AMBER),
+            if editor_state.launcher_name_input_visible {
+                // Show inline name input.
+                ui.label("Project Name:");
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut editor_state.launcher_project_name)
+                        .hint_text("e.g., My WW2 Campaign")
+                        .desired_width(200.0),
+                );
+
+                // Request focus on first frame after reveal.
+                if editor_state.launcher_request_focus {
+                    response.request_focus();
+                    editor_state.launcher_request_focus = false;
+                }
+
+                let trimmed_name = editor_state.launcher_project_name.trim().to_string();
+                let name_valid = !trimmed_name.is_empty();
+
+                // Enter key triggers Create.
+                let enter_pressed =
+                    response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                ui.horizontal(|ui| {
+                    let create_btn = ui.add_enabled(
+                        name_valid,
+                        egui::Button::new(egui::RichText::new("Create").color(if name_valid {
+                            BrandTheme::ACCENT_AMBER
+                        } else {
+                            BrandTheme::TEXT_DISABLED
+                        })),
+                    );
+
+                    if name_valid && (create_btn.clicked() || enter_pressed) {
+                        commands.trigger(NewProjectEvent { name: trimmed_name });
+                        editor_state.launcher_name_input_visible = false;
+                        editor_state.launcher_project_name = String::new();
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        editor_state.launcher_name_input_visible = false;
+                        editor_state.launcher_project_name = String::new();
+                    }
+                });
+            } else {
+                // Show the "New Game System" button.
+                if ui
+                    .add(
+                        egui::Button::new(
+                            egui::RichText::new("New Game System").color(BrandTheme::ACCENT_AMBER),
+                        )
+                        .min_size(egui::vec2(200.0, 36.0)),
                     )
-                    .min_size(egui::vec2(200.0, 36.0)),
-                )
-                .clicked()
-            {
-                commands.trigger(NewProjectEvent);
+                    .clicked()
+                {
+                    editor_state.launcher_name_input_visible = true;
+                    editor_state.launcher_project_name = String::new();
+                    editor_state.launcher_request_focus = true;
+                }
             }
+
             ui.add_space(8.0);
             if ui
                 .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
@@ -134,7 +192,7 @@ pub fn editor_panel_system(
     mut selected_unit: ResMut<SelectedUnit>,
     mut editor_state: ResMut<EditorState>,
     selected_hex: Res<SelectedHex>,
-    game_system: Res<GameSystem>,
+    project: ProjectParams,
     mut registry: ResMut<EntityTypeRegistry>,
     mut enum_registry: ResMut<EnumRegistry>,
     mut struct_registry: ResMut<StructRegistry>,
@@ -155,7 +213,7 @@ pub fn editor_panel_system(
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New          Cmd+N").clicked() {
-                    commands.trigger(NewProjectEvent);
+                    commands.trigger(CloseProjectEvent);
                     ui.close();
                 }
                 if ui.button("Open...      Cmd+O").clicked() {
@@ -171,6 +229,11 @@ pub fn editor_panel_system(
                     commands.trigger(SaveRequestEvent { save_as: true });
                     ui.close();
                 }
+                ui.separator();
+                if ui.button("Close Project").clicked() {
+                    commands.trigger(CloseProjectEvent);
+                    ui.close();
+                }
             });
         });
     });
@@ -178,8 +241,8 @@ pub fn editor_panel_system(
     egui::SidePanel::left("editor_panel")
         .default_width(280.0)
         .show(ctx, |ui| {
-            // -- Game System Info --
-            render_game_system_info(ui, &game_system);
+            // -- Workspace Header --
+            render_workspace_header(ui, &project.workspace, &project.game_system);
 
             // -- Tool Mode --
             render_tool_mode(ui, &mut editor_tool);
@@ -304,10 +367,10 @@ pub fn editor_panel_system(
 // UI Section Renderers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn render_game_system_info(ui: &mut egui::Ui, gs: &GameSystem) {
+pub(crate) fn render_workspace_header(ui: &mut egui::Ui, workspace: &Workspace, gs: &GameSystem) {
     ui.horizontal(|ui| {
         ui.label(
-            egui::RichText::new("Hexorder")
+            egui::RichText::new(&workspace.name)
                 .strong()
                 .size(15.0)
                 .color(BrandTheme::ACCENT_AMBER),
@@ -327,7 +390,7 @@ pub(crate) fn render_game_system_info(ui: &mut egui::Ui, gs: &GameSystem) {
         gs.id.clone()
     };
     ui.label(
-        egui::RichText::new(format!("ID: {id_short}"))
+        egui::RichText::new(format!("hexorder | {id_short}"))
             .small()
             .monospace()
             .color(BrandTheme::TEXT_TERTIARY),
