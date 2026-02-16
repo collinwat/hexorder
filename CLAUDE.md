@@ -28,10 +28,11 @@ game system assets.
 9. Read `docs/guides/contract.md` — contract protocol and spec template (if exposing or consuming
    shared types)
 10. Read `docs/guides/research.md` — research workflow and wiki consumption (if exploring unknowns)
-11. Read the relevant `docs/plugins/<name>/spec.md` for your assigned plugin
-12. Read `docs/contracts/` for any shared types your plugin depends on or exposes
-13. Check `docs/plugins/<name>/log.md` for prior decisions and blockers
-14. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
+11. Read `docs/glossary.md` — canonical terminology (use these terms in code, docs, and commits)
+12. Read the relevant `docs/plugins/<name>/spec.md` for your assigned plugin
+13. Read `docs/contracts/` for any shared types your plugin depends on or exposes
+14. Check `docs/plugins/<name>/log.md` for prior decisions and blockers
+15. Check GitHub Issues for the current release: `gh issue list --milestone "<milestone>"`
 
 ## Architecture Rules
 
@@ -175,6 +176,18 @@ here.
 After the gate passes, follow the appropriate merge workflow in `docs/guides/git.md` — Ship Merge
 (integration branch → main) or Solo-Pitch Merge (feature branch → main directly). Tag the release
 version and record it in coordination.md.
+
+### Gate Remediation
+
+If the ship gate fails:
+
+1. Fix violations on the feature branch (or integration branch)
+2. Re-run `mise check:audit` — all checks must pass
+3. Walk through manual checks again
+4. Do **not** merge until every check passes
+
+The gate is pass/fail — partial passes do not count. If the cycle deadline arrives and the gate
+still fails, the circuit breaker fires (see below).
 
 ### Circuit Breaker
 

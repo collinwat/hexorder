@@ -593,10 +593,24 @@ After generating, review the output. If a commit message was unclear or needs co
 `CHANGELOG.md` directly. Prefer fixing the commit message convention going forward rather than
 habitually hand-editing.
 
+### Edge cases
+
+**Malformed commits**: If a commit doesn't match `type(scope): summary`, git-cliff will skip it. The
+entry won't appear in the generated changelog. Fix by amending the commit message (if not yet
+pushed) or noting the omission in a manual edit after generation.
+
+**Regeneration safety**: `mise changelog:generate` regenerates the full changelog from all tags. It
+is safe to run repeatedly — git-cliff reads from git history, not from the existing `CHANGELOG.md`.
+Any manual edits to `CHANGELOG.md` will be overwritten on the next regeneration.
+
+**Breaking changes**: Commit messages with a `BREAKING CHANGE:` footer are rendered in a separate
+section (see Breaking changes under Commits above). Always include migration steps in the commit
+body.
+
 ### Rules
 
 - Never hand-write changelog entries from scratch — always generate first, then review
-- The changelog is regenerated on every merge to `main` (Pre-Merge Checklist step 9)
+- The changelog is regenerated on every ship merge to `main` (Ship Merge step 7)
 - Versions are listed in reverse chronological order (newest first)
 
 ---

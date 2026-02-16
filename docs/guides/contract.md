@@ -71,6 +71,17 @@ Contract changes affect multiple plugins. When working in parallel:
 - After changing a contract, run `cargo build` to catch breakage
 - Contract changes should always be done solo, not in parallel
 
+### Conflict Resolution
+
+If two pitches propose incompatible changes to the same contract:
+
+1. **First to merge wins.** The first pitch to land its contract change in the integration branch
+   sets the shape of the contract.
+2. **Second must adapt.** The other pitch rebases onto the integration branch and adjusts its
+   implementation to work with the new contract shape.
+3. **Neither merged yet?** Coordinate via a contract-specific GitHub Issue. Both agents propose
+   their changes, the user decides the final shape, and both pitches adapt.
+
 ## Spec Template
 
 Use this template when creating a new contract spec at `docs/contracts/<name>.md`:
