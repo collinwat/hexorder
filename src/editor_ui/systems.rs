@@ -2537,8 +2537,31 @@ pub(crate) fn render_mechanics_tab(
 
     ui.add_space(4.0);
 
-    // Outcome grid (compact).
+    // Outcome grid (editable).
     if !crt.columns.is_empty() && !crt.rows.is_empty() {
+        // Sync edit buffer when CRT dimensions change.
+        let num_rows = crt.rows.len();
+        let num_cols = crt.columns.len();
+        if editor_state.crt_outcome_labels.len() != num_rows
+            || editor_state
+                .crt_outcome_labels
+                .first()
+                .is_some_and(|r| r.len() != num_cols)
+        {
+            editor_state.crt_outcome_labels = (0..num_rows)
+                .map(|ri| {
+                    (0..num_cols)
+                        .map(|ci| {
+                            crt.outcomes
+                                .get(ri)
+                                .and_then(|r| r.get(ci))
+                                .map_or_else(|| "--".to_string(), |o| o.label.clone())
+                        })
+                        .collect()
+                })
+                .collect();
+        }
+
         ui.label(
             egui::RichText::new("Outcome Grid")
                 .small()
@@ -2559,7 +2582,7 @@ pub(crate) fn render_mechanics_tab(
                 }
                 ui.end_row();
 
-                // Data rows.
+                // Data rows with editable cells.
                 for (ri, row) in crt.rows.iter().enumerate() {
                     ui.label(
                         egui::RichText::new(&row.label)
@@ -2567,13 +2590,20 @@ pub(crate) fn render_mechanics_tab(
                             .strong()
                             .color(BrandTheme::ACCENT_TEAL),
                     );
-                    for ci in 0..crt.columns.len() {
-                        let label = crt
-                            .outcomes
-                            .get(ri)
-                            .and_then(|r| r.get(ci))
-                            .map_or("--", |o| o.label.as_str());
-                        ui.label(egui::RichText::new(label).small());
+                    for ci in 0..num_cols {
+                        let cell = &mut editor_state.crt_outcome_labels[ri][ci];
+                        let response = ui.add(
+                            egui::TextEdit::singleline(cell)
+                                .desired_width(28.0)
+                                .font(egui::TextStyle::Small),
+                        );
+                        if response.lost_focus() || response.changed() {
+                            actions.push(EditorAction::SetCrtOutcome {
+                                row: ri,
+                                col: ci,
+                                label: cell.clone(),
+                            });
+                        }
                     }
                     ui.end_row();
                 }

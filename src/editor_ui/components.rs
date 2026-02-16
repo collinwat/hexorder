@@ -200,7 +200,6 @@ pub(crate) enum EditorAction {
     RemoveCrtRow {
         index: usize,
     },
-    #[allow(dead_code)]
     SetCrtOutcome {
         row: usize,
         col: usize,
@@ -333,6 +332,9 @@ pub struct EditorState {
     pub new_modifier_custom_source: String,
     pub new_modifier_shift: i32,
     pub new_modifier_priority: i32,
+    /// Mutable edit buffer for CRT outcome labels, indexed [row][col].
+    /// Re-synced from `CombatResultsTable` when dimensions change.
+    pub crt_outcome_labels: Vec<Vec<String>>,
 
     // Constraint editor
     pub new_constraint_name: String,
@@ -403,6 +405,7 @@ impl Default for EditorState {
             new_modifier_custom_source: String::new(),
             new_modifier_shift: 0,
             new_modifier_priority: 0,
+            crt_outcome_labels: Vec::new(),
             new_constraint_name: String::new(),
             new_constraint_description: String::new(),
             new_constraint_concept_index: 0,
