@@ -5,11 +5,25 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.0] — 2026-02-16
+
+### Added
+
+- worktree convention, lighter hooks, changelog fix (project)
+- replace merge lock with integration branch model (project)
+- add dependency sequencing for multi-pitch cycles (project)
+- add UAT checklist to ship gate and spec template (project)
+- address doc gaps #29, #30, #32, #36 (project)
 
 ### Changed
 
 - release merge lock for 0.7.0/hex-grid-foundation (project)
+- set up feature branch (project)
+- bump version to 0.8.0 (project)
+
+### Fixed
+
+- regenerate changelog with v0.7.0 tag header (project)
 
 ## [0.7.0] — 2026-02-15
 
