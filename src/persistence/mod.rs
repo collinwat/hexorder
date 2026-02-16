@@ -27,7 +27,7 @@ impl Plugin for PersistencePlugin {
                 systems::keyboard_shortcuts,
                 systems::apply_pending_board_load,
             )
-                .run_if(in_state(AppScreen::Editor)),
+                .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
         );
         app.add_observer(systems::handle_save_request);
         app.add_observer(systems::handle_load_request);

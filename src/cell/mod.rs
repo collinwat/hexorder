@@ -32,7 +32,7 @@ impl Plugin for CellPlugin {
                     systems::update_paint_preview,
                 )
                     .chain()
-                    .run_if(in_state(AppScreen::Editor)),
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_observer(systems::paint_cell);
     }

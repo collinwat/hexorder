@@ -55,5 +55,10 @@ impl Plugin for EditorUiPlugin {
             EguiPrimaryContextPass,
             systems::editor_panel_system.run_if(in_state(AppScreen::Editor)),
         );
+        // Play panel shown only in Play state.
+        app.add_systems(
+            EguiPrimaryContextPass,
+            systems::play_panel_system.run_if(in_state(AppScreen::Play)),
+        );
     }
 }

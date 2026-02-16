@@ -38,7 +38,7 @@ impl Plugin for CameraPlugin {
                 Update,
                 CameraSet::Apply
                     .after(CameraSet::Input)
-                    .run_if(in_state(AppScreen::Editor)),
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_systems(Startup, systems::spawn_camera)
             .add_systems(
@@ -65,7 +65,7 @@ impl Plugin for CameraPlugin {
                         .in_set(CameraSet::Apply)
                         .after(systems::compensate_resize),
                 )
-                    .run_if(in_state(AppScreen::Editor)),
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             );
     }
 }

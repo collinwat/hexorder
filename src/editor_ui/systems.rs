@@ -16,13 +16,13 @@ use crate::contracts::ontology::{
     RelationTrigger,
 };
 use crate::contracts::persistence::{
-    CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
+    AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
 use crate::contracts::validation::SchemaValidation;
 
 use crate::contracts::mechanics::{
     CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable, CrtColumn,
-    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, PlayerOrder, TurnStructure,
+    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, PlayerOrder, TurnState, TurnStructure,
 };
 
 use super::components::{
@@ -206,6 +206,7 @@ pub fn editor_panel_system(
     mut commands: Commands,
     mut ontology: OntologyParams,
     mut mechanics: MechanicsParams,
+    mut next_state: ResMut<NextState<AppScreen>>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -251,6 +252,19 @@ pub fn editor_panel_system(
 
             // -- Tool Mode --
             render_tool_mode(ui, &mut editor_tool);
+
+            // -- Play Mode Toggle --
+            if ui
+                .button(
+                    egui::RichText::new("\u{25B6} Play")
+                        .strong()
+                        .color(BrandTheme::SUCCESS),
+                )
+                .clicked()
+            {
+                next_state.set(AppScreen::Play);
+            }
+            ui.separator();
 
             // -- Tab Bar --
             render_tab_bar(ui, &mut editor_state);
@@ -379,6 +393,159 @@ pub fn editor_panel_system(
         &mut mechanics.combat_results_table,
         &mut mechanics.combat_modifiers,
     );
+}
+
+/// Play mode panel system. Shows the turn tracker and mode toggle.
+/// Runs only in `AppScreen::Play`.
+pub fn play_panel_system(
+    mut contexts: EguiContexts,
+    mut turn_state: ResMut<TurnState>,
+    turn_structure: Res<TurnStructure>,
+    game_system: Res<GameSystem>,
+    mut next_state: ResMut<NextState<AppScreen>>,
+    mut commands: Commands,
+) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    // -- File Menu Bar --
+    egui::TopBottomPanel::top("file_menu_bar").show(ctx, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New          Cmd+N").clicked() {
+                    commands.trigger(NewProjectEvent);
+                    ui.close();
+                }
+                if ui.button("Open...      Cmd+O").clicked() {
+                    commands.trigger(LoadRequestEvent);
+                    ui.close();
+                }
+                ui.separator();
+                if ui.button("Save         Cmd+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: false });
+                    ui.close();
+                }
+                if ui.button("Save As...   Cmd+Shift+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: true });
+                    ui.close();
+                }
+            });
+        });
+    });
+
+    egui::SidePanel::left("play_panel")
+        .default_width(280.0)
+        .show(ctx, |ui| {
+            // -- Game System Info --
+            render_game_system_info(ui, &game_system);
+
+            // -- Back to Editor --
+            if ui
+                .button(
+                    egui::RichText::new("\u{25A0} Editor")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                )
+                .clicked()
+            {
+                turn_state.is_active = false;
+                next_state.set(AppScreen::Editor);
+            }
+            ui.separator();
+
+            // -- Turn Tracker --
+            ui.label(
+                egui::RichText::new("Turn Tracker")
+                    .strong()
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            ui.add_space(4.0);
+
+            if turn_structure.phases.is_empty() {
+                ui.label(
+                    egui::RichText::new("No phases defined. Add phases in the Mechanics tab.")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            } else {
+                // Initialize turn state on first entry.
+                if turn_state.turn_number == 0 {
+                    turn_state.turn_number = 1;
+                    turn_state.current_phase_index = 0;
+                    turn_state.is_active = true;
+                }
+
+                // Current turn and phase display.
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!("Turn {}", turn_state.turn_number))
+                            .strong()
+                            .size(16.0)
+                            .color(BrandTheme::TEXT_PRIMARY),
+                    );
+                });
+
+                if let Some(phase) = turn_structure.phases.get(turn_state.current_phase_index) {
+                    let type_label = match phase.phase_type {
+                        PhaseType::Movement => "Movement",
+                        PhaseType::Combat => "Combat",
+                        PhaseType::Admin => "Admin",
+                    };
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(&phase.name)
+                                .strong()
+                                .color(BrandTheme::TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!("[{type_label}]"))
+                                .small()
+                                .color(BrandTheme::ACCENT_TEAL),
+                        );
+                    });
+
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Phase {} of {}",
+                            turn_state.current_phase_index + 1,
+                            turn_structure.phases.len()
+                        ))
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                    );
+                }
+
+                ui.add_space(8.0);
+
+                // Phase list with current highlighted.
+                for (i, phase) in turn_structure.phases.iter().enumerate() {
+                    let is_current = i == turn_state.current_phase_index;
+                    let text = if is_current {
+                        egui::RichText::new(format!("\u{25B6} {}", phase.name))
+                            .strong()
+                            .color(BrandTheme::ACCENT_AMBER)
+                    } else {
+                        egui::RichText::new(format!("  {}", phase.name))
+                            .color(BrandTheme::TEXT_SECONDARY)
+                    };
+                    ui.label(text);
+                }
+
+                ui.add_space(8.0);
+
+                // Advance phase button.
+                if ui.button("Next Phase \u{23E9}").clicked() {
+                    let next_index = turn_state.current_phase_index + 1;
+                    if next_index >= turn_structure.phases.len() {
+                        turn_state.turn_number += 1;
+                        turn_state.current_phase_index = 0;
+                    } else {
+                        turn_state.current_phase_index = next_index;
+                    }
+                }
+            }
+        });
 }
 
 // ---------------------------------------------------------------------------
