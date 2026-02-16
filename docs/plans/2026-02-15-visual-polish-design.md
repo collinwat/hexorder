@@ -711,7 +711,7 @@ Rationale:
 6. **Monospace annotations** -- Add `.monospace()` to coordinate displays, IDs, versions. Run app to
    verify visually.
 
-Each step is independently commitable and testable.
+Each step is independently committable and testable.
 
 ## Risk Assessment
 
