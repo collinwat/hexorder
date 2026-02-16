@@ -18,6 +18,9 @@ Thumbs.db
 *.pem
 *.key
 
+# Git worktrees (parallel feature development)
+/.worktrees/
+
 # Wiki (separate git repo, cloned locally)
 /.wiki/
 

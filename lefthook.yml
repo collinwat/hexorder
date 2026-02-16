@@ -37,10 +37,14 @@ commit-msg:
         fi
 
 pre-commit:
-  parallel: false
+  parallel: true
   commands:
     gitleaks:
       run:
         mise exec -- gitleaks protect --staged --no-banner --baseline-path .gitleaks-baseline.json
-    check:
-      run: mise check
+    compile:
+      run: cargo check --quiet
+    fmt:
+      run: cargo fmt --all -- --check
+    prettier:
+      run: prettier --check .

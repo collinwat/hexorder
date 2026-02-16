@@ -159,7 +159,7 @@ run = "git cliff --unreleased"
 
 [tasks."changelog:generate"]
 description = "Regenerate CHANGELOG.md from all tags"
-run = "git cliff --output CHANGELOG.md"
+run = "git cliff --output CHANGELOG.md && prettier --write CHANGELOG.md"
 
 [tasks."wiki:clone"]
 description = "Clone the GitHub Wiki repo into .wiki/"

@@ -42,7 +42,7 @@ lefthook install    # installs git hooks into .git/hooks/
 | Hook         | What it checks                                                                                            |
 | ------------ | --------------------------------------------------------------------------------------------------------- |
 | `commit-msg` | Message matches `<type>(<scope>): <summary>` with valid types and scopes. Subject line max 72 characters. |
-| `pre-commit` | No secrets staged (`.env`, credentials, keys). `cargo build` succeeds.                                    |
+| `pre-commit` | No secrets staged (`.env`, credentials, keys). Code compiles (`cargo check`). Formatting is correct.      |
 
 These hooks are the automated enforcement of the Pre-Commit Checklist. If a hook rejects your
 commit, fix the issue — do not bypass with `--no-verify`.
@@ -80,8 +80,8 @@ When adding a new plugin scope (e.g., a new plugin module), update the scope reg
 ### Feature branches
 
 - One branch per plugin or release task
-- Use **git worktrees** so each plugin gets its own working directory, allowing parallel development
-  without stashing or switching
+- Use **git worktrees** (under `.worktrees/`) so each plugin gets its own working directory,
+  allowing parallel development without stashing or switching
 - Keep branches short-lived — merge when the plugin passes its spec criteria and tests
 - Rebase onto `main` before merging to keep history linear
 
@@ -116,11 +116,12 @@ Run these steps in order when starting work on a new plugin. No steps are option
 
 1. **Branch name.** Determine the branch name: `<release>/<feature>` (e.g., `0.4.0/movement-rules`).
    Verify it follows the naming rules above.
-2. **Create branch and worktree.**
+2. **Create branch and worktree.** Worktrees live under `.worktrees/` in the project root. The
+   directory name is the branch name with `/` replaced by `-`.
     ```bash
     git branch 0.4.0/movement-rules
-    git worktree add ../hexorder-0.4.0-movement-rules 0.4.0/movement-rules
-    cd ../hexorder-0.4.0-movement-rules
+    git worktree add .worktrees/0.4.0-movement-rules 0.4.0/movement-rules
+    cd .worktrees/0.4.0-movement-rules
     ```
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
    have their own git hooks and need lefthook installed separately.
@@ -166,7 +167,7 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```
 2. **Remove worktree.**
     ```bash
-    git worktree remove ../hexorder-<release>-<feature>
+    git worktree remove .worktrees/<release>-<feature>
     ```
 3. **Delete branch.**
     ```bash
@@ -188,7 +189,7 @@ Run these steps after a feature branch has been merged to `main` and the merge t
 - Commit whenever you reach a coherent working state — a system compiles, a test passes, a contract
   is defined
 - Small, frequent commits are preferred over large, infrequent ones
-- **Every commit must compile.** `cargo build` must succeed before committing. This is enforced by
+- **Every commit must compile.** `cargo check` must succeed before committing. This is enforced by
   the `pre-commit` hook and keeps history bisect-friendly — `git bisect` can binary-search any
   regression across the commit history
 - Incomplete work is fine on feature branches as long as it compiles; the merge to `main` is what
@@ -300,7 +301,7 @@ automatically by lefthook** (see Setup above). Step 4 requires manual verificati
 1. **Files staged?** Run `git status`. Confirm only intended files are staged. No secrets (`.env`,
    credentials). No files belonging to another plugin. _(Secrets check enforced by `pre-commit`
    hook.)_
-2. **Compiles?** Run `cargo build`. Must succeed. _(Enforced by `pre-commit` hook.)_
+2. **Compiles?** Run `cargo check`. Must succeed. _(Enforced by `pre-commit` hook.)_
 3. **Message format?** Confirm the commit message matches `<type>(<scope>): <summary>` with valid
    type and scope from the tables above. Subject line is imperative, lowercase, no period, max 72
    characters. _(Enforced by `commit-msg` hook.)_
@@ -443,8 +444,8 @@ before either merges to `main`, use a **temporary integration branch**:
 1. **Create a throwaway branch** from `main`:
     ```bash
     git branch integration-test main
-    git worktree add ../hexorder-integration-test integration-test
-    cd ../hexorder-integration-test
+    git worktree add .worktrees/integration-test integration-test
+    cd .worktrees/integration-test
     ```
 2. **Merge both feature branches** into it:
     ```bash
@@ -461,8 +462,7 @@ before either merges to `main`, use a **temporary integration branch**:
    failing plugin must fix its code on its own branch before retesting.
 6. **Discard the integration branch** — it is never merged to `main`:
     ```bash
-    cd ../hexorder
-    git worktree remove ../hexorder-integration-test
+    git worktree remove .worktrees/integration-test
     git branch -D integration-test
     ```
 
@@ -617,6 +617,42 @@ habitually hand-editing.
 - Never hand-write changelog entries from scratch — always generate first, then review
 - The changelog is regenerated on every merge to `main` (Pre-Merge Checklist step 9)
 - Versions are listed in reverse chronological order (newest first)
+
+---
+
+## Design Document Lifecycle
+
+Design documents live in `docs/plans/` and are created during the orientation phase of a build
+cycle. They capture implementation plans, architecture decisions, and design rationale.
+
+### Lifecycle
+
+| Phase                     | Status     | Source of Truth                                               |
+| ------------------------- | ---------- | ------------------------------------------------------------- |
+| **During implementation** | Active     | The design doc is the reference for approach and decisions    |
+| **After implementation**  | Historical | The code, specs, contracts, and plugin logs are authoritative |
+
+### After Implementation
+
+When a pitch ships, the design doc becomes historical. Before marking it as such:
+
+1. **Propagate key decisions** into permanent docs:
+    - Architecture decisions → `docs/architecture.md` or plugin spec
+    - Contract decisions → `docs/contracts/<name>.md`
+    - Process learnings → plugin log or relevant guide
+    - Deferred items → GitHub Issues
+2. **Mark the design doc as historical** by adding a header at the top:
+    ```markdown
+    > **Historical** — Implemented in v0.x.0. The code, plugin specs, and contracts are now
+    > authoritative. This document is preserved for context on why decisions were made.
+    ```
+3. Do not delete design docs — they serve as a record of _why_ decisions were made, which the
+   permanent docs may not capture.
+
+### Naming Convention
+
+Design docs follow the pattern: `<date>-<feature-name>.md` or `<date>-<feature-name>-design.md` for
+architecture-focused docs.
 
 ---
 
