@@ -285,11 +285,11 @@ Follow **conventional commit** practices. Every commit message **must** match th
 
 **Scope** — use exactly one of:
 
-| Scope       | When to use                                                                                    |
-| ----------- | ---------------------------------------------------------------------------------------------- |
-| Plugin name | Work within a single plugin (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`) |
-| `contracts` | Shared type definitions in `src/contracts/` or `docs/contracts/`                               |
-| `project`   | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                       |
+| Scope       | When to use                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| Plugin name | Work within a single plugin (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`, `persistence`) |
+| `contracts` | Shared type definitions in `src/contracts/` or `docs/contracts/`                                              |
+| `project`   | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                                      |
 
 **Subject line rules**:
 
