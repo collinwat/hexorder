@@ -519,6 +519,7 @@ begins.
 | 0.5.0   | `0.5.0` | `v0.5.0` | The World Remembers      |
 | 0.6.0   | `0.6.0` | `v0.6.0` | The World Has Identity   |
 | 0.7.0   | `0.7.0` | `v0.7.0` | The World Has Structure  |
+| 0.8.0   | `0.8.0` | `v0.8.0` | Process Reform           |
 
 To determine the next version for a merge:
 

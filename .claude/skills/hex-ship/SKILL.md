@@ -25,6 +25,26 @@ project structure changes, update them here.
 | `contracts_src_dir`  | `{{ project_root }}/src/contracts`      | Contract implementations                       |
 | `src_dir`            | `{{ project_root }}/src`                | Source directory for unsafe/debug checks       |
 
+## Build Reflection Check
+
+Before running any checks, verify that every pitch in the cycle has a **build reflection comment**
+on its issue. This is step 17 in CLAUDE.md's Finishing section. For each pitch:
+
+```bash
+gh issue view <pitch-number> --comments
+```
+
+Look for a final comment from the build agent that covers:
+
+- What was the final shape vs. the original pitch?
+- What was harder or easier than expected?
+- What would you do differently if building this scope again?
+- What did you learn that future agents (or future cycles) should know?
+
+If any pitch is missing its build reflection, the build agent must post one before the gate
+proceeds. Progress updates and completion summaries do not count — the reflection must address the
+four questions above.
+
 ## Automated Checks
 
 Read `{{ claude_md }}` to extract the Ship Gate section — specifically the automated checks and what
