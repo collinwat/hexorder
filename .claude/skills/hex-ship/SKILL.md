@@ -44,6 +44,18 @@ one with the user. These require human judgment and cannot be automated.
 Use `{{ contracts_spec_dir }}` and `{{ contracts_src_dir }}` for the contracts parity check, and
 `{{ src_dir }}` for the unsafe and debug checks.
 
+## User Acceptance Testing
+
+After automated and manual checks pass, walk through UAT with the user. For each pitch in the cycle:
+
+1. Read the pitch's plugin spec (`docs/plugins/<name>/spec.md`) and extract the UAT Checklist
+   section
+2. Present the UAT items to the user
+3. The user launches the application, performs each check, and reports pass/fail
+4. Record UAT results as a comment on the pitch issue
+
+If any UAT item fails, fix the issue and re-test before proceeding to the gate decision.
+
 ## Gate Decision
 
 Present the results to the user:

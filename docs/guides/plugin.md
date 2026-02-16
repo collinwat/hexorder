@@ -110,6 +110,15 @@ Each criterion maps to a scope item. Mark [x] when passing.
 - [ ] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
       `crate::contracts::`
 
+## UAT Checklist
+
+User acceptance testing items — verified by the user in the running application before the ship
+gate. Max 5 items. Focus on observable behavior ("launch, click, verify"), not internal
+implementation.
+
+- [ ] [UAT-1] [Launch app, do X, verify Y is visible/functional]
+- [ ] [UAT-2] [Another observable behavior check]
+
 ## Decomposition (for agent teams)
 
 If this plugin warrants parallel work, break it into subtasks here.
