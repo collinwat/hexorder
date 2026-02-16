@@ -23,6 +23,36 @@ scoping: phase-based turns only (IGOUGO/simultaneous), card-driven/chit-pull def
 **First piece**: CRT data model + resolution logic + test harness. Most novel, self-contained,
 testable without UI. Surfaces column lookup edge cases, threshold ordering, mixed column types.
 
+## 2026-02-16 — 0.9.0 Implementation complete
+
+### What shipped
+
+- **CRT resolution**: `resolve_crt()` finds column by threshold, row by die range, returns outcome.
+  Mixed column types (ratio + differential) supported per CRT.
+- **Modifier evaluation**: `evaluate_modifiers_prioritized()` sorts by descending priority, applies
+  signed column shifts with optional per-modifier caps on running total.
+- **Phase advancement**: `advance_phase()` and `start_turn_sequence()` helpers manage TurnState
+  progression through TurnStructure phases with turn wrapping.
+- **Default factories**: `create_default_turn_structure()` (5 phases) and `create_default_crt()` (7
+  columns, 6 rows, classic wargame outcomes) provide new project defaults.
+
+### Test results
+
+31 new rules_engine tests (39 total), covering:
+
+- CRT column/row lookup, threshold ordering, boundary conditions
+- Modifier priority sorting, cap enforcement, column shift clamping
+- Phase advancement, turn wrapping, empty structure handling
+- Turn initialization
+
+Full suite: 212 tests, zero clippy warnings.
+
+### Deferred
+
+- Combat execution panel UI (#104)
+- Inline CRT cell editing (#105)
+- CombatSelect tool mode (attacker/defender selection in Play mode)
+
 ## 2026-02-11 — Initial spec
 
 - Created feature spec for M4

@@ -20,7 +20,8 @@ system definition.
   RelationRegistry, ConstraintRegistry, Concept, ConceptRole, ConceptBinding, Relation, Constraint,
   ConstraintExpr, RelationTrigger, RelationEffect, CompareOp), hex_grid (HexPosition, HexGridConfig,
   HexTile), validation (SchemaValidation, SchemaError, SchemaErrorCategory, ValidMoveSet,
-  ValidationResult)
+  ValidationResult), mechanics (TurnStructure, TurnState, CombatResultsTable,
+  CombatModifierRegistry, CombatModifierDefinition, CrtColumnType, PhaseType, PhaseAdvancedEvent)
 - **Contracts produced**: validation (SchemaValidation, ValidMoveSet)
 - **Crate dependencies**: none new (hexx already available via hex_grid contract)
 
@@ -53,6 +54,17 @@ system definition.
       {budget_property} of {budget}"
     - Property violation: "{constraint_name}: {property_name} is {actual}, must be {op} {expected}"
 
+### Combat Resolution (0.9.0)
+
+10. [REQ-10] CRT resolution: given attacker strength, defender strength, a die roll, and the
+    CombatResultsTable, resolve the combat outcome by finding the matching column (via odds ratio or
+    differential threshold) and row (via die range)
+11. [REQ-11] Combat modifier evaluation: evaluate all applicable modifiers sorted by descending
+    priority, accumulating a signed column shift with optional per-modifier caps
+12. [REQ-12] Phase advancement: advance TurnState to the next phase in TurnStructure, wrapping to
+    the next turn when the last phase completes
+13. [REQ-13] Turn initialization: set TurnState to turn 1, phase 0 when starting a turn sequence
+
 ## Success Criteria
 
 - [x] [SC-1] `schema_validation_resource_exists` test — SchemaValidation exists after Startup
@@ -71,9 +83,15 @@ system definition.
       errors (handled by OntologyPlugin; tested in ontology::tests)
 - [x] [SC-9] `valid_moves_respect_grid_bounds` test — positions outside map_radius are never in
       valid_positions
+- [x] [SC-10] `resolve_crt_returns_correct_outcome` — CRT lookup finds correct column and row
+- [x] [SC-11] `evaluate_modifiers_prioritized_applies_cap` — modifier cap limits running total
+- [x] [SC-12] `apply_column_shift_clamps` — column shift stays within bounds
+- [x] [SC-13] `start_turn_initializes_to_first_phase` — turn initialization sets turn 1, phase 0
+- [x] [SC-14] `advance_phase_wraps_to_next_turn` — last phase wraps to next turn
+- [x] [SC-15] `advance_phase_empty_structure_returns_none` — empty structure is a no-op
 - [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
 - [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
-- [x] [SC-TEST] `cargo test` passes (86 tests, 8 new rules_engine tests)
+- [x] [SC-TEST] `cargo test` passes (212 tests, 39 rules_engine tests)
 - [x] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
       `crate::contracts::`
 
