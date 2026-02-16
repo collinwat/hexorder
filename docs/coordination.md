@@ -2,22 +2,22 @@
 
 ## Active Cycle
 
-**Cycle 2 — "The Foundation"** | Type: Production | Appetite: 2× Big Batch (parallel)
+**Cycle 3 — "Process Reform"** | Type: Process | Appetite: Big Batch
 
 ### Current Bets
 
-| Pitch                                                           | Issue | Appetite  | Owner   | Status  |
-| --------------------------------------------------------------- | ----- | --------- | ------- | ------- |
-| Property system foundation — type extensions, reflection, enums | #81   | Big Batch | agent-a | shipped |
-| Hex grid foundation — hexx crate, line of sight, and fog of war | #78   | Big Batch | agent-b | shipped |
+| Pitch                                                                               | Issue | Appetite  | Owner | Status      |
+| ----------------------------------------------------------------------------------- | ----- | --------- | ----- | ----------- |
+| Cycle workflow reform — integration branch, dependency sequencing, and process docs | #96   | Big Batch | agent | in-progress |
 
 _Bets are set at the betting table during cool-down. Run `/hex-cooldown` to start the protocol._
 
 ### Prior Cycles
 
-| Cycle | Name                | Type    | Result    |
-| ----- | ------------------- | ------- | --------- |
-| 1     | The Process Matures | Process | completed |
+| Cycle | Name                | Type       | Result    |
+| ----- | ------------------- | ---------- | --------- |
+| 2     | The Foundation      | Production | completed |
+| 1     | The Process Matures | Process    | completed |
 
 ## Active Plugins
 
