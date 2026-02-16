@@ -158,24 +158,33 @@ Run these steps in order when starting work on a new plugin. No steps are option
     ```
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
    have their own git hooks and need lefthook installed separately.
-4. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
+4. **Trust the worktree.** Mise and Claude Code use path-based trust that does not cascade from the
+   main repo to worktrees. Run these in the new worktree directory:
+    ```bash
+    mise trust                  # trust mise.toml in this worktree
+    cp ../../.claude/settings.local.json .claude/settings.local.json  # copy Claude Code permissions
+    ```
+    Without `mise trust`, mise will refuse to activate tools and tasks. Without copying
+    `settings.local.json`, Claude Code starts with minimal permissions and re-prompts for every
+    previously approved action.
+5. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
     ```toml
     version = "0.4.0-movement-rules"
     ```
     The suffix is the `<feature>` portion of the branch name. This identifies builds from this
     branch. The suffix is stripped at merge time when the final version is set.
-5. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
+6. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
    from the templates:
     ```
     docs/plugins/<plugin>/spec.md   ← copy from docs/guides/plugin.md
     docs/plugins/<plugin>/log.md    ← copy from docs/guides/plugin.md
     ```
     If the files already exist, read them to understand prior decisions.
-6. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
+7. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
    introduces. If new contracts are needed, follow the Shared Contracts Protocol in CLAUDE.md.
-7. **Claim ownership.** Update `docs/coordination.md` → Active Plugins table: set Owner to your
+8. **Claim ownership.** Update `docs/coordination.md` → Active Plugins table: set Owner to your
    session identifier and Status to `in-progress`.
-8. **Initial commit.** Stage the `Cargo.toml` version change, any new spec/log files, and the
+9. **Initial commit.** Stage the `Cargo.toml` version change, any new spec/log files, and the
    coordination.md update. Commit:
 
     ```
