@@ -72,10 +72,14 @@ pub fn configure_bounds_from_grid(
     camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
 }
 
-/// Update system: handles keyboard panning (arrow keys and WASD).
+/// Update system: handles keyboard panning via registry-bound keys.
+///
+/// Reads bound keys from `ShortcutRegistry` instead of hardcoded `KeyCode`s.
+/// Pan direction commands are continuous (held every frame).
 pub fn keyboard_pan(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    registry: Res<crate::contracts::shortcuts::ShortcutRegistry>,
     mut camera_state: ResMut<CameraState>,
 ) {
     // Ignore WASD when a command modifier is held (e.g. Cmd+S for save).
@@ -85,20 +89,36 @@ pub fn keyboard_pan(
 
     let mut direction = Vec2::ZERO;
 
-    // WASD and arrow keys for panning in the XZ plane.
+    // Read bound keys from registry for each pan direction.
     // The camera looks down -Y with up=+Z, so:
     //   screen up = +Z world, screen down = -Z world
     //   screen left = -X world, screen right = +X world
-    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
+    if registry
+        .bindings_for("camera.pan_up")
+        .iter()
+        .any(|k| keys.pressed(*k))
+    {
         direction.y += 1.0; // +Z
     }
-    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown) {
+    if registry
+        .bindings_for("camera.pan_down")
+        .iter()
+        .any(|k| keys.pressed(*k))
+    {
         direction.y -= 1.0; // -Z
     }
-    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft) {
+    if registry
+        .bindings_for("camera.pan_left")
+        .iter()
+        .any(|k| keys.pressed(*k))
+    {
         direction.x += 1.0; // screen left = +X world (camera mirrors X)
     }
-    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
+    if registry
+        .bindings_for("camera.pan_right")
+        .iter()
+        .any(|k| keys.pressed(*k))
+    {
         direction.x -= 1.0; // screen right = -X world (camera mirrors X)
     }
 
@@ -223,55 +243,44 @@ fn panel_center_offset(scale: f32) -> f32 {
     offset_pixels * scale
 }
 
-/// Update system: keyboard shortcuts for view navigation.
-///
-/// - **C** — center the grid in the viewport (keep current zoom)
-/// - **F** — zoom to fit the grid (keep current center)
-/// - **0** — zoom to fit and center
-/// - **=** — zoom in
-/// - **-** — zoom out
-pub fn view_shortcuts(
-    keys: Res<ButtonInput<KeyCode>>,
+/// Observer: handles discrete camera commands dispatched via the shortcut registry.
+pub fn handle_camera_command(
+    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
 ) {
-    // Keyboard zoom: = zooms in, - zooms out.
     let zoom_step = 0.2; // 20% per press
-    if keys.just_pressed(KeyCode::Equal) {
-        camera_state.target_scale *= 1.0 - zoom_step;
-        camera_state.target_scale = camera_state
-            .target_scale
-            .clamp(camera_state.min_scale, camera_state.max_scale);
-    }
-    if keys.just_pressed(KeyCode::Minus) {
-        camera_state.target_scale *= 1.0 + zoom_step;
-        camera_state.target_scale = camera_state
-            .target_scale
-            .clamp(camera_state.min_scale, camera_state.max_scale);
-    }
-
-    let center = keys.just_pressed(KeyCode::KeyC);
-    let fit = keys.just_pressed(KeyCode::KeyF);
-    let reset = keys.just_pressed(KeyCode::Digit0);
-
-    if !center && !fit && !reset {
-        return;
-    }
-
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    if (fit || reset)
-        && let Some(config) = &grid_config
-    {
-        camera_state.target_scale = fit_scale(config, window, &camera_state);
-    }
-
-    if center || reset {
-        let scale = camera_state.target_scale;
-        camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+    match trigger.event().command_id.0 {
+        "camera.zoom_in" => {
+            camera_state.target_scale *= 1.0 - zoom_step;
+            camera_state.target_scale = camera_state
+                .target_scale
+                .clamp(camera_state.min_scale, camera_state.max_scale);
+        }
+        "camera.zoom_out" => {
+            camera_state.target_scale *= 1.0 + zoom_step;
+            camera_state.target_scale = camera_state
+                .target_scale
+                .clamp(camera_state.min_scale, camera_state.max_scale);
+        }
+        "camera.center" => {
+            let scale = camera_state.target_scale;
+            camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+        }
+        "camera.fit" => {
+            if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+                camera_state.target_scale = fit_scale(config, window, &camera_state);
+            }
+        }
+        "camera.reset_view" => {
+            if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+                camera_state.target_scale = fit_scale(config, window, &camera_state);
+            }
+            let scale = camera_state.target_scale;
+            camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+        }
+        _ => {}
     }
 }
 

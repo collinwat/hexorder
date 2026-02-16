@@ -191,9 +191,12 @@ pub fn handle_click(
     }
 }
 
-/// Clears the current selection when Escape is pressed.
-pub fn deselect_on_escape(keyboard: Res<ButtonInput<KeyCode>>, mut selected: ResMut<SelectedHex>) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+/// Observer: handles commands dispatched via the shortcut registry.
+pub fn handle_hex_grid_command(
+    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
+    mut selected: ResMut<SelectedHex>,
+) {
+    if trigger.event().command_id.0 == "edit.deselect" {
         selected.position = None;
     }
 }
