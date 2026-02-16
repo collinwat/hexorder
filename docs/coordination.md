@@ -2,13 +2,16 @@
 
 ## Active Cycle
 
-_No active cycle. Run `/hex-cooldown` to start the next cycle._
+**Cycle 4** — The World Comes Alive | Production | Release: 0.9.0
 
 ### Current Bets
 
-_No active bets._
-
-_Bets are set at the betting table during cool-down. Run `/hex-cooldown` to start the protocol._
+| Pitch | Title                                                           | Appetite    | Status  |
+| ----- | --------------------------------------------------------------- | ----------- | ------- |
+| #77   | Core mechanic primitives — turn structure and combat resolution | Big Batch   | pending |
+| #80   | Keyboard-first command access — shortcuts, palette              | Small Batch | pending |
+| #53   | Workspace lifecycle — create, name, save, launcher              | Small Batch | pending |
+| #54   | Editor Visual Polish — brand theme, fonts                       | Small Batch | pending |
 
 ### Prior Cycles
 
@@ -60,8 +63,12 @@ Status values: `active` | `shipping` | `shipped`
 > After betting, map cross-pitch dependencies to determine delivery order. Populated during kickoff
 > when implementation plans are generated.
 
-| Pitch | Depends On | Delivery Order | Status |
-| ----- | ---------- | -------------- | ------ |
+| Pitch | Depends On | Delivery Order | Status  |
+| ----- | ---------- | -------------- | ------- |
+| #77   | —          | —              | planned |
+| #80   | —          | —              | planned |
+| #53   | —          | —              | planned |
+| #54   | —          | —              | planned |
 
 Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
 values: `planned` | `in-progress` | `done`
