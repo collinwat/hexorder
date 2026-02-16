@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.9.0-workspace"
+version = "0.9.0-core-mechanics"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false

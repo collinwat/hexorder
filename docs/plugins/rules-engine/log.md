@@ -1,5 +1,28 @@
 # Plugin Log: rules_engine
 
+## 2026-02-16 — 0.9.0 Core Mechanics kickoff (#77)
+
+**Scope**: Turn structure definition, CRT editor, combat execution, modifier system. Big Batch pitch
+touching rules_engine, game_system, unit, and editor_ui. New `mechanics` contract.
+
+**Research consumed**: Hex Wargame Mechanics Survey (wiki) — Section 1.3 (Combat Resolution Systems)
+covers 5 CRT types, common result codes, modifier categories. Section 1.4 (Turn Structure) covers
+IGOUGO, alternating activation, chit-pull, impulse, simultaneous. The survey validates the pitch's
+scoping: phase-based turns only (IGOUGO/simultaneous), card-driven/chit-pull deferred.
+
+**Design decisions from pitch Q&A** (see `docs/plans/2026-02-15-core-mechanics-design.md`):
+
+- Q1: Resource-only turn structure (not Bevy States) — designer-defined phases can't be compile-time
+- Q2: `AppScreen::Play` added — toggle between Editor and Play via toolbar
+- Q3: Per-column CRT type (mixed ratio/differential in one CRT)
+- Q4: Fully custom rows (no auto-generation from dice config)
+- Q5: Structured outcomes with labels (partial automation: highlight + confirm)
+- Q6: Priority-ordered modifiers with optional caps
+- Q7: Concept binding for combat strength (ontology integration)
+
+**First piece**: CRT data model + resolution logic + test harness. Most novel, self-contained,
+testable without UI. Surfaces column lookup edge cases, threshold ordering, mixed column types.
+
 ## 2026-02-11 — Initial spec
 
 - Created feature spec for M4
