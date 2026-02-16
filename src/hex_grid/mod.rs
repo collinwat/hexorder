@@ -44,6 +44,10 @@ impl Plugin for HexGridPlugin {
             )
                 .chain()
                 .run_if(in_state(AppScreen::Editor)),
+        )
+        .add_systems(
+            OnExit(AppScreen::Editor),
+            systems::cleanup_internal_entities,
         );
     }
 }

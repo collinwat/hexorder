@@ -488,3 +488,16 @@ pub fn tile_count_for_radius(radius: u32) -> usize {
         (3 * radius * (radius + 1) + 1) as usize
     }
 }
+
+/// Despawns plugin-internal entities on editor exit.
+/// Contract-level entities (`HexTile`, `MoveOverlay`) are cleaned up by
+/// `persistence::cleanup_editor_entities`. This handles the rest.
+pub fn cleanup_internal_entities(
+    mut commands: Commands,
+    hover: Query<Entity, With<HoverIndicator>>,
+    select: Query<Entity, With<SelectIndicator>>,
+) {
+    for entity in hover.iter().chain(select.iter()) {
+        commands.entity(entity).despawn();
+    }
+}
