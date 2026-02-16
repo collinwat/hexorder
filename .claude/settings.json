@@ -1,15 +1,21 @@
 {
   "permissions": {
     "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(ls *)",
       "Bash(git status *)",
       "Bash(git log *)",
       "Bash(git diff *)",
       "Bash(git tag *)",
       "Bash(git branch *)",
-      "Bash(git ls-remote *)",
+      "Bash(git ls-*)",
       "Bash(git cat-file *)",
       "Bash(git show *)",
       "Bash(git worktree list *)",
+      "Bash(mise status *)",
+      "Bash(mise env *)",
       "Bash(mise check)",
       "Bash(mise check:*)",
       "Bash(mise fix)",
