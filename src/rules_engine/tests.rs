@@ -1258,3 +1258,170 @@ fn apply_shift_zero_columns() {
     let result = apply_column_shift(0, 1, 0);
     assert_eq!(result, 0, "Zero columns should return 0");
 }
+
+// =========================================================================
+// Phase Advancement Tests (0.9.0)
+// =========================================================================
+
+use crate::contracts::mechanics::PlayerOrder;
+use crate::contracts::mechanics::{Phase, PhaseType, TurnState, TurnStructure};
+use crate::rules_engine::systems::{advance_phase, start_turn_sequence};
+
+fn test_turn_structure() -> TurnStructure {
+    TurnStructure {
+        phases: vec![
+            Phase {
+                id: crate::contracts::game_system::TypeId::new(),
+                name: "Movement".to_string(),
+                phase_type: PhaseType::Movement,
+                description: String::new(),
+            },
+            Phase {
+                id: crate::contracts::game_system::TypeId::new(),
+                name: "Combat".to_string(),
+                phase_type: PhaseType::Combat,
+                description: String::new(),
+            },
+            Phase {
+                id: crate::contracts::game_system::TypeId::new(),
+                name: "Supply".to_string(),
+                phase_type: PhaseType::Admin,
+                description: String::new(),
+            },
+        ],
+        player_order: PlayerOrder::Alternating,
+    }
+}
+
+#[test]
+fn start_turn_initializes_to_first_phase() {
+    let mut state = TurnState::default();
+    let structure = test_turn_structure();
+
+    let event = start_turn_sequence(&mut state, &structure);
+
+    assert!(event.is_some());
+    let event = event.expect("should have event");
+    assert_eq!(event.turn_number, 1);
+    assert_eq!(event.phase_index, 0);
+    assert_eq!(event.phase_name, "Movement");
+    assert_eq!(event.phase_type, PhaseType::Movement);
+    assert!(state.is_active);
+    assert_eq!(state.turn_number, 1);
+    assert_eq!(state.current_phase_index, 0);
+}
+
+#[test]
+fn start_turn_empty_structure_returns_none() {
+    let mut state = TurnState::default();
+    let structure = TurnStructure {
+        phases: Vec::new(),
+        player_order: PlayerOrder::Alternating,
+    };
+
+    let event = start_turn_sequence(&mut state, &structure);
+    assert!(event.is_none());
+}
+
+#[test]
+fn advance_phase_increments_index() {
+    let mut state = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let structure = test_turn_structure();
+
+    let event = advance_phase(&mut state, &structure);
+
+    assert!(event.is_some());
+    let event = event.expect("should have event");
+    assert_eq!(event.phase_index, 1);
+    assert_eq!(event.phase_name, "Combat");
+    assert_eq!(event.phase_type, PhaseType::Combat);
+    assert_eq!(state.turn_number, 1);
+}
+
+#[test]
+fn advance_phase_wraps_to_next_turn() {
+    let mut state = TurnState {
+        turn_number: 1,
+        current_phase_index: 2, // Last phase (Supply, index 2 of 3)
+        is_active: true,
+    };
+    let structure = test_turn_structure();
+
+    let event = advance_phase(&mut state, &structure);
+
+    assert!(event.is_some());
+    let event = event.expect("should have event");
+    assert_eq!(event.turn_number, 2);
+    assert_eq!(event.phase_index, 0);
+    assert_eq!(event.phase_name, "Movement");
+    assert_eq!(state.turn_number, 2);
+    assert_eq!(state.current_phase_index, 0);
+}
+
+#[test]
+fn advance_phase_multiple_turns() {
+    let mut state = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let structure = test_turn_structure();
+
+    // Advance through all 3 phases + into turn 2
+    advance_phase(&mut state, &structure); // -> phase 1 (Combat)
+    advance_phase(&mut state, &structure); // -> phase 2 (Supply)
+    advance_phase(&mut state, &structure); // -> turn 2, phase 0 (Movement)
+    let event = advance_phase(&mut state, &structure); // -> turn 2, phase 1 (Combat)
+
+    let event = event.expect("should have event");
+    assert_eq!(event.turn_number, 2);
+    assert_eq!(event.phase_index, 1);
+    assert_eq!(event.phase_name, "Combat");
+}
+
+#[test]
+fn advance_phase_empty_structure_returns_none() {
+    let mut state = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let structure = TurnStructure {
+        phases: Vec::new(),
+        player_order: PlayerOrder::Alternating,
+    };
+
+    let event = advance_phase(&mut state, &structure);
+    assert!(event.is_none());
+}
+
+#[test]
+fn advance_phase_single_phase_wraps_every_advance() {
+    let structure = TurnStructure {
+        phases: vec![Phase {
+            id: crate::contracts::game_system::TypeId::new(),
+            name: "Only Phase".to_string(),
+            phase_type: PhaseType::Combat,
+            description: String::new(),
+        }],
+        player_order: PlayerOrder::Alternating,
+    };
+    let mut state = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+
+    let event = advance_phase(&mut state, &structure);
+    let event = event.expect("should have event");
+    assert_eq!(event.turn_number, 2, "Should wrap to turn 2");
+    assert_eq!(event.phase_index, 0);
+
+    let event = advance_phase(&mut state, &structure);
+    let event = event.expect("should have event");
+    assert_eq!(event.turn_number, 3, "Should wrap to turn 3");
+}

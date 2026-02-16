@@ -6,6 +6,10 @@ use crate::contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, EnumDefinition, EnumRegistry, GameSystem,
     PropertyDefinition, PropertyType, PropertyValue, TypeId,
 };
+use crate::contracts::mechanics::{
+    CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, OutcomeEffect, Phase,
+    PhaseType, PlayerOrder, TurnStructure,
+};
 
 /// Creates a new `GameSystem` resource with a fresh UUID and default version.
 pub fn create_game_system() -> GameSystem {
@@ -119,4 +123,152 @@ pub fn create_enum_registry() -> EnumRegistry {
     });
 
     reg
+}
+
+/// Creates a default 5-phase turn structure for new game systems.
+///
+/// Phases: Reinforcement (Admin), Movement, Combat, Supply (Admin), Victory Check (Admin).
+/// This gives designers something to edit immediately rather than starting blank.
+pub fn create_default_turn_structure() -> TurnStructure {
+    TurnStructure {
+        phases: vec![
+            Phase {
+                id: TypeId::new(),
+                name: "Reinforcement Phase".to_string(),
+                phase_type: PhaseType::Admin,
+                description: "Place reinforcements and replacements.".to_string(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Movement Phase".to_string(),
+                phase_type: PhaseType::Movement,
+                description: "Move units within their movement allowance.".to_string(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Combat Phase".to_string(),
+                phase_type: PhaseType::Combat,
+                description: "Declare and resolve attacks.".to_string(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Supply Phase".to_string(),
+                phase_type: PhaseType::Admin,
+                description: "Check supply lines and attrition.".to_string(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Victory Check Phase".to_string(),
+                phase_type: PhaseType::Admin,
+                description: "Evaluate victory conditions.".to_string(),
+            },
+        ],
+        player_order: PlayerOrder::Alternating,
+    }
+}
+
+/// Creates a default CRT with standard odds-ratio columns and 6 rows (1d6).
+///
+/// Columns: 1:2, 1:1, 2:1, 3:1, 4:1, 5:1, 6:1
+/// Rows: 1 through 6 (each a single die value)
+/// Outcomes populated with classic wargame results.
+pub fn create_default_crt() -> CombatResultsTable {
+    let columns = vec![
+        CrtColumn {
+            label: "1:2".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 0.5,
+        },
+        CrtColumn {
+            label: "1:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 1.0,
+        },
+        CrtColumn {
+            label: "2:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 2.0,
+        },
+        CrtColumn {
+            label: "3:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 3.0,
+        },
+        CrtColumn {
+            label: "4:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 4.0,
+        },
+        CrtColumn {
+            label: "5:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 5.0,
+        },
+        CrtColumn {
+            label: "6:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 6.0,
+        },
+    ];
+
+    let rows: Vec<CrtRow> = (1..=6)
+        .map(|i| CrtRow {
+            label: i.to_string(),
+            die_value_min: i,
+            die_value_max: i,
+        })
+        .collect();
+
+    // Classic CRT outcomes: leftmost columns favor defender, rightmost favor attacker.
+    // AE = Attacker Eliminated, AR = Attacker Step Loss, EX = Exchange,
+    // DR = Defender Retreat, DS = Defender Step Loss, DE = Defender Eliminated, NE = No Effect
+    let outcomes = vec![
+        // Row 1 (die=1): worst for attacker
+        outcome_row(&["AE", "AE", "AR", "EX", "DR", "DS", "DE"]),
+        // Row 2
+        outcome_row(&["AE", "AR", "EX", "DR", "DS", "DE", "DE"]),
+        // Row 3
+        outcome_row(&["AR", "EX", "DR", "DR", "DS", "DE", "DE"]),
+        // Row 4
+        outcome_row(&["AR", "NE", "DR", "DS", "DE", "DE", "DE"]),
+        // Row 5
+        outcome_row(&["NE", "DR", "DS", "DS", "DE", "DE", "DE"]),
+        // Row 6 (die=6): best for attacker
+        outcome_row(&["DR", "DR", "DS", "DE", "DE", "DE", "DE"]),
+    ];
+
+    CombatResultsTable {
+        id: TypeId::new(),
+        name: "Combat Results Table".to_string(),
+        columns,
+        rows,
+        outcomes,
+        combat_concept_id: None,
+    }
+}
+
+/// Helper: create a row of combat outcomes from label strings.
+fn outcome_row(labels: &[&str]) -> Vec<CombatOutcome> {
+    labels
+        .iter()
+        .map(|label| {
+            let effect = match *label {
+                "AE" => Some(OutcomeEffect::AttackerEliminated),
+                "DE" => Some(OutcomeEffect::DefenderEliminated),
+                "AR" => Some(OutcomeEffect::AttackerStepLoss { steps: 1 }),
+                "DS" => Some(OutcomeEffect::StepLoss { steps: 1 }),
+                "DR" => Some(OutcomeEffect::Retreat { hexes: 1 }),
+                "EX" => Some(OutcomeEffect::Exchange {
+                    attacker_steps: 1,
+                    defender_steps: 1,
+                }),
+                "NE" => Some(OutcomeEffect::NoEffect),
+                _ => None,
+            };
+            CombatOutcome {
+                label: (*label).to_string(),
+                effect,
+            }
+        })
+        .collect()
 }

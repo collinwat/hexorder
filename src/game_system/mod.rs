@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit, StructRegistry,
 };
+use crate::contracts::mechanics::{ActiveCombat, CombatModifierRegistry, TurnState};
 
 mod systems;
 
@@ -43,5 +44,12 @@ impl Plugin for GameSystemPlugin {
             entity_type_id: first_token_id,
         });
         app.insert_resource(SelectedUnit::default());
+
+        // Mechanics resources (0.9.0).
+        app.insert_resource(systems::create_default_turn_structure());
+        app.insert_resource(TurnState::default());
+        app.insert_resource(systems::create_default_crt());
+        app.insert_resource(CombatModifierRegistry::default());
+        app.insert_resource(ActiveCombat::default());
     }
 }

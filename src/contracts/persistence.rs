@@ -30,6 +30,8 @@ pub enum AppScreen {
     Launcher,
     /// Main editor — all editing tools active.
     Editor,
+    /// Play mode — step through turns, resolve combat.
+    Play,
 }
 
 /// Tool-level session state for the currently open project.

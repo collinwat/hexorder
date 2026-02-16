@@ -8,6 +8,9 @@ use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry,
     GameSystem, PropertyType, PropertyValue, SelectedUnit, StructRegistry, TypeId,
 };
+use crate::contracts::mechanics::{
+    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseType, TurnState, TurnStructure,
+};
 use crate::contracts::persistence::AppScreen;
 
 /// Helper: create a minimal App with the `GameSystemPlugin`.
@@ -401,4 +404,126 @@ fn struct_registry_exists_after_startup() {
     app.world()
         .get_resource::<StructRegistry>()
         .expect("StructRegistry should exist");
+}
+
+// -----------------------------------------------------------------------
+// Mechanics Resources (0.9.0)
+// -----------------------------------------------------------------------
+
+#[test]
+fn turn_structure_has_five_phases() {
+    let mut app = test_app();
+    app.update();
+
+    let ts = app
+        .world()
+        .get_resource::<TurnStructure>()
+        .expect("TurnStructure should exist");
+
+    assert_eq!(
+        ts.phases.len(),
+        5,
+        "Default turn structure should have 5 phases"
+    );
+}
+
+#[test]
+fn turn_structure_phases_have_correct_types() {
+    let mut app = test_app();
+    app.update();
+
+    let ts = app
+        .world()
+        .get_resource::<TurnStructure>()
+        .expect("TurnStructure should exist");
+
+    let types: Vec<PhaseType> = ts.phases.iter().map(|p| p.phase_type).collect();
+    assert_eq!(
+        types,
+        vec![
+            PhaseType::Admin,
+            PhaseType::Movement,
+            PhaseType::Combat,
+            PhaseType::Admin,
+            PhaseType::Admin,
+        ]
+    );
+}
+
+#[test]
+fn turn_state_defaults_to_inactive() {
+    let mut app = test_app();
+    app.update();
+
+    let state = app
+        .world()
+        .get_resource::<TurnState>()
+        .expect("TurnState should exist");
+
+    assert_eq!(state.turn_number, 0);
+    assert_eq!(state.current_phase_index, 0);
+    assert!(!state.is_active);
+}
+
+#[test]
+fn combat_results_table_has_seven_columns() {
+    let mut app = test_app();
+    app.update();
+
+    let crt = app
+        .world()
+        .get_resource::<CombatResultsTable>()
+        .expect("CombatResultsTable should exist");
+
+    assert_eq!(crt.columns.len(), 7, "Default CRT should have 7 columns");
+    assert_eq!(crt.columns[0].label, "1:2");
+    assert_eq!(crt.columns[6].label, "6:1");
+}
+
+#[test]
+fn combat_results_table_has_six_rows() {
+    let mut app = test_app();
+    app.update();
+
+    let crt = app
+        .world()
+        .get_resource::<CombatResultsTable>()
+        .expect("CombatResultsTable should exist");
+
+    assert_eq!(crt.rows.len(), 6, "Default CRT should have 6 rows");
+    assert_eq!(crt.outcomes.len(), 6, "Outcomes should have 6 rows");
+    for row in &crt.outcomes {
+        assert_eq!(row.len(), 7, "Each outcome row should have 7 columns");
+    }
+}
+
+#[test]
+fn combat_modifier_registry_is_empty() {
+    let mut app = test_app();
+    app.update();
+
+    let reg = app
+        .world()
+        .get_resource::<CombatModifierRegistry>()
+        .expect("CombatModifierRegistry should exist");
+
+    assert!(
+        reg.modifiers.is_empty(),
+        "Default modifier registry should be empty"
+    );
+}
+
+#[test]
+fn active_combat_defaults_to_none() {
+    let mut app = test_app();
+    app.update();
+
+    let ac = app
+        .world()
+        .get_resource::<ActiveCombat>()
+        .expect("ActiveCombat should exist");
+
+    assert!(ac.attacker.is_none());
+    assert!(ac.defender.is_none());
+    assert!(ac.outcome.is_none());
 }

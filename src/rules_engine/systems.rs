@@ -642,3 +642,70 @@ pub(crate) fn apply_column_shift(base_column: usize, shift: i32, column_count: u
     let shifted = base_column as i32 + shift;
     shifted.clamp(0, (column_count - 1) as i32) as usize
 }
+
+// ---------------------------------------------------------------------------
+// Phase Advancement (0.9.0)
+// ---------------------------------------------------------------------------
+
+use crate::contracts::mechanics::{PhaseAdvancedEvent, TurnState, TurnStructure};
+
+/// Advances the turn to the next phase, wrapping to the next turn if needed.
+///
+/// Returns `Some(PhaseAdvancedEvent)` with the new phase info, or `None` if
+/// the turn structure has no phases.
+#[allow(dead_code)]
+pub(crate) fn advance_phase(
+    state: &mut TurnState,
+    structure: &TurnStructure,
+) -> Option<PhaseAdvancedEvent> {
+    if structure.phases.is_empty() {
+        return None;
+    }
+
+    // Initialize turn number on first advance.
+    if state.turn_number == 0 {
+        state.turn_number = 1;
+    }
+
+    let next_index = state.current_phase_index + 1;
+    if next_index >= structure.phases.len() {
+        // Wrap to next turn.
+        state.turn_number += 1;
+        state.current_phase_index = 0;
+    } else {
+        state.current_phase_index = next_index;
+    }
+
+    let phase = &structure.phases[state.current_phase_index];
+    Some(PhaseAdvancedEvent {
+        turn_number: state.turn_number,
+        phase_index: state.current_phase_index,
+        phase_name: phase.name.clone(),
+        phase_type: phase.phase_type,
+    })
+}
+
+/// Starts the turn sequence: sets the turn to 1, phase to 0, and marks active.
+///
+/// Returns `Some(PhaseAdvancedEvent)` for the first phase, or `None` if no phases.
+#[allow(dead_code)]
+pub(crate) fn start_turn_sequence(
+    state: &mut TurnState,
+    structure: &TurnStructure,
+) -> Option<PhaseAdvancedEvent> {
+    if structure.phases.is_empty() {
+        return None;
+    }
+
+    state.turn_number = 1;
+    state.current_phase_index = 0;
+    state.is_active = true;
+
+    let phase = &structure.phases[0];
+    Some(PhaseAdvancedEvent {
+        turn_number: 1,
+        phase_index: 0,
+        phase_name: phase.name.clone(),
+        phase_type: phase.phase_type,
+    })
+}
