@@ -1,6 +1,6 @@
 # Plugin Log: Shortcuts
 
-## Status: speccing
+## Status: building
 
 ## Decision Log
 
@@ -55,9 +55,31 @@ integration, and no upgrade friction. **Alternatives rejected**: leafwing-input-
 (over-engineered, higher API churn, 22 breaking releases), bevy_input_actionmap (dormant, no Bevy
 0.18), bevy-input-sequence (sequences only, no held-key support), action_maps (abandoned).
 
+### 2026-02-16 — sublime_fuzzy chosen for palette search
+
+**Context**: Fuzzy matching crate selection. **Decision**: `sublime_fuzzy` 0.7. **Rationale**:
+Lightweight (zero-dependency), Sublime Text-style scoring, simple API (`best_match` returns
+`Option<Match>` with `.score()`). `nucleo` considered but async-oriented and heavier than needed.
+
+### 2026-02-16 — egui 0.33 API surprises
+
+**Context**: Building palette UI. **Findings**: `screen_rect()` deprecated → use `content_rect()`.
+`Frame::none()` deprecated → use `Frame::NONE`. `Margin::symmetric` takes `i8` not `f32`. Wiki
+research page didn't cover these deprecations. Worth updating the bevy-egui guide.
+
+### 2026-02-16 — No-op commands for discoverability
+
+**Context**: Design doc targets ~25-30 commands, but many features (undo/redo, panel toggles) don't
+exist yet. **Decision**: Register all planned commands as no-ops that log "not yet implemented."
+**Rationale**: Palette feels comprehensive from day one. Users discover available shortcuts even for
+features not yet built. Easy to wire up real handlers later.
+
 ## Test Results
 
-_No test runs yet._
+### 2026-02-16 — 195 tests, zero clippy warnings
+
+All 195 tests pass (13 config tests, 4 fuzzy search tests, 11 registry tests, plus all existing
+tests). Zero clippy warnings. Clean boundary check.
 
 ## Blockers
 
@@ -67,11 +89,16 @@ _No test runs yet._
 
 ## Deferred / Future Work
 
-- [None yet]
+- Backing implementations for no-op commands (undo/redo, panel toggles, grid overlay, fullscreen)
+- Update bevy-egui guide with egui 0.33 deprecation notes
 
 ## Status Updates
 
-| Date       | Status   | Notes                                               |
-| ---------- | -------- | --------------------------------------------------- |
-| 2026-02-16 | speccing | Initial spec created, design doc reviewed           |
-| 2026-02-16 | speccing | Research spike complete — custom registry confirmed |
+| Date       | Status   | Notes                                                        |
+| ---------- | -------- | ------------------------------------------------------------ |
+| 2026-02-16 | speccing | Initial spec created, design doc reviewed                    |
+| 2026-02-16 | speccing | Research spike complete — custom registry confirmed          |
+| 2026-02-16 | building | Registry + persistence migration committed (fde6545)         |
+| 2026-02-16 | building | Camera + hex_grid migration committed (14b4392)              |
+| 2026-02-16 | building | Command palette UI + tool/mode shortcuts committed (ae3c5ca) |
+| 2026-02-16 | building | TOML config + expanded command set (28 total) (84d4d56)      |

@@ -93,6 +93,25 @@ pub struct CommandExecutedEvent {
 }
 ```
 
+### Public API
+
+```rust
+impl ShortcutRegistry {
+    /// Register a command. Duplicate bindings: last-registered wins, warning logged.
+    pub fn register(&mut self, entry: CommandEntry);
+    /// Look up which command a key binding maps to.
+    pub fn lookup(&self, binding: &KeyBinding) -> Option<&CommandEntry>;
+    /// Returns all registered commands.
+    pub fn commands(&self) -> &[CommandEntry];
+    /// Returns all KeyCodes bound to a command ID (for continuous commands).
+    pub fn bindings_for(&self, command_id: &str) -> Vec<KeyCode>;
+    /// Returns all discrete (non-continuous) commands, for palette display.
+    pub fn discrete_commands(&self) -> Vec<&CommandEntry>;
+    /// Replace bindings for an existing command (used by config overrides).
+    pub fn override_bindings(&mut self, command_id: &str, new_bindings: Vec<KeyBinding>) -> bool;
+}
+```
+
 ## Invariants
 
 - `ShortcutRegistry` is inserted during `ShortcutsPlugin::build()` (immediate, before consumers)
@@ -101,6 +120,8 @@ pub struct CommandExecutedEvent {
 - Duplicate bindings: last-registered wins, warning logged
 - Continuous commands (e.g., WASD pan) register in the registry for discoverability but are not
   fired via `CommandExecutedEvent` — consumers read bindings directly
+- Config overrides are applied at `Startup`, after all plugins have registered defaults
+- Missing config file is not an error — all defaults are used
 
 ## Changelog
 
@@ -108,3 +129,4 @@ pub struct CommandExecutedEvent {
 | ---------- | --------------------------------------------- | ----------------------------------------- |
 | 2026-02-16 | Initial definition                            | Pitch #80 — keyboard-first command access |
 | 2026-02-16 | Add `selected_index` to `CommandPaletteState` | Palette keyboard navigation               |
+| 2026-02-16 | Add public API section and config invariants  | Spec-code parity for ship gate            |

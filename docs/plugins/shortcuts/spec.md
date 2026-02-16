@@ -9,7 +9,8 @@ TOML-based shortcut customization. Migrates all existing scattered shortcuts to 
 
 - Module: `src/shortcuts/`
 - Plugin struct: `ShortcutsPlugin`
-- Schedule: PreUpdate (Cmd+K intercept), Update (shortcut matching)
+- Schedule: Startup (config overrides), PreUpdate (Cmd+K intercept), Update (shortcut matching),
+  EguiPrimaryContextPass (command palette UI)
 
 ## Appetite
 
@@ -37,20 +38,20 @@ TOML-based shortcut customization. Migrates all existing scattered shortcuts to 
 
 ## Success Criteria
 
-- [ ] [SC-1] ShortcutRegistry registers commands and resolves bindings
-- [ ] [SC-2] match_shortcuts fires CommandExecutedEvent for just-pressed bindings
-- [ ] [SC-3] Cmd+S/O/N still trigger save/open/new via registry (regression)
-- [ ] [SC-4] Camera zoom/center/fit/reset work via CommandExecutedEvent observers
-- [ ] [SC-5] WASD pan reads bound keys from registry (customizable)
-- [ ] [SC-6] Escape deselect works via CommandExecutedEvent observer
-- [ ] [SC-7] Cmd+K opens palette; typing filters commands; Enter executes; Esc closes
-- [ ] [SC-8] Missing config file uses defaults; invalid entries log warnings
-- [ ] [SC-9] Number keys 1/2/3 switch tool modes
-- [ ] [SC-10] shortcuts contract spec matches code in src/contracts/shortcuts.rs
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
-- [ ] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
-- [ ] [SC-BOUNDARY] No imports from other plugins' internals
+- [x] [SC-1] ShortcutRegistry registers commands and resolves bindings
+- [x] [SC-2] match_shortcuts fires CommandExecutedEvent for just-pressed bindings
+- [x] [SC-3] Cmd+S/O/N still trigger save/open/new via registry (regression)
+- [x] [SC-4] Camera zoom/center/fit/reset work via CommandExecutedEvent observers
+- [x] [SC-5] WASD pan reads bound keys from registry (customizable)
+- [x] [SC-6] Escape deselect works via CommandExecutedEvent observer
+- [x] [SC-7] Cmd+K opens palette; typing filters commands; Enter executes; Esc closes
+- [x] [SC-8] Missing config file uses defaults; invalid entries log warnings
+- [x] [SC-9] Number keys 1/2/3 switch tool modes
+- [x] [SC-10] shortcuts contract spec matches code in src/contracts/shortcuts.rs
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
+- [x] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
+- [x] [SC-BOUNDARY] No imports from other plugins' internals
 
 ## UAT Checklist
 
