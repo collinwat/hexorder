@@ -16,6 +16,7 @@ mlua = { version = "0.11", features = [ "luajit", "vendored" ] }
 rfd = "0.15"
 ron = "0.12"
 serde = { version = "1", features = [ "derive" ] }
+sublime_fuzzy = "0.7"
 uuid = { version = "1", features = [ "v4" ] }
 
 [dev-dependencies]

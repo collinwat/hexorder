@@ -177,11 +177,13 @@ impl ShortcutRegistry {
     }
 }
 
-/// Resource controlling command palette visibility.
+/// Resource controlling command palette visibility and navigation state.
 #[derive(Resource, Debug, Default)]
 pub struct CommandPaletteState {
     pub open: bool,
     pub query: String,
+    /// Currently highlighted row in the palette results list.
+    pub selected_index: usize,
 }
 
 // ---------------------------------------------------------------------------

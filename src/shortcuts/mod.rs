@@ -5,6 +5,7 @@
 //! Hexorder are registered here and dispatched via `CommandExecutedEvent`.
 
 use bevy::prelude::*;
+use bevy_egui::EguiPrimaryContextPass;
 
 use crate::contracts::shortcuts::{CommandPaletteState, ShortcutRegistry};
 
@@ -30,5 +31,6 @@ impl Plugin for ShortcutsPlugin {
             systems::intercept_palette_toggle.before(bevy_egui::EguiPreUpdateSet::ProcessInput),
         );
         app.add_systems(Update, systems::match_shortcuts);
+        app.add_systems(EguiPrimaryContextPass, systems::command_palette_system);
     }
 }

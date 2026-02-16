@@ -184,3 +184,70 @@ fn command_id_display() {
     let id = CommandId("file.save");
     assert_eq!(format!("{id}"), "file.save");
 }
+
+// ---------------------------------------------------------------------------
+// Fuzzy search / palette filtering tests
+// ---------------------------------------------------------------------------
+
+use super::systems::filtered_commands;
+
+fn named_entry(id: &'static str, name: &str) -> CommandEntry {
+    CommandEntry {
+        id: CommandId(id),
+        name: name.to_string(),
+        description: String::new(),
+        bindings: Vec::new(),
+        category: CommandCategory::Edit,
+        continuous: false,
+    }
+}
+
+#[test]
+fn filtered_commands_empty_query_returns_all_discrete() {
+    let mut registry = ShortcutRegistry::default();
+    registry.register(named_entry("a", "Alpha"));
+    registry.register(named_entry("b", "Beta"));
+    registry.register(CommandEntry {
+        id: CommandId("c"),
+        name: "Continuous".to_string(),
+        description: String::new(),
+        bindings: Vec::new(),
+        category: CommandCategory::Camera,
+        continuous: true,
+    });
+
+    let results = filtered_commands(&registry, "");
+    assert_eq!(results.len(), 2, "should exclude continuous commands");
+}
+
+#[test]
+fn filtered_commands_fuzzy_match() {
+    let mut registry = ShortcutRegistry::default();
+    registry.register(named_entry("file.save", "Save"));
+    registry.register(named_entry("file.save_as", "Save As"));
+    registry.register(named_entry("file.open", "Open"));
+    registry.register(named_entry("camera.center", "Center View"));
+
+    let results = filtered_commands(&registry, "sav");
+    assert_eq!(results.len(), 2, "should match Save and Save As");
+    assert!(results.iter().any(|e| e.id.0 == "file.save"));
+    assert!(results.iter().any(|e| e.id.0 == "file.save_as"));
+}
+
+#[test]
+fn filtered_commands_no_match() {
+    let mut registry = ShortcutRegistry::default();
+    registry.register(named_entry("file.save", "Save"));
+
+    let results = filtered_commands(&registry, "xyz");
+    assert!(results.is_empty());
+}
+
+#[test]
+fn palette_state_defaults() {
+    use crate::contracts::shortcuts::CommandPaletteState;
+    let state = CommandPaletteState::default();
+    assert!(!state.open);
+    assert!(state.query.is_empty());
+    assert_eq!(state.selected_index, 0);
+}

@@ -10,6 +10,10 @@ use crate::contracts::editor_ui::EditorTool;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::AppScreen;
+use crate::contracts::shortcuts::{
+    CommandCategory, CommandEntry, CommandExecutedEvent, CommandId, KeyBinding, Modifiers,
+    ShortcutRegistry,
+};
 use crate::contracts::validation::SchemaValidation;
 
 mod components;
@@ -27,6 +31,8 @@ pub struct EditorUiPlugin;
 
 impl Plugin for EditorUiPlugin {
     fn build(&self, app: &mut App) {
+        register_shortcuts(&mut app.world_mut().resource_mut::<ShortcutRegistry>());
+
         app.add_plugins(EguiPlugin::default());
 
         // Absorb keyboard/pointer events from Bevy's input buffers when egui
@@ -63,5 +69,71 @@ impl Plugin for EditorUiPlugin {
             EguiPrimaryContextPass,
             systems::play_panel_system.run_if(in_state(AppScreen::Play)),
         );
+
+        app.add_observer(handle_editor_ui_command);
     }
+}
+
+/// Observer: handles tool switching and mode commands from the shortcut registry.
+fn handle_editor_ui_command(
+    trigger: On<CommandExecutedEvent>,
+    mut tool: ResMut<EditorTool>,
+    mut next_state: ResMut<NextState<AppScreen>>,
+) {
+    match trigger.event().command_id.0 {
+        "tool.select" => *tool = EditorTool::Select,
+        "tool.paint" => *tool = EditorTool::Paint,
+        "tool.place" => *tool = EditorTool::Place,
+        "mode.editor" => next_state.set(AppScreen::Editor),
+        "mode.play" => next_state.set(AppScreen::Launcher),
+        _ => {}
+    }
+}
+
+fn register_shortcuts(registry: &mut ShortcutRegistry) {
+    use bevy::input::keyboard::KeyCode;
+
+    // Tool switching.
+    registry.register(CommandEntry {
+        id: CommandId("tool.select"),
+        name: "Select Tool".to_string(),
+        description: "Switch to select mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit1, Modifiers::NONE)],
+        category: CommandCategory::Tool,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("tool.paint"),
+        name: "Paint Tool".to_string(),
+        description: "Switch to paint mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit2, Modifiers::NONE)],
+        category: CommandCategory::Tool,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("tool.place"),
+        name: "Place Tool".to_string(),
+        description: "Switch to place mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit3, Modifiers::NONE)],
+        category: CommandCategory::Tool,
+        continuous: false,
+    });
+
+    // Mode switching.
+    registry.register(CommandEntry {
+        id: CommandId("mode.editor"),
+        name: "Editor Mode".to_string(),
+        description: "Switch to editor mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit1, Modifiers::CMD)],
+        category: CommandCategory::Mode,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("mode.play"),
+        name: "Play Mode".to_string(),
+        description: "Switch to launcher".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit2, Modifiers::CMD)],
+        category: CommandCategory::Mode,
+        continuous: false,
+    });
 }

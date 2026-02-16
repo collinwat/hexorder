@@ -74,11 +74,12 @@ pub struct ShortcutRegistry {
     // Internal: commands list + binding->command lookup map
 }
 
-/// Resource controlling command palette visibility.
+/// Resource controlling command palette visibility and navigation state.
 #[derive(Resource, Debug, Default)]
 pub struct CommandPaletteState {
     pub open: bool,
     pub query: String,
+    pub selected_index: usize,
 }
 ```
 
@@ -103,6 +104,7 @@ pub struct CommandExecutedEvent {
 
 ## Changelog
 
-| Date       | Change             | Reason                                    |
-| ---------- | ------------------ | ----------------------------------------- |
-| 2026-02-16 | Initial definition | Pitch #80 — keyboard-first command access |
+| Date       | Change                                        | Reason                                    |
+| ---------- | --------------------------------------------- | ----------------------------------------- |
+| 2026-02-16 | Initial definition                            | Pitch #80 — keyboard-first command access |
+| 2026-02-16 | Add `selected_index` to `CommandPaletteState` | Palette keyboard navigation               |
