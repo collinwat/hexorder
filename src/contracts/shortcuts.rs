@@ -175,6 +175,33 @@ impl ShortcutRegistry {
     pub fn discrete_commands(&self) -> Vec<&CommandEntry> {
         self.commands.iter().filter(|e| !e.continuous).collect()
     }
+
+    /// Replaces the bindings for an existing command. Used by config file
+    /// loading to apply user overrides after all plugins have registered defaults.
+    /// Returns `true` if the command was found and updated.
+    pub fn override_bindings(&mut self, command_id: &str, new_bindings: Vec<KeyBinding>) -> bool {
+        let Some(idx) = self.commands.iter().position(|e| e.id.0 == command_id) else {
+            return false;
+        };
+
+        // Remove old binding_map entries that point to this command.
+        self.binding_map.retain(|_, &mut cmd_idx| cmd_idx != idx);
+
+        // Insert new bindings.
+        for binding in &new_bindings {
+            if let Some(&existing_idx) = self.binding_map.get(binding) {
+                let existing_id = &self.commands[existing_idx].id;
+                warn!(
+                    "Config override conflict: {} overwrites {} for {:?}",
+                    command_id, existing_id, binding
+                );
+            }
+            self.binding_map.insert(binding.clone(), idx);
+        }
+
+        self.commands[idx].bindings = new_bindings;
+        true
+    }
 }
 
 /// Resource controlling command palette visibility and navigation state.

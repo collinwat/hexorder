@@ -1,14 +1,16 @@
 //! Shortcuts plugin.
 //!
 //! Provides a centralized keyboard shortcut registry, shortcut matching
-//! system, and Cmd+K command palette toggle. All keyboard shortcuts in
-//! Hexorder are registered here and dispatched via `CommandExecutedEvent`.
+//! system, Cmd+K command palette toggle, and TOML config file loading.
+//! All keyboard shortcuts in Hexorder are registered here and dispatched
+//! via `CommandExecutedEvent`.
 
 use bevy::prelude::*;
 use bevy_egui::EguiPrimaryContextPass;
 
 use crate::contracts::shortcuts::{CommandPaletteState, ShortcutRegistry};
 
+mod config;
 mod systems;
 
 #[cfg(test)]
@@ -25,6 +27,10 @@ impl Plugin for ShortcutsPlugin {
         // shortcuts in their own build() methods.
         app.insert_resource(ShortcutRegistry::default());
         app.insert_resource(CommandPaletteState::default());
+
+        // Apply config overrides at Startup, after all plugins have
+        // registered their default shortcuts in build().
+        app.add_systems(Startup, config::apply_config_overrides);
 
         app.add_systems(
             PreUpdate,

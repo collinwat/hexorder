@@ -74,7 +74,7 @@ impl Plugin for EditorUiPlugin {
     }
 }
 
-/// Observer: handles tool switching and mode commands from the shortcut registry.
+/// Observer: handles tool switching, mode switching, and discoverable commands.
 fn handle_editor_ui_command(
     trigger: On<CommandExecutedEvent>,
     mut tool: ResMut<EditorTool>,
@@ -86,6 +86,21 @@ fn handle_editor_ui_command(
         "tool.place" => *tool = EditorTool::Place,
         "mode.editor" => next_state.set(AppScreen::Editor),
         "mode.play" => next_state.set(AppScreen::Launcher),
+        // Discoverable no-ops — registered for palette visibility, backing features pending.
+        "edit.undo"
+        | "edit.redo"
+        | "edit.select_all"
+        | "edit.delete"
+        | "view.toggle_inspector"
+        | "view.toggle_toolbar"
+        | "view.toggle_grid_overlay"
+        | "view.zoom_to_selection"
+        | "view.toggle_fullscreen" => {
+            info!(
+                "Command '{}' is not yet implemented",
+                trigger.event().command_id.0
+            );
+        }
         _ => {}
     }
 }
@@ -134,6 +149,85 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         description: "Switch to launcher".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::Digit2, Modifiers::CMD)],
         category: CommandCategory::Mode,
+        continuous: false,
+    });
+
+    // Edit actions (backing features pending — registered for discoverability).
+    registry.register(CommandEntry {
+        id: CommandId("edit.undo"),
+        name: "Undo".to_string(),
+        description: "Undo last action".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD)],
+        category: CommandCategory::Edit,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("edit.redo"),
+        name: "Redo".to_string(),
+        description: "Redo last undone action".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD_SHIFT)],
+        category: CommandCategory::Edit,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("edit.select_all"),
+        name: "Select All".to_string(),
+        description: "Select all elements".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyA, Modifiers::CMD)],
+        category: CommandCategory::Edit,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("edit.delete"),
+        name: "Delete Selection".to_string(),
+        description: "Delete selected element".to_string(),
+        bindings: vec![
+            KeyBinding::new(KeyCode::Backspace, Modifiers::NONE),
+            KeyBinding::new(KeyCode::Delete, Modifiers::NONE),
+        ],
+        category: CommandCategory::Edit,
+        continuous: false,
+    });
+
+    // View toggles (backing features pending — registered for discoverability).
+    registry.register(CommandEntry {
+        id: CommandId("view.toggle_inspector"),
+        name: "Toggle Inspector".to_string(),
+        description: "Show or hide the inspector panel".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyI, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("view.toggle_toolbar"),
+        name: "Toggle Toolbar".to_string(),
+        description: "Show or hide the toolbar".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyT, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("view.toggle_grid_overlay"),
+        name: "Toggle Grid Overlay".to_string(),
+        description: "Show or hide the grid overlay".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyG, Modifiers::NONE)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("view.zoom_to_selection"),
+        name: "Zoom to Selection".to_string(),
+        description: "Zoom camera to the selected element".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::NONE)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("view.toggle_fullscreen"),
+        name: "Toggle Fullscreen".to_string(),
+        description: "Toggle fullscreen mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyF, Modifiers::CMD)],
+        category: CommandCategory::View,
         continuous: false,
     });
 }
