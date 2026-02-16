@@ -113,23 +113,32 @@ merge directly to `main` using the Pre-Merge Checklist as before.
 Branch names **must** follow this pattern:
 
 ```
-<release>/<feature>
+<release>-<feature>
 ```
 
 - `<release>` is the target release version: `0.1.0`, `0.2.0`, `0.3.0`, etc.
 - `<feature>` is the plugin name as it appears in `docs/coordination.md`, using hyphens for
   multi-word names
+- The separator is a **hyphen**, not a slash
 
-**Valid**: `0.3.0/unit`, `0.3.0/editor-ui`, `0.4.0/movement-rules` **Invalid**: `feature/unit`,
-`unit-placement`, `m3_unit`, `0.3.0/Unit`
+**Valid**: `0.3.0-unit`, `0.3.0-editor-ui`, `0.4.0-movement-rules` **Invalid**: `feature/unit`,
+`unit-placement`, `m3_unit`, `0.3.0/Unit`, `0.3.0/editor-ui`
 
 For non-plugin work (docs, process, tooling), use:
 
 ```
-<release>/chore-<description>
+<release>-chore-<description>
 ```
 
-**Valid**: `0.3.0/chore-git-guide`, `0.4.0/chore-ci-setup`
+**Valid**: `0.3.0-chore-git-guide`, `0.4.0-chore-ci-setup`
+
+> **Why hyphens, not slashes?** Git refs are path-based. The integration branch `0.9.0` lives at
+> `refs/heads/0.9.0`. A feature branch named `0.9.0/editor-ui` would require
+> `refs/heads/0.9.0/editor-ui` — but git cannot use `0.9.0` as both a file (the integration branch)
+> and a directory (the feature branch prefix) simultaneously. Pushes and fetches fail with
+> `cannot lock ref` errors. Hyphens avoid this entirely because `refs/heads/0.9.0-editor-ui` is a
+> sibling of `refs/heads/0.9.0`, not a child. As a bonus, the branch name now matches the worktree
+> directory name exactly.
 
 ---
 
@@ -137,14 +146,14 @@ For non-plugin work (docs, process, tooling), use:
 
 Run these steps in order when starting work on a new plugin. No steps are optional.
 
-1. **Branch name.** Determine the branch name: `<release>/<feature>` (e.g., `0.4.0/movement-rules`).
+1. **Branch name.** Determine the branch name: `<release>-<feature>` (e.g., `0.4.0-movement-rules`).
    Verify it follows the naming rules above.
 2. **Create branch and worktree.** Worktrees live under `.worktrees/` in the project root. The
-   directory name is the branch name with `/` replaced by `-`. Branch from the **integration
-   branch** (multi-pitch cycles) or from `main` (solo-pitch cycles).
+   directory name matches the branch name. Branch from the **integration branch** (multi-pitch
+   cycles) or from `main` (solo-pitch cycles).
     ```bash
-    git branch 0.4.0/movement-rules 0.4.0   # branch from integration branch
-    git worktree add .worktrees/0.4.0-movement-rules 0.4.0/movement-rules
+    git branch 0.4.0-movement-rules 0.4.0   # branch from integration branch
+    git worktree add .worktrees/0.4.0-movement-rules 0.4.0-movement-rules
     cd .worktrees/0.4.0-movement-rules
     ```
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
@@ -195,7 +204,7 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```
 3. **Delete branch.**
     ```bash
-    git branch -d <release>/<feature>
+    git branch -d <release>-<feature>
     ```
 4. **Update ownership.** In `docs/coordination.md` → Active Plugins table, set Status to `complete`
    and clear Owner.
@@ -349,7 +358,7 @@ merge independently.
    corresponding issues or be removed.
 4. **Merge into integration branch.** From the integration branch worktree:
     ```bash
-    git merge <release>/<feature>
+    git merge <release>-<feature>
     ```
     Use a merge commit (not fast-forward, not rebase). If conflicts arise, follow the Conflict
     Resolution rules below.
