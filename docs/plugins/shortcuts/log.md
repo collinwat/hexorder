@@ -41,11 +41,19 @@ matching from a command palette. Crate choice confirmed during research spike.
 total including tool switching, view toggles, mode switching, edit actions. **Rationale**: Palette
 should feel comprehensive and discoverable on day one.
 
-### 2026-02-16 — Research spike before custom implementation
+### 2026-02-16 — Research spike: proceed custom (closes #25)
 
-**Context**: Issue #25 (shortcut management libraries) is still open. **Decision**: Quick spike to
-evaluate leafwing-input-manager and alternatives before building custom. **Rationale**: Ensure we
-are not reinventing the wheel. If a crate fits, adopt it.
+**Context**: Issue #25 (shortcut management libraries) is still open. Evaluated 5 crates.
+**Decision**: Proceed with custom HashMap-based ShortcutRegistry. No crate adopted. **Rationale**:
+Only 2 viable crates (leafwing-input-manager v0.20, bevy_enhanced_input v0.23) support Bevy 0.18.
+Both are designed for games with player entities, not design tools with a single global shortcut
+context. leafwing-input-manager requires a monolithic Actionlike enum (violates plugin architecture
+boundaries). bevy_enhanced_input's Unreal-style input context/modifier system is over-engineered for
+keyboard shortcuts. Custom approach is ~200-300 lines, zero new deps, trivial command palette
+integration, and no upgrade friction. **Alternatives rejected**: leafwing-input-manager
+(entity-centric, monolithic action enum, 11K LOC for features we don't need), bevy_enhanced_input
+(over-engineered, higher API churn, 22 breaking releases), bevy_input_actionmap (dormant, no Bevy
+0.18), bevy-input-sequence (sequences only, no held-key support), action_maps (abandoned).
 
 ## Test Results
 
@@ -63,6 +71,7 @@ _No test runs yet._
 
 ## Status Updates
 
-| Date       | Status   | Notes                                     |
-| ---------- | -------- | ----------------------------------------- |
-| 2026-02-16 | speccing | Initial spec created, design doc reviewed |
+| Date       | Status   | Notes                                               |
+| ---------- | -------- | --------------------------------------------------- |
+| 2026-02-16 | speccing | Initial spec created, design doc reviewed           |
+| 2026-02-16 | speccing | Research spike complete — custom registry confirmed |

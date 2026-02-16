@@ -69,7 +69,7 @@ TOML-based shortcut customization. Migrates all existing scattered shortcuts to 
 
 ## Open Questions
 
-- Research spike on Bevy input crates (#25) — evaluate before committing to custom registry
+- ~~Research spike on Bevy input crates (#25)~~ — resolved: proceed custom (no crate fits)
 
 ## Deferred Items
 
