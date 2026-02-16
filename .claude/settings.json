@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git tag *)",
+      "Bash(git branch *)",
+      "Bash(git ls-remote *)",
+      "Bash(git cat-file *)",
+      "Bash(git show *)",
+      "Bash(git worktree list *)",
+      "Bash(mise check)",
+      "Bash(mise check:*)",
+      "Bash(mise fix)",
+      "Bash(mise fix:*)",
+      "Bash(mise test)",
+      "Bash(mise test:*)",
+      "Bash(mise setup *)",
+      "Bash(mise install *)",
+      "Bash(mise handoff *)",
+      "Bash(mise changelog *)",
+      "Bash(mise run wiki:clone *)",
+      "Bash(mise issue:*)"
+    ]
+  }
+}
