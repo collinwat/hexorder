@@ -54,7 +54,13 @@ impl BrandTheme {
     pub const SUCCESS: egui::Color32 = egui::Color32::from_rgb(80, 152, 80);
 }
 
-use crate::contracts::game_system::{EntityRole, GameSystem, PropertyType, TypeId};
+use crate::contracts::game_system::{
+    ActiveBoardType, ActiveTokenType, EntityRole, GameSystem, PropertyType, SelectedUnit, TypeId,
+};
+use crate::contracts::mechanics::{
+    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
+    TurnStructure,
+};
 use crate::contracts::ontology::{
     ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
     RelationTrigger,
@@ -161,6 +167,54 @@ pub(crate) enum EditorAction {
         struct_id: TypeId,
         field_id: TypeId,
     },
+    // -- Mechanics --
+    SetPlayerOrder {
+        order: crate::contracts::mechanics::PlayerOrder,
+    },
+    AddPhase {
+        name: String,
+        phase_type: PhaseType,
+    },
+    RemovePhase {
+        id: TypeId,
+    },
+    MovePhaseUp {
+        id: TypeId,
+    },
+    MovePhaseDown {
+        id: TypeId,
+    },
+    AddCrtColumn {
+        label: String,
+        column_type: CrtColumnType,
+        threshold: f64,
+    },
+    RemoveCrtColumn {
+        index: usize,
+    },
+    AddCrtRow {
+        label: String,
+        die_min: u32,
+        die_max: u32,
+    },
+    RemoveCrtRow {
+        index: usize,
+    },
+    #[allow(dead_code)]
+    SetCrtOutcome {
+        row: usize,
+        col: usize,
+        label: String,
+    },
+    AddCombatModifier {
+        name: String,
+        source: ModifierSource,
+        shift: i32,
+        priority: i32,
+    },
+    RemoveCombatModifier {
+        id: TypeId,
+    },
 }
 
 /// Which tab is active in the ontology editor panel.
@@ -174,6 +228,7 @@ pub enum OntologyTab {
     Relations,
     Constraints,
     Validation,
+    Mechanics,
 }
 
 /// Persistent UI state for the editor panels.
@@ -261,6 +316,24 @@ pub struct EditorState {
     /// Whether to request focus on the name input next frame.
     pub launcher_request_focus: bool,
 
+    // -- Mechanics tab state --
+    pub new_phase_name: String,
+    /// 0=Movement, 1=Combat, 2=Admin.
+    pub new_phase_type_index: usize,
+    pub new_crt_col_label: String,
+    /// 0=OddsRatio, 1=Differential.
+    pub new_crt_col_type_index: usize,
+    pub new_crt_col_threshold: String,
+    pub new_crt_row_label: String,
+    pub new_crt_row_die_min: String,
+    pub new_crt_row_die_max: String,
+    pub new_modifier_name: String,
+    /// 0=DefenderTerrain, 1=AttackerTerrain, 2=Custom.
+    pub new_modifier_source_index: usize,
+    pub new_modifier_custom_source: String,
+    pub new_modifier_shift: i32,
+    pub new_modifier_priority: i32,
+
     // Constraint editor
     pub new_constraint_name: String,
     pub new_constraint_description: String,
@@ -317,6 +390,19 @@ impl Default for EditorState {
             new_relation_target_prop: String::new(),
             new_relation_source_prop: String::new(),
             new_relation_operation_index: 0,
+            new_phase_name: String::new(),
+            new_phase_type_index: 0,
+            new_crt_col_label: String::new(),
+            new_crt_col_type_index: 0,
+            new_crt_col_threshold: String::new(),
+            new_crt_row_label: String::new(),
+            new_crt_row_die_min: String::new(),
+            new_crt_row_die_max: String::new(),
+            new_modifier_name: String::new(),
+            new_modifier_source_index: 0,
+            new_modifier_custom_source: String::new(),
+            new_modifier_shift: 0,
+            new_modifier_priority: 0,
             new_constraint_name: String::new(),
             new_constraint_description: String::new(),
             new_constraint_concept_index: 0,
@@ -335,6 +421,24 @@ impl Default for EditorState {
 pub(super) struct ProjectParams<'w> {
     pub(super) workspace: Res<'w, Workspace>,
     pub(super) game_system: Res<'w, GameSystem>,
+}
+
+/// Bundled system parameter for active selection state.
+/// Reduces the system parameter count in `editor_panel_system`.
+#[derive(SystemParam)]
+pub(super) struct SelectionParams<'w> {
+    pub(super) active_board: ResMut<'w, ActiveBoardType>,
+    pub(super) active_token: ResMut<'w, ActiveTokenType>,
+    pub(super) selected_unit: ResMut<'w, SelectedUnit>,
+}
+
+/// Bundled system parameter for mechanics-related resources.
+/// Reduces the system parameter count in `editor_panel_system`.
+#[derive(SystemParam)]
+pub(super) struct MechanicsParams<'w> {
+    pub(super) turn_structure: ResMut<'w, TurnStructure>,
+    pub(super) combat_results_table: ResMut<'w, CombatResultsTable>,
+    pub(super) combat_modifiers: ResMut<'w, CombatModifierRegistry>,
 }
 
 /// Bundled system parameter for ontology-related resources.

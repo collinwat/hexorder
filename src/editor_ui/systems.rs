@@ -20,8 +20,14 @@ use crate::contracts::persistence::{
 };
 use crate::contracts::validation::SchemaValidation;
 
+use crate::contracts::mechanics::{
+    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable, CrtColumn,
+    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, PlayerOrder, TurnStructure,
+};
+
 use super::components::{
-    BrandTheme, EditorAction, EditorState, OntologyParams, OntologyTab, ProjectParams,
+    BrandTheme, EditorAction, EditorState, MechanicsParams, OntologyParams, OntologyTab,
+    ProjectParams, SelectionParams,
 };
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
@@ -187,9 +193,7 @@ pub fn launcher_system(
 pub fn editor_panel_system(
     mut contexts: EguiContexts,
     mut editor_tool: ResMut<EditorTool>,
-    mut active_board: ResMut<ActiveBoardType>,
-    mut active_token: ResMut<ActiveTokenType>,
-    mut selected_unit: ResMut<SelectedUnit>,
+    mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
     selected_hex: Res<SelectedHex>,
     project: ProjectParams,
@@ -201,6 +205,7 @@ pub fn editor_panel_system(
     tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
     mut commands: Commands,
     mut ontology: OntologyParams,
+    mut mechanics: MechanicsParams,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -305,25 +310,35 @@ pub fn editor_panel_system(
                     OntologyTab::Validation => {
                         render_validation_tab(ui, &ontology.schema_validation);
                     }
+                    OntologyTab::Mechanics => {
+                        render_mechanics_tab(
+                            ui,
+                            &mechanics.turn_structure,
+                            &mechanics.combat_results_table,
+                            &mechanics.combat_modifiers,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
                 }
 
                 ui.separator();
 
                 // -- Cell Palette (Paint mode) --
                 if *editor_tool == EditorTool::Paint {
-                    render_cell_palette(ui, &registry, &mut active_board);
+                    render_cell_palette(ui, &registry, &mut selection.active_board);
                 }
 
                 // -- Unit Palette (Place mode) --
                 if *editor_tool == EditorTool::Place {
-                    render_unit_palette(ui, &registry, &mut active_token);
+                    render_unit_palette(ui, &registry, &mut selection.active_token);
                 }
 
                 // -- Unit Inspector (takes priority when a unit is selected) --
-                if selected_unit.entity.is_some() {
+                if selection.selected_unit.entity.is_some() {
                     render_unit_inspector(
                         ui,
-                        &selected_unit,
+                        &selection.selected_unit,
                         &mut unit_data_query,
                         &registry,
                         &enum_registry,
@@ -352,14 +367,17 @@ pub fn editor_panel_system(
         &mut enum_registry,
         &mut struct_registry,
         &mut tile_data_query,
-        &mut active_board,
-        &mut active_token,
-        &mut selected_unit,
+        &mut selection.active_board,
+        &mut selection.active_token,
+        &mut selection.selected_unit,
         &editor_state,
         &mut commands,
         &mut ontology.concept_registry,
         &mut ontology.relation_registry,
         &mut ontology.constraint_registry,
+        &mut mechanics.turn_structure,
+        &mut mechanics.combat_results_table,
+        &mut mechanics.combat_modifiers,
     );
 }
 
@@ -438,6 +456,7 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
             OntologyTab::Relations,
             OntologyTab::Constraints,
             OntologyTab::Validation,
+            OntologyTab::Mechanics,
         ] {
             let label = match tab {
                 OntologyTab::Types => "Types",
@@ -447,6 +466,7 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
                 OntologyTab::Relations => "Relations",
                 OntologyTab::Constraints => "Constr.",
                 OntologyTab::Validation => "Valid.",
+                OntologyTab::Mechanics => "Mech.",
             };
             let text = if editor_state.active_tab == tab {
                 egui::RichText::new(label).color(BrandTheme::ACCENT_AMBER)
@@ -2083,6 +2103,404 @@ pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValida
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_mechanics_tab(
+    ui: &mut egui::Ui,
+    turn_structure: &TurnStructure,
+    crt: &CombatResultsTable,
+    modifiers: &CombatModifierRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    // ── Turn Structure ──────────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Turn Structure")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    // Player order selector.
+    ui.horizontal(|ui| {
+        ui.label("Player Order:");
+        let order_labels = ["Alternating", "Simultaneous", "Activation"];
+        let current = match turn_structure.player_order {
+            PlayerOrder::Alternating => 0,
+            PlayerOrder::Simultaneous => 1,
+            PlayerOrder::ActivationBased => 2,
+        };
+        for (i, label) in order_labels.iter().enumerate() {
+            if ui.selectable_label(current == i, *label).clicked() && current != i {
+                let order = match i {
+                    1 => PlayerOrder::Simultaneous,
+                    2 => PlayerOrder::ActivationBased,
+                    _ => PlayerOrder::Alternating,
+                };
+                actions.push(EditorAction::SetPlayerOrder { order });
+            }
+        }
+    });
+    ui.add_space(4.0);
+
+    // Phase list.
+    ui.label(
+        egui::RichText::new(format!("Phases ({})", turn_structure.phases.len()))
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    let mut phase_action: Option<EditorAction> = None;
+    for (i, phase) in turn_structure.phases.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let type_label = match phase.phase_type {
+                PhaseType::Movement => "Mov",
+                PhaseType::Combat => "Cbt",
+                PhaseType::Admin => "Adm",
+            };
+            ui.label(
+                egui::RichText::new(format!("{}.", i + 1))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.label(&phase.name);
+            ui.label(
+                egui::RichText::new(format!("[{type_label}]"))
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    phase_action = Some(EditorAction::RemovePhase { id: phase.id });
+                }
+                if i > 0
+                    && ui
+                        .small_button(
+                            egui::RichText::new("\u{2191}").color(BrandTheme::TEXT_PRIMARY),
+                        )
+                        .clicked()
+                {
+                    phase_action = Some(EditorAction::MovePhaseUp { id: phase.id });
+                }
+                if i + 1 < turn_structure.phases.len()
+                    && ui
+                        .small_button(
+                            egui::RichText::new("\u{2193}").color(BrandTheme::TEXT_PRIMARY),
+                        )
+                        .clicked()
+                {
+                    phase_action = Some(EditorAction::MovePhaseDown { id: phase.id });
+                }
+            });
+        });
+    }
+    if let Some(action) = phase_action {
+        actions.push(action);
+    }
+
+    // Add phase form.
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut editor_state.new_phase_name);
+    });
+    ui.horizontal(|ui| {
+        ui.label("Type:");
+        let type_labels = ["Movement", "Combat", "Admin"];
+        for (i, label) in type_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_phase_type_index, i, *label);
+        }
+    });
+    if ui.button("Add Phase").clicked() && !editor_state.new_phase_name.trim().is_empty() {
+        let phase_type = match editor_state.new_phase_type_index {
+            1 => PhaseType::Combat,
+            2 => PhaseType::Admin,
+            _ => PhaseType::Movement,
+        };
+        actions.push(EditorAction::AddPhase {
+            name: editor_state.new_phase_name.trim().to_string(),
+            phase_type,
+        });
+        editor_state.new_phase_name.clear();
+    }
+
+    ui.separator();
+
+    // ── Combat Results Table ────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Combat Results Table")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new(&crt.name)
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+
+    // Column headers.
+    ui.label(
+        egui::RichText::new(format!("Columns ({})", crt.columns.len()))
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    for (i, col) in crt.columns.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let type_label = match col.column_type {
+                CrtColumnType::OddsRatio => "ratio",
+                CrtColumnType::Differential => "diff",
+            };
+            ui.label(
+                egui::RichText::new(&col.label)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("({type_label} \u{2265}{:.1})", col.threshold))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCrtColumn { index: i });
+                }
+            });
+        });
+    }
+
+    // Add column form.
+    ui.horizontal(|ui| {
+        ui.label("Label:");
+        ui.add(egui::TextEdit::singleline(&mut editor_state.new_crt_col_label).desired_width(60.0));
+        ui.label("Thr:");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_col_threshold).desired_width(40.0),
+        );
+    });
+    ui.horizontal(|ui| {
+        let col_type_labels = ["Ratio", "Diff"];
+        for (i, label) in col_type_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_crt_col_type_index, i, *label);
+        }
+        if ui.button("Add Col").clicked() && !editor_state.new_crt_col_label.trim().is_empty() {
+            let threshold = editor_state
+                .new_crt_col_threshold
+                .trim()
+                .parse::<f64>()
+                .unwrap_or(0.0);
+            let column_type = match editor_state.new_crt_col_type_index {
+                1 => CrtColumnType::Differential,
+                _ => CrtColumnType::OddsRatio,
+            };
+            actions.push(EditorAction::AddCrtColumn {
+                label: editor_state.new_crt_col_label.trim().to_string(),
+                column_type,
+                threshold,
+            });
+            editor_state.new_crt_col_label.clear();
+            editor_state.new_crt_col_threshold.clear();
+        }
+    });
+
+    ui.add_space(4.0);
+
+    // Row headers.
+    ui.label(
+        egui::RichText::new(format!("Rows ({})", crt.rows.len())).color(BrandTheme::TEXT_SECONDARY),
+    );
+    for (i, row) in crt.rows.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(&row.label)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("(die {}-{})", row.die_value_min, row.die_value_max))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCrtRow { index: i });
+                }
+            });
+        });
+    }
+
+    // Add row form.
+    ui.horizontal(|ui| {
+        ui.label("Label:");
+        ui.add(egui::TextEdit::singleline(&mut editor_state.new_crt_row_label).desired_width(40.0));
+        ui.label("Die:");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_row_die_min).desired_width(30.0),
+        );
+        ui.label("-");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_row_die_max).desired_width(30.0),
+        );
+        if ui.button("Add Row").clicked() && !editor_state.new_crt_row_label.trim().is_empty() {
+            let die_min = editor_state
+                .new_crt_row_die_min
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(1);
+            let die_max = editor_state
+                .new_crt_row_die_max
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(die_min);
+            actions.push(EditorAction::AddCrtRow {
+                label: editor_state.new_crt_row_label.trim().to_string(),
+                die_min,
+                die_max,
+            });
+            editor_state.new_crt_row_label.clear();
+            editor_state.new_crt_row_die_min.clear();
+            editor_state.new_crt_row_die_max.clear();
+        }
+    });
+
+    ui.add_space(4.0);
+
+    // Outcome grid (compact).
+    if !crt.columns.is_empty() && !crt.rows.is_empty() {
+        ui.label(
+            egui::RichText::new("Outcome Grid")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        egui::Grid::new("crt_outcome_grid")
+            .striped(true)
+            .show(ui, |ui| {
+                // Header row.
+                ui.label("");
+                for col in &crt.columns {
+                    ui.label(
+                        egui::RichText::new(&col.label)
+                            .small()
+                            .strong()
+                            .color(BrandTheme::ACCENT_TEAL),
+                    );
+                }
+                ui.end_row();
+
+                // Data rows.
+                for (ri, row) in crt.rows.iter().enumerate() {
+                    ui.label(
+                        egui::RichText::new(&row.label)
+                            .small()
+                            .strong()
+                            .color(BrandTheme::ACCENT_TEAL),
+                    );
+                    for ci in 0..crt.columns.len() {
+                        let label = crt
+                            .outcomes
+                            .get(ri)
+                            .and_then(|r| r.get(ci))
+                            .map_or("--", |o| o.label.as_str());
+                        ui.label(egui::RichText::new(label).small());
+                    }
+                    ui.end_row();
+                }
+            });
+    }
+
+    ui.separator();
+
+    // ── Combat Modifiers ────────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Combat Modifiers")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    for modifier in &modifiers.modifiers {
+        ui.horizontal(|ui| {
+            let source_label = match &modifier.source {
+                ModifierSource::DefenderTerrain => "DefTerr".to_string(),
+                ModifierSource::AttackerTerrain => "AtkTerr".to_string(),
+                ModifierSource::AttackerProperty(p) => format!("AtkProp({p})"),
+                ModifierSource::DefenderProperty(p) => format!("DefProp({p})"),
+                ModifierSource::Custom(s) => format!("Custom({s})"),
+            };
+            let shift_str = if modifier.column_shift >= 0 {
+                format!("+{}", modifier.column_shift)
+            } else {
+                format!("{}", modifier.column_shift)
+            };
+            ui.label(&modifier.name);
+            ui.label(
+                egui::RichText::new(format!(
+                    "{shift_str} [{source_label}] p{}",
+                    modifier.priority
+                ))
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCombatModifier { id: modifier.id });
+                }
+            });
+        });
+    }
+
+    // Add modifier form.
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut editor_state.new_modifier_name);
+    });
+    ui.horizontal(|ui| {
+        ui.label("Source:");
+        let source_labels = ["Def.Terrain", "Atk.Terrain", "Custom"];
+        for (i, label) in source_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_modifier_source_index, i, *label);
+        }
+    });
+    if editor_state.new_modifier_source_index == 2 {
+        ui.horizontal(|ui| {
+            ui.label("Desc:");
+            ui.text_edit_singleline(&mut editor_state.new_modifier_custom_source);
+        });
+    }
+    ui.horizontal(|ui| {
+        ui.label("Shift:");
+        ui.add(egui::DragValue::new(&mut editor_state.new_modifier_shift).range(-10..=10));
+        ui.label("Priority:");
+        ui.add(egui::DragValue::new(&mut editor_state.new_modifier_priority).range(0..=100));
+    });
+    if ui.button("Add Modifier").clicked() && !editor_state.new_modifier_name.trim().is_empty() {
+        let source = match editor_state.new_modifier_source_index {
+            1 => ModifierSource::AttackerTerrain,
+            2 => ModifierSource::Custom(editor_state.new_modifier_custom_source.trim().to_string()),
+            _ => ModifierSource::DefenderTerrain,
+        };
+        actions.push(EditorAction::AddCombatModifier {
+            name: editor_state.new_modifier_name.trim().to_string(),
+            source,
+            shift: editor_state.new_modifier_shift,
+            priority: editor_state.new_modifier_priority,
+        });
+        editor_state.new_modifier_name.clear();
+        editor_state.new_modifier_custom_source.clear();
+        editor_state.new_modifier_shift = 0;
+        editor_state.new_modifier_priority = 0;
+    }
+}
+
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub(crate) fn render_inspector(
     ui: &mut egui::Ui,
@@ -2513,6 +2931,9 @@ fn apply_actions(
     concept_registry: &mut ConceptRegistry,
     relation_registry: &mut RelationRegistry,
     constraint_registry: &mut ConstraintRegistry,
+    turn_structure: &mut TurnStructure,
+    combat_results_table: &mut CombatResultsTable,
+    combat_modifiers: &mut CombatModifierRegistry,
 ) {
     for action in actions {
         match action {
@@ -2830,6 +3251,118 @@ fn apply_actions(
                 if let Some(def) = struct_registry.get_mut(struct_id) {
                     def.fields.retain(|f| f.id != field_id);
                 }
+            }
+            // -- Mechanics actions --
+            EditorAction::SetPlayerOrder { order } => {
+                turn_structure.player_order = order;
+            }
+            EditorAction::AddPhase { name, phase_type } => {
+                turn_structure.phases.push(Phase {
+                    id: TypeId::new(),
+                    name,
+                    phase_type,
+                    description: String::new(),
+                });
+            }
+            EditorAction::RemovePhase { id } => {
+                turn_structure.phases.retain(|p| p.id != id);
+            }
+            EditorAction::MovePhaseUp { id } => {
+                if let Some(idx) = turn_structure.phases.iter().position(|p| p.id == id)
+                    && idx > 0
+                {
+                    turn_structure.phases.swap(idx, idx - 1);
+                }
+            }
+            EditorAction::MovePhaseDown { id } => {
+                if let Some(idx) = turn_structure.phases.iter().position(|p| p.id == id)
+                    && idx + 1 < turn_structure.phases.len()
+                {
+                    turn_structure.phases.swap(idx, idx + 1);
+                }
+            }
+            EditorAction::AddCrtColumn {
+                label,
+                column_type,
+                threshold,
+            } => {
+                combat_results_table.columns.push(CrtColumn {
+                    label,
+                    column_type,
+                    threshold,
+                });
+                // Extend each existing row with a default outcome.
+                for row_outcomes in &mut combat_results_table.outcomes {
+                    row_outcomes.push(CombatOutcome {
+                        label: "--".to_string(),
+                        effect: None,
+                    });
+                }
+            }
+            EditorAction::RemoveCrtColumn { index } => {
+                if index < combat_results_table.columns.len() {
+                    combat_results_table.columns.remove(index);
+                    for row_outcomes in &mut combat_results_table.outcomes {
+                        if index < row_outcomes.len() {
+                            row_outcomes.remove(index);
+                        }
+                    }
+                }
+            }
+            EditorAction::AddCrtRow {
+                label,
+                die_min,
+                die_max,
+            } => {
+                combat_results_table.rows.push(CrtRow {
+                    label,
+                    die_value_min: die_min,
+                    die_value_max: die_max,
+                });
+                // Add a row of default outcomes.
+                let num_cols = combat_results_table.columns.len();
+                combat_results_table.outcomes.push(
+                    (0..num_cols)
+                        .map(|_| CombatOutcome {
+                            label: "--".to_string(),
+                            effect: None,
+                        })
+                        .collect(),
+                );
+            }
+            EditorAction::RemoveCrtRow { index } => {
+                if index < combat_results_table.rows.len() {
+                    combat_results_table.rows.remove(index);
+                    if index < combat_results_table.outcomes.len() {
+                        combat_results_table.outcomes.remove(index);
+                    }
+                }
+            }
+            EditorAction::SetCrtOutcome { row, col, label } => {
+                if let Some(row_outcomes) = combat_results_table.outcomes.get_mut(row)
+                    && let Some(outcome) = row_outcomes.get_mut(col)
+                {
+                    outcome.label = label;
+                }
+            }
+            EditorAction::AddCombatModifier {
+                name,
+                source,
+                shift,
+                priority,
+            } => {
+                combat_modifiers.modifiers.push(CombatModifierDefinition {
+                    id: TypeId::new(),
+                    name,
+                    source,
+                    column_shift: shift,
+                    priority,
+                    cap: None,
+                    terrain_type_filter: None,
+                });
+            }
+            EditorAction::RemoveCombatModifier { id } => {
+                combat_modifiers.modifiers.retain(|m| m.id != id);
             }
         }
     }
