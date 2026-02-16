@@ -208,6 +208,44 @@ pub struct CombatResolvedEvent {
 }
 ```
 
+### CRT Resolution Functions
+
+Pure functions on contract types, usable by any plugin.
+
+```rust
+/// Result of a full CRT resolution.
+pub struct CrtResolution {
+    pub column_index: usize,
+    pub row_index: usize,
+    pub column_label: String,
+    pub row_label: String,
+    pub outcome: CombatOutcome,
+}
+
+/// Calculates attacker:defender odds ratio. Returns f64::INFINITY if defender is 0.
+pub fn calculate_odds_ratio(attacker_strength: f64, defender_strength: f64) -> f64;
+
+/// Calculates attacker - defender differential.
+pub fn calculate_differential(attacker_strength: f64, defender_strength: f64) -> f64;
+
+/// Finds the rightmost CRT column whose threshold is met. Returns None if below all.
+pub fn find_crt_column(atk: f64, def: f64, columns: &[CrtColumn]) -> Option<usize>;
+
+/// Finds the CRT row matching a die roll value. Returns None if no row matches.
+pub fn find_crt_row(die_roll: u32, rows: &[CrtRow]) -> Option<usize>;
+
+/// Full CRT resolution: column lookup + row lookup + outcome retrieval.
+pub fn resolve_crt(crt: &CombatResultsTable, atk: f64, def: f64, die_roll: u32)
+    -> Option<CrtResolution>;
+
+/// Evaluates modifiers by descending priority, returns (total_shift, display_list).
+pub fn evaluate_modifiers_prioritized(modifiers: &[CombatModifierDefinition], col_count: usize)
+    -> (i32, Vec<(String, i32)>);
+
+/// Applies a column shift to a base index, clamping to [0, col_count-1].
+pub fn apply_column_shift(base_column: usize, shift: i32, col_count: usize) -> usize;
+```
+
 ## Invariants
 
 - `TurnStructure` is inserted at startup; may be empty or contain a default phase sequence

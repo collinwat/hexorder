@@ -21,8 +21,9 @@ use crate::contracts::persistence::{
 use crate::contracts::validation::SchemaValidation;
 
 use crate::contracts::mechanics::{
-    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable, CrtColumn,
-    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, PlayerOrder, TurnState, TurnStructure,
+    ActiveCombat, CombatModifierDefinition, CombatModifierRegistry, CombatOutcome,
+    CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType,
+    PlayerOrder, TurnState, TurnStructure,
 };
 
 use super::components::{
@@ -395,8 +396,9 @@ pub fn editor_panel_system(
     );
 }
 
-/// Play mode panel system. Shows the turn tracker and mode toggle.
+/// Play mode panel system. Shows the turn tracker, combat panel, and mode toggle.
 /// Runs only in `AppScreen::Play`.
+#[allow(clippy::too_many_arguments)]
 pub fn play_panel_system(
     mut contexts: EguiContexts,
     mut turn_state: ResMut<TurnState>,
@@ -404,6 +406,13 @@ pub fn play_panel_system(
     game_system: Res<GameSystem>,
     mut next_state: ResMut<NextState<AppScreen>>,
     mut commands: Commands,
+    mut active_combat: ResMut<ActiveCombat>,
+    combat_results_table: Res<CombatResultsTable>,
+    combat_modifiers: Res<CombatModifierRegistry>,
+    selected_unit: Res<SelectedUnit>,
+    entity_types: Res<EntityTypeRegistry>,
+    mut editor_state: ResMut<EditorState>,
+    unit_query: Query<&EntityData, With<UnitInstance>>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -454,98 +463,402 @@ pub fn play_panel_system(
             }
             ui.separator();
 
-            // -- Turn Tracker --
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                // -- Turn Tracker --
+                render_turn_tracker(ui, &mut turn_state, &turn_structure);
+
+                ui.separator();
+
+                // -- Combat Panel --
+                render_combat_panel(
+                    ui,
+                    &mut active_combat,
+                    &combat_results_table,
+                    &combat_modifiers,
+                    &selected_unit,
+                    &entity_types,
+                    &mut editor_state,
+                    &unit_query,
+                );
+            });
+        });
+}
+
+/// Renders the turn tracker section in the play panel.
+fn render_turn_tracker(
+    ui: &mut egui::Ui,
+    turn_state: &mut TurnState,
+    turn_structure: &TurnStructure,
+) {
+    ui.label(
+        egui::RichText::new("Turn Tracker")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    if turn_structure.phases.is_empty() {
+        ui.label(
+            egui::RichText::new("No phases defined. Add phases in the Mechanics tab.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        return;
+    }
+
+    // Initialize turn state on first entry.
+    if turn_state.turn_number == 0 {
+        turn_state.turn_number = 1;
+        turn_state.current_phase_index = 0;
+        turn_state.is_active = true;
+    }
+
+    // Current turn and phase display.
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(format!("Turn {}", turn_state.turn_number))
+                .strong()
+                .size(16.0)
+                .color(BrandTheme::TEXT_PRIMARY),
+        );
+    });
+
+    if let Some(phase) = turn_structure.phases.get(turn_state.current_phase_index) {
+        let type_label = match phase.phase_type {
+            PhaseType::Movement => "Movement",
+            PhaseType::Combat => "Combat",
+            PhaseType::Admin => "Admin",
+        };
+        ui.horizontal(|ui| {
             ui.label(
-                egui::RichText::new("Turn Tracker")
+                egui::RichText::new(&phase.name)
                     .strong()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("[{type_label}]"))
+                    .small()
+                    .color(BrandTheme::ACCENT_TEAL),
+            );
+        });
+
+        ui.label(
+            egui::RichText::new(format!(
+                "Phase {} of {}",
+                turn_state.current_phase_index + 1,
+                turn_structure.phases.len()
+            ))
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+        );
+    }
+
+    ui.add_space(8.0);
+
+    // Phase list with current highlighted.
+    for (i, phase) in turn_structure.phases.iter().enumerate() {
+        let is_current = i == turn_state.current_phase_index;
+        let text = if is_current {
+            egui::RichText::new(format!("\u{25B6} {}", phase.name))
+                .strong()
+                .color(BrandTheme::ACCENT_AMBER)
+        } else {
+            egui::RichText::new(format!("  {}", phase.name)).color(BrandTheme::TEXT_SECONDARY)
+        };
+        ui.label(text);
+    }
+
+    ui.add_space(8.0);
+
+    // Advance phase button.
+    if ui.button("Next Phase \u{23E9}").clicked() {
+        let next_index = turn_state.current_phase_index + 1;
+        if next_index >= turn_structure.phases.len() {
+            turn_state.turn_number += 1;
+            turn_state.current_phase_index = 0;
+        } else {
+            turn_state.current_phase_index = next_index;
+        }
+    }
+}
+
+/// Renders the combat resolution panel in the play panel.
+#[allow(clippy::too_many_arguments)]
+fn render_combat_panel(
+    ui: &mut egui::Ui,
+    active_combat: &mut ActiveCombat,
+    crt: &CombatResultsTable,
+    modifiers: &CombatModifierRegistry,
+    selected_unit: &SelectedUnit,
+    entity_types: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
+    unit_query: &Query<&EntityData, With<UnitInstance>>,
+) {
+    use crate::contracts::mechanics::{
+        apply_column_shift, evaluate_modifiers_prioritized, find_crt_column, resolve_crt,
+    };
+
+    ui.label(
+        egui::RichText::new("Combat Resolution")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    if crt.columns.is_empty() || crt.rows.is_empty() {
+        ui.label(
+            egui::RichText::new("No CRT defined. Set up columns and rows in the Mechanics tab.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        return;
+    }
+
+    // -- Attacker assignment --
+    ui.horizontal(|ui| {
+        ui.label("Attacker:");
+        if let Some(atk) = active_combat.attacker {
+            let name = unit_query
+                .get(atk)
+                .ok()
+                .and_then(|ed| entity_types.get(ed.entity_type_id))
+                .map_or("(unknown)".to_string(), |et| et.name.clone());
+            ui.label(
+                egui::RichText::new(&name)
+                    .strong()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+        } else {
+            ui.label(egui::RichText::new("None").color(BrandTheme::TEXT_SECONDARY));
+        }
+    });
+    if selected_unit.entity.is_some() && ui.button("Set Attacker from Selection").clicked() {
+        active_combat.attacker = selected_unit.entity;
+        // Reset resolution state when combatants change.
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    }
+
+    ui.add_space(4.0);
+
+    // -- Defender assignment --
+    ui.horizontal(|ui| {
+        ui.label("Defender:");
+        if let Some(def) = active_combat.defender {
+            let name = unit_query
+                .get(def)
+                .ok()
+                .and_then(|ed| entity_types.get(ed.entity_type_id))
+                .map_or("(unknown)".to_string(), |et| et.name.clone());
+            ui.label(
+                egui::RichText::new(&name)
+                    .strong()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+        } else {
+            ui.label(egui::RichText::new("None").color(BrandTheme::TEXT_SECONDARY));
+        }
+    });
+    if selected_unit.entity.is_some() && ui.button("Set Defender from Selection").clicked() {
+        active_combat.defender = selected_unit.entity;
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    }
+
+    ui.add_space(8.0);
+
+    // -- Strength inputs --
+    ui.label(
+        egui::RichText::new("Strengths")
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    ui.horizontal(|ui| {
+        ui.label("ATK:");
+        ui.add(egui::DragValue::new(&mut editor_state.combat_attacker_strength).speed(0.5));
+        ui.label("DEF:");
+        ui.add(egui::DragValue::new(&mut editor_state.combat_defender_strength).speed(0.5));
+    });
+
+    let atk_str = editor_state.combat_attacker_strength;
+    let def_str = editor_state.combat_defender_strength;
+
+    // -- Odds display --
+    if def_str > 0.0 {
+        let ratio = atk_str / def_str;
+        ui.label(
+            egui::RichText::new(format!("Odds: {ratio:.2}:1")).color(BrandTheme::TEXT_PRIMARY),
+        );
+    }
+
+    // -- Column lookup --
+    let base_column = find_crt_column(atk_str, def_str, &crt.columns);
+    if let Some(col_idx) = base_column {
+        ui.label(
+            egui::RichText::new(format!(
+                "Base column: {} ({})",
+                crt.columns[col_idx].label, col_idx
+            ))
+            .small()
+            .color(BrandTheme::TEXT_PRIMARY),
+        );
+    } else {
+        ui.label(
+            egui::RichText::new("Below minimum column threshold")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    }
+
+    // -- Modifier breakdown --
+    if !modifiers.modifiers.is_empty() {
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new("Modifiers")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        let (total_shift, modifier_display) =
+            evaluate_modifiers_prioritized(&modifiers.modifiers, crt.columns.len());
+        for (name, shift) in &modifier_display {
+            let sign = if *shift >= 0 { "+" } else { "" };
+            ui.label(
+                egui::RichText::new(format!("  {name}: {sign}{shift}"))
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+        }
+        ui.label(
+            egui::RichText::new(format!("  Total shift: {total_shift:+}"))
+                .small()
+                .strong()
+                .color(BrandTheme::TEXT_PRIMARY),
+        );
+
+        // Show final column after shift.
+        if let Some(base_col) = base_column {
+            let final_col = apply_column_shift(base_col, total_shift, crt.columns.len());
+            active_combat.resolved_column = Some(final_col);
+            active_combat.total_shift = total_shift;
+            ui.label(
+                egui::RichText::new(format!(
+                    "Final column: {} ({})",
+                    crt.columns[final_col].label, final_col
+                ))
+                .small()
+                .strong()
+                .color(BrandTheme::ACCENT_TEAL),
+            );
+        }
+    } else if let Some(base_col) = base_column {
+        active_combat.resolved_column = Some(base_col);
+        active_combat.total_shift = 0;
+    }
+
+    ui.add_space(8.0);
+
+    // -- Die Roll --
+    let can_resolve = base_column.is_some();
+    ui.add_enabled_ui(can_resolve, |ui| {
+        if ui.button("Roll Die \u{1F3B2}").clicked() {
+            let roll = rand_die_roll();
+            active_combat.die_roll = Some(roll);
+
+            // Full resolution.
+            let final_col = active_combat.resolved_column.unwrap_or(0);
+            let shift = active_combat.total_shift;
+
+            // Resolve using the shifted column: build a temporary single-column CRT
+            // or use resolve_crt with original strengths and apply shift after.
+            if let Some(resolution) = resolve_crt(crt, atk_str, def_str, roll) {
+                // Apply column shift to get the actual outcome.
+                let shifted_col =
+                    apply_column_shift(resolution.column_index, shift, crt.columns.len());
+                if let Some(row_outcomes) = crt.outcomes.get(resolution.row_index)
+                    && let Some(outcome) = row_outcomes.get(shifted_col)
+                {
+                    active_combat.resolved_row = Some(resolution.row_index);
+                    active_combat.outcome = Some(outcome.clone());
+                }
+            } else {
+                // Column matched but row might not — try with just the die roll.
+                let _ = final_col; // already stored in resolved_column
+                active_combat.outcome = None;
+            }
+        }
+    });
+
+    // -- Result display --
+    if let Some(roll) = active_combat.die_roll {
+        ui.horizontal(|ui| {
+            ui.label("Die roll:");
+            ui.label(
+                egui::RichText::new(format!("{roll}"))
+                    .strong()
+                    .size(18.0)
                     .color(BrandTheme::ACCENT_AMBER),
             );
-            ui.add_space(4.0);
-
-            if turn_structure.phases.is_empty() {
-                ui.label(
-                    egui::RichText::new("No phases defined. Add phases in the Mechanics tab.")
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-            } else {
-                // Initialize turn state on first entry.
-                if turn_state.turn_number == 0 {
-                    turn_state.turn_number = 1;
-                    turn_state.current_phase_index = 0;
-                    turn_state.is_active = true;
-                }
-
-                // Current turn and phase display.
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Turn {}", turn_state.turn_number))
-                            .strong()
-                            .size(16.0)
-                            .color(BrandTheme::TEXT_PRIMARY),
-                    );
-                });
-
-                if let Some(phase) = turn_structure.phases.get(turn_state.current_phase_index) {
-                    let type_label = match phase.phase_type {
-                        PhaseType::Movement => "Movement",
-                        PhaseType::Combat => "Combat",
-                        PhaseType::Admin => "Admin",
-                    };
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            egui::RichText::new(&phase.name)
-                                .strong()
-                                .color(BrandTheme::TEXT_PRIMARY),
-                        );
-                        ui.label(
-                            egui::RichText::new(format!("[{type_label}]"))
-                                .small()
-                                .color(BrandTheme::ACCENT_TEAL),
-                        );
-                    });
-
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "Phase {} of {}",
-                            turn_state.current_phase_index + 1,
-                            turn_structure.phases.len()
-                        ))
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                    );
-                }
-
-                ui.add_space(8.0);
-
-                // Phase list with current highlighted.
-                for (i, phase) in turn_structure.phases.iter().enumerate() {
-                    let is_current = i == turn_state.current_phase_index;
-                    let text = if is_current {
-                        egui::RichText::new(format!("\u{25B6} {}", phase.name))
-                            .strong()
-                            .color(BrandTheme::ACCENT_AMBER)
-                    } else {
-                        egui::RichText::new(format!("  {}", phase.name))
-                            .color(BrandTheme::TEXT_SECONDARY)
-                    };
-                    ui.label(text);
-                }
-
-                ui.add_space(8.0);
-
-                // Advance phase button.
-                if ui.button("Next Phase \u{23E9}").clicked() {
-                    let next_index = turn_state.current_phase_index + 1;
-                    if next_index >= turn_structure.phases.len() {
-                        turn_state.turn_number += 1;
-                        turn_state.current_phase_index = 0;
-                    } else {
-                        turn_state.current_phase_index = next_index;
-                    }
-                }
-            }
         });
+    }
+
+    if let Some(outcome) = &active_combat.outcome {
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new(format!("Result: {}", outcome.label))
+                .strong()
+                .size(18.0)
+                .color(BrandTheme::SUCCESS),
+        );
+
+        if let Some(effect) = &outcome.effect {
+            let effect_text = match effect {
+                crate::contracts::mechanics::OutcomeEffect::NoEffect => "No effect".to_string(),
+                crate::contracts::mechanics::OutcomeEffect::Retreat { hexes } => {
+                    format!("Defender retreats {hexes} hex(es)")
+                }
+                crate::contracts::mechanics::OutcomeEffect::StepLoss { steps } => {
+                    format!("Defender loses {steps} step(s)")
+                }
+                crate::contracts::mechanics::OutcomeEffect::AttackerStepLoss { steps } => {
+                    format!("Attacker loses {steps} step(s)")
+                }
+                crate::contracts::mechanics::OutcomeEffect::Exchange {
+                    attacker_steps,
+                    defender_steps,
+                } => format!("Exchange: ATK -{attacker_steps}, DEF -{defender_steps}"),
+                crate::contracts::mechanics::OutcomeEffect::AttackerEliminated => {
+                    "Attacker eliminated".to_string()
+                }
+                crate::contracts::mechanics::OutcomeEffect::DefenderEliminated => {
+                    "Defender eliminated".to_string()
+                }
+            };
+            ui.label(
+                egui::RichText::new(effect_text)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+        }
+    }
+
+    ui.add_space(8.0);
+
+    // -- Clear button --
+    if ui.button("Clear Combat").clicked() {
+        *active_combat = ActiveCombat::default();
+        editor_state.combat_attacker_strength = 0.0;
+        editor_state.combat_defender_strength = 0.0;
+    }
+}
+
+/// Generates a random die roll in range [1, 6].
+fn rand_die_roll() -> u32 {
+    use std::time::SystemTime;
+    let seed = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0u64, |d| d.as_nanos() as u64);
+    // Simple LCG for a quick 1-6 value; no external crate needed.
+    ((seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1) >> 33) % 6 + 1) as u32
 }
 
 // ---------------------------------------------------------------------------

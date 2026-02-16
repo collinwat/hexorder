@@ -47,10 +47,17 @@ testable without UI. Surfaces column lookup edge cases, threshold ordering, mixe
 
 Full suite: 212 tests, zero clippy warnings.
 
+### Subsequently completed
+
+- Inline CRT cell editing (closes #105)
+- Combat execution panel UI (closes #104) — CRT resolution functions moved from
+  `rules_engine/systems.rs` to `contracts/mechanics.rs` (pure functions on contract types, no
+  boundary violation). Play panel now has full combat resolution: attacker/defender assignment,
+  strength input, odds display, column lookup, modifier breakdown, die roll, outcome display with
+  structured effect descriptions.
+
 ### Deferred
 
-- Combat execution panel UI (#104)
-- Inline CRT cell editing (#105)
 - CombatSelect tool mode (attacker/defender selection in Play mode)
 
 ## 2026-02-11 — Initial spec

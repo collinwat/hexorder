@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::EditorTool;
+use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::AppScreen;
 use crate::contracts::validation::SchemaValidation;
@@ -42,6 +43,8 @@ impl Plugin for EditorUiPlugin {
         app.init_resource::<RelationRegistry>();
         app.init_resource::<ConstraintRegistry>();
         app.init_resource::<SchemaValidation>();
+        app.init_resource::<ActiveCombat>();
+        app.init_resource::<TurnState>();
 
         // Theme applies unconditionally so both launcher and editor get dark theming.
         app.add_systems(EguiPrimaryContextPass, systems::configure_theme);

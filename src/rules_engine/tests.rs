@@ -670,7 +670,7 @@ use crate::contracts::mechanics::{
     CombatModifierDefinition, CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow,
     ModifierSource, OutcomeEffect,
 };
-use crate::rules_engine::systems::{
+use crate::contracts::mechanics::{
     apply_column_shift, calculate_differential, calculate_odds_ratio,
     evaluate_modifiers_prioritized, find_crt_column, find_crt_row, resolve_crt,
 };
@@ -1265,7 +1265,8 @@ fn apply_shift_zero_columns() {
 
 use crate::contracts::mechanics::PlayerOrder;
 use crate::contracts::mechanics::{Phase, PhaseType, TurnState, TurnStructure};
-use crate::rules_engine::systems::{advance_phase, start_turn_sequence};
+use crate::rules_engine::systems::advance_phase;
+use crate::rules_engine::systems::start_turn_sequence;
 
 fn test_turn_structure() -> TurnStructure {
     TurnStructure {

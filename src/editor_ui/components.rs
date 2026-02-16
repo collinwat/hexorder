@@ -347,6 +347,10 @@ pub struct EditorState {
     /// 0=Eq, 1=Ne, 2=Lt, 3=Le, 4=Gt, 5=Ge.
     pub new_constraint_op_index: usize,
     pub new_constraint_value_str: String,
+
+    // -- Combat panel state (Play mode) --
+    pub combat_attacker_strength: f64,
+    pub combat_defender_strength: f64,
 }
 
 impl Default for EditorState {
@@ -414,6 +418,8 @@ impl Default for EditorState {
             new_constraint_property: String::new(),
             new_constraint_op_index: 0,
             new_constraint_value_str: String::new(),
+            combat_attacker_strength: 0.0,
+            combat_defender_strength: 0.0,
         }
     }
 }
