@@ -109,6 +109,15 @@ The existing EditorAction enum extends with new variants for ontology operations
 - [x] [SC-22] Auto-generated constraints show "[auto]" badge
 - [x] [SC-23] Validation panel shows schema errors when ontology is invalid
 - [x] [SC-24] Entity palette filters by role (BoardPosition in Paint, Token in Place)
+
+### 0.9.0 (visual polish)
+
+- [x] [SC-25] BrandTheme struct provides named color constants for all palette colors
+- [x] [SC-26] All Color32 literals in editor_ui replaced with BrandTheme constants
+- [x] [SC-27] Amber accent applied to section headings, active tab, primary buttons, swatch borders
+- [x] [SC-28] Fonts switched from Monospace to Proportional (Monospace retained for data values)
+- [x] [SC-29] Launcher restyled: uppercase heading, tagline, amber button, monospace version
+- [x] [SC-30] Architecture test updated with full brand palette (no unapproved colors)
 - [x] [SC-BUILD] `cargo build` succeeds
 - [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
 - [x] [SC-TEST] `cargo test` passes
