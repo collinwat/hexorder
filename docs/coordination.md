@@ -2,13 +2,11 @@
 
 ## Active Cycle
 
-**Cycle 3 — "Process Reform"** | Type: Process | Appetite: Big Batch
+_No active cycle. Run `/hex-cooldown` to start the next cycle._
 
 ### Current Bets
 
-| Pitch                                                                               | Issue | Appetite  | Owner | Status      |
-| ----------------------------------------------------------------------------------- | ----- | --------- | ----- | ----------- |
-| Cycle workflow reform — integration branch, dependency sequencing, and process docs | #96   | Big Batch | agent | in-progress |
+_No active bets._
 
 _Bets are set at the betting table during cool-down. Run `/hex-cooldown` to start the protocol._
 
@@ -16,6 +14,7 @@ _Bets are set at the betting table during cool-down. Run `/hex-cooldown` to star
 
 | Cycle | Name                | Type       | Result    |
 | ----- | ------------------- | ---------- | --------- |
+| 3     | Process Reform      | Process    | completed |
 | 2     | The Foundation      | Production | completed |
 | 1     | The Process Matures | Process    | completed |
 
