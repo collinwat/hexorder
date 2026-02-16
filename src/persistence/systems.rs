@@ -10,6 +10,9 @@ use crate::contracts::game_system::{
     UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, MoveOverlay};
+use crate::contracts::mechanics::{
+    ActiveCombat, CombatModifierRegistry, CombatResultsTable, TurnState, TurnStructure,
+};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::{
     AppScreen, CloseProjectEvent, FORMAT_VERSION, GameSystemFile, LoadRequestEvent,
@@ -90,6 +93,9 @@ pub fn handle_save_request(
     concepts: Res<ConceptRegistry>,
     relations: Res<RelationRegistry>,
     constraints: Res<ConstraintRegistry>,
+    turn_structure: Res<TurnStructure>,
+    crt: Res<CombatResultsTable>,
+    combat_modifiers: Res<CombatModifierRegistry>,
     config: Res<HexGridConfig>,
     tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
@@ -157,6 +163,9 @@ pub fn handle_save_request(
         concepts: concepts.clone(),
         relations: relations.clone(),
         constraints: constraints.clone(),
+        turn_structure: turn_structure.clone(),
+        combat_results_table: crt.clone(),
+        combat_modifiers: combat_modifiers.clone(),
         map_radius: config.map_radius,
         tiles: tile_data,
         units: unit_data,
@@ -186,6 +195,9 @@ pub fn handle_load_request(
     mut concepts: ResMut<ConceptRegistry>,
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
+    mut turn_structure: ResMut<TurnStructure>,
+    mut crt: ResMut<CombatResultsTable>,
+    mut combat_modifiers: ResMut<CombatModifierRegistry>,
     mut schema: ResMut<SchemaValidation>,
     mut workspace: ResMut<Workspace>,
     mut next_state: ResMut<NextState<AppScreen>>,
@@ -212,6 +224,9 @@ pub fn handle_load_request(
     *concepts = file.concepts;
     *relations = file.relations;
     *constraints = file.constraints;
+    *turn_structure = file.turn_structure;
+    *crt = file.combat_results_table;
+    *combat_modifiers = file.combat_modifiers;
 
     // Reset derived state.
     *schema = SchemaValidation::default();
@@ -255,6 +270,11 @@ pub fn handle_new_project(
     mut concepts: ResMut<ConceptRegistry>,
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
+    mut turn_structure: ResMut<TurnStructure>,
+    mut crt: ResMut<CombatResultsTable>,
+    mut combat_modifiers: ResMut<CombatModifierRegistry>,
+    mut turn_state: ResMut<TurnState>,
+    mut active_combat: ResMut<ActiveCombat>,
     mut schema: ResMut<SchemaValidation>,
     mut selected_unit: ResMut<SelectedUnit>,
     mut workspace: ResMut<Workspace>,
@@ -273,6 +293,13 @@ pub fn handle_new_project(
         &mut schema,
         &mut selected_unit,
     );
+
+    // Reset mechanics to factory defaults.
+    *turn_structure = crate::game_system::create_default_turn_structure();
+    *crt = crate::game_system::create_default_crt();
+    *combat_modifiers = CombatModifierRegistry::default();
+    *turn_state = TurnState::default();
+    *active_combat = ActiveCombat::default();
 
     workspace.name.clone_from(&event.name);
     workspace.file_path = None;

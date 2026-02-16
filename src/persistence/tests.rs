@@ -9,6 +9,7 @@ use crate::contracts::game_system::{
     StructRegistry, TypeId, UnitInstance,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use crate::contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::{
     AppScreen, FORMAT_VERSION, GameSystemFile, PendingBoardLoad, TileSaveData, UnitSaveData,
@@ -51,6 +52,9 @@ fn test_game_system_file() -> GameSystemFile {
         concepts: ConceptRegistry::default(),
         relations: RelationRegistry::default(),
         constraints: ConstraintRegistry::default(),
+        turn_structure: TurnStructure::default(),
+        combat_results_table: CombatResultsTable::default(),
+        combat_modifiers: CombatModifierRegistry::default(),
         map_radius: 5,
         tiles: vec![TileSaveData {
             position: HexPosition::new(0, 0),
@@ -161,6 +165,9 @@ fn save_empty_board_succeeds() {
         concepts: ConceptRegistry::default(),
         relations: RelationRegistry::default(),
         constraints: ConstraintRegistry::default(),
+        turn_structure: TurnStructure::default(),
+        combat_results_table: CombatResultsTable::default(),
+        combat_modifiers: CombatModifierRegistry::default(),
         map_radius: 3,
         tiles: Vec::new(),
         units: Vec::new(),

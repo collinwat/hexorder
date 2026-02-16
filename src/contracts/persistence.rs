@@ -13,6 +13,7 @@ use super::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
 use super::hex_grid::HexPosition;
+use super::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
@@ -105,6 +106,15 @@ pub struct GameSystemFile {
     pub concepts: ConceptRegistry,
     pub relations: RelationRegistry,
     pub constraints: ConstraintRegistry,
+    /// Turn structure definition (0.9.0).
+    #[serde(default)]
+    pub turn_structure: TurnStructure,
+    /// Combat Results Table (0.9.0).
+    #[serde(default)]
+    pub combat_results_table: CombatResultsTable,
+    /// Combat modifier definitions (0.9.0).
+    #[serde(default)]
+    pub combat_modifiers: CombatModifierRegistry,
     /// Board configuration.
     pub map_radius: u32,
     /// Board state: per-tile cell data.
@@ -231,6 +241,9 @@ mod tests {
             concepts: ConceptRegistry::default(),
             relations: RelationRegistry::default(),
             constraints: ConstraintRegistry::default(),
+            turn_structure: TurnStructure::default(),
+            combat_results_table: CombatResultsTable::default(),
+            combat_modifiers: CombatModifierRegistry::default(),
             map_radius: 10,
             tiles: vec![TileSaveData {
                 position: HexPosition::new(0, 0),

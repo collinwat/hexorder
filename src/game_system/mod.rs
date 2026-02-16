@@ -14,7 +14,10 @@ use crate::contracts::mechanics::{ActiveCombat, CombatModifierRegistry, TurnStat
 mod systems;
 
 // Re-export factory functions for use by persistence plugin.
-pub(crate) use systems::{create_entity_type_registry, create_enum_registry, create_game_system};
+pub(crate) use systems::{
+    create_default_crt, create_default_turn_structure, create_entity_type_registry,
+    create_enum_registry, create_game_system,
+};
 
 #[cfg(test)]
 mod tests;
