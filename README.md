@@ -44,7 +44,7 @@ src/
 
 docs/
   constitution.md      # Non-negotiable project rules
-  coordination.md      # Active cycle, ownership, merge lock
+  coordination.md      # Active cycle, ownership, integration branch
   architecture.md      # Plugin load order, cross-cutting concerns, dependency graph
   brand.md             # Visual identity (colors, typography, icon)
   glossary.md          # Canonical terminology

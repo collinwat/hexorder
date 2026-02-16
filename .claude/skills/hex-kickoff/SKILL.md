@@ -40,13 +40,29 @@ project structure changes, update them here.
 2. Read the full pitch: `gh issue view <number>`
 3. Note the five ingredients: Problem, Appetite, Solution, Rabbit Holes, No Gos
 
-## Set Up the Branch
+## Set Up the Integration Branch (if needed)
+
+Read `{{ git_guide }}` to extract the Integration branch section. If this cycle has multiple pitches
+and no integration branch exists yet, create one:
+
+```bash
+git branch <version> main
+git push origin <version>
+```
+
+Record it in `{{ coordination }}` under the Integration Branch table with status `active`.
+
+If the cycle has only one pitch, skip this step — the feature branch merges directly to `main` using
+the Solo-Pitch Merge workflow.
+
+## Set Up the Feature Branch
 
 Read `{{ git_guide }}` to extract the Feature Branch Setup Checklist. Follow each step.
 
-The checklist covers branch creation, worktree setup, hook installation, pre-release versioning,
-plugin scaffolding (via `{{ plugin_skill }}`), contract checks (via `{{ contract_skill }}`),
-ownership claiming in `{{ coordination }}`, and the initial commit.
+The checklist covers branch creation (from the integration branch if one exists, otherwise from
+`main`), worktree setup, hook installation, pre-release versioning, plugin scaffolding (via
+`{{ plugin_skill }}`), contract checks (via `{{ contract_skill }}`), ownership claiming in
+`{{ coordination }}`, and the initial commit.
 
 ## Consume Research
 

@@ -77,13 +77,36 @@ When adding a new plugin scope (e.g., a new plugin module), update the scope reg
 - Direct commits to `main` are limited to project-level config and documentation (e.g., CLAUDE.md,
   docs/, docs/ process files)
 
+### Integration branch
+
+Each build cycle has an **integration branch** that collects completed pitch work before it merges
+to `main`. This replaces the merge lock protocol from earlier cycles.
+
+```
+main ──●──────────────────────────────────────●── (tagged release)
+        \                                    /
+         0.8.0 ──●──────●──────●────────────●  (integration branch)
+                  \     / \   /
+                   feat-A   feat-B              (pitch branches)
+```
+
+- **Created at cycle start** by the first agent to kick off. Named `<version>` (e.g., `0.8.0`).
+- **Pitch branches** are created from the integration branch, not from `main`.
+- **Pitch merges** go into the integration branch (merge, not rebase). No lock needed — pitches
+  merge independently as they finish.
+- **Ship merge** is one merge from the integration branch to `main`, with one tag and one changelog.
+
+For **solo-pitch cycles** (only one pitch), the integration branch is optional. The pitch branch can
+merge directly to `main` using the Pre-Merge Checklist as before.
+
 ### Feature branches
 
 - One branch per plugin or release task
 - Use **git worktrees** (under `.worktrees/`) so each plugin gets its own working directory,
   allowing parallel development without stashing or switching
 - Keep branches short-lived — merge when the plugin passes its spec criteria and tests
-- Rebase onto `main` before merging to keep history linear
+- Feature branches are created from the **integration branch** (multi-pitch cycles) or from `main`
+  (solo-pitch cycles)
 
 ### Branch naming
 
@@ -117,9 +140,10 @@ Run these steps in order when starting work on a new plugin. No steps are option
 1. **Branch name.** Determine the branch name: `<release>/<feature>` (e.g., `0.4.0/movement-rules`).
    Verify it follows the naming rules above.
 2. **Create branch and worktree.** Worktrees live under `.worktrees/` in the project root. The
-   directory name is the branch name with `/` replaced by `-`.
+   directory name is the branch name with `/` replaced by `-`. Branch from the **integration
+   branch** (multi-pitch cycles) or from `main` (solo-pitch cycles).
     ```bash
-    git branch 0.4.0/movement-rules
+    git branch 0.4.0/movement-rules 0.4.0   # branch from integration branch
     git worktree add .worktrees/0.4.0-movement-rules 0.4.0/movement-rules
     cd .worktrees/0.4.0-movement-rules
     ```
@@ -175,9 +199,7 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```
 4. **Update ownership.** In `docs/coordination.md` → Active Plugins table, set Status to `complete`
    and clear Owner.
-5. **Release merge lock.** If not already done in the Pre-Merge Checklist, confirm your Merge Lock
-   row status is `done`.
-6. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
+5. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
    any other active plugin worktrees).
 
 ---
@@ -313,84 +335,76 @@ If any check fails (hook rejection or manual verification), fix the issue before
 
 ---
 
-## Merging to Mainline
+## Merging
 
-Merging a feature branch to `main` is a deliberate act. Only one merge may be in progress at a time,
-coordinated through the **Merge Lock** in `docs/coordination.md`.
+### Pitch Merge (feature branch → integration branch)
 
-### Merge Lock Protocol
+When a pitch finishes its scope, merge it into the integration branch. No lock is needed — pitches
+merge independently.
 
-Before starting a merge, you **must** claim the merge lock:
+1. **Quality gate?** Run `mise check:audit` on the feature branch. All checks must pass.
+2. **Spec criteria met?** Every success criterion in `docs/plugins/<name>/spec.md` is satisfied.
+3. **Deferred items captured?** Check spec and log for deferred items. Every item must have a
+   corresponding GitHub Issue. Scan source code for TODO/FIXME comments — these must have
+   corresponding issues or be removed.
+4. **Merge into integration branch.** From the integration branch worktree:
+    ```bash
+    git merge <release>/<feature>
+    ```
+    Use a merge commit (not fast-forward, not rebase). If conflicts arise, follow the Conflict
+    Resolution rules below.
+5. **Re-test after merge?** Run `mise check:audit` on the integration branch. The merge may have
+   introduced breakage. All checks must pass.
+6. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
+   Progress Updates).
 
-1. **Check the lock.** Read `docs/coordination.md` → Merge Lock table. If any row has status
-   `merging`, **stop and wait**. Do not proceed until the lock is clear.
-2. **Claim the lock.** Add a row with your branch, the version you intend to use (determined from
-   the Version Lookup Table), your session identifier, and status `merging`.
-3. **Proceed with the Pre-Merge Checklist** below.
-4. **Release the lock.** After the tag is created and verified, update your row's status to `done`.
+### Ship Merge (integration branch → main)
 
-If a row has been `merging` for an unreasonable time (e.g., the owning session is no longer active),
-investigate before overriding. Do not silently clear another session's lock.
+After all pitches merge into the integration branch and UAT passes, merge to `main`. This happens
+once per cycle.
 
-### Pre-Merge Checklist
-
-Every merge to `main` must pass all of these in order:
-
-1. **Merge lock claimed?** Confirm your row is in the Merge Lock table with status `merging` and no
-   other row is also `merging`. If you skipped the lock protocol above, stop and go back.
-2. **Quality gate?** Run `mise check:audit`. This runs all automated checks: tests, clippy,
-   formatting, dependency audit, typos, boundary check, and unwrap check. All must pass.
-3. **Scope verified?** Run `git diff main --name-only`. Every changed file must belong to one of
-   these categories:
-    - Your plugin's module: `src/<plugin>/**`
-    - Your plugin's specs: `docs/plugins/<plugin>/**`
-    - Contracts your plugin owns or extends: `src/contracts/**`, `docs/contracts/**`
-    - Expected shared files: `docs/coordination.md`, `Cargo.toml`, `Cargo.lock`, `main.rs` (plugin
-      registration)
-    - If any file falls outside these categories, investigate. Either remove the change or justify
-      it in the commit body.
-4. **Spec criteria met?** Open `docs/plugins/<name>/spec.md`. Every success criterion is satisfied.
-5. **Deferred items captured?** Check `docs/plugins/<name>/spec.md` → Deferred Items and
-   `docs/plugins/<name>/log.md` → Deferred / Future Work. Every item must have a corresponding
-   GitHub Issue (create with `gh issue create --label "status:deferred" --milestone "Backlog"`).
-   Also scan source code for TODO/FIXME comments or placeholder text (e.g., "coming soon") — these
-   must have corresponding issues or be removed.
-6. **Rebased?** Run `git log --oneline main..<branch>`. Confirm the branch is based on current
-   `main` tip. If not, rebase first: `git rebase main`. If the rebase produces conflicts, follow the
-   Conflict Resolution rules below.
-7. **Re-test after rebase?** Run `mise check:audit` again. The rebase may have introduced conflicts
-   or breakage not caught earlier. All checks must pass before proceeding.
-8. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
-   the `version` field in `Cargo.toml`. Strip the pre-release suffix (e.g., `0.4.0-unit` becomes
-   `0.4.0`).
-9. **Merge.** From `main`: `git merge --ff-only <branch>`. The `--ff-only` flag ensures a
-   fast-forward (linear history). If it fails, the branch is not rebased — go back to step 6.
-10. **Generate changelog.** Run `mise changelog:generate`. Review the generated output to confirm
-    it's accurate. Make manual edits only if a commit message was unclear.
-11. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
-    `chore(project): bump version to <version>`.
-12. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
-13. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag
-    are correct.
-14. **Release lock.** Update your Merge Lock row in `docs/coordination.md` to status `done`.
-15. **Push tag.** Push the tag to the remote: `git push origin v<version>`.
-16. **Create GitHub Release.** Create a release from the tag:
+1. **All pitches merged?** Check `docs/coordination.md` — all bets should have status `merged`.
+2. **UAT passed?** Walk through the UAT checklist (max 5 items per pitch). Record results as a
+   comment on each pitch issue.
+3. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
+   CLAUDE.md. If any check fails, fix and re-run.
+4. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
+   `Cargo.toml`. Strip the pre-release suffix.
+5. **Rebase onto main.** From the integration branch:
+    ```bash
+    git rebase main
+    ```
+    If conflicts arise, resolve and re-test with `mise check:audit`.
+6. **Merge.** From `main`:
+    ```bash
+    git merge --ff-only <version>
+    ```
+7. **Generate changelog.** Run `mise changelog:generate`.
+8. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
+   `chore(project): bump version to <version>`.
+9. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
+10. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag.
+11. **Push tag.** `git push origin main v<version>`.
+12. **Create GitHub Release.**
     `gh release create v<version> --title "<release>: <title>" --notes-file CHANGELOG.md`
-
-### Cycle ship merge
-
-When the last scope of a cycle merges, also run these steps:
-
-17. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
-    CLAUDE.md.
-18. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
+13. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
-    `gh issue close <number> --reason completed`. Verify no open issues remain for the release.
-19. **Triage new items.** Review issues with `status:triage` label:
-    `gh issue list --label "status:triage"`. Assign type/area labels, remove triage label. Review
-    open issues older than 2 cycles for staleness.
-20. **Run cool-down protocol.** Run `/cooldown` to start the protocol. This includes the
-    retrospective, shaping, and betting for the next cycle.
+    `gh issue close <number> --reason completed`.
+14. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
+    for the next cycle.
+
+### Solo-Pitch Merge (feature branch → main directly)
+
+For cycles with only one pitch, the integration branch is optional. Use this simplified flow:
+
+1. **Quality gate?** Run `mise check:audit`. All checks must pass.
+2. **Spec criteria met?** Every success criterion satisfied.
+3. **Deferred items captured?** All deferred items have GitHub Issues.
+4. **Rebased?** `git rebase main`. Re-test with `mise check:audit`.
+5. **Merge.** `git merge --ff-only <branch>`.
+6. **Generate changelog.** `mise changelog:generate`.
+7. **Version commit + tag + push.** Same as Ship Merge steps 8-12.
+8. **Issue cleanup + cool-down.** Same as Ship Merge steps 13-14.
 
 ### Conflict Resolution
 
@@ -435,39 +449,6 @@ When rebasing onto `main` produces merge conflicts, resolve them by file type:
 - After resolving all conflicts, run `cargo build` and `cargo test` before continuing the rebase.
 - If a conflict is too complex to resolve confidently, abort the rebase and coordinate with the
   other session.
-
-### Cross-Branch Integration Testing
-
-When two in-flight feature branches have interdependent contracts or need to be validated together
-before either merges to `main`, use a **temporary integration branch**:
-
-1. **Create a throwaway branch** from `main`:
-    ```bash
-    git branch integration-test main
-    git worktree add .worktrees/integration-test integration-test
-    cd .worktrees/integration-test
-    ```
-2. **Merge both feature branches** into it:
-    ```bash
-    git merge 0.4.0/movement-rules
-    git merge 0.4.0/terrain-costs
-    ```
-3. **Resolve any conflicts** between the two branches (follow the Conflict Resolution rules above).
-4. **Run the full test suite**:
-    ```bash
-    cargo build && cargo test && cargo clippy -- -D warnings
-    ```
-5. **Evaluate results.** If tests pass, both plugins are compatible — proceed with merging them to
-   `main` individually (one at a time, via the normal Pre-Merge Checklist). If tests fail, the
-   failing plugin must fix its code on its own branch before retesting.
-6. **Discard the integration branch** — it is never merged to `main`:
-    ```bash
-    git worktree remove .worktrees/integration-test
-    git branch -D integration-test
-    ```
-
-This branch exists solely for testing. It carries no version bump, no changelog entry, and no tag.
-The real merges happen through the normal Pre-Merge Checklist.
 
 ### Rollback
 
@@ -718,8 +699,8 @@ When a Claude Code session needs to commit:
 7. **Use the worktree for your plugin** — don't commit another plugin's work
 8. **When in doubt, commit** — it's easier to squash later than to recover lost work
 9. **Multi-terminal coordination**: each session works in its own worktree on its own branch
-10. **Merge lock**: always claim the Merge Lock in `docs/coordination.md` before starting a merge to
-    `main` — never merge without holding the lock
+10. **Integration branch**: feature branches merge to the integration branch via Pitch Merge; only
+    Ship Merge touches `main`
 11. **Issue references**: reference GitHub Issue numbers in commits when closing or addressing
     tracked items (e.g., `fixes #42`, `ref #42`)
 12. **Deferred items**: create GitHub Issues for deferred items before merge

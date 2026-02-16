@@ -20,7 +20,7 @@ project structure changes, update them here.
 | -------------------- | --------------------------------------- | ---------------------------------------------- |
 | `project_root`       | repository root                         | Base directory; all paths are relative to this |
 | `claude_md`          | `{{ project_root }}/CLAUDE.md`          | Ship Gate checks (automated and manual)        |
-| `git_guide`          | `{{ project_root }}/docs/guides/git.md` | Cycle ship merge steps                         |
+| `git_guide`          | `{{ project_root }}/docs/guides/git.md` | Ship Merge / Solo-Pitch Merge steps            |
 | `contracts_spec_dir` | `{{ project_root }}/docs/contracts`     | Contract specs for parity check                |
 | `contracts_src_dir`  | `{{ project_root }}/src/contracts`      | Contract implementations                       |
 | `src_dir`            | `{{ project_root }}/src`                | Source directory for unsafe/debug checks       |
@@ -54,4 +54,9 @@ Present the results to the user:
 
 ## After the Gate Passes
 
-Read `{{ git_guide }}` to extract the Cycle ship merge steps. Follow them.
+Read `{{ git_guide }}` to determine the merge workflow:
+
+- **Multi-pitch cycle** (integration branch exists) → follow the Ship Merge steps to merge the
+  integration branch to `main`, tag the release, and update `{{ coordination }}`.
+- **Solo-pitch cycle** (no integration branch) → follow the Solo-Pitch Merge steps to merge the
+  feature branch directly to `main`.

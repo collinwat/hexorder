@@ -38,24 +38,23 @@ Contract change proposals are tracked as GitHub Issues with `area:contracts` lab
 Before changing a contract, create an issue describing the change, list affected plugins, and wait
 for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md.
 
-## Merge Lock
+## Integration Branch
 
-> Only one merge to `main` at a time. See `docs/guides/git.md` → Merge Lock Protocol for full rules.
+> Each cycle uses an integration branch for multi-pitch work. See `docs/guides/git.md` → Integration
+> branch and Merging sections.
 
-| Branch                    | Version | Claimed By | Status |
-| ------------------------- | ------- | ---------- | ------ |
-| 0.4.0/entity-unification  | 0.4.0   | agent      | done   |
-| 0.7.0/property-system     | 0.7.0   | agent-a    | done   |
-| 0.7.0/hex-grid-foundation | 0.7.0   | agent-b    | done   |
+| Cycle | Branch | Pitches Merged | Status |
+| ----- | ------ | -------------- | ------ |
 
-Status values: `merging` | `done`
+Status values: `active` | `shipping` | `shipped`
 
-Rules:
+### Prior Integration Branches
 
-- Before merging, check this table. If any row is `merging`, wait.
-- Claim your row before starting the Pre-Merge Checklist.
-- Release (mark `done`) after the tag is created and verified.
-- Do not clear another session's `merging` row without investigation.
+| Cycle | Branch | Version | Result |
+| ----- | ------ | ------- | ------ |
+
+> **Note**: Cycles 1 and 2 predated the integration branch model. They used the merge lock protocol
+> (now retired).
 
 ## Known Blockers
 

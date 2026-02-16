@@ -19,7 +19,7 @@ game system assets.
 1. Follow the **Getting Started** section in `README.md` — prerequisites, tool installation, build
    verification
 2. Read `docs/constitution.md` — non-negotiable project rules
-3. Read `docs/coordination.md` — active cycle, ownership, merge lock
+3. Read `docs/coordination.md` — active cycle, ownership, integration branch
 4. Read `docs/architecture.md` — plugin load order, cross-cutting concerns, dependency graph
 5. Read `docs/guides/git.md` — git workflow, branching, commit, and merge conventions
 6. Read `docs/guides/bevy.md` — Bevy 0.18 API reference, patterns, and pitfalls
@@ -172,7 +172,8 @@ This gate applies even if all individual plugins pass their own success criteria
 violations that only emerge at the cross-plugin level (like import boundary violations) are caught
 here.
 
-After the gate passes, follow the "Cycle ship merge" steps in `docs/guides/git.md` — tag the release
+After the gate passes, follow the appropriate merge workflow in `docs/guides/git.md` — Ship Merge
+(integration branch → main) or Solo-Pitch Merge (feature branch → main directly). Tag the release
 version and record it in coordination.md.
 
 ### Circuit Breaker
@@ -288,9 +289,8 @@ Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 - Coordination happens through `docs/coordination.md` and contracts
 - Before touching a contract, check coordination.md for pending changes
 - After changing a contract, run `cargo build` to catch breakage
-- **Before merging to `main`**: claim the Merge Lock in `docs/coordination.md` — only one merge at a
-  time (see `docs/guides/git.md` → Merge Lock Protocol)
-- Merges to `main` follow the Pre-Merge Checklist in `docs/guides/git.md`
+- **Feature branches merge to the integration branch** via Pitch Merge (see `docs/guides/git.md`)
+- **Only Ship Merge touches `main`** — one merge per cycle, after the ship gate passes
 
 ## When to Spawn Teammates vs Work Solo
 
