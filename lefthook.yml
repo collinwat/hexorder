@@ -9,7 +9,7 @@ commit-msg:
       run: |
         msg=$(cat "{1}")
         # Validate conventional commit format: type(scope): summary
-        if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|refactor|test|docs|chore|style)\((unit|cell|hex_grid|camera|game_system|editor_ui|ontology|rules_engine|scripting|persistence|contracts|project)\): .+$'; then
+        if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|refactor|test|docs|chore|style)\((unit|cell|hex_grid|camera|game_system|editor_ui|ontology|rules_engine|scripting|shortcuts|persistence|contracts|project)\): .+$'; then
           echo ""
           echo "ERROR: Commit message does not match required format."
           echo ""

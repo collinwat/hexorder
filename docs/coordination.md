@@ -6,12 +6,12 @@
 
 ### Current Bets
 
-| Pitch | Title                                                           | Appetite    | Status  |
-| ----- | --------------------------------------------------------------- | ----------- | ------- |
-| #77   | Core mechanic primitives — turn structure and combat resolution | Big Batch   | merged  |
-| #80   | Keyboard-first command access — shortcuts, palette              | Small Batch | pending |
-| #53   | Workspace lifecycle — create, name, save, launcher              | Small Batch | merged  |
-| #54   | Editor Visual Polish — brand theme, fonts                       | Small Batch | merged  |
+| Pitch | Title                                                           | Appetite    | Status      |
+| ----- | --------------------------------------------------------------- | ----------- | ----------- |
+| #77   | Core mechanic primitives — turn structure and combat resolution | Big Batch   | merged      |
+| #80   | Keyboard-first command access — shortcuts, palette              | Small Batch | in-progress |
+| #53   | Workspace lifecycle — create, name, save, launcher              | Small Batch | merged      |
+| #54   | Editor Visual Polish — brand theme, fonts                       | Small Batch | merged      |
 
 ### Prior Cycles
 
@@ -72,12 +72,12 @@ Status values: `active` | `shipping` | `shipped`
 > After betting, map cross-pitch dependencies to determine delivery order. Populated during kickoff
 > when implementation plans are generated.
 
-| Pitch | Depends On | Delivery Order | Status  |
-| ----- | ---------- | -------------- | ------- |
-| #77   | —          | 1              | done    |
-| #80   | —          | 1              | planned |
-| #54   | —          | 1              | done    |
-| #53   | #54        | 2              | done    |
+| Pitch | Depends On | Delivery Order | Status      |
+| ----- | ---------- | -------------- | ----------- |
+| #77   | —          | 1              | done        |
+| #80   | —          | 1              | in-progress |
+| #54   | —          | 1              | done        |
+| #53   | #54        | 2              | done        |
 
 Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
 values: `planned` | `in-progress` | `done`
