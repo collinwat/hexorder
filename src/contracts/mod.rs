@@ -11,6 +11,8 @@ pub mod game_system;
 #[allow(dead_code)]
 pub mod hex_grid;
 #[allow(dead_code)]
+pub mod mechanics;
+#[allow(dead_code)]
 pub mod ontology;
 #[allow(dead_code)]
 pub mod persistence;

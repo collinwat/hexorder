@@ -661,3 +661,600 @@ fn free_movement_when_no_constraints() {
         "All in-bounds positions (except unit's own) should be valid with no constraints"
     );
 }
+
+// =========================================================================
+// CRT Resolution Tests (0.9.0)
+// =========================================================================
+
+use crate::contracts::mechanics::{
+    CombatModifierDefinition, CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow,
+    ModifierSource, OutcomeEffect,
+};
+use crate::rules_engine::systems::{
+    apply_column_shift, calculate_differential, calculate_odds_ratio,
+    evaluate_modifiers_prioritized, find_crt_column, find_crt_row, resolve_crt,
+};
+
+/// Helper: create a standard odds-ratio CRT for testing.
+fn test_odds_crt() -> CombatResultsTable {
+    CombatResultsTable {
+        id: TypeId::new(),
+        name: "Test CRT".to_string(),
+        columns: vec![
+            CrtColumn {
+                label: "1:2".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 0.5,
+            },
+            CrtColumn {
+                label: "1:1".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 1.0,
+            },
+            CrtColumn {
+                label: "2:1".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 2.0,
+            },
+            CrtColumn {
+                label: "3:1".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 3.0,
+            },
+            CrtColumn {
+                label: "4:1".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 4.0,
+            },
+        ],
+        rows: vec![
+            CrtRow {
+                label: "1".to_string(),
+                die_value_min: 1,
+                die_value_max: 1,
+            },
+            CrtRow {
+                label: "2".to_string(),
+                die_value_min: 2,
+                die_value_max: 2,
+            },
+            CrtRow {
+                label: "3".to_string(),
+                die_value_min: 3,
+                die_value_max: 3,
+            },
+            CrtRow {
+                label: "4".to_string(),
+                die_value_min: 4,
+                die_value_max: 4,
+            },
+            CrtRow {
+                label: "5".to_string(),
+                die_value_min: 5,
+                die_value_max: 5,
+            },
+            CrtRow {
+                label: "6".to_string(),
+                die_value_min: 6,
+                die_value_max: 6,
+            },
+        ],
+        outcomes: vec![
+            // Row 1 (die=1): worst outcomes for attacker
+            vec![
+                CombatOutcome {
+                    label: "AE".to_string(),
+                    effect: Some(OutcomeEffect::AttackerEliminated),
+                },
+                CombatOutcome {
+                    label: "AE".to_string(),
+                    effect: Some(OutcomeEffect::AttackerEliminated),
+                },
+                CombatOutcome {
+                    label: "AR".to_string(),
+                    effect: Some(OutcomeEffect::AttackerStepLoss { steps: 1 }),
+                },
+                CombatOutcome {
+                    label: "EX".to_string(),
+                    effect: Some(OutcomeEffect::Exchange {
+                        attacker_steps: 1,
+                        defender_steps: 1,
+                    }),
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: Some(OutcomeEffect::Retreat { hexes: 1 }),
+                },
+            ],
+            // Row 2 (die=2)
+            vec![
+                CombatOutcome {
+                    label: "AE".to_string(),
+                    effect: Some(OutcomeEffect::AttackerEliminated),
+                },
+                CombatOutcome {
+                    label: "AR".to_string(),
+                    effect: Some(OutcomeEffect::AttackerStepLoss { steps: 1 }),
+                },
+                CombatOutcome {
+                    label: "EX".to_string(),
+                    effect: Some(OutcomeEffect::Exchange {
+                        attacker_steps: 1,
+                        defender_steps: 1,
+                    }),
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: Some(OutcomeEffect::Retreat { hexes: 1 }),
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: Some(OutcomeEffect::DefenderEliminated),
+                },
+            ],
+            // Row 3 (die=3)
+            vec![
+                CombatOutcome {
+                    label: "AR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "EX".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+            ],
+            // Row 4 (die=4)
+            vec![
+                CombatOutcome {
+                    label: "EX".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "NE".to_string(),
+                    effect: Some(OutcomeEffect::NoEffect),
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+            ],
+            // Row 5 (die=5)
+            vec![
+                CombatOutcome {
+                    label: "NE".to_string(),
+                    effect: Some(OutcomeEffect::NoEffect),
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+            ],
+            // Row 6 (die=6): best outcomes for attacker
+            vec![
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: Some(OutcomeEffect::Retreat { hexes: 1 }),
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: Some(OutcomeEffect::Retreat { hexes: 2 }),
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: Some(OutcomeEffect::DefenderEliminated),
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: Some(OutcomeEffect::DefenderEliminated),
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: Some(OutcomeEffect::DefenderEliminated),
+                },
+            ],
+        ],
+        combat_concept_id: None,
+    }
+}
+
+// -- Odds Ratio Calculation --
+
+#[test]
+fn odds_ratio_basic() {
+    let ratio = calculate_odds_ratio(6.0, 2.0);
+    assert!((ratio - 3.0).abs() < f64::EPSILON, "6:2 should be 3.0");
+}
+
+#[test]
+fn odds_ratio_defender_advantage() {
+    let ratio = calculate_odds_ratio(2.0, 4.0);
+    assert!((ratio - 0.5).abs() < f64::EPSILON, "2:4 should be 0.5");
+}
+
+#[test]
+fn odds_ratio_zero_defender() {
+    let ratio = calculate_odds_ratio(5.0, 0.0);
+    assert!(ratio.is_infinite(), "0 defender should produce infinity");
+}
+
+#[test]
+fn odds_ratio_equal_strength() {
+    let ratio = calculate_odds_ratio(4.0, 4.0);
+    assert!((ratio - 1.0).abs() < f64::EPSILON, "4:4 should be 1.0");
+}
+
+// -- Differential Calculation --
+
+#[test]
+fn differential_basic() {
+    let diff = calculate_differential(8.0, 3.0);
+    assert!((diff - 5.0).abs() < f64::EPSILON, "8-3 should be 5.0");
+}
+
+#[test]
+fn differential_negative() {
+    let diff = calculate_differential(2.0, 7.0);
+    assert!((diff - (-5.0)).abs() < f64::EPSILON, "2-7 should be -5.0");
+}
+
+// -- Column Lookup --
+
+#[test]
+fn column_lookup_exact_match() {
+    let crt = test_odds_crt();
+    // Attacker 6, defender 2 = ratio 3.0 -> "3:1" column (index 3)
+    let col = find_crt_column(6.0, 2.0, &crt.columns);
+    assert_eq!(col, Some(3), "3:1 ratio should match column index 3");
+}
+
+#[test]
+fn column_lookup_between_columns() {
+    let crt = test_odds_crt();
+    // Attacker 5, defender 2 = ratio 2.5 -> between "2:1" (2.0) and "3:1" (3.0)
+    // Should match "2:1" (the highest column whose threshold is met)
+    let col = find_crt_column(5.0, 2.0, &crt.columns);
+    assert_eq!(col, Some(2), "2.5 ratio should match 2:1 column (index 2)");
+}
+
+#[test]
+fn column_lookup_below_minimum() {
+    let crt = test_odds_crt();
+    // Attacker 1, defender 10 = ratio 0.1 -> below 1:2 threshold (0.5)
+    let col = find_crt_column(1.0, 10.0, &crt.columns);
+    assert_eq!(col, None, "0.1 ratio should match no column");
+}
+
+#[test]
+fn column_lookup_above_maximum() {
+    let crt = test_odds_crt();
+    // Attacker 50, defender 1 = ratio 50.0 -> exceeds all thresholds
+    let col = find_crt_column(50.0, 1.0, &crt.columns);
+    assert_eq!(
+        col,
+        Some(4),
+        "50:1 ratio should match the last column (index 4)"
+    );
+}
+
+#[test]
+fn column_lookup_empty_columns() {
+    let col = find_crt_column(5.0, 1.0, &[]);
+    assert_eq!(col, None, "Empty columns should return None");
+}
+
+#[test]
+fn column_lookup_single_column() {
+    let columns = vec![CrtColumn {
+        label: "1:1".to_string(),
+        column_type: CrtColumnType::OddsRatio,
+        threshold: 1.0,
+    }];
+    let col = find_crt_column(3.0, 1.0, &columns);
+    assert_eq!(col, Some(0), "Single column should match if threshold met");
+
+    let col = find_crt_column(0.5, 1.0, &columns);
+    assert_eq!(
+        col, None,
+        "Single column should not match if below threshold"
+    );
+}
+
+#[test]
+fn column_lookup_mixed_types() {
+    // A CRT with both ratio and differential columns
+    let columns = vec![
+        CrtColumn {
+            label: "1:2".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 0.5,
+        },
+        CrtColumn {
+            label: "1:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 1.0,
+        },
+        CrtColumn {
+            label: "+2".to_string(),
+            column_type: CrtColumnType::Differential,
+            threshold: 2.0,
+        },
+        CrtColumn {
+            label: "+5".to_string(),
+            column_type: CrtColumnType::Differential,
+            threshold: 5.0,
+        },
+    ];
+
+    // Attacker 6, defender 3: ratio=2.0 (meets 1:2 and 1:1), diff=3.0 (meets +2)
+    let col = find_crt_column(6.0, 3.0, &columns);
+    assert_eq!(
+        col,
+        Some(2),
+        "6 vs 3: ratio 2.0 meets cols 0,1; diff 3.0 meets col 2; best is 2"
+    );
+
+    // Attacker 10, defender 3: ratio=3.33 (meets 0,1), diff=7.0 (meets 2,3)
+    let col = find_crt_column(10.0, 3.0, &columns);
+    assert_eq!(
+        col,
+        Some(3),
+        "10 vs 3: diff 7.0 meets +5 threshold at col 3"
+    );
+}
+
+// -- Row Lookup --
+
+#[test]
+fn row_lookup_exact_value() {
+    let crt = test_odds_crt();
+    let row = find_crt_row(3, &crt.rows);
+    assert_eq!(row, Some(2), "Die roll 3 should match row index 2");
+}
+
+#[test]
+fn row_lookup_range() {
+    let rows = vec![
+        CrtRow {
+            label: "1-2".to_string(),
+            die_value_min: 1,
+            die_value_max: 2,
+        },
+        CrtRow {
+            label: "3-4".to_string(),
+            die_value_min: 3,
+            die_value_max: 4,
+        },
+        CrtRow {
+            label: "5-6".to_string(),
+            die_value_min: 5,
+            die_value_max: 6,
+        },
+    ];
+    assert_eq!(find_crt_row(1, &rows), Some(0));
+    assert_eq!(find_crt_row(2, &rows), Some(0));
+    assert_eq!(find_crt_row(3, &rows), Some(1));
+    assert_eq!(find_crt_row(5, &rows), Some(2));
+    assert_eq!(find_crt_row(6, &rows), Some(2));
+}
+
+#[test]
+fn row_lookup_no_match() {
+    let crt = test_odds_crt();
+    let row = find_crt_row(7, &crt.rows);
+    assert_eq!(row, None, "Die roll 7 should not match any 1d6 row");
+}
+
+#[test]
+fn row_lookup_empty() {
+    let row = find_crt_row(1, &[]);
+    assert_eq!(row, None, "Empty rows should return None");
+}
+
+// -- Full CRT Resolution --
+
+#[test]
+fn resolve_crt_basic() {
+    let crt = test_odds_crt();
+    // 6 vs 2 = 3:1 (col 3), die roll 6 (row 5) -> "DE"
+    let result = resolve_crt(&crt, 6.0, 2.0, 6);
+    assert!(result.is_some(), "Should resolve successfully");
+    let res = result.expect("resolve");
+    assert_eq!(res.column_index, 3);
+    assert_eq!(res.row_index, 5);
+    assert_eq!(res.column_label, "3:1");
+    assert_eq!(res.outcome.label, "DE");
+}
+
+#[test]
+fn resolve_crt_attacker_eliminated() {
+    let crt = test_odds_crt();
+    // 1 vs 2 = 0.5 (col 0, "1:2"), die roll 1 (row 0) -> "AE"
+    let result = resolve_crt(&crt, 1.0, 2.0, 1);
+    let res = result.expect("resolve");
+    assert_eq!(res.outcome.label, "AE");
+    assert!(matches!(
+        res.outcome.effect,
+        Some(OutcomeEffect::AttackerEliminated)
+    ));
+}
+
+#[test]
+fn resolve_crt_no_match_column() {
+    let crt = test_odds_crt();
+    // ratio too low to match any column
+    let result = resolve_crt(&crt, 1.0, 10.0, 3);
+    assert!(result.is_none(), "Should fail when no column matches");
+}
+
+#[test]
+fn resolve_crt_no_match_row() {
+    let crt = test_odds_crt();
+    // valid column but invalid die roll
+    let result = resolve_crt(&crt, 6.0, 2.0, 7);
+    assert!(result.is_none(), "Should fail when no row matches");
+}
+
+#[test]
+fn resolve_crt_empty() {
+    let crt = CombatResultsTable::default();
+    let result = resolve_crt(&crt, 6.0, 2.0, 3);
+    assert!(result.is_none(), "Empty CRT should return None");
+}
+
+// -- Modifier Evaluation --
+
+#[test]
+fn modifiers_priority_order() {
+    let modifiers = vec![
+        CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Forest".to_string(),
+            source: ModifierSource::DefenderTerrain,
+            column_shift: -2,
+            priority: 10,
+            cap: None,
+            terrain_type_filter: None,
+        },
+        CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Combined Arms".to_string(),
+            source: ModifierSource::Custom("combined".to_string()),
+            column_shift: 1,
+            priority: 5,
+            cap: None,
+            terrain_type_filter: None,
+        },
+    ];
+
+    let (total, display) = evaluate_modifiers_prioritized(&modifiers, 7);
+    assert_eq!(total, -1, "Forest(-2) + Combined Arms(+1) = -1");
+    assert_eq!(display[0].0, "Forest", "Higher priority evaluated first");
+    assert_eq!(
+        display[1].0, "Combined Arms",
+        "Lower priority evaluated second"
+    );
+}
+
+#[test]
+fn modifiers_cap_limits_total() {
+    let modifiers = vec![
+        CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Terrain Cap".to_string(),
+            source: ModifierSource::DefenderTerrain,
+            column_shift: -3,
+            priority: 20,
+            cap: Some(2), // cap total to [-2, +2]
+            terrain_type_filter: None,
+        },
+        CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Extra Shift".to_string(),
+            source: ModifierSource::Custom("extra".to_string()),
+            column_shift: -1,
+            priority: 10,
+            cap: None,
+            terrain_type_filter: None,
+        },
+    ];
+
+    let (total, _) = evaluate_modifiers_prioritized(&modifiers, 7);
+    // Terrain Cap: shift -3, then cap to [-2, +2] -> total = -2
+    // Extra Shift: shift -1 -> total = -3
+    // No further cap -> -3
+    // Clamp to column bounds: -3 clamped to [-6, 6] -> -3
+    assert_eq!(
+        total, -3,
+        "Cap applied after first modifier, then second shifts further"
+    );
+}
+
+#[test]
+fn modifiers_clamp_to_column_bounds() {
+    let modifiers = vec![CombatModifierDefinition {
+        id: TypeId::new(),
+        name: "Massive Shift".to_string(),
+        source: ModifierSource::Custom("big".to_string()),
+        column_shift: -100,
+        priority: 1,
+        cap: None,
+        terrain_type_filter: None,
+    }];
+
+    let (total, _) = evaluate_modifiers_prioritized(&modifiers, 5);
+    assert_eq!(
+        total, -4,
+        "Shift should be clamped to column bounds (5 columns -> max shift 4)"
+    );
+}
+
+#[test]
+fn modifiers_empty_list() {
+    let (total, display) = evaluate_modifiers_prioritized(&[], 5);
+    assert_eq!(total, 0, "No modifiers should produce zero shift");
+    assert!(display.is_empty());
+}
+
+// -- Column Shift Application --
+
+#[test]
+fn apply_shift_positive() {
+    let result = apply_column_shift(2, 1, 5);
+    assert_eq!(result, 3);
+}
+
+#[test]
+fn apply_shift_negative() {
+    let result = apply_column_shift(2, -1, 5);
+    assert_eq!(result, 1);
+}
+
+#[test]
+fn apply_shift_clamps_high() {
+    let result = apply_column_shift(3, 5, 5);
+    assert_eq!(result, 4, "Should clamp to max column index");
+}
+
+#[test]
+fn apply_shift_clamps_low() {
+    let result = apply_column_shift(1, -5, 5);
+    assert_eq!(result, 0, "Should clamp to zero");
+}
+
+#[test]
+fn apply_shift_zero_columns() {
+    let result = apply_column_shift(0, 1, 0);
+    assert_eq!(result, 0, "Zero columns should return 0");
+}
