@@ -7,7 +7,7 @@ publish = false
 
 [features]
 dev = [ "bevy/dynamic_linking" ]
-macos-app = []
+macos-app = [  ]
 
 [dependencies]
 bevy = "0.18"

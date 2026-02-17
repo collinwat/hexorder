@@ -89,8 +89,8 @@ tests). Zero clippy warnings. Clean boundary check.
 
 ## Deferred / Future Work
 
-- Backing implementations for no-op commands (undo/redo, panel toggles, grid overlay, fullscreen)
-- Update bevy-egui guide with egui 0.33 deprecation notes
+- Backing implementations for remaining no-op commands: undo/redo (#84), select all (#108), grid
+  overlay (#109), fullscreen (#110)
 
 ## Status Updates
 

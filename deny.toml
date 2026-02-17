@@ -45,6 +45,8 @@ skip = [
   "read-fonts",
   "rustc-hash",
   "skrifa",
+  "toml_datetime",
+  "toml_edit",
 ]
 
 [sources]
