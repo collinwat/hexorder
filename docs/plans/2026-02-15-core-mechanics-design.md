@@ -1,5 +1,8 @@
 # Design: Core Mechanic Primitives (#77)
 
+> **Historical** — Implemented in v0.9.0. The code, plugin specs, and contracts are now
+> authoritative. This document is preserved for context on why decisions were made.
+
 > Turn structure and combat resolution for Hexorder 0.9.0. Big Batch, Cycle 4.
 
 ## Open Questions
