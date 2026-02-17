@@ -6,7 +6,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
-use crate::contracts::editor_ui::EditorTool;
+use crate::contracts::editor_ui::{EditorTool, ViewportMargins};
 use crate::contracts::game_system::SelectedUnit;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
@@ -45,6 +45,7 @@ impl Plugin for EditorUiPlugin {
             .enable_absorb_bevy_input_system = true;
 
         app.insert_resource(EditorTool::default());
+        app.init_resource::<ViewportMargins>();
         app.insert_resource(components::EditorState::default());
         app.init_resource::<ConceptRegistry>();
         app.init_resource::<RelationRegistry>();
@@ -61,9 +62,28 @@ impl Plugin for EditorUiPlugin {
             systems::launcher_system.run_if(in_state(AppScreen::Launcher)),
         );
         // Editor panel shown only in Editor state.
+        // When the inspector feature is enabled, chain the debug panel before
+        // update_viewport_margins so available_rect() reflects both side panels.
+        #[cfg(not(feature = "inspector"))]
         app.add_systems(
             EguiPrimaryContextPass,
-            systems::editor_panel_system.run_if(in_state(AppScreen::Editor)),
+            (
+                systems::editor_panel_system,
+                systems::update_viewport_margins,
+            )
+                .chain()
+                .run_if(in_state(AppScreen::Editor)),
+        );
+        #[cfg(feature = "inspector")]
+        app.add_systems(
+            EguiPrimaryContextPass,
+            (
+                systems::editor_panel_system,
+                systems::debug_inspector_panel,
+                systems::update_viewport_margins,
+            )
+                .chain()
+                .run_if(in_state(AppScreen::Editor)),
         );
         // Play panel shown only in Play state.
         app.add_systems(
@@ -89,7 +109,7 @@ fn handle_editor_ui_command(
         "tool.paint" => *tool = EditorTool::Paint,
         "tool.place" => *tool = EditorTool::Place,
         "mode.editor" => next_state.set(AppScreen::Editor),
-        "mode.play" => next_state.set(AppScreen::Launcher),
+        "mode.close" => next_state.set(AppScreen::Launcher),
         "edit.delete" => {
             if let Some(entity) = selected_unit.entity {
                 commands.entity(entity).despawn();
@@ -156,10 +176,10 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         continuous: false,
     });
     registry.register(CommandEntry {
-        id: CommandId("mode.play"),
-        name: "Play Mode".to_string(),
-        description: "Switch to launcher".to_string(),
-        bindings: vec![KeyBinding::new(KeyCode::Digit2, Modifiers::CMD)],
+        id: CommandId("mode.close"),
+        name: "Close".to_string(),
+        description: "Close project and return to launcher".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyW, Modifiers::CMD)],
         category: CommandCategory::Mode,
         continuous: false,
     });
