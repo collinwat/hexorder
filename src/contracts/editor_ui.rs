@@ -22,3 +22,26 @@ pub enum EditorTool {
 pub struct PaintPreview {
     pub material: Option<Handle<StandardMaterial>>,
 }
+
+/// Pixel margins consumed by the editor UI panels.
+/// Written by `editor_ui` each frame after egui panels render.
+/// Read by `camera` to compute viewport-aware centering.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct ViewportMargins {
+    /// Width in logical pixels consumed by the left side panel.
+    pub left: f32,
+    /// Height in logical pixels consumed by the top menu bar.
+    pub top: f32,
+    /// Width in logical pixels consumed by the right side panel (e.g. debug inspector).
+    pub right: f32,
+}
+
+impl Default for ViewportMargins {
+    fn default() -> Self {
+        Self {
+            left: 0.0,
+            top: 0.0,
+            right: 0.0,
+        }
+    }
+}

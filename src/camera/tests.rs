@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::contracts::editor_ui::ViewportMargins;
 use crate::contracts::persistence::AppScreen;
 
 use super::components::{CameraState, TopDownCamera};
@@ -14,6 +15,7 @@ fn test_app() -> App {
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(AppScreen::Editor);
     app.init_resource::<CameraState>();
+    app.init_resource::<ViewportMargins>();
     app
 }
 

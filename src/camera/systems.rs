@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use super::components::{CameraState, TopDownCamera};
+use crate::contracts::editor_ui::ViewportMargins;
 use crate::contracts::hex_grid::{HexGridConfig, SelectedHex};
 
 /// Fixed camera height above the ground plane.
@@ -39,12 +40,23 @@ pub fn spawn_camera(mut commands: Commands) {
 }
 
 /// Startup system: adjusts camera state bounds based on `HexGridConfig` if available.
-/// Also sets the initial view to fit+center the grid. Runs after `spawn_camera` via `.chain()`.
+/// Sets bounds and an initial fit scale estimate. The actual centering is deferred
+/// to `apply_pending_reset` which waits for `ViewportMargins` to be populated.
 pub fn configure_bounds_from_grid(
     grid_config: Option<Res<HexGridConfig>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
+    mut cameras: Query<&mut Camera, With<TopDownCamera>>,
 ) {
+    // Always request a deferred reset so centering happens once margins are known,
+    // even if grid config isn't available yet (apply_pending_reset handles that).
+    // Deactivate the camera while the reset is pending to prevent rendering
+    // at the wrong position (visible as a flash).
+    camera_state.pending_reset = true;
+    if let Ok(mut cam) = cameras.single_mut() {
+        cam.is_active = false;
+    }
+
     let Some(config) = grid_config else {
         return;
     };
@@ -67,9 +79,52 @@ pub fn configure_bounds_from_grid(
     // Start at the target scale immediately (no animation on startup).
     camera_state.current_scale = camera_state.target_scale;
 
-    // Center with UI offset (side panel + menu bar).
+    // Defer centering until the first frame where ViewportMargins are populated
+    // (egui panels must render once before margins are known).
+    camera_state.pending_reset = true;
+}
+
+/// Applies a deferred reset-view (fit + center) once `ViewportMargins` are
+/// populated. Runs every frame in `Update`; does nothing when there is no
+/// pending reset or when the editor side panel hasn't rendered yet.
+/// Snaps both the target and actual camera transform to avoid a visible flash.
+pub fn apply_pending_reset(
+    grid_config: Option<Res<HexGridConfig>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut camera_state: ResMut<CameraState>,
+    margins: Res<ViewportMargins>,
+    mut camera_q: Query<(&mut Transform, &mut Projection, &mut Camera), With<TopDownCamera>>,
+) {
+    if !camera_state.pending_reset {
+        return;
+    }
+    // Wait until the editor side panel has rendered at least once.
+    // margins.left is always > 0 when the side panel is visible.
+    if margins.left == 0.0 {
+        return;
+    }
+
+    // Recompute fit scale with actual window.
+    if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+        camera_state.target_scale = fit_scale(config, window, &camera_state);
+        camera_state.current_scale = camera_state.target_scale;
+    }
+
+    // Center accounting for UI margins.
     let scale = camera_state.target_scale;
-    camera_state.target_position = ui_center_offset(scale);
+    camera_state.target_position = ui_center_offset(scale, &margins);
+
+    // Snap the camera transform directly and reactivate rendering.
+    if let Ok((mut transform, mut projection, mut cam)) = camera_q.single_mut() {
+        transform.translation.x = camera_state.target_position.x;
+        transform.translation.z = camera_state.target_position.y;
+        if let Projection::Orthographic(ref mut ortho) = *projection {
+            ortho.scale = camera_state.current_scale;
+        }
+        cam.is_active = true;
+    }
+
+    camera_state.pending_reset = false;
 }
 
 /// Update system: handles keyboard panning via registry-bound keys.
@@ -228,29 +283,22 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
     scale.clamp(camera_state.min_scale, camera_state.max_scale)
 }
 
-/// Width of the editor side panel in logical pixels.
-/// Used to offset the camera center so the grid appears centered in the
-/// visible viewport area (window minus panel).
-const PANEL_WIDTH: f32 = 260.0;
-
-/// Height of the top menu bar in logical pixels.
-/// Used to offset the camera center vertically so the grid appears
-/// centered in the visible viewport area (window minus menu bar).
-const MENU_BAR_HEIGHT: f32 = 26.0;
-
 /// Computes the camera offset needed to visually center content in the
-/// viewport area not covered by the editor panel and top menu bar.
-/// Returns (x_offset, z_offset) in world space.
+/// viewport area not covered by editor UI panels.
 ///
-/// The panel is on the left, so the visible center is shifted right by
-/// half the panel width. Because the camera mirrors X (camera right = -X world),
-/// the X offset is positive.
+/// Uses actual panel dimensions from `ViewportMargins` (written by editor_ui
+/// each frame) instead of hardcoded constants.
+///
+/// The left panel shifts the visible center right; a right panel shifts it
+/// left. The net horizontal offset is `(left - right) / 2`. The camera
+/// mirrors X (camera right = -X world), so the X offset is positive when
+/// the left panel is wider.
 ///
 /// The menu bar is at the top, so the visible center is shifted down by
-/// half the menu bar height. Screen down = -Z in world space.
-fn ui_center_offset(scale: f32) -> Vec2 {
-    let x = (PANEL_WIDTH / 2.0) * scale;
-    let z = -(MENU_BAR_HEIGHT / 2.0) * scale;
+/// half the menu bar height.
+fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
+    let x = ((margins.left - margins.right) / 2.0) * scale;
+    let z = (margins.top / 2.0) * scale;
     Vec2::new(x, z)
 }
 
@@ -261,6 +309,7 @@ pub fn handle_camera_command(
     selected_hex: Res<SelectedHex>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
+    margins: Res<ViewportMargins>,
 ) {
     let zoom_step = 0.2; // 20% per press
     match trigger.event().command_id.0 {
@@ -278,7 +327,7 @@ pub fn handle_camera_command(
         }
         "camera.center" => {
             let scale = camera_state.target_scale;
-            camera_state.target_position = ui_center_offset(scale);
+            camera_state.target_position = ui_center_offset(scale, &margins);
         }
         "camera.fit" => {
             if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
@@ -290,12 +339,12 @@ pub fn handle_camera_command(
                 camera_state.target_scale = fit_scale(config, window, &camera_state);
             }
             let scale = camera_state.target_scale;
-            camera_state.target_position = ui_center_offset(scale);
+            camera_state.target_position = ui_center_offset(scale, &margins);
         }
         "view.zoom_to_selection" => {
             if let (Some(pos), Some(config)) = (selected_hex.position, &grid_config) {
                 let world = config.layout.hex_to_world_pos(pos.to_hex());
-                let offset = ui_center_offset(camera_state.target_scale);
+                let offset = ui_center_offset(camera_state.target_scale, &margins);
                 camera_state.target_position = Vec2::new(world.x + offset.x, world.y + offset.y);
             }
         }

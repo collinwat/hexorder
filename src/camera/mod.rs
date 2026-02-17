@@ -7,6 +7,7 @@
 use bevy::prelude::*;
 use bevy_egui::input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input};
 
+use crate::contracts::editor_ui::ViewportMargins;
 use crate::contracts::persistence::AppScreen;
 use crate::contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
@@ -38,7 +39,8 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         register_shortcuts(&mut app.world_mut().resource_mut::<ShortcutRegistry>());
 
-        app.init_resource::<CameraState>()
+        app.init_resource::<ViewportMargins>()
+            .init_resource::<CameraState>()
             .configure_sets(
                 Update,
                 CameraSet::Apply
@@ -53,6 +55,7 @@ impl Plugin for CameraPlugin {
             .add_systems(
                 Update,
                 (
+                    systems::apply_pending_reset.in_set(CameraSet::Input),
                     systems::keyboard_pan
                         .in_set(CameraSet::Input)
                         .run_if(not(egui_wants_any_keyboard_input)),

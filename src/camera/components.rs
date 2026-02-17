@@ -32,6 +32,10 @@ pub struct CameraState {
     pub smoothing: f32,
     /// Whether the user is currently dragging with middle mouse button.
     pub is_dragging: bool,
+    /// When true, a reset-view (fit + center) will be applied on the next
+    /// frame where `ViewportMargins` are populated. Set by
+    /// `configure_bounds_from_grid`; cleared by `apply_pending_reset`.
+    pub pending_reset: bool,
 }
 
 impl Default for CameraState {
@@ -50,6 +54,7 @@ impl Default for CameraState {
             pan_bounds: 50.0,
             smoothing: 10.0,
             is_dragging: false,
+            pending_reset: false,
         }
     }
 }
