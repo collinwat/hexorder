@@ -140,27 +140,39 @@ pub fn launcher_system(
                 let enter_pressed =
                     response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
-                ui.horizontal(|ui| {
-                    let create_btn = ui.add_enabled(
-                        name_valid,
-                        egui::Button::new(egui::RichText::new("Create").color(if name_valid {
-                            BrandTheme::ACCENT_AMBER
-                        } else {
-                            BrandTheme::TEXT_DISABLED
-                        })),
-                    );
+                let spacing = ui.spacing().item_spacing.x;
+                let half_width = (200.0 - spacing) / 2.0;
+                let btn_size = egui::vec2(half_width, 0.0);
 
-                    if name_valid && (create_btn.clicked() || enter_pressed) {
-                        commands.trigger(NewProjectEvent { name: trimmed_name });
-                        editor_state.launcher_name_input_visible = false;
-                        editor_state.launcher_project_name = String::new();
-                    }
+                ui.allocate_ui_with_layout(
+                    egui::vec2(200.0, 24.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        let create_btn = ui.add_enabled(
+                            name_valid,
+                            egui::Button::new(egui::RichText::new("Create").color(if name_valid {
+                                BrandTheme::ACCENT_AMBER
+                            } else {
+                                BrandTheme::TEXT_DISABLED
+                            }))
+                            .min_size(btn_size),
+                        );
 
-                    if ui.button("Cancel").clicked() {
-                        editor_state.launcher_name_input_visible = false;
-                        editor_state.launcher_project_name = String::new();
-                    }
-                });
+                        if name_valid && (create_btn.clicked() || enter_pressed) {
+                            commands.trigger(NewProjectEvent { name: trimmed_name });
+                            editor_state.launcher_name_input_visible = false;
+                            editor_state.launcher_project_name = String::new();
+                        }
+
+                        if ui
+                            .add(egui::Button::new("Cancel").min_size(btn_size))
+                            .clicked()
+                        {
+                            editor_state.launcher_name_input_visible = false;
+                            editor_state.launcher_project_name = String::new();
+                        }
+                    },
+                );
             } else {
                 // Show the "New Game System" button.
                 if ui
