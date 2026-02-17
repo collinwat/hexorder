@@ -404,6 +404,7 @@ pub fn play_panel_system(
     mut turn_state: ResMut<TurnState>,
     turn_structure: Res<TurnStructure>,
     game_system: Res<GameSystem>,
+    workspace: Res<Workspace>,
     mut next_state: ResMut<NextState<AppScreen>>,
     mut commands: Commands,
     mut active_combat: ResMut<ActiveCombat>,
@@ -423,7 +424,7 @@ pub fn play_panel_system(
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New          Cmd+N").clicked() {
-                    commands.trigger(NewProjectEvent);
+                    commands.trigger(CloseProjectEvent);
                     ui.close();
                 }
                 if ui.button("Open...      Cmd+O").clicked() {
@@ -446,8 +447,8 @@ pub fn play_panel_system(
     egui::SidePanel::left("play_panel")
         .default_width(280.0)
         .show(ctx, |ui| {
-            // -- Game System Info --
-            render_game_system_info(ui, &game_system);
+            // -- Workspace Header --
+            render_workspace_header(ui, &workspace, &game_system);
 
             // -- Back to Editor --
             if ui
