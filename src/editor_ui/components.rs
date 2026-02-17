@@ -332,7 +332,7 @@ pub struct EditorState {
     pub new_modifier_custom_source: String,
     pub new_modifier_shift: i32,
     pub new_modifier_priority: i32,
-    /// Mutable edit buffer for CRT outcome labels, indexed [row][col].
+    /// Mutable edit buffer for CRT outcome labels, indexed \[row\]\[col\].
     /// Re-synced from `CombatResultsTable` when dimensions change.
     pub crt_outcome_labels: Vec<Vec<String>>,
 
