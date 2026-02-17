@@ -8,3 +8,5 @@ Pn = "Pn"
 PN = "PN"
 # Abbreviation for Strategic
 Strat = "Strat"
+# Abbreviation for Threshold (UI label)
+Thr = "Thr"
