@@ -67,9 +67,9 @@ pub fn configure_bounds_from_grid(
     // Start at the target scale immediately (no animation on startup).
     camera_state.current_scale = camera_state.target_scale;
 
-    // Center with panel offset.
+    // Center with UI offset (side panel + menu bar).
     let scale = camera_state.target_scale;
-    camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+    camera_state.target_position = ui_center_offset(scale);
 }
 
 /// Update system: handles keyboard panning via registry-bound keys.
@@ -233,14 +233,25 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
 /// visible viewport area (window minus panel).
 const PANEL_WIDTH: f32 = 260.0;
 
-/// Computes the camera X offset needed to visually center content in the
-/// viewport area not covered by the editor panel.
+/// Height of the top menu bar in logical pixels.
+/// Used to offset the camera center vertically so the grid appears
+/// centered in the visible viewport area (window minus menu bar).
+const MENU_BAR_HEIGHT: f32 = 26.0;
+
+/// Computes the camera offset needed to visually center content in the
+/// viewport area not covered by the editor panel and top menu bar.
+/// Returns (x_offset, z_offset) in world space.
+///
 /// The panel is on the left, so the visible center is shifted right by
 /// half the panel width. Because the camera mirrors X (camera right = -X world),
-/// we negate the offset.
-fn panel_center_offset(scale: f32) -> f32 {
-    let offset_pixels = PANEL_WIDTH / 2.0;
-    offset_pixels * scale
+/// the X offset is positive.
+///
+/// The menu bar is at the top, so the visible center is shifted down by
+/// half the menu bar height. Screen down = -Z in world space.
+fn ui_center_offset(scale: f32) -> Vec2 {
+    let x = (PANEL_WIDTH / 2.0) * scale;
+    let z = -(MENU_BAR_HEIGHT / 2.0) * scale;
+    Vec2::new(x, z)
 }
 
 /// Observer: handles discrete camera commands dispatched via the shortcut registry.
@@ -267,7 +278,7 @@ pub fn handle_camera_command(
         }
         "camera.center" => {
             let scale = camera_state.target_scale;
-            camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+            camera_state.target_position = ui_center_offset(scale);
         }
         "camera.fit" => {
             if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
@@ -279,13 +290,13 @@ pub fn handle_camera_command(
                 camera_state.target_scale = fit_scale(config, window, &camera_state);
             }
             let scale = camera_state.target_scale;
-            camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+            camera_state.target_position = ui_center_offset(scale);
         }
         "view.zoom_to_selection" => {
             if let (Some(pos), Some(config)) = (selected_hex.position, &grid_config) {
                 let world = config.layout.hex_to_world_pos(pos.to_hex());
-                let offset = panel_center_offset(camera_state.target_scale);
-                camera_state.target_position = Vec2::new(world.x + offset, world.y);
+                let offset = ui_center_offset(camera_state.target_scale);
+                camera_state.target_position = Vec2::new(world.x + offset.x, world.y + offset.y);
             }
         }
         _ => {}
