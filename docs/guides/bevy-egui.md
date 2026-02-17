@@ -1184,3 +1184,24 @@ if should_fire_event {
     commands.trigger(MyEvent); // fire outside the closure
 }
 ```
+
+### 12. egui 0.33 Deprecations (bevy_egui 0.39)
+
+Several egui APIs were deprecated or changed in egui 0.33 (shipped with bevy_egui 0.39):
+
+```rust
+// DEPRECATED: screen_rect()
+let screen = ctx.screen_rect();
+// USE INSTEAD:
+let screen = ctx.content_rect();
+
+// DEPRECATED: Frame::none()
+let frame = egui::Frame::none();
+// USE INSTEAD:
+let frame = egui::Frame::NONE;
+
+// CHANGED: Margin::symmetric takes i8, not f32
+let margin = egui::Margin::symmetric(8.0, 4.0); // ERROR
+// USE INSTEAD:
+let margin = egui::Margin::symmetric(8, 4); // i8 parameters
+```

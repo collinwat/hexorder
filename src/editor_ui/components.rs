@@ -233,6 +233,10 @@ pub enum OntologyTab {
 /// Persistent UI state for the editor panels.
 #[derive(Resource, Debug)]
 pub struct EditorState {
+    /// Whether the inspector panel (tile/unit details) is visible.
+    pub inspector_visible: bool,
+    /// Whether the toolbar (tool mode selector) is visible.
+    pub toolbar_visible: bool,
     /// Name for a new entity type being created.
     pub new_type_name: String,
     /// Color for a new entity type (RGB, 0.0-1.0).
@@ -356,6 +360,8 @@ pub struct EditorState {
 impl Default for EditorState {
     fn default() -> Self {
         Self {
+            inspector_visible: true,
+            toolbar_visible: true,
             new_type_name: String::new(),
             new_type_color: [0.5, 0.5, 0.5],
             new_type_role_index: 0,

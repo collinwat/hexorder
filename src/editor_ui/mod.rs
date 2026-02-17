@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::EditorTool;
+use crate::contracts::game_system::SelectedUnit;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::AppScreen;
@@ -79,6 +80,9 @@ fn handle_editor_ui_command(
     trigger: On<CommandExecutedEvent>,
     mut tool: ResMut<EditorTool>,
     mut next_state: ResMut<NextState<AppScreen>>,
+    mut selected_unit: ResMut<SelectedUnit>,
+    mut editor_state: ResMut<components::EditorState>,
+    mut commands: Commands,
 ) {
     match trigger.event().command_id.0 {
         "tool.select" => *tool = EditorTool::Select,
@@ -86,15 +90,23 @@ fn handle_editor_ui_command(
         "tool.place" => *tool = EditorTool::Place,
         "mode.editor" => next_state.set(AppScreen::Editor),
         "mode.play" => next_state.set(AppScreen::Launcher),
+        "edit.delete" => {
+            if let Some(entity) = selected_unit.entity {
+                commands.entity(entity).despawn();
+                selected_unit.entity = None;
+            }
+        }
+        "view.toggle_inspector" => {
+            editor_state.inspector_visible = !editor_state.inspector_visible;
+        }
+        "view.toggle_toolbar" => {
+            editor_state.toolbar_visible = !editor_state.toolbar_visible;
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
         "edit.undo"
         | "edit.redo"
         | "edit.select_all"
-        | "edit.delete"
-        | "view.toggle_inspector"
-        | "view.toggle_toolbar"
         | "view.toggle_grid_overlay"
-        | "view.zoom_to_selection"
         | "view.toggle_fullscreen" => {
             info!(
                 "Command '{}' is not yet implemented",

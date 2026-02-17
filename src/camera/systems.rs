@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use super::components::{CameraState, TopDownCamera};
-use crate::contracts::hex_grid::HexGridConfig;
+use crate::contracts::hex_grid::{HexGridConfig, SelectedHex};
 
 /// Fixed camera height above the ground plane.
 const CAMERA_Y: f32 = 100.0;
@@ -247,6 +247,7 @@ fn panel_center_offset(scale: f32) -> f32 {
 pub fn handle_camera_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
+    selected_hex: Res<SelectedHex>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
 ) {
@@ -279,6 +280,13 @@ pub fn handle_camera_command(
             }
             let scale = camera_state.target_scale;
             camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+        }
+        "view.zoom_to_selection" => {
+            if let (Some(pos), Some(config)) = (selected_hex.position, &grid_config) {
+                let world = config.layout.hex_to_world_pos(pos.to_hex());
+                let offset = panel_center_offset(camera_state.target_scale);
+                camera_state.target_position = Vec2::new(world.x + offset, world.y);
+            }
         }
         _ => {}
     }

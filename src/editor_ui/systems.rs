@@ -263,8 +263,10 @@ pub fn editor_panel_system(
             // -- Workspace Header --
             render_workspace_header(ui, &project.workspace, &project.game_system);
 
-            // -- Tool Mode --
-            render_tool_mode(ui, &mut editor_tool);
+            // -- Tool Mode (toggleable via Cmd+T) --
+            if editor_state.toolbar_visible {
+                render_tool_mode(ui, &mut editor_tool);
+            }
 
             // -- Play Mode Toggle --
             if ui
@@ -361,28 +363,31 @@ pub fn editor_panel_system(
                     render_unit_palette(ui, &registry, &mut selection.active_token);
                 }
 
-                // -- Unit Inspector (takes priority when a unit is selected) --
-                if selection.selected_unit.entity.is_some() {
-                    render_unit_inspector(
-                        ui,
-                        &selection.selected_unit,
-                        &mut unit_data_query,
-                        &registry,
-                        &enum_registry,
-                        &struct_registry,
-                        &mut actions,
-                    );
-                } else {
-                    // -- Tile Inspector --
-                    render_inspector(
-                        ui,
-                        &selected_hex,
-                        &tile_query,
-                        &mut tile_data_query,
-                        &registry,
-                        &enum_registry,
-                        &struct_registry,
-                    );
+                // -- Inspector (toggleable via Cmd+I) --
+                if editor_state.inspector_visible {
+                    // Unit Inspector takes priority when a unit is selected.
+                    if selection.selected_unit.entity.is_some() {
+                        render_unit_inspector(
+                            ui,
+                            &selection.selected_unit,
+                            &mut unit_data_query,
+                            &registry,
+                            &enum_registry,
+                            &struct_registry,
+                            &mut actions,
+                        );
+                    } else {
+                        // Tile Inspector.
+                        render_inspector(
+                            ui,
+                            &selected_hex,
+                            &tile_query,
+                            &mut tile_data_query,
+                            &registry,
+                            &enum_registry,
+                            &struct_registry,
+                        );
+                    }
                 }
             });
         });
