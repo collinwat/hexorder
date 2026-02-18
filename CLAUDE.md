@@ -62,6 +62,8 @@ game system assets.
 - Use `Res<T>` / `ResMut<T>` for resources, `Query<>` for components
 - States: `app.init_state::<GameState>()`, `in_state(GameState::Playing)`
 - System ordering: use `.chain()` on tuples or `SystemSet` — `.after(bare_fn)` does not compile
+- If you encounter an egui deprecation not in `docs/guides/bevy-egui.md` §16, add it to the
+  deprecation table before committing your fix
 
 ## Development Workflow (Within a Build Cycle)
 

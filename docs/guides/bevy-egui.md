@@ -22,6 +22,7 @@
 13. [Performance](#13-performance)
 14. [Hexorder-Specific Conventions](#14-hexorder-specific-conventions)
 15. [Common Pitfalls](#15-common-pitfalls)
+16. [Deprecations & Migration](#16-deprecations--migration)
 
 ---
 
@@ -1185,23 +1186,43 @@ if should_fire_event {
 }
 ```
 
-### 12. egui 0.33 Deprecations (bevy_egui 0.39)
+### 12. egui Deprecations
 
-Several egui APIs were deprecated or changed in egui 0.33 (shipped with bevy_egui 0.39):
+See [§16 Deprecations & Migration](#16-deprecations--migration) for the full table.
+
+---
+
+## 16. Deprecations & Migration
+
+> **Living document** — this section is updated as new deprecations are encountered. If you hit an
+> egui deprecation not listed here, add it to the table before committing your fix.
+
+| Deprecated API                      | Replacement                       | egui Version | Notes                  |
+| ----------------------------------- | --------------------------------- | ------------ | ---------------------- |
+| `ctx.screen_rect()`                 | `ctx.content_rect()`              | 0.33         | Method renamed         |
+| `egui::Frame::none()`               | `egui::Frame::NONE`               | 0.33         | Constructor → const    |
+| `egui::Margin::symmetric(f32, f32)` | `egui::Margin::symmetric(i8, i8)` | 0.33         | Parameter type changed |
+
+### Code Examples
 
 ```rust
-// DEPRECATED: screen_rect()
-let screen = ctx.screen_rect();
-// USE INSTEAD:
+// DEPRECATED → REPLACEMENT
+
+// screen_rect → content_rect
 let screen = ctx.content_rect();
 
-// DEPRECATED: Frame::none()
-let frame = egui::Frame::none();
-// USE INSTEAD:
+// Frame::none() → Frame::NONE
 let frame = egui::Frame::NONE;
 
-// CHANGED: Margin::symmetric takes i8, not f32
-let margin = egui::Margin::symmetric(8.0, 4.0); // ERROR
-// USE INSTEAD:
-let margin = egui::Margin::symmetric(8, 4); // i8 parameters
+// Margin::symmetric takes i8, not f32
+let margin = egui::Margin::symmetric(8, 4);
 ```
+
+### Contribution Protocol
+
+When you encounter an egui deprecation not in this table:
+
+1. Fix the deprecation in your code
+2. Add a row to the table above (deprecated API, replacement, egui version, notes)
+3. Add a code example if the migration is non-obvious
+4. Commit the guide update alongside your code fix
