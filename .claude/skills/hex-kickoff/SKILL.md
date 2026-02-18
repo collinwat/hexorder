@@ -38,6 +38,13 @@ project structure changes, update them here.
     ```
 2. Read the full pitch: `gh issue view <number>`
 3. Note the five ingredients: Problem, Appetite, Solution, Rabbit Holes, No Gos
+4. **Populate the Build Checklist.** If the pitch has a Build Checklist section, verify it is
+   populated. If it is empty or absent, extract the numbered scopes from the Solution section and
+   edit the pitch issue to add them as checklist items:
+    ```bash
+    gh issue edit <number> --body "$(updated body with checklist)"
+    ```
+    Each item should be a concrete, independently completable scope with a checkbox.
 
 ## Map Dependencies (multi-pitch cycles)
 

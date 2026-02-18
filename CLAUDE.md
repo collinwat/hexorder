@@ -103,9 +103,10 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 ### Progress Updates
 
 Post comments on the pitch issue as you build. These comments are the agent's narrative of the build
-— the retro will read them later. Post when something worth noting happens:
+— the retro will read them later. When completing a scope, reference the Build Checklist item number
+and include the commit SHA. Post when something worth noting happens:
 
-- A scope is completed or a piece clicks into place
+- A scope is completed — reference the checklist item number and commit SHA
 - Something is harder or easier than the pitch anticipated
 - A rabbit hole was encountered (or avoided thanks to the pitch calling it out)
 - Scope was hammered — what was cut and why
@@ -116,7 +117,7 @@ Keep updates concise — a few sentences, not an essay. The comment thread shoul
 journal, not a status report.
 
 ```bash
-gh issue comment <pitch-number> --body "<update>"
+gh issue comment <pitch-number> --body "Scope N complete (commit abc1234): <observations>"
 ```
 
 ### Scope Hammering
