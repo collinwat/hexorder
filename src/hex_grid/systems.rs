@@ -194,10 +194,12 @@ pub fn handle_click(
 /// Observer: handles commands dispatched via the shortcut registry.
 pub fn handle_hex_grid_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
-    mut selected: ResMut<SelectedHex>,
+    selected: Option<ResMut<SelectedHex>>,
 ) {
     if trigger.event().command_id.0 == "edit.deselect" {
-        selected.position = None;
+        if let Some(mut sel) = selected {
+            sel.position = None;
+        }
     }
 }
 

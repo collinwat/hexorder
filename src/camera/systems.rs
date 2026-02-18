@@ -285,7 +285,7 @@ fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
 pub fn handle_camera_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
-    selected_hex: Res<SelectedHex>,
+    selected_hex: Option<Res<SelectedHex>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
     margins: Res<ViewportMargins>,
@@ -321,10 +321,13 @@ pub fn handle_camera_command(
             camera_state.target_position = ui_center_offset(scale, &margins);
         }
         "view.zoom_to_selection" => {
-            if let (Some(pos), Some(config)) = (selected_hex.position, &grid_config) {
-                let world = config.layout.hex_to_world_pos(pos.to_hex());
-                let offset = ui_center_offset(camera_state.target_scale, &margins);
-                camera_state.target_position = Vec2::new(world.x + offset.x, world.y + offset.y);
+            if let (Some(sel), Some(config)) = (&selected_hex, &grid_config) {
+                if let Some(pos) = sel.position {
+                    let world = config.layout.hex_to_world_pos(pos.to_hex());
+                    let offset = ui_center_offset(camera_state.target_scale, &margins);
+                    camera_state.target_position =
+                        Vec2::new(world.x + offset.x, world.y + offset.y);
+                }
             }
         }
         _ => {}
