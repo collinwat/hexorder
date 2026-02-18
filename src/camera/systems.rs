@@ -321,13 +321,12 @@ pub fn handle_camera_command(
             camera_state.target_position = ui_center_offset(scale, &margins);
         }
         "view.zoom_to_selection" => {
-            if let (Some(sel), Some(config)) = (&selected_hex, &grid_config) {
-                if let Some(pos) = sel.position {
-                    let world = config.layout.hex_to_world_pos(pos.to_hex());
-                    let offset = ui_center_offset(camera_state.target_scale, &margins);
-                    camera_state.target_position =
-                        Vec2::new(world.x + offset.x, world.y + offset.y);
-                }
+            if let (Some(sel), Some(config)) = (&selected_hex, &grid_config)
+                && let Some(pos) = sel.position
+            {
+                let world = config.layout.hex_to_world_pos(pos.to_hex());
+                let offset = ui_center_offset(camera_state.target_scale, &margins);
+                camera_state.target_position = Vec2::new(world.x + offset.x, world.y + offset.y);
             }
         }
         _ => {}

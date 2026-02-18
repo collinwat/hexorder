@@ -196,10 +196,10 @@ pub fn handle_hex_grid_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     selected: Option<ResMut<SelectedHex>>,
 ) {
-    if trigger.event().command_id.0 == "edit.deselect" {
-        if let Some(mut sel) = selected {
-            sel.position = None;
-        }
+    if trigger.event().command_id.0 == "edit.deselect"
+        && let Some(mut sel) = selected
+    {
+        sel.position = None;
     }
 }
 
