@@ -15,11 +15,11 @@ d2 = "latest"
 
 [tasks.start]
 description = "Run the application"
-run = "cargo run"
+run = "cargo run --features dev"
 
 [tasks."start:inspector"]
 description = "Run with debug inspector panel"
-run = "cargo run --features inspector"
+run = "cargo run --features dev,inspector"
 
 # --- Fix tasks (auto-fix) ---
 
@@ -160,7 +160,7 @@ depends = [ "test:cargo" ]
 
 [tasks."test:cargo"]
 description = "Run Rust unit and integration tests"
-run = "cargo test"
+run = "cargo test --features dev"
 
 # --- Workflow tasks ---
 
