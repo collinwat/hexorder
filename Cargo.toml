@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.10.0-chore-process-reform"
+version = "0.10.0-fast-builds"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
