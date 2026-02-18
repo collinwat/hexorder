@@ -7,6 +7,7 @@ prettier = "latest"
 "aqua:EmbarkStudios/cargo-deny" = "latest"
 typos = "latest"
 taplo = "latest"
+jq = "latest"
 "cargo:bacon" = "latest"
 d2 = "latest"
 
