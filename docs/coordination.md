@@ -6,11 +6,11 @@
 
 ### Current Bets
 
-| Pitch | Title                                                                         | Appetite    | Status  |
-| ----- | ----------------------------------------------------------------------------- | ----------- | ------- |
-| #120  | Fast builds — shared target, feature trimming, and dynamic linking            | Small Batch | pending |
-| #122  | Process & documentation reform — pitch checklists, coordination migration     | Small Batch | pending |
-| #121  | Editor quality of life — toasts, font scaling, multi-select, viewport toggles | Small Batch | pending |
+| Pitch | Title                                                                         | Appetite    | Status      |
+| ----- | ----------------------------------------------------------------------------- | ----------- | ----------- |
+| #120  | Fast builds — shared target, feature trimming, and dynamic linking            | Small Batch | pending     |
+| #122  | Process & documentation reform — pitch checklists, coordination migration     | Small Batch | in-progress |
+| #121  | Editor quality of life — toasts, font scaling, multi-select, viewport toggles | Small Batch | pending     |
 
 ### Prior Cycles
 
@@ -71,11 +71,11 @@ Status values: `active` | `shipping` | `shipped`
 > After betting, map cross-pitch dependencies to determine delivery order. Populated during kickoff
 > when implementation plans are generated.
 
-| Pitch | Depends On | Delivery Order | Status  |
-| ----- | ---------- | -------------- | ------- |
-| #120  | —          | 1              | planned |
-| #122  | —          | 1              | planned |
-| #121  | —          | 1              | planned |
+| Pitch | Depends On | Delivery Order | Status      |
+| ----- | ---------- | -------------- | ----------- |
+| #120  | —          | 1              | planned     |
+| #122  | —          | 1              | in-progress |
+| #121  | —          | 1              | planned     |
 
 Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
 values: `planned` | `in-progress` | `done`
