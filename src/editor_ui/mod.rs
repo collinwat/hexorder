@@ -122,6 +122,9 @@ fn handle_editor_ui_command(
         "view.toggle_toolbar" => {
             editor_state.toolbar_visible = !editor_state.toolbar_visible;
         }
+        "view.toggle_debug_panel" => {
+            editor_state.debug_panel_visible = !editor_state.debug_panel_visible;
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
         "edit.undo"
         | "edit.redo"
@@ -235,6 +238,15 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         name: "Toggle Toolbar".to_string(),
         description: "Show or hide the toolbar".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::KeyT, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    #[cfg(feature = "inspector")]
+    registry.register(CommandEntry {
+        id: CommandId("view.toggle_debug_panel"),
+        name: "Toggle Debug Panel".to_string(),
+        description: "Show or hide the debug inspector panel".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Backquote, Modifiers::NONE)],
         category: CommandCategory::View,
         continuous: false,
     });

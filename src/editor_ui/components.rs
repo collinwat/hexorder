@@ -237,6 +237,9 @@ pub struct EditorState {
     pub inspector_visible: bool,
     /// Whether the toolbar (tool mode selector) is visible.
     pub toolbar_visible: bool,
+    /// Whether the debug inspector panel (right side) is visible.
+    /// Only meaningful when compiled with the `inspector` feature.
+    pub debug_panel_visible: bool,
     /// Name for a new entity type being created.
     pub new_type_name: String,
     /// Color for a new entity type (RGB, 0.0-1.0).
@@ -362,6 +365,7 @@ impl Default for EditorState {
         Self {
             inspector_visible: true,
             toolbar_visible: true,
+            debug_panel_visible: false,
             new_type_name: String::new(),
             new_type_color: [0.5, 0.5, 0.5],
             new_type_role_index: 0,

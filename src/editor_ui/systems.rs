@@ -47,7 +47,7 @@ pub fn update_viewport_margins(mut contexts: EguiContexts, mut margins: ResMut<V
 
 /// Debug inspector as a right-side panel.
 /// Only compiled when the `inspector` feature is enabled.
-/// Toggled via the `inspector_open` local state (persists across frames).
+/// Toggled via the `view.toggle_debug_panel` command (backtick key).
 #[cfg(feature = "inspector")]
 pub fn debug_inspector_panel(
     mut contexts: EguiContexts,
@@ -56,15 +56,9 @@ pub fn debug_inspector_panel(
     selected_hex: Res<SelectedHex>,
     camera_q: Query<(&Transform, &Projection), With<Camera3d>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut open: Local<bool>,
+    editor_state: Res<super::components::EditorState>,
 ) {
-    // Toggle with backtick/grave key.
-    if keys.just_pressed(KeyCode::Backquote) {
-        *open = !*open;
-    }
-
-    if !*open {
+    if !editor_state.debug_panel_visible {
         return;
     }
 
@@ -83,7 +77,7 @@ pub fn debug_inspector_panel(
                     .color(BrandTheme::ACCENT_AMBER),
             );
             ui.label(
-                egui::RichText::new("press ` to toggle")
+                egui::RichText::new("toggle: `")
                     .small()
                     .color(BrandTheme::TEXT_SECONDARY),
             );
