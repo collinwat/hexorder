@@ -94,11 +94,14 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 10. **Implement**: Write the plugin, systems, components in `src/<plugin_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
     spec success criteria
-12. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
+12. **Abstraction check**: Does this implementation hardcode something that could be a trait or
+    interface? Would a small abstraction here prevent duplicate work in future scopes? If yes,
+    refactor before committing. If uncertain, note it in the plugin log and move on.
+13. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
     the feature branch
-13. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
+14. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
     shared types must go through `src/contracts/`
-14. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
+15. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
 
 ### Progress Updates
 
@@ -127,21 +130,21 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
 
 ### Finishing
 
-15. **Capture new ideas**: When you discover future work (tech debt, feature ideas, research needs,
+16. **Capture new ideas**: When you discover future work (tech debt, feature ideas, research needs,
     bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
     with the appropriate template. Issues are raw idea capture, not commitments.
-16. **Coordinate**: Claim ownership with `gh issue edit <n> --add-assignee @me` when starting work;
+17. **Coordinate**: Claim ownership with `gh issue edit <n> --add-assignee @me` when starting work;
     close the issue when finishing (via closing keyword in commit or `gh issue close <n>`)
-17. **Build reflection**: Post a final comment on the pitch issue summarizing the build experience.
+18. **Build reflection**: Post a final comment on the pitch issue summarizing the build experience.
     This is the agent's retrospective testimony — the `/hex-retro` skill will surface it later.
     Cover:
     - What was the final shape vs. the original pitch?
     - What was harder or easier than expected?
     - What would you do differently if building this scope again?
     - What did you learn that future agents (or future cycles) should know?
-18. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
+19. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
     version bump, changelog, tag
-19. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
+20. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
     `docs/guides/git.md` — remove worktree, delete branch, update ownership
 
 ## Ship Gate
