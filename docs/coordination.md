@@ -53,9 +53,9 @@ for approval before implementing. See the Shared Contracts Protocol in CLAUDE.md
 > Each cycle uses an integration branch for multi-pitch work. See `docs/guides/git.md` → Integration
 > branch and Merging sections.
 
-| Cycle | Branch  | Pitches Merged     | Status   |
-| ----- | ------- | ------------------ | -------- |
-| 4     | `0.9.0` | #54, #53, #77, #80 | shipping |
+| Cycle | Branch  | Pitches Merged     | Status  |
+| ----- | ------- | ------------------ | ------- |
+| 4     | `0.9.0` | #54, #53, #77, #80 | shipped |
 
 Status values: `active` | `shipping` | `shipped`
 
