@@ -10,7 +10,7 @@ covers 5 CRT types, common result codes, modifier categories. Section 1.4 (Turn 
 IGOUGO, alternating activation, chit-pull, impulse, simultaneous. The survey validates the pitch's
 scoping: phase-based turns only (IGOUGO/simultaneous), card-driven/chit-pull deferred.
 
-**Design decisions from pitch Q&A** (see `docs/plans/2026-02-15-core-mechanics-design.md`):
+**Design decisions from pitch Q&A** (see pitch #77 issue comments for full context):
 
 - Q1: Resource-only turn structure (not Bevy States) — designer-defined phases can't be compile-time
 - Q2: `AppScreen::Play` added — toggle between Editor and Play via toolbar

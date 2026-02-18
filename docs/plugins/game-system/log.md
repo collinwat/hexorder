@@ -29,7 +29,7 @@ entity types), clean separation from EntityTypeRegistry, consistent with project
 hand-coded editor). Rejected because no definition reuse, editor code grows linearly with type
 count, enums stay coupled to entity registry.
 
-**Full design**: `docs/plans/2026-02-15-property-system-design.md`
+**Full design**: see pitch #81 issue comments and commit history for v0.7.0
 
 ## Test Results
 

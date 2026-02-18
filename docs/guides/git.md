@@ -386,29 +386,34 @@ once per cycle.
    comment on each pitch issue.
 3. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
    CLAUDE.md. If any check fails, fix and re-run.
-4. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
+4. **Remove plan documents.** Delete transient build-phase artifacts from `docs/plans/` that were
+   created during this cycle's kickoff and orientation. These documents guided implementation but
+   the canonical record now lives in plugin specs, plugin logs, and pitch issue comments. If any
+   code changes result from this cleanup (e.g., references to plan files), re-run `mise check:audit`
+   before proceeding.
+5. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    `Cargo.toml`. Strip the pre-release suffix.
-5. **Rebase onto main.** From the integration branch:
+6. **Rebase onto main.** From the integration branch:
     ```bash
     git rebase main
     ```
     If conflicts arise, resolve and re-test with `mise check:audit`.
-6. **Merge.** From `main`:
+7. **Merge.** From `main`:
     ```bash
     git merge --ff-only <version>
     ```
-7. **Generate changelog.** Run `mise changelog:generate`.
-8. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
+8. **Generate changelog.** Run `mise changelog:generate`.
+9. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
    `chore(project): bump version to <version>`.
-9. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
-10. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag.
-11. **Push tag.** `git push origin main v<version>`.
-12. **Create GitHub Release.**
+10. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
+11. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag.
+12. **Push tag.** `git push origin main v<version>`.
+13. **Create GitHub Release.**
     `gh release create v<version> --title "<release>: <title>" --notes-file CHANGELOG.md`
-13. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
+14. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
     `gh issue close <number> --reason completed`.
-14. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
+15. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
     for the next cycle.
 
 ### Solo-Pitch Merge (feature branch → main directly)
@@ -418,11 +423,12 @@ For cycles with only one pitch, the integration branch is optional. Use this sim
 1. **Quality gate?** Run `mise check:audit`. All checks must pass.
 2. **Spec criteria met?** Every success criterion satisfied.
 3. **Deferred items captured?** All deferred items have GitHub Issues.
-4. **Rebased?** `git rebase main`. Re-test with `mise check:audit`.
-5. **Merge.** `git merge --ff-only <branch>`.
-6. **Generate changelog.** `mise changelog:generate`.
-7. **Version commit + tag + push.** Same as Ship Merge steps 8-12.
-8. **Issue cleanup + cool-down.** Same as Ship Merge steps 13-14.
+4. **Remove plan documents.** Same as Ship Merge step 4.
+5. **Rebased?** `git rebase main`. Re-test with `mise check:audit`.
+6. **Merge.** `git merge --ff-only <branch>`.
+7. **Generate changelog.** `mise changelog:generate`.
+8. **Version commit + tag + push.** Same as Ship Merge steps 9-13.
+9. **Issue cleanup + cool-down.** Same as Ship Merge steps 14-15.
 
 ### Conflict Resolution
 
