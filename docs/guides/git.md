@@ -166,24 +166,27 @@ Run these steps in order when starting work on a new plugin. No steps are option
     Without `mise trust`, mise will refuse to activate tools and tasks. Without copying
     `settings.local.json`, Claude Code starts with minimal permissions and re-prompts for every
     previously approved action.
-5. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
+5. **Format the codebase.** Run `cargo fmt`. If any files change, stage and commit as
+   `style(<feature>): apply formatting baseline`. This prevents the pre-commit hook from rejecting
+   your first real commit due to formatting changes in files you did not modify.
+6. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
     ```toml
     version = "0.4.0-movement-rules"
     ```
     The suffix is the `<feature>` portion of the branch name. This identifies builds from this
     branch. The suffix is stripped at merge time when the final version is set.
-6. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
+7. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
    from the templates:
     ```
     docs/plugins/<plugin>/spec.md   ← copy from docs/guides/plugin.md
     docs/plugins/<plugin>/log.md    ← copy from docs/guides/plugin.md
     ```
     If the files already exist, read them to understand prior decisions.
-7. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
+8. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
    introduces. If new contracts are needed, follow the Shared Contracts Protocol in CLAUDE.md.
-8. **Claim ownership.** Self-assign the pitch issue:
+9. **Claim ownership.** Self-assign the pitch issue:
    `gh issue edit <pitch-number> --add-assignee @me`
-9. **Initial commit.** Stage the `Cargo.toml` version change and any new spec/log files. Commit:
+10. **Initial commit.** Stage the `Cargo.toml` version change and any new spec/log files. Commit:
 
     ```
     chore(<feature>): set up feature branch
