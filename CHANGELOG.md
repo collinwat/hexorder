@@ -5,6 +5,72 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- add build reflection check to hex-ship gate (project)
+- add Cycle 4 design docs and update coordination (project)
+- fix typo in visual polish design doc (project)
+- switch branch naming from slash to hyphen separator (project)
+- add worktree trust step to feature branch setup checklist (project)
+- add BrandTheme and visual polish (editor_ui)
+- add 0.9.0 visual polish success criteria (editor_ui)
+- add workspace lifecycle and project naming (persistence)
+- update spec with workspace lifecycle requirements (persistence)
+- mark #53 workspace lifecycle as merged to integration (project)
+- add CRT data model and resolution logic (#77) (rules_engine)
+- add Play mode and mechanics resources (#77) (game_system)
+- save/load mechanics resources (#77) (contracts)
+- add Mechanics tab for turn structure and CRT (#77) (editor_ui)
+- add Play mode toggle and turn tracker (#77) (editor_ui)
+- update spec and log for 0.9.0 mechanics (#77) (rules_engine)
+- wire up inline CRT outcome cell editing (#77) (editor_ui)
+- add combat execution panel in Play mode (closes #104) (editor_ui)
+- mark #77 as merged and design doc as historical (project)
+- add storage provider abstraction (persistence)
+- record research spike results (closes #25) (shortcuts)
+- add shortcut registry and migrate persistence plugin (shortcuts)
+- migrate camera and hex_grid shortcuts to registry (shortcuts)
+- add command palette UI and tool/mode shortcuts (shortcuts)
+- add TOML config overrides and expand command set to 28 (shortcuts)
+- update architecture, contract spec, and plugin log (shortcuts)
+- implement deferred commands and update egui guide (shortcuts)
+- add dynamic viewport centering with deferred reset (camera)
+- add debug inspector, viewport margins, close command (editor_ui)
+- mark #80 as merged and integration branch as shipping (project)
+
+### Changed
+
+- close Cycle 3 in coordination (project)
+- add project-scoped permission settings (project)
+- place bets for Cycle 4 (project)
+- auto-approve read-only tool permissions (project)
+- set up feature branch (editor_ui)
+- mark #54 as merged to integration branch (project)
+- set up workspace feature branch (project)
+- add persistence as valid commit scope (project)
+- set up feature branch for core mechanics (#77) (project)
+- add Thr abbreviation to typos allow list (project)
+- set up feature branch (shortcuts)
+- fix ship gate audit failures (shortcuts)
+- add modifier-aware is_pressed to ShortcutRegistry (contracts)
+- use registry is_pressed for keyboard pan (camera)
+- migrate debug panel toggle to shortcut registry (editor_ui)
+- fix ship gate clippy warnings and spec parity (contracts)
+- merge 0.9.0-shortcuts into 0.9.0 (project)
+
+### Fixed
+
+- clean up indicator entities on editor exit (hex_grid)
+- escape doc comment brackets to fix rustdoc warning (editor_ui)
+- adapt play panel to workspace lifecycle API (editor_ui)
+- center launcher Create/Cancel buttons at input width (editor_ui)
+- register ShortcutsPlugin before consumers in load order (shortcuts)
+- account for top menu bar in viewport centering (camera)
+- prevent observer panic when SelectedHex missing (hex_grid)
+- resolve post-merge clippy warnings and version (project)
+
 ## [0.8.0] — 2026-02-16
 
 ### Added
