@@ -129,51 +129,30 @@ pub fn apply_pending_reset(
 
 /// Update system: handles keyboard panning via registry-bound keys.
 ///
-/// Reads bound keys from `ShortcutRegistry` instead of hardcoded `KeyCode`s.
-/// Pan direction commands are continuous (held every frame).
+/// Uses `ShortcutRegistry::is_pressed` which checks both key state and
+/// modifier match, so pan commands (registered with `Modifiers::NONE`)
+/// are automatically suppressed when Cmd/Shift/etc. are held.
 pub fn keyboard_pan(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     registry: Res<crate::contracts::shortcuts::ShortcutRegistry>,
     mut camera_state: ResMut<CameraState>,
 ) {
-    // Ignore WASD when a command modifier is held (e.g. Cmd+S for save).
-    if keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]) {
-        return;
-    }
-
     let mut direction = Vec2::ZERO;
 
-    // Read bound keys from registry for each pan direction.
     // The camera looks down -Y with up=+Z, so:
     //   screen up = +Z world, screen down = -Z world
     //   screen left = -X world, screen right = +X world
-    if registry
-        .bindings_for("camera.pan_up")
-        .iter()
-        .any(|k| keys.pressed(*k))
-    {
+    if registry.is_pressed("camera.pan_up", &keys) {
         direction.y += 1.0; // +Z
     }
-    if registry
-        .bindings_for("camera.pan_down")
-        .iter()
-        .any(|k| keys.pressed(*k))
-    {
+    if registry.is_pressed("camera.pan_down", &keys) {
         direction.y -= 1.0; // -Z
     }
-    if registry
-        .bindings_for("camera.pan_left")
-        .iter()
-        .any(|k| keys.pressed(*k))
-    {
+    if registry.is_pressed("camera.pan_left", &keys) {
         direction.x += 1.0; // screen left = +X world (camera mirrors X)
     }
-    if registry
-        .bindings_for("camera.pan_right")
-        .iter()
-        .any(|k| keys.pressed(*k))
-    {
+    if registry.is_pressed("camera.pan_right", &keys) {
         direction.x -= 1.0; // screen right = -X world (camera mirrors X)
     }
 
