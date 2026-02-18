@@ -73,9 +73,9 @@ Status values: `active` | `shipping` | `shipped`
 
 | Pitch | Depends On | Delivery Order | Status  |
 | ----- | ---------- | -------------- | ------- |
-| #120  | —          | —              | planned |
-| #122  | —          | —              | planned |
-| #121  | —          | —              | planned |
+| #120  | —          | 1              | planned |
+| #122  | —          | 1              | planned |
+| #121  | —          | 1              | planned |
 
 Delivery Order values: `1`, `2`, `3`... (pitches with the same number can build in parallel). Status
 values: `planned` | `in-progress` | `done`
