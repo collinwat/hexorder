@@ -328,6 +328,35 @@ Hexorder currently uses the **observer pattern** (`Event` + `commands.trigger()`
 events like `HexSelectedEvent`. This is correct for immediate, callback-style responses. For future
 plugins needing buffered multi-reader patterns, switch to `Message`.
 
+### Observer Resource Safety
+
+Observers fire globally and can run in any app state. If an observer accesses a resource that only
+exists in certain states (e.g., `SelectedHex` exists only on the Editor screen, not the Launcher),
+it will panic at runtime when triggered from an unexpected state.
+
+**Anti-pattern** — panics when the resource does not exist:
+
+```rust
+app.add_observer(|trigger: On<CommandExecutedEvent>, selected: Res<SelectedHex>| {
+    // PANICS if SelectedHex is not inserted (e.g., on the Launcher screen)
+    println!("Selected: {:?}", selected);
+});
+```
+
+**Pattern** — use `Option<Res<T>>` with early return:
+
+```rust
+app.add_observer(|trigger: On<CommandExecutedEvent>, selected: Option<Res<SelectedHex>>| {
+    let Some(selected) = selected else { return };
+    // Safe: resource exists in this state
+    println!("Selected: {:?}", selected);
+});
+```
+
+This pattern was discovered during Cycle 4 (pitch #80) when `CommandExecutedEvent` observers fired
+on the Launcher screen where Editor-state resources did not exist. Apply it whenever an observer
+accesses resources that are state-scoped.
+
 ---
 
 ## 5. Queries
