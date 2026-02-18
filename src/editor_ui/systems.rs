@@ -38,7 +38,7 @@ pub fn update_viewport_margins(mut contexts: EguiContexts, mut margins: ResMut<V
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
-    let screen = ctx.input(|i| i.viewport_rect());
+    let screen = ctx.input(bevy_egui::egui::InputState::viewport_rect);
     let available = ctx.available_rect();
     margins.left = available.left();
     margins.top = available.top();

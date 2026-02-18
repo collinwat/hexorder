@@ -265,7 +265,7 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
 /// Computes the camera offset needed to visually center content in the
 /// viewport area not covered by editor UI panels.
 ///
-/// Uses actual panel dimensions from `ViewportMargins` (written by editor_ui
+/// Uses actual panel dimensions from `ViewportMargins` (written by `editor_ui`
 /// each frame) instead of hardcoded constants.
 ///
 /// The left panel shifts the visible center right; a right panel shifts it

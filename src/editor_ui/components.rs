@@ -231,6 +231,7 @@ pub enum OntologyTab {
 }
 
 /// Persistent UI state for the editor panels.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Resource, Debug)]
 pub struct EditorState {
     /// Whether the inspector panel (tile/unit details) is visible.
