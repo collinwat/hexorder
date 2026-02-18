@@ -159,7 +159,7 @@ impl ShortcutRegistry {
         &self.commands
     }
 
-    /// Returns all bindings for a given command ID.
+    /// Returns all key codes bound to a given command ID (ignoring modifiers).
     #[must_use]
     pub fn bindings_for(&self, command_id: &str) -> Vec<KeyCode> {
         for entry in &self.commands {
@@ -168,6 +168,32 @@ impl ShortcutRegistry {
             }
         }
         Vec::new()
+    }
+
+    /// Returns true if a command's bound key is currently pressed AND
+    /// the active modifier state matches the binding's required modifiers.
+    ///
+    /// Use this for continuous (held) commands like camera panning. For
+    /// discrete commands, the `match_shortcuts` system fires
+    /// `CommandExecutedEvent` automatically.
+    #[must_use]
+    pub fn is_pressed(&self, command_id: &str, keys: &ButtonInput<KeyCode>) -> bool {
+        let current_mods = Modifiers {
+            cmd: keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]),
+            shift: keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
+            alt: keys.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]),
+            ctrl: keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]),
+        };
+
+        for entry in &self.commands {
+            if entry.id.0 == command_id {
+                return entry
+                    .bindings
+                    .iter()
+                    .any(|b| keys.pressed(b.key) && b.modifiers == current_mods);
+            }
+        }
+        false
     }
 
     /// Returns all discrete (non-continuous) commands, for command palette display.
