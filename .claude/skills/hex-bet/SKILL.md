@@ -20,7 +20,6 @@ project structure changes, update them here.
 | ---------------- | ----------------------------------------------------- | ---------------------------------------------- |
 | `project_root`   | repository root                                       | Base directory; all paths are relative to this |
 | `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch issue template (labels and fields)       |
-| `coordination`   | `{{ project_root }}/docs/coordination.md`             | Active cycle, bets, ownership                  |
 | `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                 |
 
 ## Review Pitches
@@ -49,16 +48,17 @@ For each selected pitch:
     ```bash
     gh issue edit <number> --milestone "<milestone>"
     ```
-2. Record the bet in `{{ coordination }}`:
-    - Set the new cycle name, type, and appetite under Active Cycle
-    - Add the pitch to the Current Bets table with status `pending`
+2. Record the bet by updating the milestone description with the cycle name, type, and bet summary:
+    ```bash
+    gh api repos/{owner}/{repo}/milestones/{number} -X PATCH \
+      -f description="Cycle N — <name> | <type> | <pitches summary> | Integration branch: <version>"
+    ```
 
 ## Scaffold Dependencies (multi-pitch cycles)
 
-If more than one pitch is selected, scaffold the Pitch Dependencies table in `{{ coordination }}`.
-Add one row per bet pitch with Depends On, Delivery Order, and Status columns left blank (`—`, `—`,
-`planned`). The kickoff phase will populate the actual dependencies after generating implementation
-plans.
+If more than one pitch is selected, post a dependencies comment on each pitch issue noting what it
+depends on (`—` for none) and its delivery order. The kickoff phase will finalize dependencies after
+generating implementation plans.
 
 ## Unselected Pitches
 

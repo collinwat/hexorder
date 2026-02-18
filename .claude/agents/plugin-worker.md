@@ -28,12 +28,12 @@ Implementation workflow:
 6. Run `cargo build`, `cargo clippy -- -D warnings`, `cargo test`
 7. Update the plugin spec: mark success criteria [x] or [ ]
 8. Update the plugin log with decisions and test results
-9. Update `docs/coordination.md` with your progress
+9. Post a progress comment on the pitch issue: `gh issue comment <n> --body "<update>"`
 
 If you encounter a blocker:
 
 - Log it in the plugin log with full context
-- If it requires a contract change, note it in coordination.md
+- If it requires a contract change, create a GitHub Issue with the `area:contracts` label
 - Do NOT work around it silently
 
 If tests fail:

@@ -89,6 +89,6 @@ Present the results to the user:
 Read `{{ git_guide }}` to determine the merge workflow:
 
 - **Multi-pitch cycle** (integration branch exists) → follow the Ship Merge steps to merge the
-  integration branch to `main`, tag the release, and update `{{ coordination }}`.
+  integration branch to `main` and tag the release.
 - **Solo-pitch cycle** (no integration branch) → follow the Solo-Pitch Merge steps to merge the
   feature branch directly to `main`.

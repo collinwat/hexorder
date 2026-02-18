@@ -23,7 +23,6 @@ project structure changes, update them here.
 | `contracts_spec_dir` | `{{ project_root }}/docs/contracts`          | Contract specification directory               |
 | `contracts_src_dir`  | `{{ project_root }}/src/contracts`           | Contract implementation directory              |
 | `contracts_mod`      | `{{ contracts_src_dir }}/mod.rs`             | Contract module registry                       |
-| `coordination`       | `{{ project_root }}/docs/coordination.md`    | Pending contract changes                       |
 | `architecture`       | `{{ project_root }}/docs/architecture.md`    | Plugin dependency graph                        |
 
 ## 1. Learn the Contract Protocol
@@ -51,7 +50,7 @@ Do NOT hardcode template structure or protocol steps — always read them fresh 
 
 1. Create `{{ contracts_spec_dir }}/<name>.md` using the template extracted from
    `{{ contract_guide }}`
-2. Propose the addition in `{{ coordination }}` under "Pending Contract Changes"
+2. Create a GitHub Issue describing the addition with the `area:contracts` label
 3. Implement the types in `{{ contracts_src_dir }}/<name>.rs` — data types only, no systems or logic
 4. Register the module in `{{ contracts_mod }}`
 5. Run `cargo build` to verify consumers compile
@@ -59,7 +58,7 @@ Do NOT hardcode template structure or protocol steps — always read them fresh 
 
 ## Changing an Existing Contract
 
-1. Propose the change in `{{ coordination }}` under "Pending Contract Changes"
+1. Create a GitHub Issue describing the change with the `area:contracts` label
 2. Update the spec in `{{ contracts_spec_dir }}/<name>.md`
 3. Update the implementation in `{{ contracts_src_dir }}/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile

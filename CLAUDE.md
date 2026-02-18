@@ -19,7 +19,8 @@ game system assets.
 1. Follow the **Getting Started** section in `README.md` — prerequisites, tool installation, build
    verification
 2. Read `docs/constitution.md` — non-negotiable project rules
-3. Read `docs/coordination.md` — active cycle, ownership, integration branch
+3. Check the active cycle: `gh issue list --milestone "<milestone>" --label "type:pitch"` — current
+   bets, ownership (assignees), integration branch (milestone description)
 4. Read `docs/architecture.md` — plugin load order, cross-cutting concerns, dependency graph
 5. Read `docs/guides/git.md` — git workflow, branching, commit, and merge conventions
 6. Read `docs/guides/bevy.md` — Bevy 0.18 API reference, patterns, and pitfalls
@@ -128,7 +129,8 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
 15. **Capture new ideas**: When you discover future work (tech debt, feature ideas, research needs,
     bugs), create a GitHub Issue. Search first (`gh issue list --search "<keywords>"`), then create
     with the appropriate template. Issues are raw idea capture, not commitments.
-16. **Coordinate**: Update `docs/coordination.md` status when starting/finishing work
+16. **Coordinate**: Claim ownership with `gh issue edit <n> --add-assignee @me` when starting work;
+    close the issue when finishing (via closing keyword in commit or `gh issue close <n>`)
 17. **Build reflection**: Post a final comment on the pitch issue summarizing the build experience.
     This is the agent's retrospective testimony — the `/hex-retro` skill will surface it later.
     Cover:
@@ -175,7 +177,7 @@ here.
 
 After the gate passes, follow the appropriate merge workflow in `docs/guides/git.md` — Ship Merge
 (integration branch → main) or Solo-Pitch Merge (feature branch → main directly). Tag the release
-version and record it in coordination.md.
+version.
 
 ### Gate Remediation
 
@@ -273,7 +275,7 @@ gh issue edit <n> --add-assignee @me           # claim a bet pitch
 
 When you need to ADD or CHANGE a contract:
 
-1. Propose the change in `docs/coordination.md` under "Pending Contract Changes"
+1. Create a GitHub Issue describing the change with the `area:contracts` label
 2. Update the spec in `docs/contracts/<name>.md`
 3. Implement the Rust types in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
@@ -299,8 +301,9 @@ Lead decomposes the plugin into subtasks. Teammates each own a subsystem.
 Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
 
 - Each terminal owns one plugin in its own git worktree and branch (see `docs/guides/git.md`)
-- Coordination happens through `docs/coordination.md` and contracts
-- Before touching a contract, check coordination.md for pending changes
+- Coordination happens through GitHub Issues, milestones, and contracts
+- Before touching a contract, check for pending changes:
+  `gh issue list --label "area:contracts" --state open`
 - After changing a contract, run `cargo build` to catch breakage
 - **Feature branches merge to the integration branch** via Pitch Merge (see `docs/guides/git.md`)
 - **Only Ship Merge touches `main`** — one merge per cycle, after the ship gate passes

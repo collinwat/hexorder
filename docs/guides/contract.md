@@ -49,7 +49,7 @@ which contracts.
 ### Adding a New Contract
 
 1. Write the spec at `docs/contracts/<name>.md` using the template
-2. Propose the addition in `docs/coordination.md` under "Pending Contract Changes"
+2. Create a GitHub Issue describing the addition with the `area:contracts` label
 3. Implement the Rust types in `src/contracts/<name>.rs`
 4. Register the module in `src/contracts/mod.rs`
 5. Run `cargo build` to verify all consumers compile
@@ -57,7 +57,7 @@ which contracts.
 
 ### Changing an Existing Contract
 
-1. Propose the change in `docs/coordination.md` under "Pending Contract Changes"
+1. Create a GitHub Issue describing the change with the `area:contracts` label
 2. Update the spec in `docs/contracts/<name>.md`
 3. Update the implementation in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
@@ -67,7 +67,8 @@ which contracts.
 
 Contract changes affect multiple plugins. When working in parallel:
 
-- Before touching a contract, check `docs/coordination.md` for pending changes
+- Before touching a contract, check for pending changes:
+  `gh issue list --label "area:contracts" --state open`
 - After changing a contract, run `cargo build` to catch breakage
 - Contract changes should always be done solo, not in parallel
 

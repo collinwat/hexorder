@@ -64,5 +64,5 @@ application consumes the exported assets for distribution.
 - Spec before code: `docs/plugins/<name>/spec.md` must exist before implementation
 - Contracts before types: `docs/contracts/<name>.md` must exist before `src/contracts/<name>.rs`
 - Log everything: decisions, test results, blockers go in the plugin log
-- One owner per plugin at a time (tracked in coordination.md)
+- One owner per plugin at a time (tracked via issue assignees)
 - Circuit breaker: unfinished cycles are cancelled by default, not extended

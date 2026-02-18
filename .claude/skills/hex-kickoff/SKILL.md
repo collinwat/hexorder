@@ -22,7 +22,6 @@ project structure changes, update them here.
 | `project_root`   | repository root                                       | Base directory; all paths are relative to this        |
 | `git_guide`      | `{{ project_root }}/docs/guides/git.md`               | Feature Branch Setup Checklist, branching conventions |
 | `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch template with labels                            |
-| `coordination`   | `{{ project_root }}/docs/coordination.md`             | Active cycle, ownership                               |
 | `hook_config`    | `{{ project_root }}/lefthook.yml`                     | Hook commands for worktree setup                      |
 | `wiki_index`     | `.wiki/Research-Index.md`                             | Research index for prior findings                     |
 | `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                        |
@@ -46,12 +45,9 @@ If the cycle has multiple pitches, map cross-pitch dependencies before setting u
 
 1. Read all bet pitches for the cycle
 2. For each pitch, identify shared types, contracts, or features it depends on from other pitches
-3. Populate the Pitch Dependencies table in `{{ coordination }}`:
-    - **Depends On**: list pitch numbers this pitch requires (or `—` for none)
-    - **Delivery Order**: `1` for pitches with no dependencies, `2` for pitches that depend on
-      order-1 work, etc. Pitches with the same order number can build in parallel.
-    - **Status**: set all to `planned`
-4. Present the dependency table to the user for review before proceeding
+3. Record dependencies as issue cross-references. For each pitch, comment on it listing what it
+   depends on and its delivery order. Use `delivery-order:N` labels if available.
+4. Present the dependency map to the user for review before proceeding
 
 If the cycle has only one pitch, skip this step.
 
@@ -65,7 +61,7 @@ git branch <version> main
 git push origin <version>
 ```
 
-Record it in `{{ coordination }}` under the Integration Branch table with status `active`.
+Record it in the milestone description (append `| Integration branch: <version>`).
 
 If the cycle has only one pitch, skip this step — the feature branch merges directly to `main` using
 the Solo-Pitch Merge workflow.
@@ -76,8 +72,8 @@ Read `{{ git_guide }}` to extract the Feature Branch Setup Checklist. Follow eac
 
 The checklist covers branch creation (from the integration branch if one exists, otherwise from
 `main`), worktree setup, hook installation, pre-release versioning, plugin scaffolding (via
-`{{ plugin_skill }}`), contract checks (via `{{ contract_skill }}`), ownership claiming in
-`{{ coordination }}`, and the initial commit.
+`{{ plugin_skill }}`), contract checks (via `{{ contract_skill }}`), ownership claiming (via
+`gh issue edit <n> --add-assignee @me`), and the initial commit.
 
 ## Consume Research
 

@@ -21,7 +21,7 @@ project structure changes, update them here.
 | `project_root` | repository root                            | Base directory; all paths are relative to this        |
 | `plugin_guide` | `{{ project_root }}/docs/guides/plugin.md` | Plugin lifecycle, spec and log templates, conventions |
 | `plugins_dir`  | `{{ project_root }}/docs/plugins`          | Plugin documentation directory                        |
-| `coordination` | `{{ project_root }}/docs/coordination.md`  | Plugin registration and ownership                     |
+| `architecture` | `{{ project_root }}/docs/architecture.md`  | Plugin registration and dependency graph              |
 
 ## 1. Learn the Plugin Lifecycle
 
@@ -47,7 +47,7 @@ Do NOT hardcode template structure or lifecycle rules — always read them fresh
    `{{ plugin_guide }}`
 2. Create `{{ plugins_dir }}/<name>/log.md` using the log template extracted from
    `{{ plugin_guide }}`
-3. Register the plugin in `{{ coordination }}`
+3. Register the plugin in `src/main.rs` and `{{ architecture }}`
 4. If the plugin introduces shared types, use the contract skill
 
 ## Updating During Implementation

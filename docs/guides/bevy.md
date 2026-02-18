@@ -1004,7 +1004,7 @@ point in development.
 
 **Before changing a contract:**
 
-1. Propose in `docs/coordination.md` under "Pending Contract Changes"
+1. Create a GitHub Issue with the `area:contracts` label describing the change
 2. Update `docs/contracts/<name>.md`
 3. Implement in `src/contracts/<name>.rs`
 4. Run `cargo build` to verify all consumers compile

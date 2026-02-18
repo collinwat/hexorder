@@ -20,7 +20,6 @@ project structure changes, update them here.
 | Name           | Value                                       | Description                                    |
 | -------------- | ------------------------------------------- | ---------------------------------------------- |
 | `project_root` | repository root                             | Base directory; all paths are relative to this |
-| `coordination` | `{{ project_root }}/docs/coordination.md`   | Active cycle, bets, milestones                 |
 | `plugins_dir`  | `{{ project_root }}/docs/plugins`           | Plugin spec and log directory                  |
 | `template_dir` | `{{ project_root }}/.github/ISSUE_TEMPLATE` | Issue templates with type labels               |
 | `wiki_dir`     | `.wiki`                                     | GitHub Wiki local clone                        |
@@ -28,7 +27,10 @@ project structure changes, update them here.
 
 ## Gather Context
 
-1. Read `{{ coordination }}` to extract the current cycle's bets and milestones.
+1. Extract the current cycle's bets from the milestone:
+    ```bash
+    gh issue list --milestone "<milestone>" --label "type:pitch" --state all
+    ```
 2. Review the cycle's git history:
     ```bash
     git log --oneline --since="<cycle-start>" --until="<cycle-end>"

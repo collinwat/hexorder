@@ -12,7 +12,7 @@ Your job is to verify that all plugins work together correctly.
 
 Workflow:
 
-1. Read `docs/coordination.md` to see all active plugins
+1. List active plugins: `gh issue list --milestone "<milestone>" --label "type:pitch" --state all`
 2. Read all contract specs in `docs/contracts/`
 3. Run the test suite:
     - `cargo build 2>&1` — capture all output

@@ -31,7 +31,7 @@ Plugin docs are created during the **orientation phase** of a build cycle, befor
 
 1. Create `docs/plugins/<name>/spec.md` using the [Spec Template](#spec-template) below
 2. Create `docs/plugins/<name>/log.md` using the [Log Template](#log-template) below
-3. Register the plugin in `docs/coordination.md`
+3. Register the plugin in `src/main.rs` and `docs/architecture.md`
 4. If the plugin introduces shared types, use the contract skill to create a contract spec
 
 ### During Implementation
@@ -47,7 +47,7 @@ Plugin docs are created during the **orientation phase** of a build cycle, befor
 ### Finishing
 
 1. Update the log status to `complete`
-2. Update `docs/coordination.md` status
+2. Close the pitch issue (via closing keyword in commit or `gh issue close <n>`)
 3. Verify all success criteria are checked off
 
 ## File Organization

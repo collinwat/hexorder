@@ -44,7 +44,6 @@ src/
 
 docs/
   constitution.md      # Non-negotiable project rules
-  coordination.md      # Active cycle, ownership, integration branch
   architecture.md      # Plugin load order, cross-cutting concerns, dependency graph
   brand.md             # Visual identity (colors, typography, icon)
   glossary.md          # Canonical terminology
@@ -133,7 +132,7 @@ methodology reference. The workflow includes:
 1. Read `CLAUDE.md` for agent workflow and architecture rules
 2. Read `docs/constitution.md` for non-negotiable project rules
 3. Read `docs/guides/git.md` for git conventions
-4. Check `docs/coordination.md` for active cycle and ownership
+4. Check the active cycle: `gh issue list --milestone "<milestone>" --label "type:pitch"`
 5. Check `docs/architecture.md` for cross-cutting concerns and dependencies
 
 ## Platform

@@ -117,8 +117,7 @@ Branch names **must** follow this pattern:
 ```
 
 - `<release>` is the target release version: `0.1.0`, `0.2.0`, `0.3.0`, etc.
-- `<feature>` is the plugin name as it appears in `docs/coordination.md`, using hyphens for
-  multi-word names
+- `<feature>` is the plugin name as it appears under `src/`, using hyphens for multi-word names
 - The separator is a **hyphen**, not a slash
 
 **Valid**: `0.3.0-unit`, `0.3.0-editor-ui`, `0.4.0-movement-rules` **Invalid**: `feature/unit`,
@@ -182,10 +181,9 @@ Run these steps in order when starting work on a new plugin. No steps are option
     If the files already exist, read them to understand prior decisions.
 7. **Contract check.** Read `docs/contracts/` for any shared types the plugin depends on or
    introduces. If new contracts are needed, follow the Shared Contracts Protocol in CLAUDE.md.
-8. **Claim ownership.** Update `docs/coordination.md` → Active Plugins table: set Owner to your
-   session identifier and Status to `in-progress`.
-9. **Initial commit.** Stage the `Cargo.toml` version change, any new spec/log files, and the
-   coordination.md update. Commit:
+8. **Claim ownership.** Self-assign the pitch issue:
+   `gh issue edit <pitch-number> --add-assignee @me`
+9. **Initial commit.** Stage the `Cargo.toml` version change and any new spec/log files. Commit:
 
     ```
     chore(<feature>): set up feature branch
@@ -215,8 +213,9 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```bash
     git branch -d <release>-<feature>
     ```
-4. **Update ownership.** In `docs/coordination.md` → Active Plugins table, set Status to `complete`
-   and clear Owner.
+4. **Update ownership.** The pitch issue is closed automatically when the merge commit reaches
+   `main` (if the commit uses a closing keyword like `fixes #N`). If not, close manually:
+   `gh issue close <pitch-number> --reason completed`
 5. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
    any other active plugin worktrees).
 
@@ -381,7 +380,8 @@ merge independently.
 After all pitches merge into the integration branch and UAT passes, merge to `main`. This happens
 once per cycle.
 
-1. **All pitches merged?** Check `docs/coordination.md` — all bets should have status `merged`.
+1. **All pitches merged?** Check that no open pitch issues remain for the milestone:
+   `gh issue list --milestone "<milestone>" --label "type:pitch" --state open`
 2. **UAT passed?** Walk through the UAT checklist (max 5 items per pitch). Record results as a
    comment on each pitch issue.
 3. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
@@ -440,13 +440,8 @@ When rebasing onto `main` produces merge conflicts, resolve them by file type:
 2. Re-apply your additions on top. Do not remove or rename types that the other branch introduced.
 3. Update your plugin's code to work with the merged contract state.
 4. If the conflict is structural (incompatible type changes), stop the rebase (`git rebase --abort`)
-   and coordinate via `docs/coordination.md` Pending Contract Changes before proceeding.
-
-**`docs/coordination.md` (shared coordination state)**
-
-1. Accept the `main` version of the table rows.
-2. Re-apply only your row updates (ownership, status).
-3. Never overwrite another session's rows or status.
+   and create a GitHub Issue with the `area:contracts` label to coordinate the change before
+   proceeding.
 
 **`CHANGELOG.md`**
 
@@ -715,8 +710,9 @@ changed files. Then continue with the detailed steps below for anything that nee
    has changed relative to mainline.
 6. **Read the spec and log.** Open `docs/plugins/<name>/spec.md` and `docs/plugins/<name>/log.md`.
    The log records decisions, blockers, and test results from prior sessions.
-7. **Check coordination.** Read `docs/coordination.md` for any contract changes or blockers that
-   appeared since the last session.
+7. **Check coordination.** Check for contract changes or blockers that appeared since the last
+   session: `gh issue list --label "area:contracts" --state open` and
+   `gh issue list --label "status:blocked" --state open`
 8. **Resume the Development Workflow.** Pick up from the appropriate step in CLAUDE.md's Development
    Workflow based on what the prior session completed.
 
