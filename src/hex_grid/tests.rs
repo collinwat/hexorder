@@ -650,3 +650,24 @@ fn los_ray_not_drawn_without_unit() {
     app.update(); // Startup
     app.update(); // Update — should not panic
 }
+
+/// The `handle_hex_grid_command` observer must not panic when `SelectedHex`
+/// does not exist (e.g., Escape pressed on the Launcher screen before the
+/// hex grid is initialized). The observer wraps `SelectedHex` in `Option`.
+#[test]
+fn deselect_command_without_selected_hex_resource_does_not_panic() {
+    use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    // Do NOT insert SelectedHex — simulates Launcher state.
+    app.add_observer(systems::handle_hex_grid_command);
+    app.update();
+
+    // Fire the deselect command that the observer handles.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.deselect"),
+    });
+
+    app.update(); // Must not panic
+}

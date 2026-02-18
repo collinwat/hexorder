@@ -5,7 +5,8 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use super::components::{CameraState, TopDownCamera};
-use crate::contracts::hex_grid::HexGridConfig;
+use crate::contracts::editor_ui::ViewportMargins;
+use crate::contracts::hex_grid::{HexGridConfig, SelectedHex};
 
 /// Fixed camera height above the ground plane.
 const CAMERA_Y: f32 = 100.0;
@@ -39,12 +40,23 @@ pub fn spawn_camera(mut commands: Commands) {
 }
 
 /// Startup system: adjusts camera state bounds based on `HexGridConfig` if available.
-/// Also sets the initial view to fit+center the grid. Runs after `spawn_camera` via `.chain()`.
+/// Sets bounds and an initial fit scale estimate. The actual centering is deferred
+/// to `apply_pending_reset` which waits for `ViewportMargins` to be populated.
 pub fn configure_bounds_from_grid(
     grid_config: Option<Res<HexGridConfig>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
+    mut cameras: Query<&mut Camera, With<TopDownCamera>>,
 ) {
+    // Always request a deferred reset so centering happens once margins are known,
+    // even if grid config isn't available yet (apply_pending_reset handles that).
+    // Deactivate the camera while the reset is pending to prevent rendering
+    // at the wrong position (visible as a flash).
+    camera_state.pending_reset = true;
+    if let Ok(mut cam) = cameras.single_mut() {
+        cam.is_active = false;
+    }
+
     let Some(config) = grid_config else {
         return;
     };
@@ -67,38 +79,80 @@ pub fn configure_bounds_from_grid(
     // Start at the target scale immediately (no animation on startup).
     camera_state.current_scale = camera_state.target_scale;
 
-    // Center with panel offset.
-    let scale = camera_state.target_scale;
-    camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+    // Defer centering until the first frame where ViewportMargins are populated
+    // (egui panels must render once before margins are known).
+    camera_state.pending_reset = true;
 }
 
-/// Update system: handles keyboard panning (arrow keys and WASD).
-pub fn keyboard_pan(
-    keys: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
+/// Applies a deferred reset-view (fit + center) once `ViewportMargins` are
+/// populated. Runs every frame in `Update`; does nothing when there is no
+/// pending reset or when the editor side panel hasn't rendered yet.
+/// Snaps both the target and actual camera transform to avoid a visible flash.
+pub fn apply_pending_reset(
+    grid_config: Option<Res<HexGridConfig>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
+    margins: Res<ViewportMargins>,
+    mut camera_q: Query<(&mut Transform, &mut Projection, &mut Camera), With<TopDownCamera>>,
 ) {
-    // Ignore WASD when a command modifier is held (e.g. Cmd+S for save).
-    if keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]) {
+    if !camera_state.pending_reset {
+        return;
+    }
+    // Wait until the editor side panel has rendered at least once.
+    // margins.left is always > 0 when the side panel is visible.
+    if margins.left == 0.0 {
         return;
     }
 
+    // Recompute fit scale with actual window.
+    if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+        camera_state.target_scale = fit_scale(config, window, &camera_state);
+        camera_state.current_scale = camera_state.target_scale;
+    }
+
+    // Center accounting for UI margins.
+    let scale = camera_state.target_scale;
+    camera_state.target_position = ui_center_offset(scale, &margins);
+
+    // Snap the camera transform directly and reactivate rendering.
+    if let Ok((mut transform, mut projection, mut cam)) = camera_q.single_mut() {
+        transform.translation.x = camera_state.target_position.x;
+        transform.translation.z = camera_state.target_position.y;
+        if let Projection::Orthographic(ref mut ortho) = *projection {
+            ortho.scale = camera_state.current_scale;
+        }
+        cam.is_active = true;
+    }
+
+    camera_state.pending_reset = false;
+}
+
+/// Update system: handles keyboard panning via registry-bound keys.
+///
+/// Uses `ShortcutRegistry::is_pressed` which checks both key state and
+/// modifier match, so pan commands (registered with `Modifiers::NONE`)
+/// are automatically suppressed when Cmd/Shift/etc. are held.
+pub fn keyboard_pan(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    registry: Res<crate::contracts::shortcuts::ShortcutRegistry>,
+    mut camera_state: ResMut<CameraState>,
+) {
     let mut direction = Vec2::ZERO;
 
-    // WASD and arrow keys for panning in the XZ plane.
     // The camera looks down -Y with up=+Z, so:
     //   screen up = +Z world, screen down = -Z world
     //   screen left = -X world, screen right = +X world
-    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
+    if registry.is_pressed("camera.pan_up", &keys) {
         direction.y += 1.0; // +Z
     }
-    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown) {
+    if registry.is_pressed("camera.pan_down", &keys) {
         direction.y -= 1.0; // -Z
     }
-    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft) {
+    if registry.is_pressed("camera.pan_left", &keys) {
         direction.x += 1.0; // screen left = +X world (camera mirrors X)
     }
-    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
+    if registry.is_pressed("camera.pan_right", &keys) {
         direction.x -= 1.0; // screen right = -X world (camera mirrors X)
     }
 
@@ -208,70 +262,75 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
     scale.clamp(camera_state.min_scale, camera_state.max_scale)
 }
 
-/// Width of the editor side panel in logical pixels.
-/// Used to offset the camera center so the grid appears centered in the
-/// visible viewport area (window minus panel).
-const PANEL_WIDTH: f32 = 260.0;
-
-/// Computes the camera X offset needed to visually center content in the
-/// viewport area not covered by the editor panel.
-/// The panel is on the left, so the visible center is shifted right by
-/// half the panel width. Because the camera mirrors X (camera right = -X world),
-/// we negate the offset.
-fn panel_center_offset(scale: f32) -> f32 {
-    let offset_pixels = PANEL_WIDTH / 2.0;
-    offset_pixels * scale
+/// Computes the camera offset needed to visually center content in the
+/// viewport area not covered by editor UI panels.
+///
+/// Uses actual panel dimensions from `ViewportMargins` (written by `editor_ui`
+/// each frame) instead of hardcoded constants.
+///
+/// The left panel shifts the visible center right; a right panel shifts it
+/// left. The net horizontal offset is `(left - right) / 2`. The camera
+/// mirrors X (camera right = -X world), so the X offset is positive when
+/// the left panel is wider.
+///
+/// The menu bar is at the top, so the visible center is shifted down by
+/// half the menu bar height.
+fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
+    let x = ((margins.left - margins.right) / 2.0) * scale;
+    let z = (margins.top / 2.0) * scale;
+    Vec2::new(x, z)
 }
 
-/// Update system: keyboard shortcuts for view navigation.
-///
-/// - **C** — center the grid in the viewport (keep current zoom)
-/// - **F** — zoom to fit the grid (keep current center)
-/// - **0** — zoom to fit and center
-/// - **=** — zoom in
-/// - **-** — zoom out
-pub fn view_shortcuts(
-    keys: Res<ButtonInput<KeyCode>>,
+/// Observer: handles discrete camera commands dispatched via the shortcut registry.
+pub fn handle_camera_command(
+    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
+    selected_hex: Option<Res<SelectedHex>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
+    margins: Res<ViewportMargins>,
 ) {
-    // Keyboard zoom: = zooms in, - zooms out.
     let zoom_step = 0.2; // 20% per press
-    if keys.just_pressed(KeyCode::Equal) {
-        camera_state.target_scale *= 1.0 - zoom_step;
-        camera_state.target_scale = camera_state
-            .target_scale
-            .clamp(camera_state.min_scale, camera_state.max_scale);
-    }
-    if keys.just_pressed(KeyCode::Minus) {
-        camera_state.target_scale *= 1.0 + zoom_step;
-        camera_state.target_scale = camera_state
-            .target_scale
-            .clamp(camera_state.min_scale, camera_state.max_scale);
-    }
-
-    let center = keys.just_pressed(KeyCode::KeyC);
-    let fit = keys.just_pressed(KeyCode::KeyF);
-    let reset = keys.just_pressed(KeyCode::Digit0);
-
-    if !center && !fit && !reset {
-        return;
-    }
-
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    if (fit || reset)
-        && let Some(config) = &grid_config
-    {
-        camera_state.target_scale = fit_scale(config, window, &camera_state);
-    }
-
-    if center || reset {
-        let scale = camera_state.target_scale;
-        camera_state.target_position = Vec2::new(panel_center_offset(scale), 0.0);
+    match trigger.event().command_id.0 {
+        "camera.zoom_in" => {
+            camera_state.target_scale *= 1.0 - zoom_step;
+            camera_state.target_scale = camera_state
+                .target_scale
+                .clamp(camera_state.min_scale, camera_state.max_scale);
+        }
+        "camera.zoom_out" => {
+            camera_state.target_scale *= 1.0 + zoom_step;
+            camera_state.target_scale = camera_state
+                .target_scale
+                .clamp(camera_state.min_scale, camera_state.max_scale);
+        }
+        "camera.center" => {
+            let scale = camera_state.target_scale;
+            camera_state.target_position = ui_center_offset(scale, &margins);
+        }
+        "camera.fit" => {
+            if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+                camera_state.target_scale = fit_scale(config, window, &camera_state);
+            }
+        }
+        "camera.reset_view" => {
+            if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
+                camera_state.target_scale = fit_scale(config, window, &camera_state);
+            }
+            let scale = camera_state.target_scale;
+            camera_state.target_position = ui_center_offset(scale, &margins);
+        }
+        "view.zoom_to_selection" => {
+            if let (Some(sel), Some(config)) = (&selected_hex, &grid_config) {
+                if let Some(pos) = sel.position {
+                    let world = config.layout.hex_to_world_pos(pos.to_hex());
+                    let offset = ui_center_offset(camera_state.target_scale, &margins);
+                    camera_state.target_position =
+                        Vec2::new(world.x + offset.x, world.y + offset.y);
+                }
+            }
+        }
+        _ => {}
     }
 }
 

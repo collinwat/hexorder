@@ -24,6 +24,8 @@ fn test_app() -> App {
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.add_plugins(crate::game_system::GameSystemPlugin);
+    // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
+    app.init_resource::<crate::contracts::shortcuts::ShortcutRegistry>();
     app.add_plugins(crate::persistence::PersistencePlugin);
     app
 }

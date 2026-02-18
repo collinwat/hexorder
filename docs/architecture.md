@@ -6,15 +6,16 @@ Declared in `main.rs`. Update this when adding a new plugin.
 
 1. DefaultPlugins (built-in)
 2. HexGridPlugin
-3. CameraPlugin
-4. GameSystemPlugin (must be before CellPlugin, UnitPlugin, OntologyPlugin, and EditorUiPlugin)
-5. OntologyPlugin (must be after GameSystemPlugin, before RulesEnginePlugin)
-6. CellPlugin
-7. UnitPlugin
-8. RulesEnginePlugin (must be after OntologyPlugin, UnitPlugin)
-9. ScriptingPlugin (NEW 0.5.0 — after RulesEnginePlugin, before EditorUiPlugin)
-10. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
-11. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
+3. ShortcutsPlugin (NEW 0.9.0 — before all plugins that register shortcuts)
+4. CameraPlugin
+5. GameSystemPlugin (must be before CellPlugin, UnitPlugin, OntologyPlugin, and EditorUiPlugin)
+6. OntologyPlugin (must be after GameSystemPlugin, before RulesEnginePlugin)
+7. CellPlugin
+8. UnitPlugin
+9. RulesEnginePlugin (must be after OntologyPlugin, UnitPlugin)
+10. ScriptingPlugin (NEW 0.5.0 — after RulesEnginePlugin, before EditorUiPlugin)
+11. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
+12. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
 
 ## Cross-Cutting Concerns
 
@@ -41,6 +42,10 @@ Declared in `main.rs`. Update this when adding a new plugin.
   Serialize/Deserialize. Save format is RON via `ron 0.12`. File extension: `.hexorder`.
 - **Editor tool mode**: `EditorTool` resource (owned by editor_ui) must be checked by cell and unit
   before painting/placing.
+- **Keyboard shortcuts (0.9.0)**: All keyboard shortcuts are registered in the centralized
+  `ShortcutRegistry` (owned by shortcuts plugin). Discrete commands fire `CommandExecutedEvent` via
+  observers. Continuous commands (WASD pan) register for discoverability but read bindings directly.
+  Cmd+K opens the command palette for fuzzy search. TOML config overrides supported.
 - **Module privacy enforcement**: Plugin sub-modules are `mod` (private). Contract boundary
   violations are compile errors + enforced by `architecture_tests::plugin_modules_are_private`.
 - **Ontology**: Concepts, relations, and constraints are designer-defined abstractions. No hardcoded
@@ -51,7 +56,7 @@ Declared in `main.rs`. Update this when adding a new plugin.
 - **Move overlays**: Separate lightweight entities above hex tiles, managed by hex_grid. Do not
   modify tile materials or interfere with cell visual sync.
 
-## Plugin Dependency Graph (0.6.0)
+## Plugin Dependency Graph (0.9.0)
 
 ```
 game_system (contract) ──→ cell
@@ -70,14 +75,19 @@ ontology (contract)    ──→ editor_ui
 validation (contract)  ──→ hex_grid
 validation (contract)  ──→ unit
 validation (contract)  ──→ editor_ui
+shortcuts (contract)   ──→ camera
+shortcuts (contract)   ──→ hex_grid
+shortcuts (contract)   ──→ persistence
+shortcuts (contract)   ──→ editor_ui
 
-camera: independent
-hex_grid: depends on validation contract (0.4.0: move overlays)
+shortcuts: independent (provides ShortcutRegistry, CommandExecutedEvent, CommandPaletteState)
+camera: depends on shortcuts contract (0.9.0: registry lookups for pan/view keys)
+hex_grid: depends on validation + shortcuts contracts
 game_system: independent (provides EntityTypeRegistry)
 ontology: depends on game_system contract
 cell: depends on hex_grid + game_system + editor_ui contracts
 unit: depends on hex_grid + game_system + editor_ui + validation contracts
 rules_engine: depends on game_system + ontology + hex_grid contracts
-persistence: depends on game_system + ontology + hex_grid + validation + persistence contracts
-editor_ui: depends on hex_grid + game_system + ontology + validation + persistence contracts
+persistence: depends on game_system + ontology + hex_grid + validation + persistence + shortcuts contracts
+editor_ui: depends on hex_grid + game_system + ontology + validation + persistence + shortcuts contracts
 ```

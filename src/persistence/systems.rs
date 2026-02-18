@@ -339,28 +339,18 @@ pub fn handle_close_project(
 // Update Systems
 // ---------------------------------------------------------------------------
 
-/// Keyboard shortcuts for file operations.
-/// - `Cmd+S`: Save (to current path, or Save As if no path)
-/// - `Cmd+Shift+S`: Save As (always show dialog)
-/// - `Cmd+O`: Open
-/// - `Cmd+N`: Close project (return to launcher)
-pub fn keyboard_shortcuts(input: Option<Res<ButtonInput<KeyCode>>>, mut commands: Commands) {
-    let Some(input) = input else {
-        return;
-    };
-    let cmd = input.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]);
-    let shift = input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
-
-    if !cmd {
-        return;
-    }
-
-    if input.just_pressed(KeyCode::KeyS) {
-        commands.trigger(SaveRequestEvent { save_as: shift });
-    } else if input.just_pressed(KeyCode::KeyO) {
-        commands.trigger(LoadRequestEvent);
-    } else if input.just_pressed(KeyCode::KeyN) {
-        commands.trigger(CloseProjectEvent);
+/// Handles file commands dispatched via the shortcut registry.
+/// Maps `CommandExecutedEvent` command IDs to persistence events.
+pub fn handle_file_command(
+    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
+    mut commands: Commands,
+) {
+    match trigger.event().command_id.0 {
+        "file.save" => commands.trigger(SaveRequestEvent { save_as: false }),
+        "file.save_as" => commands.trigger(SaveRequestEvent { save_as: true }),
+        "file.open" => commands.trigger(LoadRequestEvent),
+        "file.new" => commands.trigger(CloseProjectEvent),
+        _ => {} // Not our command.
     }
 }
 

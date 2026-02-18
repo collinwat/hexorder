@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use crate::contracts::editor_ui::EditorTool;
+use crate::contracts::editor_ui::{EditorTool, ViewportMargins};
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
@@ -18,6 +18,7 @@ use crate::contracts::ontology::{
 use crate::contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
+use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
 use crate::contracts::validation::SchemaValidation;
 
 use crate::contracts::mechanics::{
@@ -30,6 +31,135 @@ use super::components::{
     BrandTheme, EditorAction, EditorState, MechanicsParams, OntologyParams, OntologyTab,
     ProjectParams, SelectionParams,
 };
+
+/// Updates `ViewportMargins` from the actual egui panel layout.
+/// Runs after the editor panel system so `available_rect()` reflects all panels.
+pub fn update_viewport_margins(mut contexts: EguiContexts, mut margins: ResMut<ViewportMargins>) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+    let screen = ctx.input(bevy_egui::egui::InputState::viewport_rect);
+    let available = ctx.available_rect();
+    margins.left = available.left();
+    margins.top = available.top();
+    margins.right = screen.right() - available.right();
+}
+
+/// Debug inspector as a right-side panel.
+/// Only compiled when the `inspector` feature is enabled.
+/// Toggled via the `view.toggle_debug_panel` command (backtick key).
+#[cfg(feature = "inspector")]
+pub fn debug_inspector_panel(
+    mut contexts: EguiContexts,
+    margins: Res<ViewportMargins>,
+    grid_config: Option<Res<crate::contracts::hex_grid::HexGridConfig>>,
+    selected_hex: Res<SelectedHex>,
+    camera_q: Query<(&Transform, &Projection), With<Camera3d>>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    editor_state: Res<super::components::EditorState>,
+) {
+    if !editor_state.debug_panel_visible {
+        return;
+    }
+
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    egui::SidePanel::right("debug_inspector")
+        .default_width(240.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.label(
+                egui::RichText::new("Debug Inspector")
+                    .strong()
+                    .size(13.0)
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            ui.label(
+                egui::RichText::new("toggle: `")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.separator();
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                if let Ok((transform, projection)) = camera_q.single() {
+                    ui.collapsing("Camera", |ui| {
+                        let t = transform.translation;
+                        ui.label(format!("x: {:.3}", t.x));
+                        ui.label(format!("y: {:.3}", t.y));
+                        ui.label(format!("z: {:.3}", t.z));
+                        if let Projection::Orthographic(ortho) = projection {
+                            ui.label(format!("scale: {:.5}", ortho.scale));
+                        }
+                    });
+                }
+
+                ui.collapsing("Viewport Margins", |ui| {
+                    ui.label(format!("left: {:.1}px", margins.left));
+                    ui.label(format!("top: {:.1}px", margins.top));
+                });
+
+                if let Ok(window) = windows.single() {
+                    ui.collapsing("Window / Viewport", |ui| {
+                        ui.label(format!(
+                            "window: {:.0} x {:.0}",
+                            window.width(),
+                            window.height()
+                        ));
+                        let vp_w = window.width() - margins.left;
+                        let vp_h = window.height() - margins.top;
+                        ui.label(format!("viewport: {:.0} x {:.0}", vp_w, vp_h));
+
+                        let vp_cx = margins.left + vp_w / 2.0;
+                        let vp_cy = margins.top + vp_h / 2.0;
+                        let win_cx = window.width() / 2.0;
+                        let win_cy = window.height() / 2.0;
+                        let px_dx = vp_cx - win_cx;
+                        let px_dy = vp_cy - win_cy;
+                        ui.label(format!("vp center: ({:.0}, {:.0})", vp_cx, vp_cy));
+                        ui.label(format!("win center: ({:.0}, {:.0})", win_cx, win_cy));
+                        ui.label(format!("px offset: ({:.1}, {:.1})", px_dx, px_dy));
+
+                        if let Ok((_, projection)) = camera_q.single() {
+                            if let Projection::Orthographic(ortho) = projection {
+                                let s = ortho.scale;
+                                ui.label(format!(
+                                    "world offset: ({:.3}, {:.3})",
+                                    px_dx * s,
+                                    px_dy * s
+                                ));
+                            }
+                        }
+                    });
+                }
+
+                if let Some(config) = &grid_config {
+                    ui.collapsing("Grid Config", |ui| {
+                        ui.label(format!("radius: {}", config.map_radius));
+                        ui.label(format!(
+                            "scale: ({:.2}, {:.2})",
+                            config.layout.scale.x, config.layout.scale.y
+                        ));
+                    });
+                }
+
+                ui.collapsing("Selection", |ui| match selected_hex.position {
+                    Some(pos) => {
+                        ui.label(format!("hex: ({}, {})", pos.q, pos.r));
+                        if let Some(config) = &grid_config {
+                            let wp = config.layout.hex_to_world_pos(pos.to_hex());
+                            ui.label(format!("world: ({:.2}, {:.2})", wp.x, wp.y));
+                        }
+                    }
+                    None => {
+                        ui.label("(none)");
+                    }
+                });
+            });
+        });
+}
 
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
@@ -249,8 +379,10 @@ pub fn editor_panel_system(
                     ui.close();
                 }
                 ui.separator();
-                if ui.button("Close Project").clicked() {
-                    commands.trigger(CloseProjectEvent);
+                if ui.button("Close        Cmd+W").clicked() {
+                    commands.trigger(CommandExecutedEvent {
+                        command_id: CommandId("mode.close"),
+                    });
                     ui.close();
                 }
             });
@@ -263,8 +395,10 @@ pub fn editor_panel_system(
             // -- Workspace Header --
             render_workspace_header(ui, &project.workspace, &project.game_system);
 
-            // -- Tool Mode --
-            render_tool_mode(ui, &mut editor_tool);
+            // -- Tool Mode (toggleable via Cmd+T) --
+            if editor_state.toolbar_visible {
+                render_tool_mode(ui, &mut editor_tool);
+            }
 
             // -- Play Mode Toggle --
             if ui
@@ -361,28 +495,31 @@ pub fn editor_panel_system(
                     render_unit_palette(ui, &registry, &mut selection.active_token);
                 }
 
-                // -- Unit Inspector (takes priority when a unit is selected) --
-                if selection.selected_unit.entity.is_some() {
-                    render_unit_inspector(
-                        ui,
-                        &selection.selected_unit,
-                        &mut unit_data_query,
-                        &registry,
-                        &enum_registry,
-                        &struct_registry,
-                        &mut actions,
-                    );
-                } else {
-                    // -- Tile Inspector --
-                    render_inspector(
-                        ui,
-                        &selected_hex,
-                        &tile_query,
-                        &mut tile_data_query,
-                        &registry,
-                        &enum_registry,
-                        &struct_registry,
-                    );
+                // -- Inspector (toggleable via Cmd+I) --
+                if editor_state.inspector_visible {
+                    // Unit Inspector takes priority when a unit is selected.
+                    if selection.selected_unit.entity.is_some() {
+                        render_unit_inspector(
+                            ui,
+                            &selection.selected_unit,
+                            &mut unit_data_query,
+                            &registry,
+                            &enum_registry,
+                            &struct_registry,
+                            &mut actions,
+                        );
+                    } else {
+                        // Tile Inspector.
+                        render_inspector(
+                            ui,
+                            &selected_hex,
+                            &tile_query,
+                            &mut tile_data_query,
+                            &registry,
+                            &enum_registry,
+                            &struct_registry,
+                        );
+                    }
                 }
             });
         });

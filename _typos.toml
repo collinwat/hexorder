@@ -10,3 +10,5 @@ PN = "PN"
 Strat = "Strat"
 # Abbreviation for Threshold (UI label)
 Thr = "Thr"
+# Fuzzy search test query (not a typo of "save")
+sav = "sav"

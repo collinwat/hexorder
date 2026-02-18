@@ -10,6 +10,16 @@ taplo = "latest"
 "cargo:bacon" = "latest"
 d2 = "latest"
 
+# --- Run tasks ---
+
+[tasks.start]
+description = "Run the application"
+run = "cargo run"
+
+[tasks."start:inspector"]
+description = "Run with debug inspector panel"
+run = "cargo run --features inspector"
+
 # --- Fix tasks (auto-fix) ---
 
 [tasks."fix:fmt"]

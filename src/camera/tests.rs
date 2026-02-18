@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::contracts::editor_ui::ViewportMargins;
 use crate::contracts::persistence::AppScreen;
 
 use super::components::{CameraState, TopDownCamera};
@@ -14,6 +15,7 @@ fn test_app() -> App {
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(AppScreen::Editor);
     app.init_resource::<CameraState>();
+    app.init_resource::<ViewportMargins>();
     app
 }
 
@@ -274,4 +276,27 @@ fn smooth_camera_enforces_rotation_lock() {
         forward.y < -0.99,
         "rotation should be reset to look down -Y, got forward {forward:?}"
     );
+}
+
+/// The `handle_camera_command` observer must not panic when `SelectedHex`
+/// does not exist (e.g., zoom command dispatched before entering the Editor
+/// state). The observer wraps `SelectedHex` in `Option`.
+#[test]
+fn camera_command_without_selected_hex_resource_does_not_panic() {
+    use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<CameraState>();
+    app.init_resource::<ViewportMargins>();
+    // Do NOT insert SelectedHex — simulates Launcher state.
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Fire a camera command (zoom in).
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.zoom_in"),
+    });
+
+    app.update(); // Must not panic
 }
