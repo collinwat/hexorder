@@ -17,4 +17,6 @@ pub mod ontology;
 #[allow(dead_code)]
 pub mod persistence;
 #[allow(dead_code)]
+pub mod storage;
+#[allow(dead_code)]
 pub mod validation;

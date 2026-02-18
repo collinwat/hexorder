@@ -1,7 +1,6 @@
 //! Systems for the persistence plugin.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -18,6 +17,7 @@ use crate::contracts::persistence::{
     AppScreen, CloseProjectEvent, FORMAT_VERSION, GameSystemFile, LoadRequestEvent,
     NewProjectEvent, PendingBoardLoad, SaveRequestEvent, TileSaveData, UnitSaveData, Workspace,
 };
+use crate::contracts::storage::Storage;
 use crate::contracts::validation::SchemaValidation;
 
 // ---------------------------------------------------------------------------
@@ -70,13 +70,6 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
     }
 }
 
-/// Returns the default save directory for new projects: `~/Documents/Hexorder/`.
-fn default_save_directory() -> Option<PathBuf> {
-    std::env::var("HOME")
-        .ok()
-        .map(|home| PathBuf::from(home).join("Documents").join("Hexorder"))
-}
-
 // ---------------------------------------------------------------------------
 // Observer Systems
 // ---------------------------------------------------------------------------
@@ -99,6 +92,7 @@ pub fn handle_save_request(
     config: Res<HexGridConfig>,
     tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    storage: Res<Storage>,
     mut workspace: ResMut<Workspace>,
 ) {
     let event = trigger.event();
@@ -118,11 +112,10 @@ pub fn handle_save_request(
             if let Some(parent) = existing.parent() {
                 dialog = dialog.set_directory(parent);
             }
-        } else if let Some(default_dir) = default_save_directory() {
-            // Attempt to create the directory; set it if successful.
-            #[allow(clippy::collapsible_if)]
-            if std::fs::create_dir_all(&default_dir).is_ok() {
-                dialog = dialog.set_directory(&default_dir);
+        } else {
+            let base = storage.provider().base_dir();
+            if std::fs::create_dir_all(base).is_ok() {
+                dialog = dialog.set_directory(base);
             }
         }
 
@@ -171,7 +164,7 @@ pub fn handle_save_request(
         units: unit_data,
     };
 
-    match crate::contracts::persistence::save_to_file(&path, &file) {
+    match storage.provider().save_at(&path, &file) {
         Ok(()) => {
             info!("Saved to {}", path.display());
             workspace.file_path = Some(path);
@@ -200,6 +193,7 @@ pub fn handle_load_request(
     mut combat_modifiers: ResMut<CombatModifierRegistry>,
     mut schema: ResMut<SchemaValidation>,
     mut workspace: ResMut<Workspace>,
+    storage: Res<Storage>,
     mut next_state: ResMut<NextState<AppScreen>>,
     mut commands: Commands,
 ) {
@@ -208,7 +202,7 @@ pub fn handle_load_request(
         return; // User cancelled.
     };
 
-    let file = match crate::contracts::persistence::load_from_file(&path) {
+    let file = match storage.provider().load(&path) {
         Ok(f) => f,
         Err(e) => {
             error!("Failed to load: {e}");

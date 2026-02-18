@@ -112,16 +112,6 @@ Triggers creation of a new empty project.
 
 Triggers close of the current project and return to the launcher. No fields.
 
-## Functions
-
-### `save_to_file(path: &Path, data: &GameSystemFile) -> Result<(), PersistenceError>`
-
-Serialize a `GameSystemFile` to RON and write to disk.
-
-### `load_from_file(path: &Path) -> Result<GameSystemFile, PersistenceError>`
-
-Read a RON file from disk and deserialize to `GameSystemFile`.
-
 ## Consumed By
 
 - `persistence` plugin — save/load systems

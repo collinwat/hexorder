@@ -7,7 +7,9 @@
 use bevy::prelude::*;
 
 use crate::contracts::persistence::{AppScreen, Workspace};
+use crate::contracts::storage::{Storage, StorageConfig};
 
+pub(crate) mod storage;
 mod systems;
 
 #[cfg(test)]
@@ -20,6 +22,17 @@ pub struct PersistencePlugin;
 
 impl Plugin for PersistencePlugin {
     fn build(&self, app: &mut App) {
+        // Use pre-inserted config if the caller provided one,
+        // otherwise resolve from compile-time feature flags.
+        let config = app
+            .world()
+            .get_resource::<StorageConfig>()
+            .cloned()
+            .unwrap_or_else(storage::resolve_storage_config);
+        let provider = storage::FilesystemProvider::new(config.clone());
+        app.insert_resource(config);
+        app.insert_resource(Storage::new(Box::new(provider)));
+
         app.init_resource::<Workspace>();
         app.add_systems(
             Update,

@@ -21,6 +21,9 @@ Thumbs.db
 # Git worktrees (parallel feature development)
 /.worktrees/
 
+# Development state (project-local save directory)
+/.state/
+
 # Wiki (separate git repo, cloned locally)
 /.wiki/
 
