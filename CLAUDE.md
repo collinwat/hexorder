@@ -144,6 +144,8 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
     - What was harder or easier than expected?
     - What would you do differently if building this scope again?
     - What did you learn that future agents (or future cycles) should know?
+    - Were there repetitive multi-step workflows that would benefit from a dedicated skill? (A skill
+      candidate needs 2+ use cases, involves non-deterministic decisions, and is expected to recur.)
 19. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
     version bump, changelog, tag
 20. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in

@@ -93,6 +93,14 @@ Walk through these questions with the user:
 - Domain insights gained
 - What did the agent say future agents or future cycles should know?
 
+### Skill recommendations
+
+- Were there repetitive multi-step workflows during the build that would benefit from a dedicated
+  skill?
+- A skill candidate needs: 2+ use cases observed, non-deterministic decisions involved, and expected
+  to recur in future cycles
+- If candidates are identified, capture them as GitHub Issues with `type:tech-debt` label
+
 ## Capture Ideas
 
 For each new idea, observation, or improvement surfaced during reflection:
