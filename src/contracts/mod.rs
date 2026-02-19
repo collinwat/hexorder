@@ -21,4 +21,6 @@ pub mod shortcuts;
 #[allow(dead_code)]
 pub mod storage;
 #[allow(dead_code)]
+pub mod undo_redo;
+#[allow(dead_code)]
 pub mod validation;
