@@ -56,11 +56,11 @@ Cmd+Shift+Z to reverse and replay editing actions.
 
 ## UAT Checklist
 
-- [ ] [UAT-1] Launch app, paint a hex, press Cmd+Z — hex reverts to previous terrain
-- [ ] [UAT-2] Launch app, place a unit, press Cmd+Z — unit is removed
-- [ ] [UAT-3] Launch app, perform 3 actions, press Cmd+Z three times — all three revert in order
-- [ ] [UAT-4] Launch app, undo an action, press Cmd+Shift+Z — action is redone
-- [ ] [UAT-5] Launch app, undo, then perform a new action — redo stack is cleared (Cmd+Shift+Z does
+- [x] [UAT-1] Launch app, paint a hex, press Cmd+Z — hex reverts to previous terrain
+- [x] [UAT-2] Launch app, place a unit, press Cmd+Z — unit is removed
+- [x] [UAT-3] Launch app, perform 3 actions, press Cmd+Z three times — all three revert in order
+- [x] [UAT-4] Launch app, undo an action, press Cmd+Shift+Z — action is redone
+- [x] [UAT-5] Launch app, undo, then perform a new action — redo stack is cleared (Cmd+Shift+Z does
       nothing)
 
 ## Constraints
