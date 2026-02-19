@@ -168,6 +168,9 @@ fn handle_editor_ui_command(
         "view.toggle_grid_overlay" => {
             grid_overlay.0 = !grid_overlay.0;
         }
+        "help.about" => {
+            editor_state.about_panel_visible = !editor_state.about_panel_visible;
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
         "edit.undo" | "edit.redo" => {
             info!(
@@ -320,6 +323,16 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         name: "Toggle Fullscreen".to_string(),
         description: "Toggle fullscreen mode".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::KeyF, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+
+    // Help.
+    registry.register(CommandEntry {
+        id: CommandId("help.about"),
+        name: "About Hexorder".to_string(),
+        description: "Show the About panel".to_string(),
+        bindings: vec![],
         category: CommandCategory::View,
         continuous: false,
     });

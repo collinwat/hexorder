@@ -363,6 +363,10 @@ pub struct EditorState {
     // -- Settings --
     /// Base font size in points. Range 10.0–24.0, default 15.0.
     pub font_size_base: f32,
+
+    // -- About panel --
+    /// Whether the About panel is visible.
+    pub about_panel_visible: bool,
 }
 
 impl Default for EditorState {
@@ -436,6 +440,7 @@ impl Default for EditorState {
             combat_attacker_strength: 0.0,
             combat_defender_strength: 0.0,
             font_size_base: 15.0,
+            about_panel_visible: false,
         }
     }
 }

@@ -387,6 +387,12 @@ pub fn editor_panel_system(
                     ui.close();
                 }
             });
+            ui.menu_button("Help", |ui| {
+                if ui.button("About Hexorder").clicked() {
+                    editor_state.about_panel_visible = true;
+                    ui.close();
+                }
+            });
         });
     });
 
@@ -552,6 +558,9 @@ pub fn editor_panel_system(
             });
         });
 
+    // -- About Panel --
+    render_about_panel(ctx, &mut editor_state);
+
     // -- Apply deferred actions --
     apply_actions(
         actions,
@@ -618,6 +627,12 @@ pub fn play_panel_system(
                     ui.close();
                 }
             });
+            ui.menu_button("Help", |ui| {
+                if ui.button("About Hexorder").clicked() {
+                    editor_state.about_panel_visible = true;
+                    ui.close();
+                }
+            });
         });
     });
 
@@ -660,6 +675,9 @@ pub fn play_panel_system(
                 );
             });
         });
+
+    // -- About Panel --
+    render_about_panel(ctx, &mut editor_state);
 }
 
 /// Renders the turn tracker section in the play panel.
@@ -4278,6 +4296,53 @@ fn build_constraint_expression(
             ConstraintExpr::All(Vec::new())
         }
     }
+}
+
+/// Renders the About panel as a centered `egui::Window`.
+fn render_about_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
+    if !editor_state.about_panel_visible {
+        return;
+    }
+
+    let mut open = editor_state.about_panel_visible;
+    egui::Window::new("About Hexorder")
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(
+                    egui::RichText::new("HEXORDER")
+                        .size(28.0)
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new("Game System Design Tool")
+                        .color(BrandTheme::TEXT_PRIMARY),
+                );
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION")))
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(
+                        "Define rules, develop aesthetics, and experiment\nwith tabletop war game systems.",
+                    )
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+                );
+                ui.add_space(12.0);
+                if ui.button("Close").clicked() {
+                    editor_state.about_panel_visible = false;
+                }
+            });
+        });
+    editor_state.about_panel_visible = open;
 }
 
 /// Renders the currently active toast notification at the bottom-center of the screen.
