@@ -179,13 +179,7 @@ fn handle_editor_ui_command(
                 window.mode = WindowMode::Windowed;
             }
         }
-        // Discoverable no-ops — registered for palette visibility, backing features pending.
-        "edit.undo" | "edit.redo" => {
-            info!(
-                "Command '{}' is not yet implemented",
-                trigger.event().command_id.0
-            );
-        }
+        // Undo/redo handled by UndoRedoPlugin — no no-op fallback needed.
         _ => {}
     }
 }
@@ -248,22 +242,7 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
     });
 
     // Edit actions (backing features pending — registered for discoverability).
-    registry.register(CommandEntry {
-        id: CommandId("edit.undo"),
-        name: "Undo".to_string(),
-        description: "Undo last action".to_string(),
-        bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD)],
-        category: CommandCategory::Edit,
-        continuous: false,
-    });
-    registry.register(CommandEntry {
-        id: CommandId("edit.redo"),
-        name: "Redo".to_string(),
-        description: "Redo last undone action".to_string(),
-        bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD_SHIFT)],
-        category: CommandCategory::Edit,
-        continuous: false,
-    });
+    // Note: edit.undo and edit.redo are registered by undo_redo plugin.
     registry.register(CommandEntry {
         id: CommandId("edit.select_all"),
         name: "Select All".to_string(),
