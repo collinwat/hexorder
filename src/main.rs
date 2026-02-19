@@ -12,6 +12,7 @@ mod persistence;
 mod rules_engine;
 mod scripting;
 mod shortcuts;
+mod undo_redo;
 mod unit;
 
 use contracts::persistence::AppScreen;
@@ -45,6 +46,7 @@ fn main() {
         .add_plugins(rules_engine::RulesEnginePlugin)
         .add_plugins(scripting::ScriptingPlugin)
         .add_plugins(persistence::PersistencePlugin)
+        .add_plugins(undo_redo::UndoRedoPlugin)
         .add_plugins(editor_ui::EditorUiPlugin)
         .add_systems(Update, reveal_window)
         .run();

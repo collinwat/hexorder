@@ -37,6 +37,7 @@ pub trait UndoableCommand: Send + Sync + fmt::Debug {
 ///
 /// Commands are recorded after execution. Undoing pops from the undo stack and
 /// pushes onto the redo stack. Recording a new command clears the redo stack.
+#[derive(Resource)]
 pub struct UndoStack {
     undo_stack: Vec<Box<dyn UndoableCommand>>,
     redo_stack: Vec<Box<dyn UndoableCommand>>,

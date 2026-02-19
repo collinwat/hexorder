@@ -15,7 +15,8 @@ Declared in `main.rs`. Update this when adding a new plugin.
 9. RulesEnginePlugin (must be after OntologyPlugin, UnitPlugin)
 10. ScriptingPlugin (NEW 0.5.0 — after RulesEnginePlugin, before EditorUiPlugin)
 11. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
-12. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
+12. UndoRedoPlugin (NEW 0.10.0 — after ShortcutsPlugin, before EditorUiPlugin)
+13. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
 
 ## Cross-Cutting Concerns
 
@@ -78,9 +79,13 @@ validation (contract)  ──→ editor_ui
 shortcuts (contract)   ──→ camera
 shortcuts (contract)   ──→ hex_grid
 shortcuts (contract)   ──→ persistence
+shortcuts (contract)   ──→ undo_redo
 shortcuts (contract)   ──→ editor_ui
+undo_redo (contract)   ──→ editor_ui
+game_system (contract) ──→ undo_redo
 
 shortcuts: independent (provides ShortcutRegistry, CommandExecutedEvent, CommandPaletteState)
+undo_redo: depends on shortcuts + game_system contracts (provides UndoStack, UndoableCommand)
 camera: depends on shortcuts contract (0.9.0: registry lookups for pan/view keys)
 hex_grid: depends on validation + shortcuts contracts
 game_system: independent (provides EntityTypeRegistry)
