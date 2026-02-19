@@ -43,7 +43,7 @@ Cmd+Shift+Z to reverse and replay editing actions.
 - [x] [SC-1] UndoableCommand trait defined in contracts with execute/undo/description methods
 - [x] [SC-2] UndoStack resource with push, undo, redo operations and configurable depth
 - [x] [SC-3] Property changes are undoable — change a property, Cmd+Z reverts it
-- [ ] [SC-4] Terrain painting is undoable — paint a hex, Cmd+Z reverts it
+- [x] [SC-4] Terrain painting is undoable — paint a hex, Cmd+Z reverts it
 - [ ] [SC-5] Entity creation/deletion is undoable — place a unit, Cmd+Z removes it
 - [ ] [SC-6] Compound commands undo atomically — multi-action gesture undoes as one step
 - [x] [SC-7] Redo stack is cleared when a new action is performed

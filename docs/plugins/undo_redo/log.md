@@ -47,6 +47,17 @@ undo."
 - `mise check:boundary`: no violations
 - `mise check:unwrap`: no violations
 
+### 2026-02-18 — Scope 3 (`SetTerrainCommand` + paint undo)
+
+- 3 new cell tests: paint records undo, paint+undo reverts terrain, no-op paint skips recording
+- Modified `paint_cell` observer to capture old state and record `SetTerrainCommand`
+- Added no-op paint detection (skip if already same type)
+- Integration tests needed `UndoStack` resource added to headless test app
+- 261 total tests pass
+- `cargo clippy --all-targets -- -D warnings`: zero warnings
+- `mise check:boundary`: no violations
+- `mise check:unwrap`: no violations
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -61,7 +72,8 @@ undo."
 
 ## Status Updates
 
-| Date       | Status      | Notes                                                  |
-| ---------- | ----------- | ------------------------------------------------------ |
-| 2026-02-18 | speccing    | Initial spec created, branch set up, kickoff done      |
-| 2026-02-18 | in-progress | Scope 1+2 complete: contract, plugin, 16 tests passing |
+| Date       | Status      | Notes                                                      |
+| ---------- | ----------- | ---------------------------------------------------------- |
+| 2026-02-18 | speccing    | Initial spec created, branch set up, kickoff done          |
+| 2026-02-18 | in-progress | Scope 1+2 complete: contract, plugin, 16 tests passing     |
+| 2026-02-18 | in-progress | Scope 3 complete: SetTerrainCommand, paint undo, 261 tests |
