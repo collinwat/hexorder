@@ -171,6 +171,14 @@ fn handle_editor_ui_command(
         "help.about" => {
             editor_state.about_panel_visible = !editor_state.about_panel_visible;
         }
+        "edit.deselect" => {
+            // Escape exits fullscreen if active.
+            if let Ok(mut window) = windows.single_mut()
+                && window.mode != WindowMode::Windowed
+            {
+                window.mode = WindowMode::Windowed;
+            }
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
         "edit.undo" | "edit.redo" => {
             info!(

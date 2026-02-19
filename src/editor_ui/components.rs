@@ -367,10 +367,6 @@ pub struct EditorState {
     // -- About panel --
     /// Whether the About panel is visible.
     pub about_panel_visible: bool,
-
-    // -- Hints --
-    /// Whether the first-run hints overlay has been dismissed this session.
-    pub first_run_seen: bool,
 }
 
 impl Default for EditorState {
@@ -445,7 +441,6 @@ impl Default for EditorState {
             combat_defender_strength: 0.0,
             font_size_base: 15.0,
             about_panel_visible: false,
-            first_run_seen: false,
         }
     }
 }

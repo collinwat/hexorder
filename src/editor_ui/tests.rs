@@ -317,16 +317,6 @@ fn about_command_toggles_about_panel() {
 }
 
 // ---------------------------------------------------------------------------
-// Scope 6: Viewport discoverability hints
-// ---------------------------------------------------------------------------
-
-#[test]
-fn editor_state_first_run_not_seen_by_default() {
-    let state = EditorState::default();
-    assert!(!state.first_run_seen);
-}
-
-// ---------------------------------------------------------------------------
 // Observer: view toggle commands
 // ---------------------------------------------------------------------------
 

@@ -302,7 +302,7 @@ pub fn setup_indicators(
     });
 
     let multi_select_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.0, 0.36, 0.5),
+        base_color: Color::srgb(1.0, 1.0, 1.0),
         unlit: true,
         ..default()
     });
@@ -455,7 +455,7 @@ pub fn sync_multi_select_indicators(
             MultiSelectIndicator { tile_entity },
             Mesh3d(indicator_materials.ring_mesh.clone()),
             MeshMaterial3d(indicator_materials.multi_select.clone()),
-            Transform::from_xyz(wp.x, 0.015, wp.y).with_rotation(indicator_materials.flat_rotation),
+            Transform::from_xyz(wp.x, 0.025, wp.y).with_rotation(indicator_materials.flat_rotation),
         ));
     }
 }

@@ -511,10 +511,13 @@ pub fn editor_panel_system(
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Font size:");
-                        ui.add(
-                            egui::Slider::new(&mut editor_state.font_size_base, 10.0..=24.0)
-                                .step_by(1.0),
-                        );
+                        if ui.button(" − ").clicked() && editor_state.font_size_base > 10.0 {
+                            editor_state.font_size_base -= 1.0;
+                        }
+                        ui.monospace(format!("{}", editor_state.font_size_base as i32));
+                        if ui.button(" + ").clicked() && editor_state.font_size_base < 24.0 {
+                            editor_state.font_size_base += 1.0;
+                        }
                     });
                 });
 
@@ -563,7 +566,7 @@ pub fn editor_panel_system(
     render_about_panel(ctx, &mut editor_state);
 
     // -- First-run hints --
-    render_first_run_hints(ctx, &mut editor_state);
+    // First-run hints removed — tooltips on hover provide sufficient discoverability.
 
     // -- Apply deferred actions --
     apply_actions(
@@ -4360,57 +4363,8 @@ fn render_about_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
                 }
             });
         });
-    editor_state.about_panel_visible = open;
-}
-
-/// Renders a first-run hints overlay on the first session visit to the editor.
-/// Dismissed on any click; does not persist across restarts.
-fn render_first_run_hints(ctx: &egui::Context, editor_state: &mut EditorState) {
-    if editor_state.first_run_seen {
-        return;
-    }
-
-    let screen = ctx.content_rect();
-    let painter = ctx.layer_painter(egui::LayerId::new(
-        egui::Order::Foreground,
-        egui::Id::new("first_run_hints"),
-    ));
-
-    // Semi-transparent dark backdrop.
-    painter.rect_filled(screen, 0.0, egui::Color32::from_black_alpha(160));
-
-    let hints = [
-        (
-            egui::pos2(screen.min.x + 20.0, screen.min.y + 80.0),
-            "Tool Mode: Select (1), Paint (2), Place (3)",
-        ),
-        (
-            egui::pos2(screen.min.x + 20.0, screen.min.y + 110.0),
-            "Tabs: Define types, enums, concepts, and mechanics",
-        ),
-        (
-            egui::pos2(screen.center().x - 100.0, screen.center().y),
-            "Press G to toggle grid overlay",
-        ),
-        (
-            egui::pos2(screen.min.x + 20.0, screen.min.y + 140.0),
-            "Click anywhere to dismiss",
-        ),
-    ];
-
-    for (pos, text) in &hints {
-        painter.text(
-            *pos,
-            egui::Align2::LEFT_CENTER,
-            *text,
-            egui::FontId::proportional(16.0),
-            BrandTheme::ACCENT_AMBER,
-        );
-    }
-
-    // Dismiss on any click.
-    if ctx.input(|i| i.pointer.any_click()) {
-        editor_state.first_run_seen = true;
+    if !open {
+        editor_state.about_panel_visible = false;
     }
 }
 
