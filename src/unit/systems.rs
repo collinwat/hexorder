@@ -10,6 +10,7 @@ use crate::contracts::game_system::{
     UnitInstance, UnitPlacedEvent,
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexMoveEvent, HexPosition, HexSelectedEvent};
+use crate::contracts::undo_redo::{PlaceUnitCommand, UndoStack};
 use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{UnitMaterials, UnitMesh};
@@ -51,6 +52,7 @@ pub fn setup_unit_visuals(
 // ---------------------------------------------------------------------------
 
 /// Places a unit on the clicked hex tile when in Place mode.
+/// Records a `PlaceUnitCommand` on the undo stack for reversibility.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_unit_placement(
     trigger: On<HexSelectedEvent>,
@@ -60,6 +62,7 @@ pub fn handle_unit_placement(
     config: Res<HexGridConfig>,
     unit_materials: Res<UnitMaterials>,
     unit_mesh: Res<UnitMesh>,
+    mut undo_stack: ResMut<UndoStack>,
     mut commands: Commands,
 ) {
     if *tool != EditorTool::Place {
@@ -97,20 +100,35 @@ pub fn handle_unit_placement(
         return;
     };
 
+    let transform = Transform::from_xyz(world_pos.x, UNIT_Y_OFFSET, world_pos.y);
+    let entity_data = EntityData {
+        entity_type_id: active_id,
+        properties: default_properties,
+    };
+
     // Spawn unit entity.
     let entity = commands
         .spawn((
             UnitInstance,
             HexPosition::new(pos.q, pos.r),
-            EntityData {
-                entity_type_id: active_id,
-                properties: default_properties,
-            },
+            entity_data.clone(),
             Mesh3d(unit_mesh.handle.clone()),
             MeshMaterial3d(material.clone()),
-            Transform::from_xyz(world_pos.x, UNIT_Y_OFFSET, world_pos.y),
+            transform,
         ))
         .id();
+
+    // Record for undo.
+    let label = format!("Place {} at ({}, {})", entity_type.name, pos.q, pos.r);
+    undo_stack.record(Box::new(PlaceUnitCommand {
+        entity: Some(entity),
+        position: pos,
+        entity_data,
+        mesh: unit_mesh.handle.clone(),
+        material: material.clone(),
+        transform,
+        label,
+    }));
 
     commands.trigger(UnitPlacedEvent {
         entity,

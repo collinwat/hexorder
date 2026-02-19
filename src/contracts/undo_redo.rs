@@ -9,7 +9,8 @@ use std::fmt;
 
 use bevy::prelude::*;
 
-use super::game_system::{EntityData, PropertyValue, TypeId};
+use super::game_system::{EntityData, PropertyValue, TypeId, UnitInstance};
+use super::hex_grid::HexPosition;
 
 // ---------------------------------------------------------------------------
 // Trait
@@ -231,6 +232,71 @@ impl UndoableCommand for SetTerrainCommand {
         if let Some(mut data) = world.get_mut::<EntityData>(self.entity) {
             data.entity_type_id = self.old_type_id;
             data.properties.clone_from(&self.old_properties);
+        }
+    }
+
+    fn description(&self) -> String {
+        self.label.clone()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Built-in Command: PlaceUnitCommand
+// ---------------------------------------------------------------------------
+
+/// Command for reversible unit (token) placement on the hex grid.
+///
+/// Captures the entity ID, position, entity data, and visual component handles
+/// so the unit can be despawned on undo and respawned on redo.
+pub struct PlaceUnitCommand {
+    /// The spawned entity (updated on redo when entity ID changes).
+    pub entity: Option<Entity>,
+    /// Hex position where the unit was placed.
+    pub position: HexPosition,
+    /// Entity data (type ID and properties) for the placed unit.
+    pub entity_data: EntityData,
+    /// Mesh handle for rendering.
+    pub mesh: Handle<Mesh>,
+    /// Material handle for rendering.
+    pub material: Handle<StandardMaterial>,
+    /// World-space transform.
+    pub transform: Transform,
+    /// Human-readable label (e.g., "Place Infantry at (0, 1)").
+    pub label: String,
+}
+
+impl fmt::Debug for PlaceUnitCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PlaceUnitCommand")
+            .field("entity", &self.entity)
+            .field("position", &self.position)
+            .field("label", &self.label)
+            .finish_non_exhaustive()
+    }
+}
+
+impl UndoableCommand for PlaceUnitCommand {
+    fn execute(&mut self, world: &mut World) {
+        // Respawn the unit with all its components.
+        let entity = world
+            .spawn((
+                UnitInstance,
+                self.position,
+                self.entity_data.clone(),
+                Mesh3d(self.mesh.clone()),
+                MeshMaterial3d(self.material.clone()),
+                self.transform,
+            ))
+            .id();
+        self.entity = Some(entity);
+    }
+
+    fn undo(&mut self, world: &mut World) {
+        if let Some(entity) = self.entity {
+            if world.get_entity(entity).is_ok() {
+                world.despawn(entity);
+            }
+            self.entity = None;
         }
     }
 

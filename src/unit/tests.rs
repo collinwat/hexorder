@@ -11,6 +11,8 @@ use crate::contracts::game_system::{
 };
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexSelectedEvent};
 use crate::contracts::persistence::AppScreen;
+use crate::contracts::shortcuts::ShortcutRegistry;
+use crate::contracts::undo_redo::UndoStack;
 use crate::contracts::validation::ValidMoveSet;
 
 use super::components::{UnitMaterials, UnitMesh};
@@ -24,6 +26,7 @@ fn test_app() -> App {
     app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<UndoStack>();
     app
 }
 
@@ -401,4 +404,130 @@ fn sync_unit_materials_adds_new_type() {
         unit_mats.get(new_id).is_some(),
         "New type should have a material"
     );
+}
+
+#[test]
+fn place_unit_records_undo_command() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let stack = app.world().resource::<UndoStack>();
+    assert!(
+        stack.can_undo(),
+        "Undo stack should have a command after placing"
+    );
+    assert!(
+        stack
+            .undo_description()
+            .expect("should have description")
+            .contains("Place"),
+        "Undo description should mention Place"
+    );
+}
+
+#[test]
+fn place_then_undo_removes_unit() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+    app.init_resource::<ShortcutRegistry>();
+    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+
+    // Place a unit.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 1),
+    });
+    app.update();
+
+    // Confirm unit exists.
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        1,
+        "Unit should exist after placement"
+    );
+
+    // Request undo.
+    app.world_mut().resource_mut::<UndoStack>().request_undo();
+    app.update();
+
+    // Unit should be gone.
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "Unit should be despawned after undo"
+    );
+}
+
+#[test]
+fn place_undo_redo_restores_unit() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+    app.init_resource::<ShortcutRegistry>();
+    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+
+    // Place a unit.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(2, 0),
+    });
+    app.update();
+
+    // Undo (remove).
+    app.world_mut().resource_mut::<UndoStack>().request_undo();
+    app.update();
+
+    // Redo (restore).
+    app.world_mut().resource_mut::<UndoStack>().request_redo();
+    app.update();
+
+    // Unit should be back.
+    let mut query = app
+        .world_mut()
+        .query_filtered::<(&HexPosition, &EntityData), With<UnitInstance>>();
+    let units: Vec<_> = query.iter(app.world()).collect();
+    assert_eq!(units.len(), 1, "Unit should be restored after redo");
+    assert_eq!(*units[0].0, HexPosition::new(2, 0));
+    assert_eq!(units[0].1.entity_type_id, first_id);
 }
