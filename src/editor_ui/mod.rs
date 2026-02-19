@@ -4,6 +4,7 @@
 //! cell type palette, cell type editor, property editors, and tile inspector.
 
 use bevy::prelude::*;
+use bevy::window::{MonitorSelection, WindowMode};
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::{EditorTool, ViewportMargins};
@@ -96,6 +97,7 @@ impl Plugin for EditorUiPlugin {
 }
 
 /// Observer: handles tool switching, mode switching, and discoverable commands.
+#[allow(clippy::too_many_arguments)] // Tracked by #115 — decompose editor observers.
 fn handle_editor_ui_command(
     trigger: On<CommandExecutedEvent>,
     mut tool: ResMut<EditorTool>,
@@ -103,6 +105,7 @@ fn handle_editor_ui_command(
     mut selected_unit: ResMut<SelectedUnit>,
     mut editor_state: ResMut<components::EditorState>,
     mut commands: Commands,
+    mut windows: Query<&mut Window>,
 ) {
     match trigger.event().command_id.0 {
         "tool.select" => *tool = EditorTool::Select,
@@ -125,12 +128,18 @@ fn handle_editor_ui_command(
         "view.toggle_debug_panel" => {
             editor_state.debug_panel_visible = !editor_state.debug_panel_visible;
         }
+        "view.toggle_fullscreen" => {
+            if let Ok(mut window) = windows.single_mut() {
+                window.mode = match window.mode {
+                    WindowMode::Windowed => {
+                        WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+                    }
+                    _ => WindowMode::Windowed,
+                };
+            }
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
-        "edit.undo"
-        | "edit.redo"
-        | "edit.select_all"
-        | "view.toggle_grid_overlay"
-        | "view.toggle_fullscreen" => {
+        "edit.undo" | "edit.redo" | "edit.select_all" | "view.toggle_grid_overlay" => {
             info!(
                 "Command '{}' is not yet implemented",
                 trigger.event().command_id.0
