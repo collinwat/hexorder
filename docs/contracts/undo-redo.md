@@ -50,12 +50,44 @@ Built-in command for property value changes.
 - `new_value: PropertyValue`
 - `label: String`
 
+### SetTerrainCommand (struct)
+
+Built-in command for reversible terrain (entity type) changes on a hex tile.
+
+- `entity: Entity`
+- `old_type_id: TypeId`
+- `old_properties: HashMap<TypeId, PropertyValue>`
+- `new_type_id: TypeId`
+- `new_properties: HashMap<TypeId, PropertyValue>`
+- `label: String`
+
+### PlaceUnitCommand (struct)
+
+Built-in command for reversible unit (token) placement. Undo despawns; redo respawns.
+
+- `entity: Option<Entity>`
+- `position: HexPosition`
+- `entity_data: EntityData`
+- `mesh: Handle<Mesh>`
+- `material: Handle<StandardMaterial>`
+- `transform: Transform`
+- `label: String`
+
+### CompoundCommand (struct)
+
+Groups multiple commands into a single undoable step.
+
+- `commands: Vec<Box<dyn UndoableCommand>>`
+- `label: String`
+
+Execute runs all sub-commands in order; undo reverses them in reverse order.
+
 ## Consumers
 
 - `editor_ui` — reads `can_undo/can_redo` and descriptions for menu labels; pushes
   `SetPropertyCommand` for inspector edits
-- `cell` — pushes commands for terrain painting (future Scope 3)
-- `unit` — pushes commands for unit placement/deletion (future Scope 4)
+- `cell` — pushes `SetTerrainCommand` for terrain painting
+- `unit` — pushes `PlaceUnitCommand` for unit placement
 - `persistence` — calls `clear()` on project load
 
 ## Events

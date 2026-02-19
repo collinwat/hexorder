@@ -45,7 +45,7 @@ Cmd+Shift+Z to reverse and replay editing actions.
 - [x] [SC-3] Property changes are undoable — change a property, Cmd+Z reverts it
 - [x] [SC-4] Terrain painting is undoable — paint a hex, Cmd+Z reverts it
 - [x] [SC-5] Entity creation/deletion is undoable — place a unit, Cmd+Z removes it
-- [ ] [SC-6] Compound commands undo atomically — multi-action gesture undoes as one step
+- [x] [SC-6] Compound commands undo atomically — multi-action gesture undoes as one step
 - [x] [SC-7] Redo stack is cleared when a new action is performed
 - [x] [SC-8] Cmd+Z and Cmd+Shift+Z registered in ShortcutRegistry and functional
 - [x] [SC-BUILD] `cargo build` succeeds with this plugin registered

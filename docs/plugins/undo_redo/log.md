@@ -67,6 +67,14 @@ undo."
 - 264 total tests pass
 - `cargo clippy --all-targets -- -D warnings`: zero warnings
 
+### 2026-02-18 — Scope 5 (`CompoundCommand`)
+
+- Added `CompoundCommand` to undo_redo contract
+- Execute runs all sub-commands in order; undo reverses in reverse order
+- 3 new tests: execute, debug format, stack integration
+- Updated contract spec doc with all new command types
+- 267 total tests pass
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -87,3 +95,4 @@ undo."
 | 2026-02-18 | in-progress | Scope 1+2 complete: contract, plugin, 16 tests passing     |
 | 2026-02-18 | in-progress | Scope 3 complete: SetTerrainCommand, paint undo, 261 tests |
 | 2026-02-18 | in-progress | Scope 4 complete: PlaceUnitCommand, unit undo, 264 tests   |
+| 2026-02-18 | in-progress | Scope 5 complete: CompoundCommand, 267 tests               |
