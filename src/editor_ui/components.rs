@@ -470,3 +470,18 @@ pub(super) struct OntologyParams<'w> {
     pub(super) constraint_registry: ResMut<'w, ConstraintRegistry>,
     pub(super) schema_validation: Res<'w, SchemaValidation>,
 }
+
+/// State for the toast notification system. Single-slot, no stacking.
+#[derive(Resource, Debug, Default)]
+pub(crate) struct ToastState {
+    pub(crate) active: Option<ActiveToast>,
+}
+
+/// An active toast being displayed.
+#[derive(Debug, Clone)]
+pub(crate) struct ActiveToast {
+    pub(crate) message: String,
+    pub(crate) kind: crate::contracts::editor_ui::ToastKind,
+    /// Remaining time in seconds before the toast disappears.
+    pub(crate) remaining: f32,
+}

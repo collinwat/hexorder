@@ -10,7 +10,8 @@ check the current tool mode before acting (consumers like cell).
 - cell (checks EditorTool before painting)
 - unit (checks EditorTool before placing or interacting with units)
 - camera (reads ViewportMargins for viewport centering)
-- (any future feature that behaves differently based on tool mode)
+- persistence (triggers ToastEvent on save/load success and failure)
+- (any future feature that behaves differently based on tool mode or needs toast notifications)
 
 ## Producers
 
@@ -61,6 +62,25 @@ pub struct ViewportMargins {
 }
 ```
 
+### Events
+
+```rust
+/// Toast notification event. Fire from any plugin to show a toast message.
+#[derive(Event, Debug, Clone)]
+pub struct ToastEvent {
+    pub message: String,
+    pub kind: ToastKind,
+}
+
+/// The visual style of a toast notification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToastKind {
+    Success,
+    Error,
+    Info,
+}
+```
+
 ## Invariants
 
 - `EditorTool` is inserted during plugin build by the editor_ui plugin
@@ -71,6 +91,9 @@ pub struct ViewportMargins {
 - `ViewportMargins` is initialized by the editor_ui plugin and updated each frame after panel
   rendering
 - Only the editor_ui plugin should write to `ViewportMargins` (camera reads it)
+- `ToastEvent` can be triggered by any plugin via `commands.trigger()`
+- The editor_ui plugin observes `ToastEvent` and renders a single-slot toast at screen bottom-center
+- Toasts auto-dismiss after 2.5 seconds; new toasts replace the current one (no stacking)
 
 ## Changelog
 
@@ -82,3 +105,4 @@ pub struct ViewportMargins {
 | 2026-02-09 | Added Place variant, added unit as consumer             | M3 — unit placement tool mode                                         |
 | 2026-02-10 | Added PaintPreview resource                             | Paint mode hover preview for ring border overlay                      |
 | 2026-02-17 | Added ViewportMargins resource                          | Dynamic viewport centering for camera plugin                          |
+| 2026-02-18 | Added ToastEvent and ToastKind                          | Action confirmation toasts for save/load/delete feedback              |

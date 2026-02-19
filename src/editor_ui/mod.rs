@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
-use crate::contracts::editor_ui::{EditorTool, ViewportMargins};
+use crate::contracts::editor_ui::{EditorTool, ToastEvent, ViewportMargins};
 use crate::contracts::game_system::SelectedUnit;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
@@ -48,6 +48,7 @@ impl Plugin for EditorUiPlugin {
         app.insert_resource(EditorTool::default());
         app.init_resource::<ViewportMargins>();
         app.insert_resource(components::EditorState::default());
+        app.init_resource::<components::ToastState>();
         app.init_resource::<ConceptRegistry>();
         app.init_resource::<RelationRegistry>();
         app.init_resource::<ConstraintRegistry>();
@@ -93,6 +94,10 @@ impl Plugin for EditorUiPlugin {
         );
 
         app.add_observer(handle_editor_ui_command);
+        app.add_observer(handle_toast_event);
+
+        // Toast renders on all screens (Editor and Play).
+        app.add_systems(EguiPrimaryContextPass, systems::render_toast);
     }
 }
 
@@ -147,6 +152,16 @@ fn handle_editor_ui_command(
         }
         _ => {}
     }
+}
+
+/// Observer: handles toast notification events and populates the toast state.
+fn handle_toast_event(trigger: On<ToastEvent>, mut toast_state: ResMut<components::ToastState>) {
+    let event = trigger.event();
+    toast_state.active = Some(components::ActiveToast {
+        message: event.message.clone(),
+        kind: event.kind,
+        remaining: 2.5,
+    });
 }
 
 fn register_shortcuts(registry: &mut ShortcutRegistry) {

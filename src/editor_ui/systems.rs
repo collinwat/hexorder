@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use crate::contracts::editor_ui::{EditorTool, ViewportMargins};
+use crate::contracts::editor_ui::{EditorTool, ToastKind, ViewportMargins};
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
@@ -29,7 +29,7 @@ use crate::contracts::mechanics::{
 
 use super::components::{
     BrandTheme, EditorAction, EditorState, MechanicsParams, OntologyParams, OntologyTab,
-    ProjectParams, SelectionParams,
+    ProjectParams, SelectionParams, ToastState,
 };
 
 /// Updates `ViewportMargins` from the actual egui panel layout.
@@ -4250,4 +4250,45 @@ fn build_constraint_expression(
             ConstraintExpr::All(Vec::new())
         }
     }
+}
+
+/// Renders the currently active toast notification at the bottom-center of the screen.
+pub fn render_toast(
+    mut contexts: EguiContexts,
+    mut toast_state: ResMut<ToastState>,
+    time: Res<Time>,
+) {
+    let Some(toast) = toast_state.active.as_mut() else {
+        return;
+    };
+
+    toast.remaining -= time.delta_secs();
+    if toast.remaining <= 0.0 {
+        toast_state.active = None;
+        return;
+    }
+
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    let message = toast.message.clone();
+    let text_color = match toast.kind {
+        ToastKind::Success => BrandTheme::SUCCESS,
+        ToastKind::Error => BrandTheme::DANGER,
+        ToastKind::Info => BrandTheme::TEXT_PRIMARY,
+    };
+
+    egui::Area::new(egui::Id::new("toast_notification"))
+        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -40.0])
+        .show(ctx, |ui| {
+            egui::Frame::NONE
+                .fill(BrandTheme::BG_SURFACE)
+                .stroke(egui::Stroke::new(1.0, BrandTheme::BORDER_SUBTLE))
+                .corner_radius(4.0)
+                .inner_margin(egui::Margin::symmetric(16, 8))
+                .show(ui, |ui| {
+                    ui.label(egui::RichText::new(message).color(text_color));
+                });
+        });
 }

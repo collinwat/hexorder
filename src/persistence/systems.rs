@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::contracts::editor_ui::{ToastEvent, ToastKind};
 use crate::contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, GameSystem, SelectedUnit, StructRegistry,
     UnitInstance,
@@ -94,6 +95,7 @@ pub fn handle_save_request(
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
     storage: Res<Storage>,
     mut workspace: ResMut<Workspace>,
+    mut commands: Commands,
 ) {
     let event = trigger.event();
 
@@ -169,9 +171,17 @@ pub fn handle_save_request(
             info!("Saved to {}", path.display());
             workspace.file_path = Some(path);
             workspace.dirty = false;
+            commands.trigger(ToastEvent {
+                message: "Project saved".to_string(),
+                kind: ToastKind::Success,
+            });
         }
         Err(e) => {
             error!("Failed to save: {e}");
+            commands.trigger(ToastEvent {
+                message: format!("Save failed: {e}"),
+                kind: ToastKind::Error,
+            });
         }
     }
 }
@@ -206,6 +216,10 @@ pub fn handle_load_request(
         Ok(f) => f,
         Err(e) => {
             error!("Failed to load: {e}");
+            commands.trigger(ToastEvent {
+                message: format!("Load failed: {e}"),
+                kind: ToastKind::Error,
+            });
             return;
         }
     };
@@ -248,6 +262,11 @@ pub fn handle_load_request(
 
     // Transition to editor (may already be in editor if loading from editor).
     next_state.set(AppScreen::Editor);
+
+    commands.trigger(ToastEvent {
+        message: "Project loaded".to_string(),
+        kind: ToastKind::Success,
+    });
 
     info!("Loaded game system: {}", game_system.id);
 }

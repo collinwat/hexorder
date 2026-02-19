@@ -45,3 +45,18 @@ impl Default for ViewportMargins {
         }
     }
 }
+
+/// Toast notification event. Fire from any plugin to show a toast message.
+#[derive(Event, Debug, Clone)]
+pub struct ToastEvent {
+    pub message: String,
+    pub kind: ToastKind,
+}
+
+/// The visual style of a toast notification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToastKind {
+    Success,
+    Error,
+    Info,
+}
