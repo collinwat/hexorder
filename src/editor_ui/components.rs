@@ -359,6 +359,10 @@ pub struct EditorState {
     // -- Combat panel state (Play mode) --
     pub combat_attacker_strength: f64,
     pub combat_defender_strength: f64,
+
+    // -- Settings --
+    /// Base font size in points. Range 10.0–24.0, default 15.0.
+    pub font_size_base: f32,
 }
 
 impl Default for EditorState {
@@ -431,6 +435,7 @@ impl Default for EditorState {
             new_constraint_value_str: String::new(),
             combat_attacker_strength: 0.0,
             combat_defender_strength: 0.0,
+            font_size_base: 15.0,
         }
     }
 }

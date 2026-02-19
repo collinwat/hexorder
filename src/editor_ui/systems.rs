@@ -164,7 +164,7 @@ pub fn debug_inspector_panel(
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
 /// always applied, even after a window visibility change resets the context.
-pub fn configure_theme(mut contexts: EguiContexts) {
+pub fn configure_theme(mut contexts: EguiContexts, editor_state: Res<EditorState>) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
@@ -189,26 +189,27 @@ pub fn configure_theme(mut contexts: EguiContexts) {
     visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
     ctx.set_visuals(visuals);
 
+    let scale = editor_state.font_size_base / 15.0;
     let mut style = (*ctx.style()).clone();
     style.text_styles.insert(
         egui::TextStyle::Heading,
-        egui::FontId::new(20.0, egui::FontFamily::Proportional),
+        egui::FontId::new(20.0 * scale, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Body,
-        egui::FontId::new(15.0, egui::FontFamily::Proportional),
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Small,
-        egui::FontId::new(13.0, egui::FontFamily::Proportional),
+        egui::FontId::new(13.0 * scale, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Button,
-        egui::FontId::new(15.0, egui::FontFamily::Proportional),
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
     );
     style.text_styles.insert(
         egui::TextStyle::Monospace,
-        egui::FontId::new(15.0, egui::FontFamily::Monospace),
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Monospace),
     );
     ctx.set_style(style);
 }
@@ -494,6 +495,21 @@ pub fn editor_panel_system(
                 if *editor_tool == EditorTool::Place {
                     render_unit_palette(ui, &registry, &mut selection.active_token);
                 }
+
+                // -- Settings --
+                egui::CollapsingHeader::new(
+                    egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
+                )
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Font size:");
+                        ui.add(
+                            egui::Slider::new(&mut editor_state.font_size_base, 10.0..=24.0)
+                                .step_by(1.0),
+                        );
+                    });
+                });
 
                 // -- Inspector (toggleable via Cmd+I) --
                 if editor_state.inspector_visible {
