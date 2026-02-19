@@ -1,3 +1,8 @@
+[env]
+# Shared target dir and sccache wrapper — see scripts/cargo-env.sh for details.
+_.source = "scripts/cargo-env.sh"
+RUSTC_WRAPPER = "sccache"
+
 [tools]
 gitleaks = "latest"
 lefthook = "latest"
@@ -10,6 +15,7 @@ taplo = "latest"
 jq = "latest"
 "cargo:bacon" = "latest"
 d2 = "latest"
+sccache = "latest"
 
 # --- Run tasks ---
 
