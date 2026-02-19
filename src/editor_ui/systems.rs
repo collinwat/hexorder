@@ -9,7 +9,7 @@ use crate::contracts::game_system::{
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
     SelectedUnit, StructDefinition, StructRegistry, TypeId, UnitInstance,
 };
-use crate::contracts::hex_grid::{HexPosition, HexTile, SelectedHex};
+use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, SelectedHex};
 use crate::contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
@@ -28,8 +28,8 @@ use crate::contracts::mechanics::{
 };
 
 use super::components::{
-    BrandTheme, EditorAction, EditorState, MechanicsParams, OntologyParams, OntologyTab,
-    ProjectParams, SelectionParams, ToastState,
+    BrandTheme, EditorAction, EditorState, GridOverlayVisible, MechanicsParams, OntologyParams,
+    OntologyTab, ProjectParams, SelectionParams, ToastState,
 };
 
 /// Updates `ViewportMargins` from the actual egui panel layout.
@@ -4319,4 +4319,56 @@ pub fn render_toast(
                     ui.label(egui::RichText::new(message).color(text_color));
                 });
         });
+}
+
+/// Renders (q,r) coordinate labels on each hex tile when the grid overlay is enabled.
+pub fn render_grid_overlay(
+    mut contexts: EguiContexts,
+    grid_overlay: Res<GridOverlayVisible>,
+    tile_query: Query<&HexPosition, With<HexTile>>,
+    config: Option<Res<HexGridConfig>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+) {
+    if !grid_overlay.0 {
+        return;
+    }
+
+    let Some(config) = config else {
+        return;
+    };
+
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+
+    let available = ctx.available_rect();
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Foreground,
+        egui::Id::new("grid_overlay"),
+    ));
+    let font = egui::FontId::new(10.0, egui::FontFamily::Monospace);
+
+    for pos in &tile_query {
+        let wp = config.layout.hex_to_world_pos(pos.to_hex());
+        let world_pos = Vec3::new(wp.x, 0.0, wp.y);
+        let Ok(viewport_pos) = camera.world_to_viewport(camera_transform, world_pos) else {
+            continue;
+        };
+        let screen_pos = egui::pos2(viewport_pos.x, viewport_pos.y);
+        if !available.contains(screen_pos) {
+            continue;
+        }
+        let label = format!("{},{}", pos.q, pos.r);
+        painter.text(
+            screen_pos,
+            egui::Align2::CENTER_CENTER,
+            label,
+            font.clone(),
+            BrandTheme::TEXT_SECONDARY,
+        );
+    }
 }

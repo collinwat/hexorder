@@ -51,6 +51,7 @@ impl Plugin for EditorUiPlugin {
         app.insert_resource(components::EditorState::default());
         app.init_resource::<Selection>();
         app.init_resource::<components::ToastState>();
+        app.init_resource::<components::GridOverlayVisible>();
         app.init_resource::<ConceptRegistry>();
         app.init_resource::<RelationRegistry>();
         app.init_resource::<ConstraintRegistry>();
@@ -98,6 +99,11 @@ impl Plugin for EditorUiPlugin {
         app.add_observer(handle_editor_ui_command);
         app.add_observer(handle_toast_event);
 
+        // Grid overlay renders only in Editor state.
+        app.add_systems(
+            EguiPrimaryContextPass,
+            systems::render_grid_overlay.run_if(in_state(AppScreen::Editor)),
+        );
         // Toast renders on all screens (Editor and Play).
         app.add_systems(EguiPrimaryContextPass, systems::render_toast);
     }
@@ -112,6 +118,7 @@ fn handle_editor_ui_command(
     mut selected_unit: ResMut<SelectedUnit>,
     mut editor_state: ResMut<components::EditorState>,
     mut selection: ResMut<Selection>,
+    mut grid_overlay: ResMut<components::GridOverlayVisible>,
     tile_entities: Query<Entity, With<HexTile>>,
     mut commands: Commands,
     mut windows: Query<&mut Window>,
@@ -158,8 +165,11 @@ fn handle_editor_ui_command(
                 };
             }
         }
+        "view.toggle_grid_overlay" => {
+            grid_overlay.0 = !grid_overlay.0;
+        }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
-        "edit.undo" | "edit.redo" | "view.toggle_grid_overlay" => {
+        "edit.undo" | "edit.redo" => {
             info!(
                 "Command '{}' is not yet implemented",
                 trigger.event().command_id.0

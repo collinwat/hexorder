@@ -477,6 +477,10 @@ pub(super) struct OntologyParams<'w> {
     pub(super) schema_validation: Res<'w, SchemaValidation>,
 }
 
+/// Whether the grid coordinate overlay is visible. Toggled by G key.
+#[derive(Resource, Debug, Default)]
+pub(crate) struct GridOverlayVisible(pub(crate) bool);
+
 /// State for the toast notification system. Single-slot, no stacking.
 #[derive(Resource, Debug, Default)]
 pub(crate) struct ToastState {
