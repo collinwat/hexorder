@@ -17,15 +17,14 @@ These values are referenced throughout the workflow using `{{ name }}` syntax. T
 delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
 project structure changes, update them here.
 
-| Name             | Value                                     | Description                                                |
-| ---------------- | ----------------------------------------- | ---------------------------------------------------------- |
-| `project_root`   | repository root                           | Base directory; all paths are relative to this             |
-| `coordination`   | `{{ project_root }}/docs/coordination.md` | Active cycle, bets, integration branch, pitch dependencies |
-| `pitch_label`    | `type:pitch`                              | Label identifying shaped pitches in GitHub Issues          |
-| `kickoff_skill`  | `/hex-kickoff`                            | Skill to suggest when a pitch needs to be started          |
-| `ship_skill`     | `/hex-ship`                               | Skill to suggest when a cycle is ready to ship             |
-| `cooldown_skill` | `/hex-cooldown`                           | Skill to suggest when cool-down should begin               |
-| `commit_skill`   | `/hex-commit`                             | Skill to suggest when uncommitted work is found            |
+| Name             | Value           | Description                                       |
+| ---------------- | --------------- | ------------------------------------------------- |
+| `project_root`   | repository root | Base directory; all paths are relative to this    |
+| `pitch_label`    | `type:pitch`    | Label identifying shaped pitches in GitHub Issues |
+| `kickoff_skill`  | `/hex-kickoff`  | Skill to suggest when a pitch needs to be started |
+| `ship_skill`     | `/hex-ship`     | Skill to suggest when a cycle is ready to ship    |
+| `cooldown_skill` | `/hex-cooldown` | Skill to suggest when cool-down should begin      |
+| `commit_skill`   | `/hex-commit`   | Skill to suggest when uncommitted work is found   |
 
 ## 1. Gather Local State
 
@@ -45,19 +44,31 @@ subjects, statuses, and owners.
 
 ## 2. Read Cycle Context
 
-Read `{{ coordination }}` to extract:
+Query GitHub for cycle and pitch state using the milestone and issue tracker:
 
-- **Active Cycle** — cycle number, name, type, release version
-- **Current Bets** — the bets table (pitch number, title, appetite, status)
-- **Pitch Dependencies** — dependency table (pitch, depends on, delivery order, status)
-- **Integration Branch** — branch name and status (active / shipping / shipped)
-- **Prior Cycles** — the prior cycles table for historical context
-- **Known Blockers** — any listed blockers
-- **Pending Contract Changes** — any active changes
+```bash
+# Active milestone (current cycle)
+gh api repos/:owner/:repo/milestones --jq '.[] | select(.state=="open") | {title,description,due_on,open_issues,closed_issues}'
+
+# Pitches bet for the active cycle
+gh issue list --label "{{ pitch_label }}" --milestone "<active milestone>" --json number,title,state,assignees,labels
+
+# Pending contract changes
+gh issue list --label "area:contracts" --state open --json number,title,assignees
+```
+
+From the milestone and issues, extract:
+
+- **Active Cycle** — milestone title, description (contains integration branch and release version)
+- **Current Bets** — pitch issues assigned to the milestone (number, title, state, assignees)
+- **Pitch Dependencies** — cross-references between pitch issues
+- **Integration Branch** — from milestone description
+- **Known Blockers** — any issues labeled as blockers
+- **Pending Contract Changes** — open issues with `area:contracts` label
 
 ## 3. Query Pitch State
 
-For each pitch in the Current Bets table, query GitHub for its current state:
+For each pitch in the active milestone, query GitHub for its current state:
 
 ```bash
 gh issue view <pitch-number> --json title,state,assignees,labels,comments --jq '{title,state,assignees: [.assignees[].login],comment_count: (.comments | length),last_comment: (.comments | last | .body // "none" | .[0:200])}'
@@ -97,9 +108,9 @@ If no uncommitted changes and no active tasks, say so briefly.
 
 Display:
 
-- Cycle number, name, type, release version
-- Integration branch and its status
-- The bets table from `{{ coordination }}` with current status
+- Cycle number, name, type, release version (from the active milestone)
+- Integration branch and its status (from the milestone description)
+- The bets table: pitch issues assigned to the milestone with current status
 
 ### Section 3: Pitch Detail
 
