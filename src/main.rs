@@ -427,6 +427,7 @@ mod integration_tests {
             map_radius: 5,
         });
         app.add_plugins(crate::game_system::GameSystemPlugin);
+        app.init_resource::<crate::contracts::undo_redo::UndoStack>();
         app.add_plugins(crate::cell::CellPlugin);
         app.add_plugins(crate::unit::UnitPlugin);
         app

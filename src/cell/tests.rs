@@ -10,6 +10,8 @@ use crate::contracts::game_system::{
 };
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
 use crate::contracts::persistence::AppScreen;
+use crate::contracts::shortcuts::ShortcutRegistry;
+use crate::contracts::undo_redo::UndoStack;
 
 use super::components::CellMaterials;
 use super::systems;
@@ -22,6 +24,7 @@ fn test_app() -> App {
     app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<UndoStack>();
     app
 }
 
@@ -364,5 +367,150 @@ fn sync_cell_materials_adds_new_type() {
     assert!(
         cell_mats.get(new_id).is_some(),
         "New type should have a material"
+    );
+}
+
+#[test]
+fn paint_cell_records_undo_command() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+    let second_id = board_types[1].id;
+
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
+        properties: HashMap::new(),
+    });
+
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(second_id),
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.add_observer(systems::paint_cell);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    // Verify the paint happened.
+    let ed = app
+        .world()
+        .entity(tile_entity)
+        .get::<EntityData>()
+        .expect("Tile should have EntityData");
+    assert_eq!(ed.entity_type_id, second_id);
+
+    // Verify undo stack has a command recorded.
+    let stack = app.world().resource::<UndoStack>();
+    assert!(
+        stack.can_undo(),
+        "Undo stack should have a command after paint"
+    );
+    assert!(
+        stack
+            .undo_description()
+            .expect("should have description")
+            .contains("Paint"),
+        "Undo description should mention Paint"
+    );
+}
+
+#[test]
+fn paint_then_undo_reverts_terrain() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+    let second_id = board_types[1].id;
+
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
+        properties: HashMap::new(),
+    });
+
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(second_id),
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.add_observer(systems::paint_cell);
+    app.init_resource::<ShortcutRegistry>();
+    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+
+    // Paint the tile.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    // Confirm painted.
+    let ed = app
+        .world()
+        .entity(tile_entity)
+        .get::<EntityData>()
+        .expect("should have data");
+    assert_eq!(ed.entity_type_id, second_id);
+
+    // Request undo.
+    app.world_mut().resource_mut::<UndoStack>().request_undo();
+    app.update();
+
+    // Verify terrain reverted.
+    let ed = app
+        .world()
+        .entity(tile_entity)
+        .get::<EntityData>()
+        .expect("should have data");
+    assert_eq!(
+        ed.entity_type_id, first_id,
+        "Undo should revert terrain to original type"
+    );
+}
+
+#[test]
+fn paint_noop_when_same_type() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let board_types = registry.types_by_role(EntityRole::BoardPosition);
+    let first_id = board_types[0].id;
+
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
+        properties: HashMap::new(),
+    });
+
+    // Active type is the same as tile's current type.
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(first_id),
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.add_observer(systems::paint_cell);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    // Undo stack should be empty — no-op paint should not record.
+    let stack = app.world().resource::<UndoStack>();
+    assert!(
+        !stack.can_undo(),
+        "No-op paint should not record an undo command"
     );
 }

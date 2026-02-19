@@ -4,6 +4,7 @@
 //! resource for managing undo/redo history, and `SetPropertyCommand` for
 //! property value changes.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use bevy::prelude::*;
@@ -186,6 +187,50 @@ impl UndoableCommand for SetPropertyCommand {
         if let Some(mut data) = world.get_mut::<EntityData>(self.entity) {
             data.properties
                 .insert(self.property_id, self.old_value.clone());
+        }
+    }
+
+    fn description(&self) -> String {
+        self.label.clone()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Built-in Command: SetTerrainCommand
+// ---------------------------------------------------------------------------
+
+/// Command for reversible terrain (entity type) changes on a hex tile.
+///
+/// Captures the full old and new `EntityData` snapshots so that painting
+/// a tile can be fully reversed.
+#[derive(Debug)]
+pub struct SetTerrainCommand {
+    /// The tile entity being painted.
+    pub entity: Entity,
+    /// Entity type ID before painting.
+    pub old_type_id: TypeId,
+    /// Property values before painting.
+    pub old_properties: HashMap<TypeId, PropertyValue>,
+    /// Entity type ID after painting.
+    pub new_type_id: TypeId,
+    /// Property values after painting.
+    pub new_properties: HashMap<TypeId, PropertyValue>,
+    /// Human-readable label (e.g., "Paint (0, 1) to Plains").
+    pub label: String,
+}
+
+impl UndoableCommand for SetTerrainCommand {
+    fn execute(&mut self, world: &mut World) {
+        if let Some(mut data) = world.get_mut::<EntityData>(self.entity) {
+            data.entity_type_id = self.new_type_id;
+            data.properties.clone_from(&self.new_properties);
+        }
+    }
+
+    fn undo(&mut self, world: &mut World) {
+        if let Some(mut data) = world.get_mut::<EntityData>(self.entity) {
+            data.entity_type_id = self.old_type_id;
+            data.properties.clone_from(&self.old_properties);
         }
     }
 

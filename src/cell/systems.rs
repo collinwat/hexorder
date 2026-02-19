@@ -9,6 +9,7 @@ use crate::contracts::game_system::{
     ActiveBoardType, EntityData, EntityRole, EntityTypeRegistry, PropertyValue,
 };
 use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
+use crate::contracts::undo_redo::{SetTerrainCommand, UndoStack};
 
 use super::components::CellMaterials;
 
@@ -62,12 +63,14 @@ pub fn assign_default_cell_data(
 
 /// Observer callback: when a hex tile is selected (clicked), paint the active
 /// board type onto that tile if the editor is in Paint mode.
+/// Records a `SetTerrainCommand` on the undo stack for reversibility.
 pub fn paint_cell(
     trigger: On<HexSelectedEvent>,
     tool: Res<EditorTool>,
     active: Res<ActiveBoardType>,
     registry: Res<EntityTypeRegistry>,
-    mut tiles: Query<(&HexPosition, &mut EntityData), With<HexTile>>,
+    mut undo_stack: ResMut<UndoStack>,
+    mut tiles: Query<(Entity, &HexPosition, &mut EntityData), With<HexTile>>,
 ) {
     if *tool != EditorTool::Paint {
         return;
@@ -81,17 +84,40 @@ pub fn paint_cell(
         return;
     };
 
-    let default_properties: HashMap<_, _> = entity_type
+    let new_properties: HashMap<_, _> = entity_type
         .properties
         .iter()
         .map(|pd| (pd.id, PropertyValue::default_for(&pd.property_type)))
         .collect();
 
     let event = trigger.event();
-    for (pos, mut entity_data) in &mut tiles {
+    for (entity, pos, mut entity_data) in &mut tiles {
         if *pos == event.position {
+            // Skip if already the same type (no-op paint).
+            if entity_data.entity_type_id == active_id {
+                return;
+            }
+
+            // Capture old state before mutation.
+            let old_type_id = entity_data.entity_type_id;
+            let old_properties = entity_data.properties.clone();
+
+            // Apply the mutation.
             entity_data.entity_type_id = active_id;
-            entity_data.properties.clone_from(&default_properties);
+            entity_data.properties.clone_from(&new_properties);
+
+            // Record for undo.
+            let label = format!("Paint ({}, {}) to {}", pos.q, pos.r, entity_type.name);
+            undo_stack.record(Box::new(SetTerrainCommand {
+                entity,
+                old_type_id,
+                old_properties,
+                new_type_id: active_id,
+                new_properties: new_properties.clone(),
+                label,
+            }));
+
+            return;
         }
     }
 }
