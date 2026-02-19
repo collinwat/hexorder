@@ -414,6 +414,7 @@ pub fn editor_panel_system(
                         .strong()
                         .color(BrandTheme::SUCCESS),
                 )
+                .on_hover_text("Enter play mode to test turns and combat")
                 .clicked()
             {
                 next_state.set(AppScreen::Play);
@@ -560,6 +561,9 @@ pub fn editor_panel_system(
 
     // -- About Panel --
     render_about_panel(ctx, &mut editor_state);
+
+    // -- First-run hints --
+    render_first_run_hints(ctx, &mut editor_state);
 
     // -- Apply deferred actions --
     apply_actions(
@@ -1102,18 +1106,21 @@ pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) 
     ui.horizontal(|ui| {
         if ui
             .selectable_label(*editor_tool == EditorTool::Select, "Select")
+            .on_hover_text("Click tiles or units to select them (1)")
             .clicked()
         {
             *editor_tool = EditorTool::Select;
         }
         if ui
             .selectable_label(*editor_tool == EditorTool::Paint, "Paint")
+            .on_hover_text("Click tiles to paint cell types (2)")
             .clicked()
         {
             *editor_tool = EditorTool::Paint;
         }
         if ui
             .selectable_label(*editor_tool == EditorTool::Place, "Place")
+            .on_hover_text("Click tiles to place unit tokens (3)")
             .clicked()
         {
             *editor_tool = EditorTool::Place;
@@ -1144,6 +1151,16 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
                 OntologyTab::Validation => "Valid.",
                 OntologyTab::Mechanics => "Mech.",
             };
+            let tooltip = match tab {
+                OntologyTab::Types => "Define entity types and their properties",
+                OntologyTab::Enums => "Define enumeration types for properties",
+                OntologyTab::Structs => "Define composite struct types",
+                OntologyTab::Concepts => "Define abstract concepts and roles",
+                OntologyTab::Relations => "Define relationships between concepts",
+                OntologyTab::Constraints => "Define validation constraints",
+                OntologyTab::Validation => "Run schema validation checks",
+                OntologyTab::Mechanics => "Configure game mechanics and combat",
+            };
             let text = if editor_state.active_tab == tab {
                 egui::RichText::new(label).color(BrandTheme::ACCENT_AMBER)
             } else {
@@ -1151,6 +1168,7 @@ pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) 
             };
             if ui
                 .selectable_label(editor_state.active_tab == tab, text)
+                .on_hover_text(tooltip)
                 .clicked()
             {
                 editor_state.active_tab = tab;
@@ -4343,6 +4361,57 @@ fn render_about_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
             });
         });
     editor_state.about_panel_visible = open;
+}
+
+/// Renders a first-run hints overlay on the first session visit to the editor.
+/// Dismissed on any click; does not persist across restarts.
+fn render_first_run_hints(ctx: &egui::Context, editor_state: &mut EditorState) {
+    if editor_state.first_run_seen {
+        return;
+    }
+
+    let screen = ctx.content_rect();
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Foreground,
+        egui::Id::new("first_run_hints"),
+    ));
+
+    // Semi-transparent dark backdrop.
+    painter.rect_filled(screen, 0.0, egui::Color32::from_black_alpha(160));
+
+    let hints = [
+        (
+            egui::pos2(screen.min.x + 20.0, screen.min.y + 80.0),
+            "Tool Mode: Select (1), Paint (2), Place (3)",
+        ),
+        (
+            egui::pos2(screen.min.x + 20.0, screen.min.y + 110.0),
+            "Tabs: Define types, enums, concepts, and mechanics",
+        ),
+        (
+            egui::pos2(screen.center().x - 100.0, screen.center().y),
+            "Press G to toggle grid overlay",
+        ),
+        (
+            egui::pos2(screen.min.x + 20.0, screen.min.y + 140.0),
+            "Click anywhere to dismiss",
+        ),
+    ];
+
+    for (pos, text) in &hints {
+        painter.text(
+            *pos,
+            egui::Align2::LEFT_CENTER,
+            *text,
+            egui::FontId::proportional(16.0),
+            BrandTheme::ACCENT_AMBER,
+        );
+    }
+
+    // Dismiss on any click.
+    if ctx.input(|i| i.pointer.any_click()) {
+        editor_state.first_run_seen = true;
+    }
 }
 
 /// Renders the currently active toast notification at the bottom-center of the screen.
