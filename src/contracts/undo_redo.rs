@@ -306,6 +306,48 @@ impl UndoableCommand for PlaceUnitCommand {
 }
 
 // ---------------------------------------------------------------------------
+// Built-in Command: CompoundCommand
+// ---------------------------------------------------------------------------
+
+/// Groups multiple commands into a single undoable step.
+///
+/// Execute runs all sub-commands in order; undo reverses them in reverse order.
+/// The compound command uses a single label for the entire group.
+pub struct CompoundCommand {
+    /// The sub-commands that make up this compound action.
+    pub commands: Vec<Box<dyn UndoableCommand>>,
+    /// Human-readable label for the entire compound action.
+    pub label: String,
+}
+
+impl fmt::Debug for CompoundCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CompoundCommand")
+            .field("count", &self.commands.len())
+            .field("label", &self.label)
+            .finish()
+    }
+}
+
+impl UndoableCommand for CompoundCommand {
+    fn execute(&mut self, world: &mut World) {
+        for cmd in &mut self.commands {
+            cmd.execute(world);
+        }
+    }
+
+    fn undo(&mut self, world: &mut World) {
+        for cmd in self.commands.iter_mut().rev() {
+            cmd.undo(world);
+        }
+    }
+
+    fn description(&self) -> String {
+        self.label.clone()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -484,5 +526,56 @@ mod tests {
             label: "Set Attack to 5".to_string(),
         };
         assert_eq!(cmd.description(), "Set Attack to 5");
+    }
+
+    #[test]
+    fn compound_command_executes_all_in_order() {
+        let mut compound = CompoundCommand {
+            commands: vec![make_cmd("A"), make_cmd("B"), make_cmd("C")],
+            label: "Compound ABC".to_string(),
+        };
+        assert_eq!(compound.description(), "Compound ABC");
+        assert_eq!(compound.commands.len(), 3);
+
+        // Execute doesn't panic (no-op test commands).
+        let mut world = World::new();
+        compound.execute(&mut world);
+    }
+
+    #[test]
+    fn compound_command_undoes_in_reverse_order() {
+        let compound = CompoundCommand {
+            commands: vec![make_cmd("A"), make_cmd("B"), make_cmd("C")],
+            label: "Compound ABC".to_string(),
+        };
+
+        let debug = format!("{compound:?}");
+        assert!(debug.contains("CompoundCommand"));
+        assert!(debug.contains("count: 3"));
+    }
+
+    #[test]
+    fn compound_command_on_stack() {
+        let mut stack = UndoStack::default();
+        stack.record(Box::new(CompoundCommand {
+            commands: vec![make_cmd("step1"), make_cmd("step2")],
+            label: "Multi-step action".to_string(),
+        }));
+
+        assert!(stack.can_undo());
+        assert_eq!(
+            stack.undo_description(),
+            Some("Multi-step action".to_string())
+        );
+
+        let cmd = stack.pop_undo().expect("stack should have command");
+        assert_eq!(cmd.description(), "Multi-step action");
+        stack.push_redo(cmd);
+
+        assert!(stack.can_redo());
+        assert_eq!(
+            stack.redo_description(),
+            Some("Multi-step action".to_string())
+        );
     }
 }
