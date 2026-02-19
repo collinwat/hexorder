@@ -29,13 +29,26 @@ pub struct HoverIndicator;
 #[derive(Component, Debug)]
 pub struct SelectIndicator;
 
-/// Stores the default hover ring material handle.
+/// Stores material and mesh handles for indicator ring overlays.
 /// The selection ring material is set once at spawn and never changes.
 /// The hover ring material may change in Paint mode to preview the active color.
 #[derive(Resource, Debug)]
 pub struct IndicatorMaterials {
     /// Default hover ring material (used in Select mode).
     pub hover: Handle<StandardMaterial>,
+    /// Multi-selection ring material (teal).
+    pub multi_select: Handle<StandardMaterial>,
+    /// Shared ring mesh handle for indicators.
+    pub ring_mesh: Handle<Mesh>,
+    /// Rotation quaternion for flat ring on ground plane.
+    pub flat_rotation: Quat,
+}
+
+/// Marker component for multi-selection ring overlay entities.
+/// Stores the tile entity this indicator belongs to for cleanup.
+#[derive(Component, Debug)]
+pub struct MultiSelectIndicator {
+    pub tile_entity: Entity,
 }
 
 /// Stores material handles for move overlay rendering.

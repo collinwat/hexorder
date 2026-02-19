@@ -455,6 +455,7 @@ pub(super) struct SelectionParams<'w> {
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,
+    pub(super) multi: Res<'w, crate::contracts::editor_ui::Selection>,
 }
 
 /// Bundled system parameter for mechanics-related resources.

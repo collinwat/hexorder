@@ -43,6 +43,7 @@ impl Plugin for HexGridPlugin {
                 systems::update_hover.run_if(not(egui_wants_any_pointer_input)),
                 systems::handle_click.run_if(not(egui_wants_any_pointer_input)),
                 systems::update_indicators,
+                systems::sync_multi_select_indicators,
                 systems::sync_move_overlays,
                 systems::draw_los_ray,
             )

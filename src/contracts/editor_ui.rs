@@ -46,6 +46,14 @@ impl Default for ViewportMargins {
     }
 }
 
+/// Multi-selection set for bulk operations (Shift+click, Cmd+A).
+/// Coexists with `SelectedHex` — `SelectedHex` is the primary selection for
+/// the inspector and single-tile operations; `Selection` is for bulk actions.
+#[derive(Resource, Debug, Default)]
+pub struct Selection {
+    pub entities: std::collections::HashSet<Entity>,
+}
+
 /// Toast notification event. Fire from any plugin to show a toast message.
 #[derive(Event, Debug, Clone)]
 pub struct ToastEvent {

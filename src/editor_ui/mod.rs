@@ -7,8 +7,9 @@ use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
-use crate::contracts::editor_ui::{EditorTool, ToastEvent, ViewportMargins};
+use crate::contracts::editor_ui::{EditorTool, Selection, ToastEvent, ViewportMargins};
 use crate::contracts::game_system::SelectedUnit;
+use crate::contracts::hex_grid::HexTile;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
 use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use crate::contracts::persistence::AppScreen;
@@ -48,6 +49,7 @@ impl Plugin for EditorUiPlugin {
         app.insert_resource(EditorTool::default());
         app.init_resource::<ViewportMargins>();
         app.insert_resource(components::EditorState::default());
+        app.init_resource::<Selection>();
         app.init_resource::<components::ToastState>();
         app.init_resource::<ConceptRegistry>();
         app.init_resource::<RelationRegistry>();
@@ -109,6 +111,8 @@ fn handle_editor_ui_command(
     mut next_state: ResMut<NextState<AppScreen>>,
     mut selected_unit: ResMut<SelectedUnit>,
     mut editor_state: ResMut<components::EditorState>,
+    mut selection: ResMut<Selection>,
+    tile_entities: Query<Entity, With<HexTile>>,
     mut commands: Commands,
     mut windows: Query<&mut Window>,
 ) {
@@ -119,9 +123,20 @@ fn handle_editor_ui_command(
         "mode.editor" => next_state.set(AppScreen::Editor),
         "mode.close" => next_state.set(AppScreen::Launcher),
         "edit.delete" => {
-            if let Some(entity) = selected_unit.entity {
+            // Bulk delete multi-selected entities first.
+            if !selection.entities.is_empty() {
+                for entity in selection.entities.drain() {
+                    commands.entity(entity).despawn();
+                }
+            } else if let Some(entity) = selected_unit.entity {
                 commands.entity(entity).despawn();
                 selected_unit.entity = None;
+            }
+        }
+        "edit.select_all" => {
+            selection.entities.clear();
+            for entity in &tile_entities {
+                selection.entities.insert(entity);
             }
         }
         "view.toggle_inspector" => {
@@ -144,7 +159,7 @@ fn handle_editor_ui_command(
             }
         }
         // Discoverable no-ops — registered for palette visibility, backing features pending.
-        "edit.undo" | "edit.redo" | "edit.select_all" | "view.toggle_grid_overlay" => {
+        "edit.undo" | "edit.redo" | "view.toggle_grid_overlay" => {
             info!(
                 "Command '{}' is not yet implemented",
                 trigger.event().command_id.0

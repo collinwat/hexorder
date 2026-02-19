@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 
+use crate::contracts::editor_ui::Selection;
 use crate::contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex,
@@ -24,6 +25,8 @@ fn test_app() -> App {
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<bevy::input::mouse::AccumulatedMouseMotion>();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<Selection>();
     app
 }
 

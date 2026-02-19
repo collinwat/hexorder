@@ -10,6 +10,7 @@ check the current tool mode before acting (consumers like cell).
 - cell (checks EditorTool before painting)
 - unit (checks EditorTool before placing or interacting with units)
 - camera (reads ViewportMargins for viewport centering)
+- hex_grid (reads/writes Selection on Shift+click)
 - persistence (triggers ToastEvent on save/load success and failure)
 - (any future feature that behaves differently based on tool mode or needs toast notifications)
 
@@ -62,6 +63,16 @@ pub struct ViewportMargins {
 }
 ```
 
+```rust
+/// Multi-selection set for bulk operations (Shift+click, Cmd+A).
+/// Coexists with SelectedHex — SelectedHex is the primary selection for
+/// the inspector and single-tile operations; Selection is for bulk actions.
+#[derive(Resource, Debug, Default)]
+pub struct Selection {
+    pub entities: HashSet<Entity>,
+}
+```
+
 ### Events
 
 ```rust
@@ -91,6 +102,8 @@ pub enum ToastKind {
 - `ViewportMargins` is initialized by the editor_ui plugin and updated each frame after panel
   rendering
 - Only the editor_ui plugin should write to `ViewportMargins` (camera reads it)
+- `Selection` is initialized by editor_ui; hex_grid writes on Shift+click; editor_ui writes on Cmd+A
+- Normal click clears `Selection`; Shift+click toggles individual tile entities
 - `ToastEvent` can be triggered by any plugin via `commands.trigger()`
 - The editor_ui plugin observes `ToastEvent` and renders a single-slot toast at screen bottom-center
 - Toasts auto-dismiss after 2.5 seconds; new toasts replace the current one (no stacking)
@@ -106,3 +119,4 @@ pub enum ToastKind {
 | 2026-02-10 | Added PaintPreview resource                             | Paint mode hover preview for ring border overlay                      |
 | 2026-02-17 | Added ViewportMargins resource                          | Dynamic viewport centering for camera plugin                          |
 | 2026-02-18 | Added ToastEvent and ToastKind                          | Action confirmation toasts for save/load/delete feedback              |
+| 2026-02-18 | Added Selection resource                                | Multi-selection for bulk operations (Shift+click, Cmd+A)              |

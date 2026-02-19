@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use hexx::shapes;
 
-use crate::contracts::editor_ui::{EditorTool, PaintPreview};
+use crate::contracts::editor_ui::{EditorTool, PaintPreview, Selection};
 use crate::contracts::game_system::{SelectedUnit, UnitInstance};
 use crate::contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
@@ -15,7 +15,8 @@ use crate::contracts::validation::ValidMoveSet;
 
 use super::algorithms;
 use super::components::{
-    HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, OverlayMaterials, SelectIndicator,
+    HexMaterials, HoverIndicator, HoveredHex, IndicatorMaterials, MultiSelectIndicator,
+    OverlayMaterials, SelectIndicator,
 };
 
 /// Creates the hex grid configuration resource with default settings.
@@ -156,11 +157,19 @@ const DRAG_THRESHOLD: f32 = 5.0;
 ///
 /// Fires on button *release* rather than press so that left-click drags
 /// (used for panning) are not mistaken for tile selections.
+///
+/// **Shift+click** toggles the tile in/out of the multi-selection set
+/// without changing the primary `SelectedHex`. Normal click clears the
+/// multi-selection and sets `SelectedHex` as before.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_click(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     hovered: Res<HoveredHex>,
     mut selected: ResMut<SelectedHex>,
+    mut selection: ResMut<Selection>,
+    tile_query: Query<(Entity, &HexPosition), With<HexTile>>,
     mut commands: Commands,
     mut drag_acc: Local<f32>,
 ) {
@@ -181,7 +190,22 @@ pub fn handle_click(
         return;
     }
 
-    if let Some(pos) = hovered.position {
+    let Some(pos) = hovered.position else {
+        return;
+    };
+
+    let shift_held = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+
+    if shift_held {
+        // Shift+click: toggle tile entity in/out of multi-selection.
+        if let Some((entity, _)) = tile_query.iter().find(|(_, p)| **p == pos)
+            && !selection.entities.remove(&entity)
+        {
+            selection.entities.insert(entity);
+        }
+    } else {
+        // Normal click: clear multi-selection, toggle primary selection.
+        selection.entities.clear();
         if selected.position == Some(pos) {
             selected.position = None;
         } else {
@@ -277,8 +301,16 @@ pub fn setup_indicators(
         ..default()
     });
 
+    let multi_select_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.0, 0.36, 0.5),
+        unlit: true,
+        ..default()
+    });
     commands.insert_resource(IndicatorMaterials {
         hover: hover_material.clone(),
+        multi_select: multi_select_material,
+        ring_mesh: ring_mesh.clone(),
+        flat_rotation,
     });
 
     commands.spawn((
@@ -383,6 +415,48 @@ pub fn update_indicators(
                 *vis = Visibility::Hidden;
             }
         }
+    }
+}
+
+/// Spawns and despawns multi-selection ring indicators to match `Selection`.
+pub fn sync_multi_select_indicators(
+    selection: Res<Selection>,
+    config: Res<HexGridConfig>,
+    indicator_materials: Res<IndicatorMaterials>,
+    tile_positions: Query<&HexPosition, With<HexTile>>,
+    existing: Query<(Entity, &MultiSelectIndicator)>,
+    mut commands: Commands,
+) {
+    if !selection.is_changed() {
+        return;
+    }
+
+    // Despawn indicators for entities no longer in selection.
+    for (indicator_entity, indicator) in &existing {
+        if !selection.entities.contains(&indicator.tile_entity) {
+            commands.entity(indicator_entity).despawn();
+        }
+    }
+
+    // Collect tile entities that already have indicators.
+    let has_indicator: std::collections::HashSet<Entity> =
+        existing.iter().map(|(_, ind)| ind.tile_entity).collect();
+
+    // Spawn indicators for newly selected tile entities.
+    for &tile_entity in &selection.entities {
+        if has_indicator.contains(&tile_entity) {
+            continue;
+        }
+        let Ok(pos) = tile_positions.get(tile_entity) else {
+            continue;
+        };
+        let wp = config.layout.hex_to_world_pos(pos.to_hex());
+        commands.spawn((
+            MultiSelectIndicator { tile_entity },
+            Mesh3d(indicator_materials.ring_mesh.clone()),
+            MeshMaterial3d(indicator_materials.multi_select.clone()),
+            Transform::from_xyz(wp.x, 0.015, wp.y).with_rotation(indicator_materials.flat_rotation),
+        ));
     }
 }
 

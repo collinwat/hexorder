@@ -511,6 +511,18 @@ pub fn editor_panel_system(
                     });
                 });
 
+                // -- Multi-selection summary --
+                if selection.multi.entities.len() > 1 {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} tiles selected",
+                            selection.multi.entities.len()
+                        ))
+                        .color(BrandTheme::ACCENT_TEAL),
+                    );
+                    ui.separator();
+                }
+
                 // -- Inspector (toggleable via Cmd+I) --
                 if editor_state.inspector_visible {
                     // Unit Inspector takes priority when a unit is selected.
