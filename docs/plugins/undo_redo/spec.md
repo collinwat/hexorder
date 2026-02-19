@@ -40,18 +40,18 @@ Cmd+Shift+Z to reverse and replay editing actions.
 
 ## Success Criteria
 
-- [ ] [SC-1] UndoableCommand trait defined in contracts with execute/undo/description methods
-- [ ] [SC-2] UndoStack resource with push, undo, redo operations and configurable depth
-- [ ] [SC-3] Property changes are undoable — change a property, Cmd+Z reverts it
+- [x] [SC-1] UndoableCommand trait defined in contracts with execute/undo/description methods
+- [x] [SC-2] UndoStack resource with push, undo, redo operations and configurable depth
+- [x] [SC-3] Property changes are undoable — change a property, Cmd+Z reverts it
 - [ ] [SC-4] Terrain painting is undoable — paint a hex, Cmd+Z reverts it
 - [ ] [SC-5] Entity creation/deletion is undoable — place a unit, Cmd+Z removes it
 - [ ] [SC-6] Compound commands undo atomically — multi-action gesture undoes as one step
-- [ ] [SC-7] Redo stack is cleared when a new action is performed
-- [ ] [SC-8] Cmd+Z and Cmd+Shift+Z registered in ShortcutRegistry and functional
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
-- [ ] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
-- [ ] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
+- [x] [SC-7] Redo stack is cleared when a new action is performed
+- [x] [SC-8] Cmd+Z and Cmd+Shift+Z registered in ShortcutRegistry and functional
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
+- [x] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
+- [x] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
       `crate::contracts::`
 
 ## UAT Checklist

@@ -244,7 +244,7 @@ mod tests {
         stack.record(make_cmd("action 1"));
 
         // Simulate undo: pop from undo, push to redo.
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         stack.push_redo(cmd);
         assert!(stack.can_redo());
 
@@ -260,7 +260,7 @@ mod tests {
         stack.record(make_cmd("B"));
 
         // Undo B.
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         assert_eq!(cmd.description(), "B");
         stack.push_redo(cmd);
 
@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(stack.redo_description(), Some("B".to_string()));
 
         // Redo B.
-        let cmd = stack.pop_redo().unwrap();
+        let cmd = stack.pop_redo().expect("stack should have command");
         assert_eq!(cmd.description(), "B");
         stack.push_undo(cmd);
 
@@ -288,11 +288,11 @@ mod tests {
 
         // Oldest entry ("1") should have been evicted.
         // Stack should contain 2, 3, 4 — undo pops 4, 3, 2.
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         assert_eq!(cmd.description(), "4");
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         assert_eq!(cmd.description(), "3");
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         assert_eq!(cmd.description(), "2");
         assert!(!stack.can_undo());
     }
@@ -304,15 +304,15 @@ mod tests {
         stack.record(make_cmd("B"));
 
         // Undo both, then redo both — push_undo should enforce depth.
-        let b = stack.pop_undo().unwrap();
-        let a = stack.pop_undo().unwrap();
+        let b = stack.pop_undo().expect("stack should have command");
+        let a = stack.pop_undo().expect("stack should have command");
         stack.push_redo(b);
         stack.push_redo(a);
 
         // Redo A then B — push_undo called each time.
-        let a = stack.pop_redo().unwrap();
+        let a = stack.pop_redo().expect("stack should have command");
         stack.push_undo(a);
-        let b = stack.pop_redo().unwrap();
+        let b = stack.pop_redo().expect("stack should have command");
         stack.push_undo(b);
 
         // Both should be back on the undo stack.
@@ -331,7 +331,7 @@ mod tests {
     fn clear_resets_both_stacks() {
         let mut stack = UndoStack::default();
         stack.record(make_cmd("X"));
-        let cmd = stack.pop_undo().unwrap();
+        let cmd = stack.pop_undo().expect("stack should have command");
         stack.push_redo(cmd);
         stack.record(make_cmd("Y"));
 
