@@ -58,6 +58,15 @@ undo."
 - `mise check:boundary`: no violations
 - `mise check:unwrap`: no violations
 
+### 2026-02-18 — Scope 4 (`PlaceUnitCommand` + unit placement undo)
+
+- Added `PlaceUnitCommand` to undo_redo contract with full spawn/despawn lifecycle
+- Modified `handle_unit_placement` to record placement on undo stack
+- 3 new unit tests: placement records undo, place+undo removes, place+undo+redo restores
+- Custom `Debug` impl with `finish_non_exhaustive()` to satisfy clippy
+- 264 total tests pass
+- `cargo clippy --all-targets -- -D warnings`: zero warnings
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -77,3 +86,4 @@ undo."
 | 2026-02-18 | speccing    | Initial spec created, branch set up, kickoff done          |
 | 2026-02-18 | in-progress | Scope 1+2 complete: contract, plugin, 16 tests passing     |
 | 2026-02-18 | in-progress | Scope 3 complete: SetTerrainCommand, paint undo, 261 tests |
+| 2026-02-18 | in-progress | Scope 4 complete: PlaceUnitCommand, unit undo, 264 tests   |
