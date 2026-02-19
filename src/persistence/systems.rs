@@ -375,19 +375,14 @@ pub fn handle_file_command(
 
 /// Despawns all editor-spawned entities on `OnExit(AppScreen::Editor)`.
 /// Ensures a clean slate when returning to the launcher or re-entering the editor.
+/// The camera is NOT despawned — it is a global entity spawned at `Startup`.
 pub fn cleanup_editor_entities(
     mut commands: Commands,
     tiles: Query<Entity, With<HexTile>>,
     units: Query<Entity, With<UnitInstance>>,
-    cameras: Query<Entity, With<Camera3d>>,
     overlays: Query<Entity, With<MoveOverlay>>,
 ) {
-    for entity in tiles
-        .iter()
-        .chain(units.iter())
-        .chain(cameras.iter())
-        .chain(overlays.iter())
-    {
+    for entity in tiles.iter().chain(units.iter()).chain(overlays.iter()) {
         commands.entity(entity).despawn();
     }
 }
