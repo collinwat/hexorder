@@ -21,7 +21,9 @@ project structure changes, update them here.
 | ---------------- | ----------------------------------------------------- | ----------------------------------------------------- |
 | `project_root`   | repository root                                       | Base directory; all paths are relative to this        |
 | `git_guide`      | `{{ project_root }}/docs/guides/git.md`               | Feature Branch Setup Checklist, branching conventions |
+| `agent_ops`      | `{{ project_root }}/docs/guides/agent-ops.md`         | Agent roles, guard protocol, sync protocol            |
 | `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch template with labels                            |
+| `tracking_label` | `type:cycle`                                          | Label identifying cycle tracking issues               |
 | `hook_config`    | `{{ project_root }}/lefthook.yml`                     | Hook commands for worktree setup                      |
 | `wiki_index`     | `.wiki/Research-Index.md`                             | Research index for prior findings                     |
 | `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                        |
@@ -58,17 +60,31 @@ If the cycle has multiple pitches, map cross-pitch dependencies before setting u
 
 If the cycle has only one pitch, skip this step.
 
-## Set Up the Integration Branch (if needed)
+## Find the Cycle Tracking Issue
 
-Read `{{ git_guide }}` to extract the Integration branch section. If this cycle has multiple pitches
-and no integration branch exists yet, create one:
+Locate the cycle tracking issue for this milestone:
 
 ```bash
-git branch <version> main
-git push origin <version>
+gh issue list --label "{{ tracking_label }}" --milestone "<milestone>" --state open --json number,title
 ```
 
-Record it in the milestone description (append `| Integration branch: <version>`).
+If no tracking issue exists, **stop** — the cycle agent (or `/hex-bet`) should have created it.
+Report the gap and suggest creating one via `/hex-bet` or spawning a cycle agent.
+
+Record the tracking issue number for later use.
+
+## Verify Integration Branch Exists
+
+For multi-pitch cycles, verify that the integration branch exists:
+
+```bash
+git ls-remote --heads origin <version>
+git branch --list <version>
+```
+
+If the integration branch does **not** exist (neither remotely nor locally), **stop** — the cycle
+agent must create it first using the Integration Branch Setup Checklist in `{{ git_guide }}`. Report
+the gap and suggest spawning a cycle agent.
 
 If the cycle has only one pitch, skip this step — the feature branch merges directly to `main` using
 the Solo-Pitch Merge workflow.
@@ -110,6 +126,7 @@ gh issue comment <number> --body "$(cat <<'EOF'
 ## Build started
 
 **Branch:** `<branch-name>`
+**Tracking:** #<tracking-issue-number>
 **First piece:** <chosen scope and rationale>
 **Initial observations:** <anything notable from orientation — surprises, open questions, early reads on complexity>
 EOF
@@ -118,6 +135,22 @@ EOF
 
 This is the first entry in a running thread. During the build, post follow-up comments on this same
 issue for progress updates (read `{{ claude_md }}` for the Progress Updates guidance).
+
+## Update Lifecycle Checklist
+
+Check off the first two lifecycle items on the pitch issue:
+
+1. **Branch created from integration branch** — verify the feature branch exists and was created
+   from the integration branch (or main for solo-pitch cycles).
+2. **Build started — kickoff comment posted** — verify the kickoff comment was posted above.
+
+Read `{{ agent_ops }}` Guard Protocol to verify prerequisites before checking off each item.
+
+Post a status comment on the tracking issue:
+
+```bash
+gh issue comment <tracking-number> --body "Pitch #<N> (<title>): build started on branch \`<branch-name>\`."
+```
 
 ## After Kickoff
 

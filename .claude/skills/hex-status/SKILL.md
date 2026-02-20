@@ -17,14 +17,16 @@ These values are referenced throughout the workflow using `{{ name }}` syntax. T
 delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
 project structure changes, update them here.
 
-| Name             | Value           | Description                                       |
-| ---------------- | --------------- | ------------------------------------------------- |
-| `project_root`   | repository root | Base directory; all paths are relative to this    |
-| `pitch_label`    | `type:pitch`    | Label identifying shaped pitches in GitHub Issues |
-| `kickoff_skill`  | `/hex-kickoff`  | Skill to suggest when a pitch needs to be started |
-| `ship_skill`     | `/hex-ship`     | Skill to suggest when a cycle is ready to ship    |
-| `cooldown_skill` | `/hex-cooldown` | Skill to suggest when cool-down should begin      |
-| `commit_skill`   | `/hex-commit`   | Skill to suggest when uncommitted work is found   |
+| Name              | Value            | Description                                       |
+| ----------------- | ---------------- | ------------------------------------------------- |
+| `project_root`    | repository root  | Base directory; all paths are relative to this    |
+| `pitch_label`     | `type:pitch`     | Label identifying shaped pitches in GitHub Issues |
+| `tracking_label`  | `type:cycle`     | Label identifying cycle tracking issues           |
+| `kickoff_skill`   | `/hex-kickoff`   | Skill to suggest when a pitch needs to be started |
+| `integrate_skill` | `/hex-integrate` | Skill to suggest when a pitch is ready to merge   |
+| `ship_skill`      | `/hex-ship`      | Skill to suggest when a cycle is ready to ship    |
+| `cooldown_skill`  | `/hex-cooldown`  | Skill to suggest when cool-down should begin      |
+| `commit_skill`    | `/hex-commit`    | Skill to suggest when uncommitted work is found   |
 
 ## 1. Gather Local State
 
@@ -55,6 +57,16 @@ gh issue list --label "{{ pitch_label }}" --milestone "<active milestone>" --jso
 
 # Pending contract changes
 gh issue list --label "area:contracts" --state open --json number,title,assignees
+
+# Cycle tracking issue
+gh issue list --label "{{ tracking_label }}" --state open --json number,title
+```
+
+If a cycle tracking issue exists, read it to extract Integration Setup status, Pitch Status table,
+and Ship Readiness checklist:
+
+```bash
+gh issue view <tracking-number>
 ```
 
 From the milestone and issues, extract:
@@ -110,6 +122,9 @@ Display:
 
 - Cycle number, name, type, release version (from the active milestone)
 - Integration branch and its status (from the milestone description)
+- Tracking issue link and number (if one exists)
+- Integration Setup status (from tracking issue — complete or items remaining)
+- Ship Readiness status (from tracking issue — items checked)
 - The bets table: pitch issues assigned to the milestone with current status
 
 ### Section 3: Pitch Detail
@@ -120,6 +135,7 @@ For each pitch in the active cycle, display:
 - GitHub state (open/closed)
 - Assignee(s)
 - Feature branch (if any) and its worktree location (if any)
+- Lifecycle checklist progress (items 1–7, showing which are checked)
 - Last build journal comment (first 200 chars)
 - Recent commit count on the feature branch
 
@@ -137,18 +153,22 @@ Include: main, integration branch, and all feature branches related to the activ
 Analyze the gathered data and produce actionable recommendations. Check for each of these conditions
 and generate a recommendation when true:
 
-| Condition                                                         | Recommendation                                                  |
-| ----------------------------------------------------------------- | --------------------------------------------------------------- |
-| Uncommitted changes in current worktree                           | Commit or stash — suggest `{{ commit_skill }}`                  |
-| A pitch has status `pending` and no assignee                      | Pitch is unclaimed — suggest `{{ kickoff_skill }}`              |
-| A pitch has status `in-progress` with no recent commits (>3 days) | Pitch may be stalled — check the feature branch                 |
-| All pitches have status `done`                                    | Cycle may be ready to ship — suggest `{{ ship_skill }}`         |
-| Integration branch status is `shipped`                            | Cool-down is next — suggest `{{ cooldown_skill }}`              |
-| Pending contract changes exist                                    | Contract changes need attention — list them                     |
-| Known blockers exist                                              | Blockers need resolution — list them                            |
-| Active tasks in task list are `in_progress`                       | Agent has unfinished work — list the tasks and suggest resuming |
-| Feature branch exists with no worktree                            | Branch has no worktree — suggest creating one or cleaning up    |
-| Pitch dependencies block a pitch                                  | Blocked pitch — identify what must complete first               |
+| Condition                                                         | Recommendation                                                     |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Uncommitted changes in current worktree                           | Commit or stash — suggest `{{ commit_skill }}`                     |
+| A pitch has status `pending` and no assignee                      | Pitch is unclaimed — suggest `{{ kickoff_skill }}`                 |
+| A pitch has status `in-progress` with no recent commits (>3 days) | Pitch may be stalled — check the feature branch                    |
+| All pitches have status `done`                                    | Cycle may be ready to ship — suggest `{{ ship_skill }}`            |
+| Integration branch status is `shipped`                            | Cool-down is next — suggest `{{ cooldown_skill }}`                 |
+| Pending contract changes exist                                    | Contract changes need attention — list them                        |
+| Known blockers exist                                              | Blockers need resolution — list them                               |
+| Active tasks in task list are `in_progress`                       | Agent has unfinished work — list the tasks and suggest resuming    |
+| Feature branch exists with no worktree                            | Branch has no worktree — suggest creating one or cleaning up       |
+| Pitch dependencies block a pitch                                  | Blocked pitch — identify what must complete first                  |
+| Integration branch setup incomplete on tracking issue             | Cycle agent needs to run setup — suggest spawning cycle-agent      |
+| Pitch: scopes done, gate not passed                               | May be ready for quality gate — suggest running `mise check:audit` |
+| Pitch: "Ready for integration" checked                            | Cycle agent can merge — suggest `{{ integrate_skill }}`            |
+| All pitches merged to integration branch                          | Cycle ready for ship gate — suggest `{{ ship_skill }}`             |
 
 Present recommendations as a numbered list with specific actions (e.g., "Pitch #120 is unclaimed —
 run `{{ kickoff_skill }}` to start" rather than "there are unclaimed pitches").

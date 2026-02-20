@@ -20,6 +20,8 @@ project structure changes, update them here.
 | ---------------- | ----------------------------------------------------- | ---------------------------------------------- |
 | `project_root`   | repository root                                       | Base directory; all paths are relative to this |
 | `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch issue template (labels and fields)       |
+| `cycle_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/cycle.yml` | Cycle tracking issue template                  |
+| `git_guide`      | `{{ project_root }}/docs/guides/git.md`               | Integration Branch Setup Checklist             |
 | `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                 |
 
 ## Review Pitches
@@ -53,6 +55,58 @@ For each selected pitch:
     gh api repos/{owner}/{repo}/milestones/{number} -X PATCH \
       -f description="Cycle N — <name> | <type> | <pitches summary> | Integration branch: <version>"
     ```
+
+## Create Cycle Tracking Issue
+
+After placing bets, create a cycle tracking issue to coordinate the build phase:
+
+1. Ensure the `type:cycle` label exists:
+    ```bash
+    gh label create "type:cycle" --description "Cycle tracking issue" --color "0E8A16" --force
+    ```
+2. Check for an existing tracking issue for this milestone:
+    ```bash
+    gh issue list --label "type:cycle" --milestone "<milestone>" --state open
+    ```
+    If one already exists, skip creation.
+3. Read `{{ cycle_template }}` for the expected structure.
+4. Create the tracking issue. Fill in the milestone, integration branch, and pitch status table:
+
+    ```bash
+    gh issue create --label "type:cycle" --milestone "<milestone>" --title "Cycle: <milestone>" \
+      --body "$(cat <<'EOF'
+    ## Integration Branch Setup
+    - [ ] Local main synced with origin/main
+    - [ ] No uncommitted changes on main
+    - [ ] Integration branch created from main
+    - [ ] Integration branch pushed to origin
+    - [ ] Milestone description updated with branch name
+
+    ## Pitch Status
+    | Pitch | Assignee | Branch | Started | Scopes Done | Gate | Merged | Reflection |
+    | ----- | -------- | ------ | ------- | ----------- | ---- | ------ | ---------- |
+    | #N title | - | - | - | - | - | - | - |
+
+    ## Ship Readiness
+    - [ ] All pitches merged to integration branch
+    - [ ] `mise check:audit` passes on integration branch
+    - [ ] Manual ship gate checks pass
+    - [ ] UAT complete
+    - [ ] Ship merge to main
+    - [ ] Release tagged and pushed
+    EOF
+    )"
+    ```
+
+    Replace the pitch status table rows with the actual pitches selected for this cycle.
+
+5. Record the tracking issue number in the milestone description:
+    ```bash
+    gh api repos/{owner}/{repo}/milestones/{number} -X PATCH \
+      -f description="<existing description> | Tracking: #<tracking-issue-number>"
+    ```
+6. For **solo-pitch cycles**, still create the tracking issue but clear the Integration Branch Setup
+   section (it won't be needed since the feature branch merges directly to main).
 
 ## Scaffold Dependencies (multi-pitch cycles)
 

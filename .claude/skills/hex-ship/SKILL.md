@@ -16,14 +16,35 @@ These values are referenced throughout the workflow using `{{ name }}` syntax. T
 delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
 project structure changes, update them here.
 
-| Name                 | Value                                   | Description                                    |
-| -------------------- | --------------------------------------- | ---------------------------------------------- |
-| `project_root`       | repository root                         | Base directory; all paths are relative to this |
-| `claude_md`          | `{{ project_root }}/CLAUDE.md`          | Ship Gate checks (automated and manual)        |
-| `git_guide`          | `{{ project_root }}/docs/guides/git.md` | Ship Merge / Solo-Pitch Merge steps            |
-| `contracts_spec_dir` | `{{ project_root }}/docs/contracts`     | Contract specs for parity check                |
-| `contracts_src_dir`  | `{{ project_root }}/src/contracts`      | Contract implementations                       |
-| `src_dir`            | `{{ project_root }}/src`                | Source directory for unsafe/debug checks       |
+| Name                 | Value                                         | Description                                    |
+| -------------------- | --------------------------------------------- | ---------------------------------------------- |
+| `project_root`       | repository root                               | Base directory; all paths are relative to this |
+| `claude_md`          | `{{ project_root }}/CLAUDE.md`                | Ship Gate checks (automated and manual)        |
+| `git_guide`          | `{{ project_root }}/docs/guides/git.md`       | Ship Merge / Solo-Pitch Merge steps            |
+| `agent_ops`          | `{{ project_root }}/docs/guides/agent-ops.md` | Agent roles, guard protocol                    |
+| `tracking_label`     | `type:cycle`                                  | Label identifying cycle tracking issues        |
+| `contracts_spec_dir` | `{{ project_root }}/docs/contracts`           | Contract specs for parity check                |
+| `contracts_src_dir`  | `{{ project_root }}/src/contracts`            | Contract implementations                       |
+| `src_dir`            | `{{ project_root }}/src`                      | Source directory for unsafe/debug checks       |
+
+## Locate Cycle Tracking Issue
+
+Find the cycle tracking issue and verify readiness prerequisites:
+
+```bash
+gh issue list --label "{{ tracking_label }}" --state open --json number,title
+gh issue view <tracking-number>
+```
+
+From the tracking issue, verify:
+
+- **Integration Setup complete** — all 5 checklist items checked
+- **All pitches merged** — every pitch in the Pitch Status table shows "Merged"
+- **Lifecycle through item 6** — each pitch issue has lifecycle items 1–6 checked
+
+If any prerequisite is not met, **stop** and report what is missing. The ship gate cannot proceed
+with unmerged pitches or incomplete integration setup. Read `{{ agent_ops }}` Guard Protocol for the
+full Ship Readiness prerequisites.
 
 ## Build Reflection Check
 
@@ -92,3 +113,17 @@ Read `{{ git_guide }}` to determine the merge workflow:
   integration branch to `main` and tag the release.
 - **Solo-pitch cycle** (no integration branch) → follow the Solo-Pitch Merge steps to merge the
   feature branch directly to `main`.
+
+After the merge and tag are verified, update the cycle tracking issue:
+
+1. Check off Ship Readiness items on the tracking issue as each completes:
+    - All pitches merged to integration branch
+    - `mise check:audit` passes on integration branch
+    - Manual ship gate checks pass
+    - UAT complete
+    - Ship merge to main
+    - Release tagged and pushed
+2. Close the tracking issue:
+    ```bash
+    gh issue close <tracking-number> --reason completed --comment "Cycle shipped as v<version>."
+    ```

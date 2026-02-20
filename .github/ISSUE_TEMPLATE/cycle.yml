@@ -1,0 +1,63 @@
+name: Cycle
+description: Tracking issue for a build cycle — coordination hub for integration and ship readiness
+labels: ["type:cycle"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue tracks cycle coordination. Created at betting time, updated throughout the build,
+        closed when the cycle ships. See `docs/guides/agent-ops.md` for agent roles and
+        `docs/guides/git.md` for the Integration Branch Setup Checklist.
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      description: The release milestone this cycle belongs to.
+      placeholder: "0.11.0"
+    validations:
+      required: true
+  - type: input
+    id: integration-branch
+    attributes:
+      label: Integration branch
+      description: >-
+        Branch name (same as version). Leave blank for solo-pitch cycles.
+      placeholder: "0.11.0"
+  - type: textarea
+    id: integration-setup
+    attributes:
+      label: Integration Branch Setup
+      description: >-
+        The first agent to kick off checks these off. Follow the Integration Branch Setup Checklist
+        in docs/guides/git.md.
+      value: |
+        - [ ] Local main synced with origin/main
+        - [ ] No uncommitted changes on main
+        - [ ] Integration branch created from main
+        - [ ] Integration branch pushed to origin
+        - [ ] Milestone description updated with branch name
+  - type: textarea
+    id: pitch-status
+    attributes:
+      label: Pitch Status
+      description: >-
+        One row per bet pitch. Update via comments — do not edit this table after creation.
+      placeholder: |
+        | Pitch | Assignee | Branch | Started | Scopes Done | Gate | Merged | Reflection |
+        | ----- | -------- | ------ | ------- | ----------- | ---- | ------ | ---------- |
+        | #N title | - | - | - | - | - | - | - |
+    validations:
+      required: true
+  - type: textarea
+    id: ship-readiness
+    attributes:
+      label: Ship Readiness
+      description: >-
+        Checked off during the ship gate and merge process.
+      value: |
+        - [ ] All pitches merged to integration branch
+        - [ ] `mise check:audit` passes on integration branch
+        - [ ] Manual ship gate checks pass
+        - [ ] UAT complete
+        - [ ] Ship merge to main
+        - [ ] Release tagged and pushed

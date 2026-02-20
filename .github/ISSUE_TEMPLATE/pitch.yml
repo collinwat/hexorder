@@ -84,6 +84,22 @@ body:
         - [ ] 2. <scope name> — <brief description>
         - [ ] 3. <scope name> — <brief description>
   - type: textarea
+    id: lifecycle
+    attributes:
+      label: Lifecycle
+      description: >-
+        Tracks the pitch through the integration pipeline. Agents check items off as they complete
+        each phase. The last checked item shows where to resume if work is restarted. See
+        docs/guides/agent-ops.md for guard prerequisites.
+      value: |
+        - [ ] Branch created from integration branch *(pitch agent)*
+        - [ ] Build started — kickoff comment posted *(pitch agent)*
+        - [ ] All build checklist scopes complete *(pitch agent)*
+        - [ ] Quality gate passed — `mise check:audit` *(pitch agent)*
+        - [ ] Ready for integration — spec criteria met, deferred items captured *(pitch agent)*
+        - [ ] Merged to integration branch *(cycle agent)*
+        - [ ] Build reflection posted *(pitch agent)*
+  - type: textarea
     id: raw-ideas
     attributes:
       label: Related raw ideas

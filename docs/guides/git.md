@@ -80,21 +80,21 @@ When adding a new plugin scope (e.g., a new plugin module), update the scope reg
 ### Integration branch
 
 Each build cycle has an **integration branch** that collects completed pitch work before it merges
-to `main`. This replaces the merge lock protocol from earlier cycles.
+to `main`. The cycle agent owns the integration branch; pitch agents own their feature branches.
 
 ```
 main ──●──────────────────────────────────────●── (tagged release)
         \                                    /
-         0.8.0 ──●──────●──────●────────────●  (integration branch)
-                  \     / \   /
-                   feat-A   feat-B              (pitch branches)
+         0.8.0 ──●──●──●──●──●──●──●──●────●  (linear: feat-A then feat-B commits)
 ```
 
-- **Created at cycle start** by the first agent to kick off. Named `<version>` (e.g., `0.8.0`).
+- **Created at cycle start** by the cycle agent. Named `<version>` (e.g., `0.8.0`). Follow the
+  Integration Branch Setup Checklist below.
 - **Pitch branches** are created from the integration branch, not from `main`.
-- **Pitch merges** go into the integration branch (merge, not rebase). No lock needed — pitches
-  merge independently as they finish.
-- **Ship merge** is one merge from the integration branch to `main`, with one tag and one changelog.
+- **Pitch integration** uses rebase + fast-forward to maintain linear history. The cycle agent
+  rebases a ready pitch onto the integration branch, then fast-forward merges it.
+- **Ship merge** is one fast-forward from the integration branch to `main`, with one tag and one
+  changelog.
 
 For **solo-pitch cycles** (only one pitch), the integration branch is optional. The pitch branch can
 merge directly to `main` using the Pre-Merge Checklist as before.
@@ -196,6 +196,101 @@ Run these steps in order when starting work on a new plugin. No steps are option
     ```
 
 After this checklist, proceed to the Development Workflow in CLAUDE.md.
+
+---
+
+## Integration Branch Setup Checklist
+
+Run these steps when creating the integration branch for a multi-pitch cycle. The **cycle agent**
+runs this checklist. Pitch agents do not create the integration branch — they verify it exists
+before creating their feature branches.
+
+1. **Check remote.** Does the integration branch already exist on the remote?
+    ```bash
+    git ls-remote --heads origin <version>
+    ```
+    If it does, fetch and track it locally, then skip to step 7:
+    ```bash
+    git fetch origin <version>
+    git branch <version> origin/<version>
+    ```
+2. **Check local.** Does the integration branch exist locally?
+    ```bash
+    git branch --list <version>
+    ```
+    If it does, push it to the remote and skip to step 7:
+    ```bash
+    git push -u origin <version>
+    ```
+3. **Sync main.** Ensure local `main` is up to date with `origin/main`:
+    ```bash
+    git fetch origin main
+    git diff main origin/main --stat
+    ```
+    If they differ, fast-forward local main:
+    ```bash
+    git checkout main
+    git merge --ff-only origin/main
+    ```
+    If fast-forward fails (local main has diverged), **stop and resolve manually** — do not
+    force-push or rebase main.
+4. **Check for uncommitted changes.** If you are on `main` and there are uncommitted changes:
+    ```bash
+    git status --short
+    ```
+    If dirty, **stop** — commit or stash changes before creating the integration branch. The
+    integration branch must fork from a clean, synced main.
+5. **Create the branch.** From the synced, clean main:
+    ```bash
+    git branch <version> main
+    ```
+6. **Push to remote.**
+    ```bash
+    git push -u origin <version>
+    ```
+7. **Record in milestone.** Append `| Integration branch: <version>` to the milestone description if
+   not already present.
+8. **Report.** If a cycle tracking issue exists, check off the corresponding items and post a
+   comment confirming the integration branch is ready:
+    ```bash
+    gh issue comment <tracking-number> --body "Integration branch \`<version>\` created from main ($(git rev-parse --short main)). Ready for feature branches."
+    ```
+
+---
+
+## Feature Branch Sync
+
+When the cycle agent integrates other pitches into the integration branch, remaining feature
+branches fall behind. Pitch agents sync their feature branches to stay current.
+
+### When to sync
+
+- Before starting a new scope (to build on the latest integrated state)
+- After another pitch is integrated (the tracking issue comment thread announces integrations)
+- Before declaring "Ready for integration" (to minimize conflicts during rebase)
+
+### How to sync
+
+Rebase the feature branch onto the integration branch:
+
+```bash
+git fetch origin <version>
+git rebase origin/<version>
+```
+
+If conflicts arise during the rebase, resolve them commit-by-commit. After resolving all conflicts,
+run `cargo build && cargo test` before continuing the rebase.
+
+### Force-push after rebase
+
+Rebasing rewrites history. Push with `--force-with-lease` to update the remote safely:
+
+```bash
+git push --force-with-lease origin <release>-<feature>
+```
+
+This is safe because each feature branch is owned by a single pitch agent — no other session pulls
+from it.
 
 ---
 
@@ -359,23 +454,30 @@ If any check fails (hook rejection or manual verification), fix the issue before
 
 ### Pitch Merge (feature branch → integration branch)
 
-When a pitch finishes its scope, merge it into the integration branch. No lock is needed — pitches
-merge independently.
+When a pitch finishes its scope, the **cycle agent** integrates it into the integration branch using
+rebase + fast-forward to maintain linear commit history. Pitch agents do not merge their own
+branches — they declare "Ready for integration" on their lifecycle checklist.
 
 1. **Quality gate?** Run `mise check:audit` on the feature branch. All checks must pass.
 2. **Spec criteria met?** Every success criterion in `docs/plugins/<name>/spec.md` is satisfied.
 3. **Deferred items captured?** Check spec and log for deferred items. Every item must have a
    corresponding GitHub Issue. Scan source code for TODO/FIXME comments — these must have
    corresponding issues or be removed.
-4. **Merge into integration branch.** From the integration branch worktree:
+4. **Rebase onto integration branch.** From the feature branch:
     ```bash
-    git merge <release>-<feature>
+    git checkout <release>-<feature>
+    git rebase <version>
     ```
-    Use a merge commit (not fast-forward, not rebase). If conflicts arise, follow the Conflict
-    Resolution rules below.
-5. **Re-test after merge?** Run `mise check:audit` on the integration branch. The merge may have
-   introduced breakage. All checks must pass.
-6. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
+    If conflicts arise, resolve them commit-by-commit. After resolving, run `mise check:audit`.
+5. **Fast-forward merge.** From the integration branch:
+    ```bash
+    git checkout <version>
+    git merge --ff-only <release>-<feature>
+    ```
+6. **Re-test after merge?** Run `mise check:audit` on the integration branch. All checks must pass.
+7. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
+   section. Post a status comment on the cycle tracking issue.
+8. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
    Progress Updates).
 
 ### Ship Merge (integration branch → main)
