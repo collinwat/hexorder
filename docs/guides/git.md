@@ -39,10 +39,10 @@ lefthook install    # installs git hooks into .git/hooks/
 
 ### What the hooks enforce
 
-| Hook         | What it checks                                                                                            |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| `commit-msg` | Message matches `<type>(<scope>): <summary>` with valid types and scopes. Subject line max 72 characters. |
-| `pre-commit` | No secrets staged (`.env`, credentials, keys). Code compiles (`cargo check`). Formatting is correct.      |
+| Hook         | What it checks                                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commit-msg` | Message matches `<type>(<scope>): <summary>` with valid types and scopes. Subject line max 72 characters. Notices when `Cargo.lock` is staged without a dependency update commit message. |
+| `pre-commit` | No secrets staged (`.env`, credentials, keys). Code compiles (`cargo check`). Formatting is correct.                                                                                      |
 
 These hooks are the automated enforcement of the Pre-Commit Checklist. If a hook rejects your
 commit, fix the issue — do not bypass with `--no-verify`.
@@ -154,11 +154,19 @@ Run these steps in order when starting work on a new plugin. No steps are option
 2. **Create branch and worktree.** Worktrees live under `.worktrees/` in the project root. The
    directory name matches the branch name. Branch from the **integration branch** (multi-pitch
    cycles) or from `main` (solo-pitch cycles).
+
     ```bash
     git branch 0.4.0-movement-rules 0.4.0   # branch from integration branch
     git worktree add .worktrees/0.4.0-movement-rules 0.4.0-movement-rules
     cd .worktrees/0.4.0-movement-rules
     ```
+
+    > **Do NOT run `cargo update`.** The feature branch inherits the parent's `Cargo.lock`. Running
+    > `cargo update` bumps transitive dependencies that may introduce runtime crashes invisible to
+    > `cargo test` (e.g., Metal/GPU driver incompatibilities on macOS). If a dependency update is
+    > genuinely needed, do it as a separate commit with message
+    > `chore(project): update dependencies` so the lefthook guard recognizes it as intentional.
+
 3. **Install hooks in worktree.** Run `lefthook install` in the new worktree directory. Worktrees
    have their own git hooks and need lefthook installed separately.
 4. **Trust the worktree.** Mise and Claude Code use path-based trust that does not cascade from the
@@ -202,6 +210,16 @@ Run these steps in order when starting work on a new plugin. No steps are option
     Create worktree, set pre-release version, scaffold specs.
     Part of <release>.
     ```
+
+11. **Smoke test.** Verify the branch builds and launches before writing feature code:
+    ```bash
+    cargo build --features dev
+    cargo run --features dev
+    ```
+    The app should launch and display the editor window. Close it manually. If it crashes, **stop
+    and investigate** — do not proceed with feature work on a broken baseline. Common causes: stale
+    build artifacts from a shared `target/` directory (run `cargo clean -p hexorder`), or an
+    accidental `cargo update` that changed transitive dependencies.
 
 After this checklist, proceed to the Development Workflow in CLAUDE.md.
 

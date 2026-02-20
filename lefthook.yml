@@ -35,6 +35,22 @@ commit-msg:
           echo ""
           exit 1
         fi
+    cargo-lock-guard:
+      run: |
+        msg=$(head -1 "{1}")
+        if git diff --cached --name-only | grep -q '^Cargo\.lock$'; then
+          if ! echo "$msg" | grep -qE '^chore\(project\): update dependencies'; then
+            echo ""
+            echo "NOTICE: Cargo.lock is staged."
+            echo ""
+            echo "  If you ran 'cargo update', revert it — feature branches inherit"
+            echo "  the parent's Cargo.lock. Undo with: git checkout -- Cargo.lock"
+            echo ""
+            echo "  If this change is intentional (version bump, new dependency in"
+            echo "  Cargo.toml), this notice is safe to ignore."
+            echo ""
+          fi
+        fi
 
 pre-commit:
   parallel: true
