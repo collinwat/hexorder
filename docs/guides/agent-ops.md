@@ -141,6 +141,44 @@ fast-forward merges from rebased pitch branches. At ship time, the integration b
 
 ---
 
+## Reflection Protocol
+
+Reflection checkpoints force agents to pause and evaluate their approach. The value is in the pause,
+not in lengthy essays — keep reflections to 2-3 sentences.
+
+### After each scope
+
+Post a comment on the pitch issue after completing each build checklist scope. Answer these prompts:
+
+- What assumption did I just test?
+- Is there a simpler approach I missed?
+- What would I tell the next agent about this scope?
+
+Include lines changed (e.g., "+120/-30 across 4 files") for visibility.
+
+### After a blocker or debugging session > 30 minutes
+
+Before continuing, post a reflection comment on the pitch issue. Cover:
+
+- What was the symptom and what did I try?
+- What was the root cause?
+- How could this have been caught earlier?
+
+This prevents sunk-cost momentum — the pause itself is the intervention.
+
+### After agent handoff
+
+When a new agent session picks up an existing feature branch, post an orientation comment on the
+pitch issue summarizing:
+
+- What was found (last completed phase, uncommitted work, open questions)
+- What comes next (next unchecked scope, blockers)
+- Any discrepancies between the checklist state and the actual branch state
+
+This creates a visible handoff record in the pitch issue comment thread.
+
+---
+
 ## Blocking Rules
 
 These rules prevent premature or unauthorized actions. The guard protocol enforces them — the

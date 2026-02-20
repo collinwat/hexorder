@@ -95,15 +95,17 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 9. **Contract check**: If your plugin exposes or consumes shared types, check `docs/contracts/`
 10. **Implement**: Write the plugin, systems, components in `src/<plugin_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
-    spec success criteria
+    spec success criteria. Run tests after each scope — do not batch tests across multiple scopes.
 12. **Abstraction check**: Does this implementation hardcode something that could be a trait or
     interface? Would a small abstraction here prevent duplicate work in future scopes? If yes,
     refactor before committing. If uncertain, note it in the plugin log and move on.
 13. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
     the feature branch
-14. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
+14. **Reflect**: Post a scope completion comment on the pitch issue following the Reflection
+    Protocol in `docs/guides/agent-ops.md`. Include lines changed and answer the reflection prompts.
+15. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
     shared types must go through `src/contracts/`
-15. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
+16. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
 
 ### Progress Updates
 
