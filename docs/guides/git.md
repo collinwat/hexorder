@@ -508,17 +508,21 @@ once per cycle.
     git merge --ff-only <version>
     ```
 8. **Generate changelog.** Run `mise changelog:generate`.
-9. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
-   `chore(project): bump version to <version>`.
-10. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
-11. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag.
-12. **Push tag.** `git push origin main v<version>`.
-13. **Create GitHub Release.**
+9. **Verify changelog.** Read `CHANGELOG.md` and confirm the first `##` entry shows the release
+   version and date (e.g., `## [0.10.0] — 2026-02-19`), not `## [Unreleased]`. If `[Unreleased]`
+   appears, the release tag was not recognized — check that the tag exists and matches the
+   `tag_pattern` in `cliff.toml`. Fix and regenerate before proceeding.
+10. **Version commit.** Stage `Cargo.toml` and `CHANGELOG.md`, commit:
+    `chore(project): bump version to <version>`.
+11. **Tag.** Create annotated tag: `git tag -a v<version> -m "<release>: <title>"`.
+12. **Verify.** Run `git log --oneline -5` and `git tag -l` to confirm the merge, commit, and tag.
+13. **Push tag.** `git push origin main v<version>`.
+14. **Create GitHub Release.**
     `gh release create v<version> --title "<release>: <title>" --notes-file CHANGELOG.md`
-14. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
+15. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
     `gh issue close <number> --reason completed`.
-15. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
+16. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
     for the next cycle.
 
 ### Solo-Pitch Merge (feature branch → main directly)
@@ -532,8 +536,9 @@ For cycles with only one pitch, the integration branch is optional. Use this sim
 5. **Rebased?** `git rebase main`. Re-test with `mise check:audit`.
 6. **Merge.** `git merge --ff-only <branch>`.
 7. **Generate changelog.** `mise changelog:generate`.
-8. **Version commit + tag + push.** Same as Ship Merge steps 9-13.
-9. **Issue cleanup + cool-down.** Same as Ship Merge steps 14-15.
+8. **Verify changelog.** Same as Ship Merge step 9 — confirm no `[Unreleased]` header.
+9. **Version commit + tag + push.** Same as Ship Merge steps 10-14.
+10. **Issue cleanup + cool-down.** Same as Ship Merge steps 15-16.
 
 ### Conflict Resolution
 

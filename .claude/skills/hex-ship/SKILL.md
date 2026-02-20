@@ -114,6 +114,21 @@ Read `{{ git_guide }}` to determine the merge workflow:
 - **Solo-pitch cycle** (no integration branch) → follow the Solo-Pitch Merge steps to merge the
   feature branch directly to `main`.
 
+### Changelog Verification
+
+After the changelog is generated (Ship Merge step 8 or Solo-Pitch Merge step 7), verify the output
+before committing. Read `CHANGELOG.md` and check:
+
+1. **No `[Unreleased]` header** — the first `##` entry must show the release version and date (e.g.,
+   `## [0.10.0] — 2026-02-19`), not `## [Unreleased]`. If `[Unreleased]` appears, git-cliff did not
+   recognize the release tag. Check that the tag exists (`git tag -l`) and matches the `tag_pattern`
+   in `cliff.toml`. Fix the pattern or tag, then regenerate.
+2. **Version matches** — the version in the changelog header matches the version being shipped (from
+   `Cargo.toml` and the tag).
+3. **Date is correct** — the date matches the tag's commit date.
+
+If any check fails, fix the issue and regenerate before creating the version commit.
+
 After the merge and tag are verified, update the cycle tracking issue:
 
 1. Check off Ship Readiness items on the tracking issue as each completes:
