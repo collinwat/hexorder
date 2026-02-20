@@ -112,6 +112,12 @@ merge directly to `main` using the Pre-Merge Checklist as before.
 - Feature branches are created from the **integration branch** (multi-pitch cycles) or from `main`
   (solo-pitch cycles)
 
+> **Shared target directory**: All worktrees under the same repository share `<repo-root>/target/`.
+> Incremental compilation artifacts from one worktree may become invalid when another worktree
+> builds with different features or dependency versions. If you encounter unexplained crashes after
+> switching worktrees, run `cargo clean -p hexorder` to clear stale artifacts without wiping the
+> entire dependency cache. See `/hex-bisect` for the full triage workflow.
+
 ### Branch naming
 
 Branch names **must** follow this pattern:
