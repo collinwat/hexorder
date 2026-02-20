@@ -98,7 +98,10 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
     spec success criteria. Run tests after each scope — do not batch tests across multiple scopes.
 12. **Abstraction check**: Does this implementation hardcode something that could be a trait or
     interface? Would a small abstraction here prevent duplicate work in future scopes? If yes,
-    refactor before committing. If uncertain, note it in the plugin log and move on.
+    refactor before committing. Write a 1-2 sentence rationale in the scope completion comment
+    explaining the abstraction choice (even if the choice is "no abstraction needed"). If the scope
+    exceeds 500 lines changed, the rationale must explicitly address whether the right abstraction
+    was chosen.
 13. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
     the feature branch
 14. **Reflect**: Post a scope completion comment on the pitch issue following the Reflection
@@ -124,7 +127,7 @@ Keep updates concise — a few sentences, not an essay. The comment thread shoul
 journal, not a status report.
 
 ```bash
-gh issue comment <pitch-number> --body "Scope N complete (commit abc1234): <observations>"
+gh issue comment <pitch-number> --body "Scope N complete (commit abc1234, +120/-30 across 4 files): <observations>"
 ```
 
 ### Scope Hammering
