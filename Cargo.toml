@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.10.0-build-discipline"
+version = "0.11.0-build-discipline"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
