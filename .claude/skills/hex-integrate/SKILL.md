@@ -70,22 +70,25 @@ summary:
 2. **Verify spec criteria met.** Read `docs/plugins/<name>/spec.md` success criteria.
 3. **Verify deferred items captured.** Check spec and log for deferred items — each must have a
    corresponding GitHub Issue.
-4. **Rebase feature branch onto integration branch.**
+4. **Rebase feature branch onto integration branch.** Work from the feature branch worktree — never
+   `git checkout` on the main working tree.
     ```bash
-    git checkout <release>-<feature>
-    git rebase <version>
+    cd .worktrees/<release>-<feature>
+    git fetch origin <version>
+    git rebase origin/<version>
     ```
     If conflicts arise, resolve commit-by-commit. Follow Conflict Resolution rules from
     `{{ git_guide }}`. After resolving, run `mise check:audit`.
-5. **Fast-forward merge into integration branch.**
+5. **Fast-forward merge into integration branch.** Work from the integration branch worktree.
     ```bash
-    git checkout <version>
+    cd .worktrees/<version>
     git merge --ff-only <release>-<feature>
     ```
-6. **Re-test.** Run `mise check:audit` on the integration branch. All checks must pass.
-7. **Update lifecycle.** Check off lifecycle item 6 ("Merged to integration branch") on the pitch
+6. **Re-test.** Run `mise check:audit` on the integration branch worktree. All checks must pass.
+7. **Push.** Push the updated integration branch: `git push origin <version>`.
+8. **Update lifecycle.** Check off lifecycle item 6 ("Merged to integration branch") on the pitch
    issue.
-8. **Post status comment** on the tracking issue with the merge result:
+9. **Post status comment** on the tracking issue with the merge result:
     ```bash
     gh issue comment <tracking-number> --body "Pitch #<N> (<title>) merged to \`<version>\` ($(git rev-parse --short HEAD)). Audit passed."
     ```

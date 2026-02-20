@@ -82,6 +82,10 @@ When adding a new plugin scope (e.g., a new plugin module), update the scope reg
 Each build cycle has an **integration branch** that collects completed pitch work before it merges
 to `main`. The cycle agent owns the integration branch; pitch agents own their feature branches.
 
+> **Worktree invariant**: The main working tree always stays on `main`. The integration branch and
+> all feature branches live in worktrees under `.worktrees/`. Never `git checkout` a non-main branch
+> on the main working tree.
+
 ```
 main ──●──────────────────────────────────────●── (tagged release)
         \                                    /
@@ -213,7 +217,7 @@ before creating their feature branches.
     ```bash
     git ls-remote --heads origin <version>
     ```
-    If it does, fetch and track it locally, then skip to step 7:
+    If it does, fetch and track it locally, then skip to step 9:
     ```bash
     git fetch origin <version>
     git branch <version> origin/<version>
@@ -222,7 +226,7 @@ before creating their feature branches.
     ```bash
     git branch --list <version>
     ```
-    If it does, push it to the remote and skip to step 7:
+    If it does, push it to the remote and skip to step 9:
     ```bash
     git push -u origin <version>
     ```
@@ -252,12 +256,24 @@ before creating their feature branches.
     ```bash
     git push -u origin <version>
     ```
-7. **Record in milestone.** Append `| Integration branch: <version>` to the milestone description if
-   not already present.
-8. **Report.** If a cycle tracking issue exists, check off the corresponding items and post a
-   comment confirming the integration branch is ready:
+7. **Create worktree.** The integration branch gets a worktree just like feature branches. The main
+   working tree must always stay on `main`.
     ```bash
-    gh issue comment <tracking-number> --body "Integration branch \`<version>\` created from main ($(git rev-parse --short main)). Ready for feature branches."
+    git worktree add .worktrees/<version> <version>
+    cd .worktrees/<version>
+    ```
+8. **Install hooks and trust.** Same as Feature Branch Setup steps 3-4:
+    ```bash
+    lefthook install
+    mise trust
+    cp ../../.claude/settings.local.json .claude/settings.local.json
+    ```
+9. **Record in milestone.** Append `| Integration branch: <version>` to the milestone description if
+   not already present.
+10. **Report.** If a cycle tracking issue exists, check off the corresponding items and post a
+    comment confirming the integration branch is ready:
+    ```bash
+    gh issue comment <tracking-number> --body "Integration branch \`<version>\` created from main ($(git rev-parse --short main)). Worktree at \`.worktrees/<version>\`. Ready for feature branches."
     ```
 
 ---
@@ -462,39 +478,47 @@ When a pitch finishes its scope, the **cycle agent** integrates it into the inte
 rebase + fast-forward to maintain linear commit history. Pitch agents do not merge their own
 branches — they declare "Ready for integration" on their lifecycle checklist.
 
+All merge operations use **worktrees** — never `git checkout` on the main working tree. The main
+working tree must always stay on `main`.
+
 1. **Quality gate?** Run `mise check:audit` on the feature branch. All checks must pass.
 2. **Spec criteria met?** Every success criterion in `docs/plugins/<name>/spec.md` is satisfied.
 3. **Deferred items captured?** Check spec and log for deferred items. Every item must have a
    corresponding GitHub Issue. Scan source code for TODO/FIXME comments — these must have
    corresponding issues or be removed.
-4. **Rebase onto integration branch.** From the feature branch:
+4. **Rebase onto integration branch.** From the feature branch worktree:
     ```bash
-    git checkout <release>-<feature>
-    git rebase <version>
+    cd .worktrees/<release>-<feature>
+    git fetch origin <version>
+    git rebase origin/<version>
     ```
     If conflicts arise, resolve them commit-by-commit. After resolving, run `mise check:audit`.
-5. **Fast-forward merge.** From the integration branch:
+5. **Fast-forward merge.** From the integration branch worktree:
     ```bash
-    git checkout <version>
+    cd .worktrees/<version>
     git merge --ff-only <release>-<feature>
     ```
 6. **Re-test after merge?** Run `mise check:audit` on the integration branch. All checks must pass.
-7. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
+7. **Push integration branch.** Push the updated integration branch to the remote:
+    ```bash
+    git push origin <version>
+    ```
+8. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
    section. Post a status comment on the cycle tracking issue.
-8. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
+9. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
    Progress Updates).
 
 ### Ship Merge (integration branch → main)
 
 After all pitches merge into the integration branch and UAT passes, merge to `main`. This happens
-once per cycle.
+once per cycle. All operations use **worktrees** — the main working tree stays on `main`.
 
 1. **All pitches merged?** Check that no open pitch issues remain for the milestone:
    `gh issue list --milestone "<milestone>" --label "type:pitch" --state open`
 2. **UAT passed?** Walk through the UAT checklist (max 5 items per pitch). Record results as a
    comment on each pitch issue.
-3. **Ship gate audit.** Run `mise check:audit` plus the manual checks from the Ship Gate in
-   CLAUDE.md. If any check fails, fix and re-run.
+3. **Ship gate audit.** Run `mise check:audit` on the integration branch worktree plus the manual
+   checks from the Ship Gate in CLAUDE.md. If any check fails, fix and re-run.
 4. **Remove plan documents.** Delete transient build-phase artifacts from `docs/plans/` that were
    created during this cycle's kickoff and orientation. These documents guided implementation but
    the canonical record now lives in plugin specs, plugin logs, and pitch issue comments. If any
@@ -502,13 +526,15 @@ once per cycle.
    before proceeding.
 5. **Version bumped?** Determine the correct next version (see Version Lookup Table below). Update
    `Cargo.toml`. Strip the pre-release suffix.
-6. **Rebase onto main.** From the integration branch:
+6. **Rebase onto main.** From the integration branch worktree:
     ```bash
+    cd .worktrees/<version>
     git rebase main
     ```
     If conflicts arise, resolve and re-test with `mise check:audit`.
-7. **Merge.** From `main`:
+7. **Merge.** From the main working tree (which is on `main`):
     ```bash
+    cd <project-root>
     git merge --ff-only <version>
     ```
 8. **Generate changelog.** Run `mise changelog:generate`.
@@ -526,7 +552,16 @@ once per cycle.
 15. **Issue cleanup.** Close all GitHub Issues completed in this cycle:
     `gh issue list --milestone "<milestone>" --state open` — close each with
     `gh issue close <number> --reason completed`.
-16. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
+16. **Teardown worktrees.** Remove all cycle worktrees (integration + feature branches). Run from
+    the main working tree:
+    ```bash
+    git worktree remove .worktrees/<version>
+    git worktree remove .worktrees/<version>-<feature-1>
+    git worktree remove .worktrees/<version>-<feature-2>
+    git branch -d <version> <version>-<feature-1> <version>-<feature-2>
+    ```
+    Verify with `git worktree list` — only the main working tree should remain.
+17. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
     for the next cycle.
 
 ### Solo-Pitch Merge (feature branch → main directly)

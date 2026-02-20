@@ -35,6 +35,8 @@ body:
         - [ ] No uncommitted changes on main
         - [ ] Integration branch created from main
         - [ ] Integration branch pushed to origin
+        - [ ] Integration worktree created at `.worktrees/<version>`
+        - [ ] Hooks installed and mise trusted in worktree
         - [ ] Milestone description updated with branch name
   - type: textarea
     id: pitch-status
