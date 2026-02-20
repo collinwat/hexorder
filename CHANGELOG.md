@@ -9,6 +9,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- mark Cycle 4 integration branch as shipped (project)
+- open Cycle 5 betting — Sharpen the Tools (0.10.0) (project)
+- set delivery order for Cycle 5 pitches (project)
+- add /hex-status skill for situational awareness (project)
+- eliminate coordination.md — use GitHub-native tracking (project)
+- add build checklist to pitch template and kickoff (project)
+- add abstraction check step to build loop (project)
+- add egui deprecation table and contribution protocol (project)
+- add formatting baseline step to branch setup (project)
+- document observer resource safety pattern (project)
+- add skill recommendation step to build workflow (project)
+- implement fullscreen toggle via Cmd+F (closes #110) (editor_ui)
+- add toast notification system (ref #121) (editor_ui)
+- add user-configurable font size (ref #121) (editor_ui)
+- add multi-selection system (ref #121) (editor_ui)
+- add grid overlay toggle (ref #121) (editor_ui)
+- add About panel and Help menu (ref #121) (editor_ui)
+- add viewport discoverability hints (ref #121) (editor_ui)
+- add tests for all QoL scopes (ref #121) (editor_ui)
+- update plugin log for 0.10.0 QoL scopes (editor_ui)
+- add undo-redo contract spec (contracts)
+- implement undo-redo contract types (contracts)
+- add implementation plan for scope 1+2 (undo_redo)
+- add UndoRedoPlugin with shortcuts and exclusive system (undo_redo)
+- update spec and log after Scope 1+2 complete (undo_redo)
+- wire paint_cell to undo stack with SetTerrainCommand (cell)
+- update spec and log for Scope 3 completion (undo_redo)
+- wire unit placement to undo stack with PlaceUnitCommand (unit)
+- update spec and log for Scope 4 completion (undo_redo)
+- add CompoundCommand for atomic multi-action undo (undo_redo)
+- update spec, log, and contract for Scope 5 (undo_redo)
+- mark UAT checklist as passed (undo_redo)
+- add cycle coordination agents, skills, and ops guide (project)
+
+### Changed
+
+- add plan cleanup step and remove shipped plans (project)
+- add rustfmt hook for auto-formatting on edit (project)
+- set up feature branch (project)
+- set up feature branch for fast builds (project)
+- trim Bevy features to 3D-only subset (project)
+- activate dynamic linking for dev builds (project)
+- share target dir and add sccache across worktrees (project)
+- fix TOML formatting in Cargo.toml (project)
+- set up feature branch (undo_redo)
+- fix debug check for manual Debug impls and taplo fmt (project)
+- bump version to 0.10.0 (project)
+
+### Fixed
+
+- update hex-status for GitHub-native tracking (project)
+- pin Cargo.lock to stable dependency resolution (project)
+- preserve camera across screen transitions (persistence)
+- address UAT feedback on QoL scopes (ref #121) (editor_ui)
+- remove duplicate undo/redo shortcut registrations (editor_ui)
+
+## [0.9.0] — 2026-02-18
+
+### Added
+
 - add build reflection check to hex-ship gate (project)
 - add Cycle 4 design docs and update coordination (project)
 - fix typo in visual polish design doc (project)
@@ -59,6 +119,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - migrate debug panel toggle to shortcut registry (editor_ui)
 - fix ship gate clippy warnings and spec parity (contracts)
 - merge 0.9.0-shortcuts into 0.9.0 (project)
+- bump version to 0.9.0 (project)
 
 ### Fixed
 
