@@ -169,12 +169,16 @@ Run these steps in order when starting work on a new plugin. No steps are option
 5. **Format the codebase.** Run `cargo fmt`. If any files change, stage and commit as
    `style(<feature>): apply formatting baseline`. This prevents the pre-commit hook from rejecting
    your first real commit due to formatting changes in files you did not modify.
-6. **Set pre-release version.** Edit `Cargo.toml` and append a pre-release suffix to the version:
+6. **Set pre-release version.** Edit `Cargo.toml` and set the version to `<release>-<feature>`,
+   where `<release>` is the target release from the branch name (step 1), **not** the version
+   currently in `Cargo.toml`:
     ```toml
     version = "0.4.0-movement-rules"
     ```
-    The suffix is the `<feature>` portion of the branch name. This identifies builds from this
-    branch. The suffix is stripped at merge time when the final version is set.
+    The base version (`0.4.0`) comes from the branch name, not from the file — `Cargo.toml` may
+    still carry the previous release's version. The suffix is the `<feature>` portion of the branch
+    name. This identifies builds from this branch. The suffix is stripped at merge time when the
+    final version is set.
 7. **Spec scaffolding.** Verify the plugin has spec and log files. If they don't exist, create them
    from the templates:
     ```
