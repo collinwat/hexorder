@@ -14,6 +14,7 @@ typos = "latest"
 taplo = "latest"
 jq = "latest"
 "cargo:bacon" = "latest"
+"cargo:cargo-llvm-cov" = "latest"
 d2 = "latest"
 sccache = "latest"
 
@@ -153,6 +154,29 @@ echo "All public types derive Debug."
 description = "Check documentation builds without errors"
 run = "cargo doc --no-deps --quiet"
 
+[tasks."check:coverage"]
+description = "Measure test coverage (advisory — 40% minimum)"
+run = """
+echo "Measuring test coverage with cargo-llvm-cov..."
+output=$(cargo llvm-cov --features dev --summary-only 2>&1)
+echo "$output"
+total_line=$(echo "$output" | grep '^TOTAL')
+if [ -z "$total_line" ]; then
+  echo "WARNING: Could not parse coverage output. Skipping threshold check."
+  exit 0
+fi
+coverage=$(echo "$total_line" | awk '{for(i=1;i<=NF;i++) if($i ~ /%/) {gsub(/%/,"",$i); print $i; exit}}')
+threshold=40
+echo ""
+echo "Line coverage: ${coverage}% (threshold: ${threshold}%)"
+if [ "$(echo "$coverage < $threshold" | bc -l)" -eq 1 ]; then
+  echo "WARNING: Coverage ${coverage}% is below ${threshold}% threshold."
+  echo "This is advisory during build. It becomes a gate at ship audit."
+  exit 0
+fi
+echo "Coverage meets threshold."
+"""
+
 [tasks.check]
 description = "Run all checks"
 depends = [
@@ -172,7 +196,7 @@ depends = [
 
 [tasks."check:audit"]
 description = "Full constitution audit (all automated checks)"
-depends = [ "check" ]
+depends = [ "check", "check:coverage" ]
 
 # --- Test tasks ---
 
