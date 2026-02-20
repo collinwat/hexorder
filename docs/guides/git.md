@@ -634,17 +634,18 @@ While working on a feature branch, `Cargo.toml` carries a **pre-release suffix**
 This table is the **single source of truth** for version assignment. Update it when a new release
 begins.
 
-| Release | Version | Tag      | Title                    |
-| ------- | ------- | -------- | ------------------------ |
-| 0.1.0   | `0.1.0` | `v0.1.0` | The World Exists         |
-| 0.2.0   | `0.2.0` | `v0.2.0` | The World Has Properties |
-| 0.3.0   | `0.3.0` | `v0.3.0` | Things Live in the World |
-| 0.4.0   | `0.4.0` | `v0.4.0` | Rules Shape the World    |
-| 0.5.0   | `0.5.0` | `v0.5.0` | The World Remembers      |
-| 0.6.0   | `0.6.0` | `v0.6.0` | The World Has Identity   |
-| 0.7.0   | `0.7.0` | `v0.7.0` | The World Has Structure  |
-| 0.8.0   | `0.8.0` | `v0.8.0` | Process Reform           |
-| 0.9.0   | `0.9.0` | `v0.9.0` | The World Comes Alive    |
+| Release | Version  | Tag       | Title                    |
+| ------- | -------- | --------- | ------------------------ |
+| 0.1.0   | `0.1.0`  | `v0.1.0`  | The World Exists         |
+| 0.2.0   | `0.2.0`  | `v0.2.0`  | The World Has Properties |
+| 0.3.0   | `0.3.0`  | `v0.3.0`  | Things Live in the World |
+| 0.4.0   | `0.4.0`  | `v0.4.0`  | Rules Shape the World    |
+| 0.5.0   | `0.5.0`  | `v0.5.0`  | The World Remembers      |
+| 0.6.0   | `0.6.0`  | `v0.6.0`  | The World Has Identity   |
+| 0.7.0   | `0.7.0`  | `v0.7.0`  | The World Has Structure  |
+| 0.8.0   | `0.8.0`  | `v0.8.0`  | Process Reform           |
+| 0.9.0   | `0.9.0`  | `v0.9.0`  | The World Comes Alive    |
+| 0.10.0  | `0.10.0` | `v0.10.0` | Sharpen the Tools        |
 
 To determine the next version for a merge:
 
