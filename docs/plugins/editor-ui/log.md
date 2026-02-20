@@ -1,8 +1,39 @@
 # Plugin Log: editor_ui
 
-## Status: complete (0.10.0 editor QoL)
+## Status: building (0.11.0 dockable panels — pitch #135)
 
 ## Decision Log
+
+### 2026-02-20 — 0.11.0: Kickoff — Dockable panel architecture (#135)
+
+**Pitch**: Replace monolithic 280px sidebar with four-zone dockable layout
+(Left/Center/Right/Bottom) using egui_dock, decompose `editor_panel_system` into independent panel
+systems, add 4 workspace presets (Cmd+1–4), and persist active preset + panel visibility.
+
+**Research consumed**:
+
+- **Design Tool Interface Patterns** (wiki): Validates four-zone layout as universal template (Maya,
+  Unity, Photoshop, Fusion 360 all converge on Left/Center/Right/Bottom). Confirms "Viewport
+  Primacy" tenet — viewport always largest, always present. Validates 4 fixed presets as Fusion
+  360-style constraint appropriate for domain-specific tool. Adobe icon-collapse pattern noted but
+  out of scope.
+- **UI Architecture Survey** (wiki): Recommends staying on egui (Option E / Phase 1). egui_dock
+  provides DockArea with tabs/splits/drag-to-dock. Warns against building custom UI framework at
+  this team size.
+
+**First piece**: Scope 1 — egui_dock evaluation (throwaway prototype).
+
+- **Core**: Entire architecture depends on whether egui_dock works
+- **Small**: Designed as throwaway evaluation, not production code
+- **Novel**: Three unknowns — egui_dock maturity with Bevy 0.18, 3D viewport in docked region, panel
+  registration API
+
+**Initial observations**:
+
+- `systems.rs` is 4,462 lines with 22 render functions coupled through one system's parameter list
+- `ViewportMargins` contract will need to evolve from fixed sidebar margins to dynamic zone margins
+- 23 existing tests provide regression baseline for decomposition in Scope 3
+- Pitch #134 (Build Discipline) running in parallel — should land first per delivery order
 
 ### 2026-02-18 — 0.10.0: Editor QoL — 7 scopes (#121)
 
