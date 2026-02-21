@@ -4,6 +4,57 @@
 
 ## Decision Log
 
+### 2026-02-20 — 0.11.0: Scope 1 — egui_dock evaluation prototype (#135)
+
+**Result: GO** — all three unknowns resolved favorably.
+
+| #   | Unknown               | Result | Evidence                                                                                                                                                                                                              |
+| --- | --------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Compilation           | PASS   | `cargo build` clean, `cargo deny check` passes — no version splits. egui_dock 0.18 pulls 4 new crates (duplicate, egui_dock, heck, proc-macro2-diagnostics).                                                          |
+| 2   | Viewport transparency | PASS   | `clear_background(false)` + `SidePanel::left` with `Frame::NONE` — 3D hex grid visible through viewport tab. User confirmed visually.                                                                                 |
+| 3   | Floating suppression  | PASS   | `draggable_tabs(false)` + `show_close_buttons(false)` + `show_leaf_close_all_buttons(false)` + `show_leaf_collapse_buttons(false)` — no close buttons, no tab dragging, no floating windows. User confirmed visually. |
+
+**Additional finding — input passthrough**: Full-width `SidePanel::left` causes
+`egui_wants_any_pointer_input()` to always return true, blocking hex_grid and camera input systems.
+3D scene is visible but not interactive. **Workaround for Scope 2**: custom run condition that
+checks pointer position against viewport tab rect from `DockLayoutState`, or restructure layout to
+exclude viewport from egui panel coverage.
+
+**Workaround — CentralPanel state transition bug**: `CentralPanel::default()` and `egui::Area` with
+full-screen coverage do not visually render in the editor after `AppScreen::Launcher → Editor` state
+transition (egui rendering loop continues but screen does not update). `SidePanel::left` with
+`exact_width(available_width)` works correctly. Root cause undiagnosed — likely egui internal
+repaint optimization or bevy_egui frame caching. Launcher changed from `CentralPanel` to
+`egui::Area` + `layer_painter` background to avoid ID collision.
+
+**Implementation decisions**:
+
+- **DockTab enum**: 4 variants (Viewport, ToolPalette, Inspector, Validation). Minimal for
+  prototype; full decomposition (entity_type_panel, ontology_panel, etc.) deferred to Scope 3.
+- **DockLayoutState resource**: Wraps `egui_dock::DockState<DockTab>`. Manual Debug impl (DockState
+  doesn't derive Debug). Default impl calls `create_default_dock_layout()`.
+- **Four-zone layout**: Left 20% (ToolPalette) | Center ~60% (Viewport) | Right ~20% (Inspector) |
+  Bottom ~12% (Validation). Created via `split_left` → `split_right` → `split_below`.
+- **DockParams SystemParam**: Bundles `ResMut<DockLayoutState>`. To stay within Bevy's 16-param
+  limit, moved `selected_hex` into `SelectionParams` (logically correct — it's selection state).
+- **EditorDockViewer**: Implements `egui_dock::TabViewer`. ToolPalette renders full sidebar content.
+  Inspector shows placeholder (Query lifetime complexity deferred to Scope 3). Validation renders
+  `render_validation_tab`. Viewport is empty/transparent.
+- **Inspector tab placeholder**: Storing `Query` references in the TabViewer struct creates complex
+  lifetime issues (`Query<'w, 's, ...>` lifetimes tied to ECS world borrow). Scope 3 will solve this
+  by either pre-extracting data or restructuring the rendering pipeline.
+- **`render_inspector`/`render_unit_inspector`**: Marked `#[allow(dead_code)]` — still needed for
+  Scope 3 inspector tab migration.
+
+**Verification**:
+
+- `cargo build` — clean, zero warnings
+- `cargo deny check` — passes (no version splits)
+- `cargo test` — 285/285 pass (3 new dock tests: variants distinct, four zones, resource init)
+- `cargo clippy --all-targets` — zero warnings
+- `mise check:unwrap` — no unwrap in production code
+- `mise check:boundary` — no cross-plugin imports
+
 ### 2026-02-20 — 0.11.0: Kickoff — Dockable panel architecture (#135)
 
 **Pitch**: Replace monolithic 280px sidebar with four-zone dockable layout
@@ -203,8 +254,14 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-16 | `cargo test`                  | PASS   | 167/167 tests pass                   |
 | 2026-02-18 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
 | 2026-02-18 | `cargo test`                  | PASS   | 258/258 tests pass (23 editor_ui)    |
+| 2026-02-20 | `cargo build`                 | PASS   | Clean compilation, zero warnings     |
+| 2026-02-20 | `cargo deny check`            | PASS   | No version splits from egui_dock     |
+| 2026-02-20 | `cargo test`                  | PASS   | 285/285 tests pass (26 editor_ui)    |
+| 2026-02-20 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
+| 2026-02-20 | `mise check:unwrap`           | PASS   | No unwrap in production code         |
+| 2026-02-20 | `mise check:boundary`         | PASS   | No cross-plugin imports              |
 
-### Tests (23):
+### Tests (26):
 
 1. `editor_tool_defaults_to_select` — EditorTool default is Select
 2. `editor_tool_variants_are_distinct` — Select != Paint
@@ -229,6 +286,9 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 21. `editor_state_first_run_not_seen_by_default` — hints not dismissed
 22. `toggle_inspector_command_flips_visibility` — Cmd+I toggles inspector
 23. `toggle_toolbar_command_flips_visibility` — Cmd+T toggles toolbar
+24. `dock_tab_variants_are_distinct` — all DockTab variants differ
+25. `dock_layout_creates_four_zones` — default layout produces 4 tabs
+26. `dock_layout_state_resource_inserts_correctly` — resource initializes in ECS with 4 tabs
 
 ## Blockers
 
@@ -247,3 +307,4 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.          |
 | 2026-02-16 | building | 0.9.0 visual polish: BrandTheme, color audit, amber accents, font change, launcher restyle. 167/167 tests pass. |
 | 2026-02-18 | complete | 0.10.0 editor QoL: all 7 scopes shipped. 258/258 tests pass.                                                    |
+| 2026-02-20 | building | 0.11.0 Scope 1: egui_dock evaluation complete. GO decision. All 3 unknowns resolved. 285/285 tests pass.        |

@@ -347,3 +347,55 @@ fn toggle_toolbar_command_flips_visibility() {
 
     assert!(!app.world().resource::<EditorState>().toolbar_visible);
 }
+
+// ---------------------------------------------------------------------------
+// Scope 1 (0.11.0): Dock layout — egui_dock evaluation
+// ---------------------------------------------------------------------------
+
+use super::components::{DockLayoutState, DockTab};
+
+#[test]
+fn dock_tab_variants_are_distinct() {
+    assert_ne!(DockTab::Viewport, DockTab::ToolPalette);
+    assert_ne!(DockTab::Viewport, DockTab::Inspector);
+    assert_ne!(DockTab::Viewport, DockTab::Validation);
+    assert_ne!(DockTab::ToolPalette, DockTab::Inspector);
+    assert_ne!(DockTab::ToolPalette, DockTab::Validation);
+    assert_ne!(DockTab::Inspector, DockTab::Validation);
+}
+
+#[test]
+fn dock_layout_creates_four_zones() {
+    let state = super::components::create_default_dock_layout();
+    // Collect all tabs across the dock state's main surface.
+    let mut tabs = Vec::new();
+    for node in state.main_surface().iter() {
+        if let Some(node_tabs) = node.tabs() {
+            for tab in node_tabs {
+                tabs.push(*tab);
+            }
+        }
+    }
+    assert_eq!(tabs.len(), 4);
+    assert!(tabs.contains(&DockTab::Viewport));
+    assert!(tabs.contains(&DockTab::ToolPalette));
+    assert!(tabs.contains(&DockTab::Inspector));
+    assert!(tabs.contains(&DockTab::Validation));
+}
+
+#[test]
+fn dock_layout_state_resource_inserts_correctly() {
+    let mut app = App::new();
+    app.init_resource::<DockLayoutState>();
+    app.update();
+
+    let state = app.world().resource::<DockLayoutState>();
+    // Verify the default layout created 4 tabs.
+    let mut count = 0;
+    for node in state.dock_state.main_surface().iter() {
+        if let Some(tabs) = node.tabs() {
+            count += tabs.len();
+        }
+    }
+    assert_eq!(count, 4);
+}

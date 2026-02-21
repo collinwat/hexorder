@@ -28,9 +28,222 @@ use crate::contracts::mechanics::{
 };
 
 use super::components::{
-    BrandTheme, EditorAction, EditorState, GridOverlayVisible, MechanicsParams, OntologyParams,
-    OntologyTab, ProjectParams, SelectionParams, ToastState,
+    BrandTheme, DockParams, DockTab, EditorAction, EditorState, GridOverlayVisible,
+    MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
 };
+
+// ---------------------------------------------------------------------------
+// Dock viewer (Scope 1 — egui_dock evaluation)
+// ---------------------------------------------------------------------------
+
+/// Tab viewer for the dockable panel layout.
+///
+/// Implements `egui_dock::TabViewer` to render content for each dock zone.
+/// Scope 1 (evaluation prototype): `ToolPalette` renders the full editor sidebar
+/// content; Inspector shows a placeholder (Query migration in Scope 3);
+/// Validation renders the schema validation panel; Viewport is transparent.
+struct EditorDockViewer<'a> {
+    editor_state: &'a mut EditorState,
+    editor_tool: &'a mut EditorTool,
+    actions: &'a mut Vec<EditorAction>,
+    next_state: &'a mut NextState<AppScreen>,
+    workspace: &'a Workspace,
+    game_system: &'a GameSystem,
+    registry: &'a mut EntityTypeRegistry,
+    enum_registry: &'a mut EnumRegistry,
+    struct_registry: &'a mut StructRegistry,
+    active_board: &'a mut ActiveBoardType,
+    active_token: &'a mut ActiveTokenType,
+    multi_selection: &'a crate::contracts::editor_ui::Selection,
+    concept_registry: &'a mut ConceptRegistry,
+    relation_registry: &'a mut RelationRegistry,
+    constraint_registry: &'a mut ConstraintRegistry,
+    schema_validation: &'a SchemaValidation,
+    turn_structure: &'a mut TurnStructure,
+    combat_results_table: &'a mut CombatResultsTable,
+    combat_modifiers: &'a mut CombatModifierRegistry,
+}
+
+impl egui_dock::TabViewer for EditorDockViewer<'_> {
+    type Tab = DockTab;
+
+    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+        tab.to_string().into()
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
+        match tab {
+            DockTab::Viewport => {
+                // Empty — transparent background lets 3D scene show through.
+            }
+            DockTab::ToolPalette => {
+                // Full editor sidebar content (prototype: all content in one tab).
+                render_workspace_header(ui, self.workspace, self.game_system);
+
+                if self.editor_state.toolbar_visible {
+                    render_tool_mode(ui, self.editor_tool);
+                }
+
+                // Play Mode Toggle.
+                if ui
+                    .button(
+                        egui::RichText::new("\u{25B6} Play")
+                            .strong()
+                            .color(BrandTheme::SUCCESS),
+                    )
+                    .on_hover_text("Enter play mode to test turns and combat")
+                    .clicked()
+                {
+                    self.next_state.set(AppScreen::Play);
+                }
+                ui.separator();
+
+                render_tab_bar(ui, self.editor_state);
+
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    match self.editor_state.active_tab {
+                        OntologyTab::Types => {
+                            render_entity_type_editor(
+                                ui,
+                                self.registry,
+                                self.editor_state,
+                                self.actions,
+                                self.enum_registry,
+                                self.struct_registry,
+                            );
+                        }
+                        OntologyTab::Enums => {
+                            render_enums_tab(
+                                ui,
+                                self.enum_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Structs => {
+                            render_structs_tab(
+                                ui,
+                                self.struct_registry,
+                                self.enum_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Concepts => {
+                            render_concepts_tab(
+                                ui,
+                                self.concept_registry,
+                                self.registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Relations => {
+                            render_relations_tab(
+                                ui,
+                                self.relation_registry,
+                                self.concept_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Constraints => {
+                            render_constraints_tab(
+                                ui,
+                                self.constraint_registry,
+                                self.concept_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Validation => {
+                            render_validation_tab(ui, self.schema_validation);
+                        }
+                        OntologyTab::Mechanics => {
+                            render_mechanics_tab(
+                                ui,
+                                self.turn_structure,
+                                self.combat_results_table,
+                                self.combat_modifiers,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                    }
+
+                    ui.separator();
+
+                    if *self.editor_tool == EditorTool::Paint {
+                        render_cell_palette(ui, self.registry, self.active_board);
+                    }
+
+                    if *self.editor_tool == EditorTool::Place {
+                        render_unit_palette(ui, self.registry, self.active_token);
+                    }
+
+                    egui::CollapsingHeader::new(
+                        egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
+                    )
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Font size:");
+                            if ui.button(" − ").clicked() && self.editor_state.font_size_base > 10.0
+                            {
+                                self.editor_state.font_size_base -= 1.0;
+                            }
+                            ui.monospace(format!("{}", self.editor_state.font_size_base as i32));
+                            if ui.button(" + ").clicked() && self.editor_state.font_size_base < 24.0
+                            {
+                                self.editor_state.font_size_base += 1.0;
+                            }
+                        });
+                    });
+
+                    if self.multi_selection.entities.len() > 1 {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{} tiles selected",
+                                self.multi_selection.entities.len()
+                            ))
+                            .color(BrandTheme::ACCENT_TEAL),
+                        );
+                        ui.separator();
+                    }
+                });
+            }
+            DockTab::Inspector => {
+                // Placeholder — Query-based inspector content migrates in Scope 3.
+                ui.label(
+                    egui::RichText::new("Inspector")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.separator();
+                ui.label(
+                    egui::RichText::new("Tile/unit inspector (Scope 3)")
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            }
+            DockTab::Validation => {
+                render_validation_tab(ui, self.schema_validation);
+            }
+        }
+    }
+
+    fn clear_background(&self, tab: &Self::Tab) -> bool {
+        // Viewport tab is transparent so the 3D scene shows through.
+        *tab != DockTab::Viewport
+    }
+
+    fn closeable(&mut self, _tab: &mut Self::Tab) -> bool {
+        false
+    }
+
+    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
+        false
+    }
+}
 
 /// Updates `ViewportMargins` from the actual egui panel layout.
 /// Runs after the editor panel system so `available_rect()` reflects all panels.
@@ -225,128 +438,139 @@ pub fn launcher_system(
         return;
     };
 
-    egui::CentralPanel::default().show(ctx, |ui| {
-        ui.vertical_centered(|ui| {
-            ui.add_space(ui.available_height() * 0.3);
+    // Paint full-screen background (avoids CentralPanel, which conflicts
+    // with the editor's CentralPanel on state transition).
+    let screen = ctx.available_rect();
+    let panel_fill = ctx.style().visuals.panel_fill;
+    ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Background,
+        egui::Id::new("launcher_bg"),
+    ))
+    .rect_filled(screen, egui::CornerRadius::ZERO, panel_fill);
 
-            ui.label(
-                egui::RichText::new("HEXORDER")
-                    .size(32.0)
-                    .strong()
-                    .color(BrandTheme::ACCENT_AMBER),
-            );
-            ui.label(
-                egui::RichText::new("Game System Design Tool")
-                    .small()
-                    .color(BrandTheme::TEXT_SECONDARY),
-            );
-            ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
-                    .small()
-                    .monospace()
-                    .color(BrandTheme::TEXT_SECONDARY),
-            );
-            ui.add_space(24.0);
-
-            if editor_state.launcher_name_input_visible {
-                // Show inline name input.
-                ui.label("Project Name:");
-                let response = ui.add(
-                    egui::TextEdit::singleline(&mut editor_state.launcher_project_name)
-                        .hint_text("e.g., My WW2 Campaign")
-                        .desired_width(200.0),
+    egui::Area::new(egui::Id::new("launcher_area"))
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(
+                    egui::RichText::new("HEXORDER")
+                        .size(32.0)
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
                 );
+                ui.label(
+                    egui::RichText::new("Game System Design Tool")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                        .small()
+                        .monospace()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                ui.add_space(24.0);
 
-                // Request focus on first frame after reveal.
-                if editor_state.launcher_request_focus {
-                    response.request_focus();
-                    editor_state.launcher_request_focus = false;
+                if editor_state.launcher_name_input_visible {
+                    // Show inline name input.
+                    ui.label("Project Name:");
+                    let response = ui.add(
+                        egui::TextEdit::singleline(&mut editor_state.launcher_project_name)
+                            .hint_text("e.g., My WW2 Campaign")
+                            .desired_width(200.0),
+                    );
+
+                    // Request focus on first frame after reveal.
+                    if editor_state.launcher_request_focus {
+                        response.request_focus();
+                        editor_state.launcher_request_focus = false;
+                    }
+
+                    let trimmed_name = editor_state.launcher_project_name.trim().to_string();
+                    let name_valid = !trimmed_name.is_empty();
+
+                    // Enter key triggers Create.
+                    let enter_pressed =
+                        response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                    let spacing = ui.spacing().item_spacing.x;
+                    let half_width = (200.0 - spacing) / 2.0;
+                    let btn_size = egui::vec2(half_width, 0.0);
+
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(200.0, 24.0),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            let create_btn = ui.add_enabled(
+                                name_valid,
+                                egui::Button::new(egui::RichText::new("Create").color(
+                                    if name_valid {
+                                        BrandTheme::ACCENT_AMBER
+                                    } else {
+                                        BrandTheme::TEXT_DISABLED
+                                    },
+                                ))
+                                .min_size(btn_size),
+                            );
+
+                            if name_valid && (create_btn.clicked() || enter_pressed) {
+                                commands.trigger(NewProjectEvent { name: trimmed_name });
+                                editor_state.launcher_name_input_visible = false;
+                                editor_state.launcher_project_name = String::new();
+                            }
+
+                            if ui
+                                .add(egui::Button::new("Cancel").min_size(btn_size))
+                                .clicked()
+                            {
+                                editor_state.launcher_name_input_visible = false;
+                                editor_state.launcher_project_name = String::new();
+                            }
+                        },
+                    );
+                } else {
+                    // Show the "New Game System" button.
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                egui::RichText::new("New Game System")
+                                    .color(BrandTheme::ACCENT_AMBER),
+                            )
+                            .min_size(egui::vec2(200.0, 36.0)),
+                        )
+                        .clicked()
+                    {
+                        editor_state.launcher_name_input_visible = true;
+                        editor_state.launcher_project_name = String::new();
+                        editor_state.launcher_request_focus = true;
+                    }
                 }
 
-                let trimmed_name = editor_state.launcher_project_name.trim().to_string();
-                let name_valid = !trimmed_name.is_empty();
-
-                // Enter key triggers Create.
-                let enter_pressed =
-                    response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-
-                let spacing = ui.spacing().item_spacing.x;
-                let half_width = (200.0 - spacing) / 2.0;
-                let btn_size = egui::vec2(half_width, 0.0);
-
-                ui.allocate_ui_with_layout(
-                    egui::vec2(200.0, 24.0),
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        let create_btn = ui.add_enabled(
-                            name_valid,
-                            egui::Button::new(egui::RichText::new("Create").color(if name_valid {
-                                BrandTheme::ACCENT_AMBER
-                            } else {
-                                BrandTheme::TEXT_DISABLED
-                            }))
-                            .min_size(btn_size),
-                        );
-
-                        if name_valid && (create_btn.clicked() || enter_pressed) {
-                            commands.trigger(NewProjectEvent { name: trimmed_name });
-                            editor_state.launcher_name_input_visible = false;
-                            editor_state.launcher_project_name = String::new();
-                        }
-
-                        if ui
-                            .add(egui::Button::new("Cancel").min_size(btn_size))
-                            .clicked()
-                        {
-                            editor_state.launcher_name_input_visible = false;
-                            editor_state.launcher_project_name = String::new();
-                        }
-                    },
-                );
-            } else {
-                // Show the "New Game System" button.
+                ui.add_space(8.0);
                 if ui
-                    .add(
-                        egui::Button::new(
-                            egui::RichText::new("New Game System").color(BrandTheme::ACCENT_AMBER),
-                        )
-                        .min_size(egui::vec2(200.0, 36.0)),
-                    )
+                    .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
                     .clicked()
                 {
-                    editor_state.launcher_name_input_visible = true;
-                    editor_state.launcher_project_name = String::new();
-                    editor_state.launcher_request_focus = true;
+                    commands.trigger(LoadRequestEvent);
                 }
-            }
-
-            ui.add_space(8.0);
-            if ui
-                .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
-                .clicked()
-            {
-                commands.trigger(LoadRequestEvent);
-            }
+            });
         });
-    });
 }
 
-/// Main editor panel system. Renders the left side panel with all editor sections.
+/// Main editor panel system. Renders the dockable panel layout with four zones.
 #[allow(clippy::too_many_arguments)]
 pub fn editor_panel_system(
     mut contexts: EguiContexts,
     mut editor_tool: ResMut<EditorTool>,
     mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
-    selected_hex: Res<SelectedHex>,
+    mut dock: DockParams,
     project: ProjectParams,
     mut registry: ResMut<EntityTypeRegistry>,
     mut enum_registry: ResMut<EnumRegistry>,
     mut struct_registry: ResMut<StructRegistry>,
     mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
-    mut unit_data_query: Query<&mut EntityData, With<UnitInstance>>,
-    tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
     mut commands: Commands,
     mut ontology: OntologyParams,
     mut mechanics: MechanicsParams,
@@ -396,177 +620,47 @@ pub fn editor_panel_system(
         });
     });
 
-    egui::SidePanel::left("editor_panel")
-        .default_width(280.0)
-        .show(ctx, |ui| {
-            // -- Workspace Header --
-            render_workspace_header(ui, &project.workspace, &project.game_system);
-
-            // -- Tool Mode (toggleable via Cmd+T) --
-            if editor_state.toolbar_visible {
-                render_tool_mode(ui, &mut editor_tool);
-            }
-
-            // -- Play Mode Toggle --
-            if ui
-                .button(
-                    egui::RichText::new("\u{25B6} Play")
-                        .strong()
-                        .color(BrandTheme::SUCCESS),
-                )
-                .on_hover_text("Enter play mode to test turns and combat")
-                .clicked()
-            {
-                next_state.set(AppScreen::Play);
-            }
-            ui.separator();
-
-            // -- Tab Bar --
-            render_tab_bar(ui, &mut editor_state);
-
-            // -- Tab Content --
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                match editor_state.active_tab {
-                    OntologyTab::Types => {
-                        render_entity_type_editor(
-                            ui,
-                            &mut registry,
-                            &mut editor_state,
-                            &mut actions,
-                            &enum_registry,
-                            &struct_registry,
-                        );
-                    }
-                    OntologyTab::Enums => {
-                        render_enums_tab(ui, &enum_registry, &mut editor_state, &mut actions);
-                    }
-                    OntologyTab::Structs => {
-                        render_structs_tab(
-                            ui,
-                            &struct_registry,
-                            &enum_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Concepts => {
-                        render_concepts_tab(
-                            ui,
-                            &mut ontology.concept_registry,
-                            &registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Relations => {
-                        render_relations_tab(
-                            ui,
-                            &mut ontology.relation_registry,
-                            &ontology.concept_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Constraints => {
-                        render_constraints_tab(
-                            ui,
-                            &mut ontology.constraint_registry,
-                            &ontology.concept_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Validation => {
-                        render_validation_tab(ui, &ontology.schema_validation);
-                    }
-                    OntologyTab::Mechanics => {
-                        render_mechanics_tab(
-                            ui,
-                            &mechanics.turn_structure,
-                            &mechanics.combat_results_table,
-                            &mechanics.combat_modifiers,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                }
-
-                ui.separator();
-
-                // -- Cell Palette (Paint mode) --
-                if *editor_tool == EditorTool::Paint {
-                    render_cell_palette(ui, &registry, &mut selection.active_board);
-                }
-
-                // -- Unit Palette (Place mode) --
-                if *editor_tool == EditorTool::Place {
-                    render_unit_palette(ui, &registry, &mut selection.active_token);
-                }
-
-                // -- Settings --
-                egui::CollapsingHeader::new(
-                    egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
-                )
-                .default_open(false)
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Font size:");
-                        if ui.button(" − ").clicked() && editor_state.font_size_base > 10.0 {
-                            editor_state.font_size_base -= 1.0;
-                        }
-                        ui.monospace(format!("{}", editor_state.font_size_base as i32));
-                        if ui.button(" + ").clicked() && editor_state.font_size_base < 24.0 {
-                            editor_state.font_size_base += 1.0;
-                        }
-                    });
-                });
-
-                // -- Multi-selection summary --
-                if selection.multi.entities.len() > 1 {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{} tiles selected",
-                            selection.multi.entities.len()
-                        ))
-                        .color(BrandTheme::ACCENT_TEAL),
-                    );
-                    ui.separator();
-                }
-
-                // -- Inspector (toggleable via Cmd+I) --
-                if editor_state.inspector_visible {
-                    // Unit Inspector takes priority when a unit is selected.
-                    if selection.selected_unit.entity.is_some() {
-                        render_unit_inspector(
-                            ui,
-                            &selection.selected_unit,
-                            &mut unit_data_query,
-                            &registry,
-                            &enum_registry,
-                            &struct_registry,
-                            &mut actions,
-                        );
-                    } else {
-                        // Tile Inspector.
-                        render_inspector(
-                            ui,
-                            &selected_hex,
-                            &tile_query,
-                            &mut tile_data_query,
-                            &registry,
-                            &enum_registry,
-                            &struct_registry,
-                        );
-                    }
-                }
+    // -- Dock Area (four-zone layout) --
+    {
+        let mut viewer = EditorDockViewer {
+            editor_state: &mut editor_state,
+            editor_tool: &mut editor_tool,
+            actions: &mut actions,
+            next_state: &mut next_state,
+            workspace: &project.workspace,
+            game_system: &project.game_system,
+            registry: &mut registry,
+            enum_registry: &mut enum_registry,
+            struct_registry: &mut struct_registry,
+            active_board: &mut selection.active_board,
+            active_token: &mut selection.active_token,
+            multi_selection: &selection.multi,
+            concept_registry: &mut ontology.concept_registry,
+            relation_registry: &mut ontology.relation_registry,
+            constraint_registry: &mut ontology.constraint_registry,
+            schema_validation: &ontology.schema_validation,
+            turn_structure: &mut mechanics.turn_structure,
+            combat_results_table: &mut mechanics.combat_results_table,
+            combat_modifiers: &mut mechanics.combat_modifiers,
+        };
+        let remaining = ctx.available_rect();
+        egui::SidePanel::left("editor_dock")
+            .exact_width(remaining.width())
+            .resizable(false)
+            .frame(egui::Frame::NONE)
+            .show(ctx, |ui| {
+                egui_dock::DockArea::new(&mut dock.layout.dock_state)
+                    .show_close_buttons(false)
+                    .show_leaf_close_all_buttons(false)
+                    .show_leaf_collapse_buttons(false)
+                    .draggable_tabs(false)
+                    .tab_context_menus(false)
+                    .show_inside(ui, &mut viewer);
             });
-        });
+    }
 
     // -- About Panel --
     render_about_panel(ctx, &mut editor_state);
-
-    // -- First-run hints --
-    // First-run hints removed — tooltips on hover provide sufficient discoverability.
 
     // -- Apply deferred actions --
     apply_actions(
@@ -3228,7 +3322,8 @@ pub(crate) fn render_mechanics_tab(
     }
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+/// Renders the tile inspector panel. Used by the Inspector dock tab (Scope 3).
+#[allow(dead_code, clippy::type_complexity, clippy::too_many_arguments)]
 pub(crate) fn render_inspector(
     ui: &mut egui::Ui,
     selected_hex: &SelectedHex,
@@ -3313,7 +3408,8 @@ pub(crate) fn render_inspector(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Renders the unit inspector panel. Used by the Inspector dock tab (Scope 3).
+#[allow(dead_code, clippy::too_many_arguments)]
 pub(crate) fn render_unit_inspector(
     ui: &mut egui::Ui,
     selected_unit: &SelectedUnit,
@@ -3390,7 +3486,8 @@ pub(crate) fn render_unit_inspector(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Renders an inline property value editor. Used by the Inspector dock tab (Scope 3).
+#[allow(dead_code, clippy::too_many_arguments)]
 fn render_property_value_editor(
     ui: &mut egui::Ui,
     value: &mut PropertyValue,

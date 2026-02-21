@@ -24,6 +24,7 @@ bevy = { version = "0.18", default-features = false, features = [
   "picking",
 ] }
 bevy_egui = "0.39"
+egui_dock = "0.18"
 hexx = { version = "0.22", features = [ "algorithms" ] }
 mlua = { version = "0.11", features = [ "luajit", "vendored" ] }
 rfd = "0.15"

@@ -50,6 +50,7 @@ impl Plugin for EditorUiPlugin {
         app.init_resource::<ViewportMargins>();
         app.insert_resource(components::EditorState::default());
         app.init_resource::<Selection>();
+        app.init_resource::<components::DockLayoutState>();
         app.init_resource::<components::ToastState>();
         app.init_resource::<components::GridOverlayVisible>();
         app.init_resource::<ConceptRegistry>();

@@ -6,6 +6,7 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_egui::egui;
+use egui_dock::DockState;
 
 /// Brand palette constants for the editor UI.
 /// Source of truth: `docs/brand.md`
@@ -57,6 +58,7 @@ impl BrandTheme {
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, GameSystem, PropertyType, SelectedUnit, TypeId,
 };
+use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
     TurnStructure,
@@ -461,6 +463,9 @@ pub(super) struct SelectionParams<'w> {
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,
     pub(super) multi: Res<'w, crate::contracts::editor_ui::Selection>,
+    /// Used by the Inspector tab (Scope 3 — Query migration).
+    #[allow(dead_code)]
+    pub(super) selected_hex: Res<'w, SelectedHex>,
 }
 
 /// Bundled system parameter for mechanics-related resources.
@@ -499,4 +504,81 @@ pub(crate) struct ActiveToast {
     pub(crate) kind: crate::contracts::editor_ui::ToastKind,
     /// Remaining time in seconds before the toast disappears.
     pub(crate) remaining: f32,
+}
+
+// ---------------------------------------------------------------------------
+// Dock layout (Scope 1 — egui_dock evaluation)
+// ---------------------------------------------------------------------------
+
+/// Which logical panel occupies a dock tab.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum DockTab {
+    /// 3D scene — always present, transparent background.
+    Viewport,
+    /// Tool mode + cell/unit palette (left zone).
+    ToolPalette,
+    /// Tile/unit inspector (right zone).
+    Inspector,
+    /// Validation output (bottom zone).
+    Validation,
+}
+
+impl std::fmt::Display for DockTab {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Viewport => write!(f, "Viewport"),
+            Self::ToolPalette => write!(f, "Tool Palette"),
+            Self::Inspector => write!(f, "Inspector"),
+            Self::Validation => write!(f, "Validation"),
+        }
+    }
+}
+
+/// Persistent dock layout state wrapping `egui_dock::DockState`.
+#[derive(Resource)]
+pub(crate) struct DockLayoutState {
+    pub(crate) dock_state: DockState<DockTab>,
+}
+
+impl std::fmt::Debug for DockLayoutState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DockLayoutState")
+            .field("dock_state", &"<DockState>")
+            .finish()
+    }
+}
+
+impl Default for DockLayoutState {
+    fn default() -> Self {
+        Self {
+            dock_state: create_default_dock_layout(),
+        }
+    }
+}
+
+/// Creates the default four-zone dock layout.
+///
+/// Layout: Left (20%) | Center viewport (~60%) | Right (~20%) | Bottom (~12%)
+pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
+    let mut state = DockState::new(vec![DockTab::Viewport]);
+    let tree = state.main_surface_mut();
+    let root = egui_dock::NodeIndex::root();
+
+    // Left: ToolPalette gets 20% width.
+    let [center, _left] = tree.split_left(root, 0.20, vec![DockTab::ToolPalette]);
+
+    // Right: Inspector gets 25% of remaining width (after left split).
+    let [center, _right] = tree.split_right(center, 0.75, vec![DockTab::Inspector]);
+
+    // Bottom: Validation gets 15% of center height.
+    let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);
+
+    state
+}
+
+/// Bundled system parameter for dock layout state.
+/// Keeps `editor_panel_system` under Bevy's 16-parameter limit.
+#[derive(SystemParam)]
+pub(super) struct DockParams<'w> {
+    pub(super) layout: ResMut<'w, DockLayoutState>,
 }
