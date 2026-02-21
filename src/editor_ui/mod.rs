@@ -67,14 +67,19 @@ impl Plugin for EditorUiPlugin {
             EguiPrimaryContextPass,
             systems::launcher_system.run_if(in_state(AppScreen::Launcher)),
         );
-        // Editor panel shown only in Editor state.
+        // Editor panels shown only in Editor state.
+        // Four independent systems, chained so each panel claims its zone in order:
+        // menu bar (top) → validation (bottom) → tool palette (left) → inspector (right).
         // When the inspector feature is enabled, chain the debug panel before
         // update_viewport_margins so available_rect() reflects both side panels.
         #[cfg(not(feature = "inspector"))]
         app.add_systems(
             EguiPrimaryContextPass,
             (
-                systems::editor_panel_system,
+                systems::editor_menu_system,
+                systems::editor_validation_system,
+                systems::editor_tool_palette_system,
+                systems::editor_inspector_system,
                 systems::update_viewport_margins,
             )
                 .chain()
@@ -84,7 +89,10 @@ impl Plugin for EditorUiPlugin {
         app.add_systems(
             EguiPrimaryContextPass,
             (
-                systems::editor_panel_system,
+                systems::editor_menu_system,
+                systems::editor_validation_system,
+                systems::editor_tool_palette_system,
+                systems::editor_inspector_system,
                 systems::debug_inspector_panel,
                 systems::update_viewport_margins,
             )

@@ -4,6 +4,36 @@
 
 ## Decision Log
 
+### 2026-02-21 — 0.11.0: Scope 3 — Panel decomposition (#135)
+
+**Result: DONE** — `editor_panel_system` (13 params, 1 system) decomposed into 4 independent
+systems.
+
+| System                       | Zone                     | Params |
+| ---------------------------- | ------------------------ | ------ |
+| `editor_menu_system`         | `TopBottomPanel::top`    | 3      |
+| `editor_validation_system`   | `TopBottomPanel::bottom` | 2      |
+| `editor_tool_palette_system` | `SidePanel::left`        | 13     |
+| `editor_inspector_system`    | `SidePanel::right`       | 2      |
+
+**Key decisions**:
+
+- **Tool palette keeps 13 params**: The left panel renders all tab content and runs `apply_actions`
+  with a local `Vec<EditorAction>`. Splitting tabs into separate systems requires converting the
+  deferred action pattern from a local Vec to a shared resource or event — that is Scope 4 work (tab
+  support). The key win: menu bar (3 params), validation (2 params), and inspector (2 params) are
+  fully decoupled and can evolve independently.
+- **System ordering via `.chain()`**: Menu bar → validation → tool palette → inspector → (debug
+  panel if inspector feature) → `update_viewport_margins`. Chain ensures each panel claims its zone
+  before the next, and `available_rect()` reflects all panels when margins are computed.
+- **Inspector `_editor_state` param**: Prefixed with underscore as placeholder — will be used when
+  query-based inspector content migrates in a future scope.
+- **About modal stays with menu system**: `render_about_panel` is triggered by Help > About in the
+  menu bar, so it belongs with `editor_menu_system` rather than as a standalone system.
+
+**Verification**: `mise check` — all checks pass. 285/285 tests pass, zero clippy warnings, no
+boundary violations, no unwrap violations.
+
 ### 2026-02-20 — 0.11.0: Scope 1 — egui_dock evaluation prototype (#135)
 
 **Result: GO** — all three unknowns resolved favorably.
@@ -260,6 +290,9 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-20 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
 | 2026-02-20 | `mise check:unwrap`           | PASS   | No unwrap in production code         |
 | 2026-02-20 | `mise check:boundary`         | PASS   | No cross-plugin imports              |
+| 2026-02-21 | `mise check`                  | PASS   | All checks pass (Scope 3)            |
+| 2026-02-21 | `cargo test`                  | PASS   | 285/285 tests pass                   |
+| 2026-02-21 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
 
 ### Tests (26):
 
@@ -298,13 +331,14 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                                                                           |
-| ---------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| 2026-02-08 | speccing | Initial spec created                                                                                            |
-| 2026-02-08 | complete | M1 plugin implemented                                                                                           |
-| 2026-02-08 | speccing | M2 evolution: dark theme, cell type editor, inspector panel                                                     |
-| 2026-02-09 | complete | M2 evolution implemented: dark theme, cell palette, type editor, property editors, inspector, game system info  |
-| 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.          |
-| 2026-02-16 | building | 0.9.0 visual polish: BrandTheme, color audit, amber accents, font change, launcher restyle. 167/167 tests pass. |
-| 2026-02-18 | complete | 0.10.0 editor QoL: all 7 scopes shipped. 258/258 tests pass.                                                    |
-| 2026-02-20 | building | 0.11.0 Scope 1: egui_dock evaluation complete. GO decision. All 3 unknowns resolved. 285/285 tests pass.        |
+| Date       | Status   | Notes                                                                                                            |
+| ---------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| 2026-02-08 | speccing | Initial spec created                                                                                             |
+| 2026-02-08 | complete | M1 plugin implemented                                                                                            |
+| 2026-02-08 | speccing | M2 evolution: dark theme, cell type editor, inspector panel                                                      |
+| 2026-02-09 | complete | M2 evolution implemented: dark theme, cell palette, type editor, property editors, inspector, game system info   |
+| 2026-02-12 | complete | M4 ontology UI: tabbed layout, concepts, relations, constraints, validation panels. All 90 tests pass.           |
+| 2026-02-16 | building | 0.9.0 visual polish: BrandTheme, color audit, amber accents, font change, launcher restyle. 167/167 tests pass.  |
+| 2026-02-18 | complete | 0.10.0 editor QoL: all 7 scopes shipped. 258/258 tests pass.                                                     |
+| 2026-02-20 | building | 0.11.0 Scope 1: egui_dock evaluation complete. GO decision. All 3 unknowns resolved. 285/285 tests pass.         |
+| 2026-02-21 | building | 0.11.0 Scope 3: Panel decomposition. 1 system → 4 systems. Tool palette retains 13 params; 3 new systems at 2-3. |

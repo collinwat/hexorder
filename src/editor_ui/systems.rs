@@ -349,34 +349,16 @@ pub fn launcher_system(
         });
 }
 
-/// Main editor panel system. Renders the four-zone layout with native egui panels.
-///
-/// Layout: Menu bar (top) | Tool palette (left) | Inspector (right) |
-/// Validation (bottom) | Viewport (center, free — no egui panel).
-/// The center is left uncovered so the 3D scene receives input naturally.
-#[allow(clippy::too_many_arguments)]
-pub fn editor_panel_system(
+/// Menu bar system. Renders the file menu bar (top zone) and about modal.
+pub fn editor_menu_system(
     mut contexts: EguiContexts,
-    mut editor_tool: ResMut<EditorTool>,
-    mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
-    project: ProjectParams,
-    mut registry: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
-    mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
     mut commands: Commands,
-    mut ontology: OntologyParams,
-    mut mechanics: MechanicsParams,
-    mut next_state: ResMut<NextState<AppScreen>>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
 
-    let mut actions: Vec<EditorAction> = Vec::new();
-
-    // -- File Menu Bar --
     egui::TopBottomPanel::top("file_menu_bar").show(ctx, |ui| {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
@@ -414,15 +396,73 @@ pub fn editor_panel_system(
         });
     });
 
-    // -- Validation (bottom zone) --
+    render_about_panel(ctx, &mut editor_state);
+}
+
+/// Validation panel system. Renders the validation bottom zone.
+pub fn editor_validation_system(mut contexts: EguiContexts, validation: Res<SchemaValidation>) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
     egui::TopBottomPanel::bottom("validation_zone")
         .default_height(100.0)
         .resizable(true)
         .show(ctx, |ui| {
-            render_validation_tab(ui, &ontology.schema_validation);
+            render_validation_tab(ui, &validation);
         });
+}
 
-    // -- Tool Palette (left zone) --
+/// Inspector panel system. Renders the inspector right zone.
+pub fn editor_inspector_system(mut contexts: EguiContexts, _editor_state: Res<EditorState>) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    egui::SidePanel::right("inspector_zone")
+        .default_width(200.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.label(
+                egui::RichText::new("Inspector")
+                    .strong()
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            ui.separator();
+            ui.label(
+                egui::RichText::new("Tile/unit inspector (Scope 3)")
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+        });
+}
+
+/// Tool palette system. Renders the left zone with tab content and apply-actions.
+///
+/// This system retains all tab rendering and the deferred action pattern.
+/// Decomposing tabs into individual systems requires converting the local
+/// `Vec<EditorAction>` to a shared resource or event — that is Scope 4 work.
+#[allow(clippy::too_many_arguments)]
+pub fn editor_tool_palette_system(
+    mut contexts: EguiContexts,
+    mut editor_tool: ResMut<EditorTool>,
+    mut selection: SelectionParams,
+    mut editor_state: ResMut<EditorState>,
+    project: ProjectParams,
+    mut registry: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
+    mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
+    mut commands: Commands,
+    mut ontology: OntologyParams,
+    mut mechanics: MechanicsParams,
+    mut next_state: ResMut<NextState<AppScreen>>,
+) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    let mut actions: Vec<EditorAction> = Vec::new();
+
     egui::SidePanel::left("tool_palette_zone")
         .default_width(200.0)
         .resizable(true)
@@ -554,29 +594,6 @@ pub fn editor_panel_system(
                 }
             });
         });
-
-    // -- Inspector (right zone) --
-    egui::SidePanel::right("inspector_zone")
-        .default_width(200.0)
-        .resizable(true)
-        .show(ctx, |ui| {
-            // Placeholder — Query-based inspector content migrates in Scope 3.
-            ui.label(
-                egui::RichText::new("Inspector")
-                    .strong()
-                    .color(BrandTheme::ACCENT_AMBER),
-            );
-            ui.separator();
-            ui.label(
-                egui::RichText::new("Tile/unit inspector (Scope 3)")
-                    .color(BrandTheme::TEXT_SECONDARY),
-            );
-        });
-
-    // Center: no egui panel — 3D viewport shows through and receives input.
-
-    // -- About Panel --
-    render_about_panel(ctx, &mut editor_state);
 
     // -- Apply deferred actions --
     apply_actions(

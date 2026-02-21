@@ -448,7 +448,7 @@ impl Default for EditorState {
 }
 
 /// Bundled system parameter for project-level read-only resources.
-/// Reduces the system parameter count in `editor_panel_system`.
+/// Reduces the system parameter count in `editor_tool_palette_system`.
 #[derive(SystemParam)]
 pub(super) struct ProjectParams<'w> {
     pub(super) workspace: Res<'w, Workspace>,
@@ -456,7 +456,7 @@ pub(super) struct ProjectParams<'w> {
 }
 
 /// Bundled system parameter for active selection state.
-/// Reduces the system parameter count in `editor_panel_system`.
+/// Reduces the system parameter count in `editor_tool_palette_system`.
 #[derive(SystemParam)]
 pub(super) struct SelectionParams<'w> {
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
@@ -469,7 +469,7 @@ pub(super) struct SelectionParams<'w> {
 }
 
 /// Bundled system parameter for mechanics-related resources.
-/// Reduces the system parameter count in `editor_panel_system`.
+/// Reduces the system parameter count in `editor_tool_palette_system`.
 #[derive(SystemParam)]
 pub(super) struct MechanicsParams<'w> {
     pub(super) turn_structure: ResMut<'w, TurnStructure>,
@@ -478,7 +478,7 @@ pub(super) struct MechanicsParams<'w> {
 }
 
 /// Bundled system parameter for ontology-related resources.
-/// Reduces the system parameter count in `editor_panel_system`.
+/// Reduces the system parameter count in `editor_tool_palette_system`.
 #[derive(SystemParam)]
 pub(super) struct OntologyParams<'w> {
     pub(super) concept_registry: ResMut<'w, ConceptRegistry>,
