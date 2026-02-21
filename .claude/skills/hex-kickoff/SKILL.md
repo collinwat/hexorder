@@ -17,19 +17,20 @@ These values are referenced throughout the workflow using `{{ name }}` syntax. T
 delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
 project structure changes, update them here.
 
-| Name             | Value                                                 | Description                                           |
-| ---------------- | ----------------------------------------------------- | ----------------------------------------------------- |
-| `project_root`   | repository root                                       | Base directory; all paths are relative to this        |
-| `git_guide`      | `{{ project_root }}/docs/guides/git.md`               | Feature Branch Setup Checklist, branching conventions |
-| `agent_ops`      | `{{ project_root }}/docs/guides/agent-ops.md`         | Agent roles, guard protocol, sync protocol            |
-| `pitch_template` | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch template with labels                            |
-| `tracking_label` | `type:cycle`                                          | Label identifying cycle tracking issues               |
-| `hook_config`    | `{{ project_root }}/lefthook.yml`                     | Hook commands for worktree setup                      |
-| `wiki_index`     | `.wiki/Research-Index.md`                             | Research index for prior findings                     |
-| `claude_md`      | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                        |
-| `plugin_skill`   | `/hex-plugin`                                         | Plugin docs scaffolding                               |
-| `contract_skill` | `/hex-contract`                                       | Contract management                                   |
-| `research_skill` | `/hex-research`                                       | Research investigation                                |
+| Name               | Value                                                 | Description                                           |
+| ------------------ | ----------------------------------------------------- | ----------------------------------------------------- |
+| `project_root`     | repository root                                       | Base directory; all paths are relative to this        |
+| `git_guide`        | `{{ project_root }}/docs/guides/git.md`               | Feature Branch Setup Checklist, branching conventions |
+| `agent_ops`        | `{{ project_root }}/docs/guides/agent-ops.md`         | Agent roles, guard protocol, sync protocol            |
+| `pitch_template`   | `{{ project_root }}/.github/ISSUE_TEMPLATE/pitch.yml` | Pitch template with labels                            |
+| `tracking_label`   | `type:cycle`                                          | Label identifying cycle tracking issues               |
+| `hook_config`      | `{{ project_root }}/lefthook.yml`                     | Hook commands for worktree setup                      |
+| `wiki_index`       | `.wiki/Research-Index.md`                             | Research index for prior findings                     |
+| `claude_md`        | `{{ project_root }}/CLAUDE.md`                        | Development workflow reference                        |
+| `plugin_skill`     | `/hex-plugin`                                         | Plugin docs scaffolding                               |
+| `contract_skill`   | `/hex-contract`                                       | Contract management                                   |
+| `research_skill`   | `/hex-research`                                       | Research investigation                                |
+| `task_list_prefix` | `hexorder`                                            | Prefix for CLAUDE_CODE_TASK_LIST_ID                   |
 
 ## Read the Pitch
 
@@ -151,6 +152,20 @@ Post a status comment on the tracking issue:
 ```bash
 gh issue comment <tracking-number> --body "Pitch #<N> (<title>): build started on branch \`<branch-name>\`."
 ```
+
+## Set Task List ID
+
+For multi-pitch cycles, set the shared task list environment variable. This enables live task
+visibility across all Claude Code sessions in the cycle.
+
+```bash
+export CLAUDE_CODE_TASK_LIST_ID={{ task_list_prefix }}-<version>
+```
+
+Verify the variable is set: `echo $CLAUDE_CODE_TASK_LIST_ID`
+
+If the variable is already set (from a prior session), confirm it matches the current cycle's
+version. If it does not match, update it.
 
 ## After Kickoff
 

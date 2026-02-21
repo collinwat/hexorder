@@ -193,3 +193,49 @@ checklist IS the coordination mechanism.
   `/hex-ship`) does this.
 - A **cycle agent** must NOT modify pitch feature branches. It only operates on the integration
   branch by rebasing and fast-forward merging pitch branches.
+
+---
+
+## Task List Coordination
+
+Multi-terminal cycles use `CLAUDE_CODE_TASK_LIST_ID` to share live task visibility across Claude
+Code sessions. Each session can see and update the same task list, providing task-level granularity
+beyond what GitHub Issue checklists offer.
+
+### Setup
+
+Set the environment variable before launching Claude Code sessions for a cycle:
+
+```bash
+export CLAUDE_CODE_TASK_LIST_ID=hexorder-<version>
+```
+
+For example, `hexorder-0.11.0` for the 0.11.0 cycle. All sessions in the cycle use the same ID.
+
+### Naming conventions
+
+Tasks should follow this pattern:
+
+```
+[<pitch-name>] <scope description>
+```
+
+Examples:
+
+- `[dockable-panels] Evaluate egui_dock integration`
+- `[build-discipline] Add cargo safety guardrails`
+- `[cycle-agent] Integrate pitch #134`
+
+### When to use
+
+- **Pitch agents**: Create tasks for each scope in the Build Checklist. Update status as work
+  progresses. This gives the cycle agent and other pitch agents live visibility into progress.
+- **Cycle agent**: Create tasks for integration and ship gate steps. Visible to all pitch agents so
+  they can see when integrations are happening.
+- **Orchestrator**: Review the shared task list for full cycle progress at a glance.
+
+### Relationship to GitHub Issues
+
+The task list supplements, not replaces, GitHub Issue checklists. Issue Lifecycle items remain the
+official coordination mechanism for agent handoffs. The task list provides finer-grained, real-time
+visibility within a session.

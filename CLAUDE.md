@@ -313,7 +313,9 @@ Lead decomposes the plugin into subtasks. Teammates each own a subsystem.
 
 ### Multi-Terminal (across-plugin parallelism)
 
-Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID`.
+Multiple Claude Code sessions share a task list via `CLAUDE_CODE_TASK_LIST_ID=hexorder-<version>`
+(e.g., `hexorder-0.11.0`). Set this before launching sessions. See `docs/guides/agent-ops.md` for
+naming conventions.
 
 - Each terminal owns one plugin in its own git worktree and branch (see `docs/guides/git.md`)
 - Coordination happens through GitHub Issues, milestones, and contracts
