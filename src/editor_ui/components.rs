@@ -535,8 +535,10 @@ impl std::fmt::Display for DockTab {
 }
 
 /// Persistent dock layout state wrapping `egui_dock::DockState`.
+/// Currently used by tests; active rendering moves here in Scope 4 (tab support).
 #[derive(Resource)]
 pub(crate) struct DockLayoutState {
+    #[allow(dead_code)]
     pub(crate) dock_state: DockState<DockTab>,
 }
 
@@ -574,11 +576,4 @@ pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
     let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);
 
     state
-}
-
-/// Bundled system parameter for dock layout state.
-/// Keeps `editor_panel_system` under Bevy's 16-parameter limit.
-#[derive(SystemParam)]
-pub(super) struct DockParams<'w> {
-    pub(super) layout: ResMut<'w, DockLayoutState>,
 }

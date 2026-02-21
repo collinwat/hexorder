@@ -28,222 +28,13 @@ use crate::contracts::mechanics::{
 };
 
 use super::components::{
-    BrandTheme, DockParams, DockTab, EditorAction, EditorState, GridOverlayVisible,
-    MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
+    BrandTheme, EditorAction, EditorState, GridOverlayVisible, MechanicsParams, OntologyParams,
+    OntologyTab, ProjectParams, SelectionParams, ToastState,
 };
 
 // ---------------------------------------------------------------------------
-// Dock viewer (Scope 1 — egui_dock evaluation)
+// Zone rendering helpers (Scope 2 — native panel layout)
 // ---------------------------------------------------------------------------
-
-/// Tab viewer for the dockable panel layout.
-///
-/// Implements `egui_dock::TabViewer` to render content for each dock zone.
-/// Scope 1 (evaluation prototype): `ToolPalette` renders the full editor sidebar
-/// content; Inspector shows a placeholder (Query migration in Scope 3);
-/// Validation renders the schema validation panel; Viewport is transparent.
-struct EditorDockViewer<'a> {
-    editor_state: &'a mut EditorState,
-    editor_tool: &'a mut EditorTool,
-    actions: &'a mut Vec<EditorAction>,
-    next_state: &'a mut NextState<AppScreen>,
-    workspace: &'a Workspace,
-    game_system: &'a GameSystem,
-    registry: &'a mut EntityTypeRegistry,
-    enum_registry: &'a mut EnumRegistry,
-    struct_registry: &'a mut StructRegistry,
-    active_board: &'a mut ActiveBoardType,
-    active_token: &'a mut ActiveTokenType,
-    multi_selection: &'a crate::contracts::editor_ui::Selection,
-    concept_registry: &'a mut ConceptRegistry,
-    relation_registry: &'a mut RelationRegistry,
-    constraint_registry: &'a mut ConstraintRegistry,
-    schema_validation: &'a SchemaValidation,
-    turn_structure: &'a mut TurnStructure,
-    combat_results_table: &'a mut CombatResultsTable,
-    combat_modifiers: &'a mut CombatModifierRegistry,
-}
-
-impl egui_dock::TabViewer for EditorDockViewer<'_> {
-    type Tab = DockTab;
-
-    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
-        tab.to_string().into()
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        match tab {
-            DockTab::Viewport => {
-                // Empty — transparent background lets 3D scene show through.
-            }
-            DockTab::ToolPalette => {
-                // Full editor sidebar content (prototype: all content in one tab).
-                render_workspace_header(ui, self.workspace, self.game_system);
-
-                if self.editor_state.toolbar_visible {
-                    render_tool_mode(ui, self.editor_tool);
-                }
-
-                // Play Mode Toggle.
-                if ui
-                    .button(
-                        egui::RichText::new("\u{25B6} Play")
-                            .strong()
-                            .color(BrandTheme::SUCCESS),
-                    )
-                    .on_hover_text("Enter play mode to test turns and combat")
-                    .clicked()
-                {
-                    self.next_state.set(AppScreen::Play);
-                }
-                ui.separator();
-
-                render_tab_bar(ui, self.editor_state);
-
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    match self.editor_state.active_tab {
-                        OntologyTab::Types => {
-                            render_entity_type_editor(
-                                ui,
-                                self.registry,
-                                self.editor_state,
-                                self.actions,
-                                self.enum_registry,
-                                self.struct_registry,
-                            );
-                        }
-                        OntologyTab::Enums => {
-                            render_enums_tab(
-                                ui,
-                                self.enum_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Structs => {
-                            render_structs_tab(
-                                ui,
-                                self.struct_registry,
-                                self.enum_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Concepts => {
-                            render_concepts_tab(
-                                ui,
-                                self.concept_registry,
-                                self.registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Relations => {
-                            render_relations_tab(
-                                ui,
-                                self.relation_registry,
-                                self.concept_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Constraints => {
-                            render_constraints_tab(
-                                ui,
-                                self.constraint_registry,
-                                self.concept_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Validation => {
-                            render_validation_tab(ui, self.schema_validation);
-                        }
-                        OntologyTab::Mechanics => {
-                            render_mechanics_tab(
-                                ui,
-                                self.turn_structure,
-                                self.combat_results_table,
-                                self.combat_modifiers,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                    }
-
-                    ui.separator();
-
-                    if *self.editor_tool == EditorTool::Paint {
-                        render_cell_palette(ui, self.registry, self.active_board);
-                    }
-
-                    if *self.editor_tool == EditorTool::Place {
-                        render_unit_palette(ui, self.registry, self.active_token);
-                    }
-
-                    egui::CollapsingHeader::new(
-                        egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
-                    )
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("Font size:");
-                            if ui.button(" − ").clicked() && self.editor_state.font_size_base > 10.0
-                            {
-                                self.editor_state.font_size_base -= 1.0;
-                            }
-                            ui.monospace(format!("{}", self.editor_state.font_size_base as i32));
-                            if ui.button(" + ").clicked() && self.editor_state.font_size_base < 24.0
-                            {
-                                self.editor_state.font_size_base += 1.0;
-                            }
-                        });
-                    });
-
-                    if self.multi_selection.entities.len() > 1 {
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "{} tiles selected",
-                                self.multi_selection.entities.len()
-                            ))
-                            .color(BrandTheme::ACCENT_TEAL),
-                        );
-                        ui.separator();
-                    }
-                });
-            }
-            DockTab::Inspector => {
-                // Placeholder — Query-based inspector content migrates in Scope 3.
-                ui.label(
-                    egui::RichText::new("Inspector")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                );
-                ui.separator();
-                ui.label(
-                    egui::RichText::new("Tile/unit inspector (Scope 3)")
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-            }
-            DockTab::Validation => {
-                render_validation_tab(ui, self.schema_validation);
-            }
-        }
-    }
-
-    fn clear_background(&self, tab: &Self::Tab) -> bool {
-        // Viewport tab is transparent so the 3D scene shows through.
-        *tab != DockTab::Viewport
-    }
-
-    fn closeable(&mut self, _tab: &mut Self::Tab) -> bool {
-        false
-    }
-
-    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
-        false
-    }
-}
 
 /// Updates `ViewportMargins` from the actual egui panel layout.
 /// Runs after the editor panel system so `available_rect()` reflects all panels.
@@ -558,14 +349,17 @@ pub fn launcher_system(
         });
 }
 
-/// Main editor panel system. Renders the dockable panel layout with four zones.
+/// Main editor panel system. Renders the four-zone layout with native egui panels.
+///
+/// Layout: Menu bar (top) | Tool palette (left) | Inspector (right) |
+/// Validation (bottom) | Viewport (center, free — no egui panel).
+/// The center is left uncovered so the 3D scene receives input naturally.
 #[allow(clippy::too_many_arguments)]
 pub fn editor_panel_system(
     mut contexts: EguiContexts,
     mut editor_tool: ResMut<EditorTool>,
     mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
-    mut dock: DockParams,
     project: ProjectParams,
     mut registry: ResMut<EntityTypeRegistry>,
     mut enum_registry: ResMut<EnumRegistry>,
@@ -620,44 +414,166 @@ pub fn editor_panel_system(
         });
     });
 
-    // -- Dock Area (four-zone layout) --
-    {
-        let mut viewer = EditorDockViewer {
-            editor_state: &mut editor_state,
-            editor_tool: &mut editor_tool,
-            actions: &mut actions,
-            next_state: &mut next_state,
-            workspace: &project.workspace,
-            game_system: &project.game_system,
-            registry: &mut registry,
-            enum_registry: &mut enum_registry,
-            struct_registry: &mut struct_registry,
-            active_board: &mut selection.active_board,
-            active_token: &mut selection.active_token,
-            multi_selection: &selection.multi,
-            concept_registry: &mut ontology.concept_registry,
-            relation_registry: &mut ontology.relation_registry,
-            constraint_registry: &mut ontology.constraint_registry,
-            schema_validation: &ontology.schema_validation,
-            turn_structure: &mut mechanics.turn_structure,
-            combat_results_table: &mut mechanics.combat_results_table,
-            combat_modifiers: &mut mechanics.combat_modifiers,
-        };
-        let remaining = ctx.available_rect();
-        egui::SidePanel::left("editor_dock")
-            .exact_width(remaining.width())
-            .resizable(false)
-            .frame(egui::Frame::NONE)
-            .show(ctx, |ui| {
-                egui_dock::DockArea::new(&mut dock.layout.dock_state)
-                    .show_close_buttons(false)
-                    .show_leaf_close_all_buttons(false)
-                    .show_leaf_collapse_buttons(false)
-                    .draggable_tabs(false)
-                    .tab_context_menus(false)
-                    .show_inside(ui, &mut viewer);
+    // -- Validation (bottom zone) --
+    egui::TopBottomPanel::bottom("validation_zone")
+        .default_height(100.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            render_validation_tab(ui, &ontology.schema_validation);
+        });
+
+    // -- Tool Palette (left zone) --
+    egui::SidePanel::left("tool_palette_zone")
+        .default_width(200.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            render_workspace_header(ui, &project.workspace, &project.game_system);
+
+            if editor_state.toolbar_visible {
+                render_tool_mode(ui, &mut editor_tool);
+            }
+
+            // Play Mode Toggle.
+            if ui
+                .button(
+                    egui::RichText::new("\u{25B6} Play")
+                        .strong()
+                        .color(BrandTheme::SUCCESS),
+                )
+                .on_hover_text("Enter play mode to test turns and combat")
+                .clicked()
+            {
+                next_state.set(AppScreen::Play);
+            }
+            ui.separator();
+
+            render_tab_bar(ui, &mut editor_state);
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                match editor_state.active_tab {
+                    OntologyTab::Types => {
+                        render_entity_type_editor(
+                            ui,
+                            &mut registry,
+                            &mut editor_state,
+                            &mut actions,
+                            &enum_registry,
+                            &struct_registry,
+                        );
+                    }
+                    OntologyTab::Enums => {
+                        render_enums_tab(ui, &enum_registry, &mut editor_state, &mut actions);
+                    }
+                    OntologyTab::Structs => {
+                        render_structs_tab(
+                            ui,
+                            &struct_registry,
+                            &enum_registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Concepts => {
+                        render_concepts_tab(
+                            ui,
+                            &mut ontology.concept_registry,
+                            &registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Relations => {
+                        render_relations_tab(
+                            ui,
+                            &mut ontology.relation_registry,
+                            &ontology.concept_registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Constraints => {
+                        render_constraints_tab(
+                            ui,
+                            &mut ontology.constraint_registry,
+                            &ontology.concept_registry,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                    OntologyTab::Validation => {
+                        render_validation_tab(ui, &ontology.schema_validation);
+                    }
+                    OntologyTab::Mechanics => {
+                        render_mechanics_tab(
+                            ui,
+                            &mechanics.turn_structure,
+                            &mechanics.combat_results_table,
+                            &mechanics.combat_modifiers,
+                            &mut editor_state,
+                            &mut actions,
+                        );
+                    }
+                }
+
+                ui.separator();
+
+                if *editor_tool == EditorTool::Paint {
+                    render_cell_palette(ui, &registry, &mut selection.active_board);
+                }
+
+                if *editor_tool == EditorTool::Place {
+                    render_unit_palette(ui, &registry, &mut selection.active_token);
+                }
+
+                egui::CollapsingHeader::new(
+                    egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
+                )
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Font size:");
+                        if ui.button(" − ").clicked() && editor_state.font_size_base > 10.0 {
+                            editor_state.font_size_base -= 1.0;
+                        }
+                        ui.monospace(format!("{}", editor_state.font_size_base as i32));
+                        if ui.button(" + ").clicked() && editor_state.font_size_base < 24.0 {
+                            editor_state.font_size_base += 1.0;
+                        }
+                    });
+                });
+
+                if selection.multi.entities.len() > 1 {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} tiles selected",
+                            selection.multi.entities.len()
+                        ))
+                        .color(BrandTheme::ACCENT_TEAL),
+                    );
+                    ui.separator();
+                }
             });
-    }
+        });
+
+    // -- Inspector (right zone) --
+    egui::SidePanel::right("inspector_zone")
+        .default_width(200.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            // Placeholder — Query-based inspector content migrates in Scope 3.
+            ui.label(
+                egui::RichText::new("Inspector")
+                    .strong()
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            ui.separator();
+            ui.label(
+                egui::RichText::new("Tile/unit inspector (Scope 3)")
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+        });
+
+    // Center: no egui panel — 3D viewport shows through and receives input.
 
     // -- About Panel --
     render_about_panel(ctx, &mut editor_state);
