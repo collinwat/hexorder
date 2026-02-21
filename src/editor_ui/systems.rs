@@ -4350,7 +4350,7 @@ fn build_constraint_expression(
 }
 
 /// Renders the About panel as a centered `egui::Window`.
-fn render_about_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
+pub(crate) fn render_about_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
     if !editor_state.about_panel_visible {
         return;
     }

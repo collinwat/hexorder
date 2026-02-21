@@ -607,6 +607,53 @@ fn constraints_tab_delete_constraint_produces_action() {
 }
 
 // ---------------------------------------------------------------------------
+// About Panel (Scope 3 — extracted to editor_menu_system)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn about_panel_shows_title_when_visible() {
+    let mut state = EditorState {
+        about_panel_visible: true,
+        ..EditorState::default()
+    };
+    let harness = Harness::new(|ctx| {
+        systems::render_about_panel(ctx, &mut state);
+    });
+    harness.get_by_label_contains("HEXORDER");
+}
+
+#[test]
+fn about_panel_shows_version_when_visible() {
+    let mut state = EditorState {
+        about_panel_visible: true,
+        ..EditorState::default()
+    };
+    let harness = Harness::new(|ctx| {
+        systems::render_about_panel(ctx, &mut state);
+    });
+    harness.get_by_label_contains("Version");
+}
+
+#[test]
+fn about_panel_close_button_hides_panel() {
+    let state = EditorState {
+        about_panel_visible: true,
+        ..EditorState::default()
+    };
+    let mut harness = Harness::new_state(
+        |ctx, state: &mut EditorState| {
+            systems::render_about_panel(ctx, state);
+        },
+        state,
+    );
+
+    harness.get_by_label("Close").click();
+    harness.run();
+
+    assert!(!harness.state().about_panel_visible);
+}
+
+// ---------------------------------------------------------------------------
 // Validation Tab
 // ---------------------------------------------------------------------------
 
