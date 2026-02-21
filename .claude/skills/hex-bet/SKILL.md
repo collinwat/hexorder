@@ -114,6 +114,22 @@ If more than one pitch is selected, post a dependencies comment on each pitch is
 depends on (`—` for none) and its delivery order. The kickoff phase will finalize dependencies after
 generating implementation plans.
 
+## Batch Betting (multi-cycle sequences)
+
+When the dependency graph makes the next 2-3 cycles obvious, bet them all at once. Read
+`{{ project_root }}/docs/guides/shape-up.md` Batched Ceremonies section for criteria.
+
+For each cycle in the sequence:
+
+1. Create a separate milestone (e.g., `0.12.0`, `0.13.0`)
+2. Assign pitches to each milestone
+3. Define **exit criteria** for each cycle — what must ship before the next cycle starts
+4. Create a cycle tracking issue for each milestone
+5. Post a sequence overview comment on each tracking issue linking to the others
+
+Between batched cycles, run a **lightweight retro** (see `/hex-cooldown`) instead of the full
+ceremony.
+
 ## Unselected Pitches
 
 Pitches not selected are NOT queued or carried forward. They can be re-pitched in a future cycle if

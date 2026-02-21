@@ -235,6 +235,32 @@ can be shaped into a pitch and compete at the betting table.
 | **Production Mode** | Core decisions made, building features | Standard — shaped pitches          | Shippable each cycle |
 | **Cleanup Mode**    | Pre-launch (max 2 cycles)              | Free-for-all — final cut decisions | Ship the release     |
 
+### Cycle Phases: Construction and Delivery
+
+When a project has both infrastructure work (build tooling, workspace restructuring, contract
+stabilization) and feature work (user-visible capabilities), these two kinds of work benefit from
+different execution patterns:
+
+| Phase            | Focus                                            | Execution pattern     | Pitches per cycle |
+| ---------------- | ------------------------------------------------ | --------------------- | ----------------- |
+| **Construction** | Infrastructure, architecture, tooling, contracts | Focused, sequential   | 1-2 Big Batch     |
+| **Delivery**     | User-visible features, plugin capabilities       | Parallel, independent | 3-5 Small Batch   |
+
+**Construction phase** (1-2 cycles): Invest in foundations that enable future velocity. These cycles
+have fewer pitches but each has broad impact. Examples: workspace split, contract stabilization,
+build tooling, process improvements.
+
+**Delivery phase** (subsequent cycles): Capitalize on the foundation. Multiple agents work in
+parallel on independent Small Batch pitches. Lightweight ceremonies between cycles (see Batched
+Ceremonies below). Target: 3-5 features shipped per cycle.
+
+**When to switch**: The transition from construction to delivery happens when the infrastructure
+work is "good enough" — not perfect, but sufficient to support parallel feature work without
+constant friction. The betting table makes this call.
+
+**Mixing is allowed**: A delivery cycle can include one small infrastructure pitch alongside feature
+work. The distinction is about the _primary_ mode, not a rigid rule.
+
 ---
 
 ## Phase 3: Building
@@ -344,6 +370,57 @@ After shipping:
   their own work.
 - **Ramp-up** (variant): A fixed period before the next cycle where engineering, product, and
   leadership collaborate to explore ideas, run spikes, and fix pressing issues.
+
+---
+
+## Batched Ceremonies
+
+When cycles are short (1-2 weeks) or tightly sequenced, running a full ceremony (retro → triage →
+shape → bet) after every cycle introduces significant overhead. Batched ceremonies reduce this
+overhead while preserving Shape Up's deliberate decision-making.
+
+### How it works
+
+At a single betting table, shape and bet pitches for the next 2-3 cycles based on the dependency
+graph and available parallelism. This creates a **cycle sequence** — an ordered plan of work with
+clear exit criteria for each cycle.
+
+### Full vs. lightweight ceremony
+
+| Ceremony type   | When                             | What happens                                              |
+| --------------- | -------------------------------- | --------------------------------------------------------- |
+| **Full**        | Every 2-3 cycles ("super-cycle") | Retro → Triage → Shape → Bet (the complete protocol)      |
+| **Lightweight** | Between cycles within a sequence | Quick retro (1 paragraph) → proceed to next pre-bet cycle |
+
+A **lightweight retro** covers:
+
+- What shipped (1-2 sentences)
+- Any surprises or learnings (1-2 sentences)
+- Any new issues captured (list issue numbers)
+
+The lightweight retro is posted as a comment on the cycle tracking issue, not a full wiki page.
+
+### When to batch
+
+Batch when:
+
+- The dependency graph makes the next 2-3 cycles obvious
+- Pitches are already shaped and ready
+- The team has momentum and does not need a full reset
+
+Do not batch when:
+
+- A cycle failed (circuit breaker fired) — run a full retro to understand why
+- Major strategic direction needs reconsideration
+- The backlog has significant new issues that need triage
+
+### Exit criteria
+
+Each cycle in a sequence must have explicit exit criteria defined at betting time:
+
+- What must ship before moving to the next cycle
+- What can be deferred if time runs short
+- Conditions that would trigger a full ceremony instead of proceeding
 
 ---
 
