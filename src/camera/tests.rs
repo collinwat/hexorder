@@ -278,6 +278,112 @@ fn smooth_camera_enforces_rotation_lock() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Keyboard pan direction regression tests
+// ---------------------------------------------------------------------------
+
+use crate::contracts::shortcuts::ShortcutRegistry;
+use bevy::input::keyboard::KeyCode;
+
+/// Build a minimal app with the `keyboard_pan` system and shortcut bindings.
+fn pan_test_app() -> App {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<ShortcutRegistry>();
+    super::register_shortcuts(&mut app.world_mut().resource_mut::<ShortcutRegistry>());
+    app.add_systems(Update, systems::keyboard_pan);
+    // Run one tick so `Time` has a non-zero delta for subsequent frames.
+    app.update();
+    app
+}
+
+/// Press a key, run one update, and return the resulting `target_position`.
+fn pan_with_key(app: &mut App, key: KeyCode) -> Vec2 {
+    // Reset camera to origin.
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::ZERO;
+
+    // Press the key.
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(key);
+
+    app.update();
+
+    // Release so it doesn't carry over.
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .release(key);
+
+    app.world().resource::<CameraState>().target_position
+}
+
+#[test]
+fn keyboard_pan_up_increases_y() {
+    let mut app = pan_test_app();
+    let pos = pan_with_key(&mut app, KeyCode::ArrowUp);
+    assert!(
+        pos.y > 0.0,
+        "Pan up should increase target_position.y (move toward +Z), got {pos:?}"
+    );
+    assert!(
+        pos.x.abs() < f32::EPSILON,
+        "Pan up should not affect X, got {pos:?}"
+    );
+}
+
+#[test]
+fn keyboard_pan_down_decreases_y() {
+    let mut app = pan_test_app();
+    let pos = pan_with_key(&mut app, KeyCode::ArrowDown);
+    assert!(
+        pos.y < 0.0,
+        "Pan down should decrease target_position.y (move toward -Z), got {pos:?}"
+    );
+}
+
+#[test]
+fn keyboard_pan_left_increases_x() {
+    let mut app = pan_test_app();
+    let pos = pan_with_key(&mut app, KeyCode::ArrowLeft);
+    assert!(
+        pos.x > 0.0,
+        "Pan left should increase target_position.x (move toward +X), got {pos:?}"
+    );
+    assert!(
+        pos.y.abs() < f32::EPSILON,
+        "Pan left should not affect Y, got {pos:?}"
+    );
+}
+
+#[test]
+fn keyboard_pan_right_decreases_x() {
+    let mut app = pan_test_app();
+    let pos = pan_with_key(&mut app, KeyCode::ArrowRight);
+    assert!(
+        pos.x < 0.0,
+        "Pan right should decrease target_position.x (move toward -X), got {pos:?}"
+    );
+}
+
+#[test]
+fn keyboard_pan_wasd_matches_arrow_directions() {
+    let mut app = pan_test_app();
+
+    let w = pan_with_key(&mut app, KeyCode::KeyW);
+    assert!(w.y > 0.0, "W should pan up (increase Y), got {w:?}");
+
+    let s = pan_with_key(&mut app, KeyCode::KeyS);
+    assert!(s.y < 0.0, "S should pan down (decrease Y), got {s:?}");
+
+    let a = pan_with_key(&mut app, KeyCode::KeyA);
+    assert!(a.x > 0.0, "A should pan left (increase X), got {a:?}");
+
+    let d = pan_with_key(&mut app, KeyCode::KeyD);
+    assert!(d.x < 0.0, "D should pan right (decrease X), got {d:?}");
+}
+
 /// The `handle_camera_command` observer must not panic when `SelectedHex`
 /// does not exist (e.g., zoom command dispatched before entering the Editor
 /// state). The observer wraps `SelectedHex` in `Option`.

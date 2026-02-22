@@ -145,16 +145,16 @@ pub fn keyboard_pan(
     //   screen up = +Z world, screen down = -Z world
     //   screen left = -X world, screen right = +X world
     if registry.is_pressed("camera.pan_up", &keys) {
-        direction.y += 1.0; // +Z
+        direction.y += 1.0; // pan up = move scene up = camera toward +Z
     }
     if registry.is_pressed("camera.pan_down", &keys) {
-        direction.y -= 1.0; // -Z
+        direction.y -= 1.0; // pan down = move scene down = camera toward -Z
     }
     if registry.is_pressed("camera.pan_left", &keys) {
-        direction.x += 1.0; // screen left = +X world (camera mirrors X)
+        direction.x += 1.0; // pan left = move scene left = camera toward +X
     }
     if registry.is_pressed("camera.pan_right", &keys) {
-        direction.x -= 1.0; // screen right = -X world (camera mirrors X)
+        direction.x -= 1.0; // pan right = move scene right = camera toward -X
     }
 
     if direction != Vec2::ZERO {
