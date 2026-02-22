@@ -18,7 +18,7 @@ use super::{ExportTarget, collect_export_data};
 pub(crate) fn handle_export_command(
     trigger: On<CommandExecutedEvent>,
     entity_types: Res<EntityTypeRegistry>,
-    grid_config: Res<HexGridConfig>,
+    grid_config: Option<Res<HexGridConfig>>,
     tile_query: Query<(&HexPosition, &EntityData), (With<HexTile>, Without<UnitInstance>)>,
     token_query: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
     mut commands: Commands,
@@ -26,6 +26,10 @@ pub(crate) fn handle_export_command(
     if trigger.command_id != CommandId("file.export_pnp") {
         return;
     }
+
+    let Some(grid_config) = grid_config else {
+        return; // Not in Editor state — grid not yet initialized.
+    };
 
     let tiles: Vec<_> = tile_query
         .iter()
