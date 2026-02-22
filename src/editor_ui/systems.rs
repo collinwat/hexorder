@@ -13,7 +13,7 @@ use crate::contracts::game_system::{
 use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 use crate::contracts::mechanic_reference::{
-    MechanicCatalog, MechanicCategory, TemplateAvailability,
+    MechanicCatalog, MechanicCategory, ScaffoldAction, TemplateAvailability,
 };
 use crate::contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -325,7 +325,7 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 render_validation_tab(ui, self.schema_validation);
             }
             DockTab::MechanicReference => {
-                render_mechanic_reference(ui, self.mechanic_catalog);
+                render_mechanic_reference(ui, self.mechanic_catalog, self.actions);
             }
         }
     }
@@ -398,7 +398,11 @@ fn render_rules_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 }
 
 /// Renders the Mechanic Reference panel — a browsable catalog organized by category.
-fn render_mechanic_reference(ui: &mut egui::Ui, catalog: &MechanicCatalog) {
+fn render_mechanic_reference(
+    ui: &mut egui::Ui,
+    catalog: &MechanicCatalog,
+    actions: &mut Vec<EditorAction>,
+) {
     ui.label(
         egui::RichText::new("Mechanic Reference")
             .strong()
@@ -477,7 +481,10 @@ fn render_mechanic_reference(ui: &mut egui::Ui, catalog: &MechanicCatalog) {
                                 );
                             }
 
-                            if let TemplateAvailability::Available { preview, .. } = &entry.template
+                            if let TemplateAvailability::Available {
+                                preview,
+                                template_id,
+                            } = &entry.template
                             {
                                 ui.add_space(4.0);
                                 ui.separator();
@@ -486,9 +493,11 @@ fn render_mechanic_reference(ui: &mut egui::Ui, catalog: &MechanicCatalog) {
                                         .small()
                                         .color(BrandTheme::ACCENT_AMBER),
                                 );
-                                ui.add_enabled_ui(false, |ui| {
-                                    let _ = ui.button("Use Template");
-                                });
+                                if ui.button("Use Template").clicked() {
+                                    actions.push(EditorAction::ApplyTemplate {
+                                        template_id: template_id.clone(),
+                                    });
+                                }
                             }
                         });
                     }
@@ -710,6 +719,7 @@ pub fn editor_dock_system(
         &mut mechanics.turn_structure,
         &mut mechanics.combat_results_table,
         &mut mechanics.combat_modifiers,
+        &mechanics.mechanic_catalog,
     );
 }
 
@@ -4062,6 +4072,7 @@ fn apply_actions(
     turn_structure: &mut TurnStructure,
     combat_results_table: &mut CombatResultsTable,
     combat_modifiers: &mut CombatModifierRegistry,
+    mechanic_catalog: &MechanicCatalog,
 ) {
     for action in actions {
         match action {
@@ -4492,11 +4503,219 @@ fn apply_actions(
             EditorAction::RemoveCombatModifier { id } => {
                 combat_modifiers.modifiers.retain(|m| m.id != id);
             }
+            // -- Mechanic Reference --
+            EditorAction::ApplyTemplate { template_id } => {
+                if let Some(recipe) = mechanic_catalog.get_template(&template_id) {
+                    apply_scaffold_recipe(
+                        &recipe,
+                        registry,
+                        enum_registry,
+                        turn_structure,
+                        combat_results_table,
+                        combat_modifiers,
+                    );
+                }
+            }
         }
     }
 
     // Suppress unused warning.
     let _ = editor_state;
+}
+
+/// Converts a `ScaffoldRecipe` into concrete registry mutations.
+///
+/// String-based scaffold actions are resolved to typed values here so that
+/// the `mechanic_reference` contract stays decoupled from `game_system` types.
+pub(super) fn apply_scaffold_recipe(
+    recipe: &crate::contracts::mechanic_reference::ScaffoldRecipe,
+    registry: &mut EntityTypeRegistry,
+    enum_registry: &mut EnumRegistry,
+    turn_structure: &mut TurnStructure,
+    combat_results_table: &mut CombatResultsTable,
+    combat_modifiers: &mut CombatModifierRegistry,
+) {
+    for action in &recipe.actions {
+        match action {
+            ScaffoldAction::CreateEntityType { name, role, color } => {
+                let entity_role = match role.as_str() {
+                    "Token" => EntityRole::Token,
+                    _ => EntityRole::BoardPosition,
+                };
+                registry.types.push(EntityType {
+                    id: TypeId::new(),
+                    name: name.clone(),
+                    role: entity_role,
+                    color: Color::srgb(color[0], color[1], color[2]),
+                    properties: Vec::new(),
+                });
+            }
+            ScaffoldAction::AddProperty {
+                entity_name,
+                prop_name,
+                prop_type,
+            } => {
+                let property_type = parse_scaffold_prop_type(prop_type, enum_registry);
+                let default_value = PropertyValue::default_for(&property_type);
+                if let Some(et) = registry.types.iter_mut().find(|et| et.name == *entity_name) {
+                    et.properties.push(PropertyDefinition {
+                        id: TypeId::new(),
+                        name: prop_name.clone(),
+                        property_type,
+                        default_value,
+                    });
+                }
+            }
+            ScaffoldAction::CreateEnum { name, options } => {
+                enum_registry.insert(EnumDefinition {
+                    id: TypeId::new(),
+                    name: name.clone(),
+                    options: options.clone(),
+                });
+            }
+            ScaffoldAction::AddCrtColumn {
+                label,
+                column_type,
+                threshold,
+            } => {
+                let col_type = match column_type.as_str() {
+                    "Differential" => CrtColumnType::Differential,
+                    _ => CrtColumnType::OddsRatio,
+                };
+                combat_results_table.columns.push(CrtColumn {
+                    label: label.clone(),
+                    column_type: col_type,
+                    threshold: *threshold,
+                });
+                for row_outcomes in &mut combat_results_table.outcomes {
+                    row_outcomes.push(CombatOutcome {
+                        label: "--".to_string(),
+                        effect: None,
+                    });
+                }
+            }
+            ScaffoldAction::AddCrtRow {
+                label,
+                die_min,
+                die_max,
+            } => {
+                combat_results_table.rows.push(CrtRow {
+                    label: label.clone(),
+                    die_value_min: *die_min,
+                    die_value_max: *die_max,
+                });
+                let num_cols = combat_results_table.columns.len();
+                combat_results_table.outcomes.push(
+                    (0..num_cols)
+                        .map(|_| CombatOutcome {
+                            label: "--".to_string(),
+                            effect: None,
+                        })
+                        .collect(),
+                );
+            }
+            ScaffoldAction::SetCrtOutcome { row, col, label } => {
+                if let Some(row_outcomes) = combat_results_table.outcomes.get_mut(*row)
+                    && let Some(outcome) = row_outcomes.get_mut(*col)
+                {
+                    outcome.label.clone_from(label);
+                }
+            }
+            ScaffoldAction::AddPhase { name, phase_type } => {
+                let pt = match phase_type.as_str() {
+                    "Combat" => PhaseType::Combat,
+                    "Admin" => PhaseType::Admin,
+                    _ => PhaseType::Movement,
+                };
+                turn_structure.phases.push(Phase {
+                    id: TypeId::new(),
+                    name: name.clone(),
+                    phase_type: pt,
+                    description: String::new(),
+                });
+            }
+            ScaffoldAction::AddCombatModifier {
+                name,
+                source,
+                shift,
+                priority,
+            } => {
+                let modifier_source = match source.as_str() {
+                    "DefenderTerrain" => ModifierSource::DefenderTerrain,
+                    "AttackerTerrain" => ModifierSource::AttackerTerrain,
+                    other => ModifierSource::Custom(other.to_string()),
+                };
+                combat_modifiers.modifiers.push(CombatModifierDefinition {
+                    id: TypeId::new(),
+                    name: name.clone(),
+                    source: modifier_source,
+                    column_shift: *shift,
+                    priority: *priority,
+                    cap: None,
+                    terrain_type_filter: None,
+                });
+            }
+        }
+    }
+}
+
+/// Parses a scaffold property type string into a `PropertyType`.
+///
+/// Supports: `"Bool"`, `"Int"`, `"Float"`, `"String"`, `"Color"`,
+/// `"Enum(EnumName)"` (looks up by name in the registry),
+/// `"IntRange(min,max)"`, `"FloatRange(min,max)"`.
+pub(super) fn parse_scaffold_prop_type(s: &str, enum_registry: &EnumRegistry) -> PropertyType {
+    match s {
+        "Bool" => PropertyType::Bool,
+        "Int" => PropertyType::Int,
+        "Float" => PropertyType::Float,
+        "String" => PropertyType::String,
+        "Color" => PropertyType::Color,
+        other => {
+            if let Some(inner) = other
+                .strip_prefix("Enum(")
+                .and_then(|s| s.strip_suffix(')'))
+            {
+                let enum_id = enum_registry
+                    .definitions
+                    .values()
+                    .find(|e| e.name == inner)
+                    .map(|e| e.id)
+                    .unwrap_or_default();
+                PropertyType::Enum(enum_id)
+            } else if let Some(inner) = other
+                .strip_prefix("IntRange(")
+                .and_then(|s| s.strip_suffix(')'))
+            {
+                let parts: Vec<&str> = inner.split(',').collect();
+                let min = parts
+                    .first()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(0);
+                let max = parts
+                    .get(1)
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(100);
+                PropertyType::IntRange { min, max }
+            } else if let Some(inner) = other
+                .strip_prefix("FloatRange(")
+                .and_then(|s| s.strip_suffix(')'))
+            {
+                let parts: Vec<&str> = inner.split(',').collect();
+                let min = parts
+                    .first()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(0.0);
+                let max = parts
+                    .get(1)
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(1.0);
+                PropertyType::FloatRange { min, max }
+            } else {
+                PropertyType::String
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

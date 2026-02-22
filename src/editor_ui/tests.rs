@@ -612,3 +612,320 @@ fn workspace_default_has_empty_preset() {
     let ws = crate::contracts::persistence::Workspace::default();
     assert!(ws.workspace_preset.is_empty());
 }
+
+// ---------------------------------------------------------------------------
+// Scope 5: Template application (mechanic_reference)
+// ---------------------------------------------------------------------------
+
+use crate::contracts::game_system::{EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry};
+use crate::contracts::mechanic_reference::{ScaffoldAction, ScaffoldRecipe};
+use crate::contracts::mechanics::{
+    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
+    TurnStructure,
+};
+
+#[test]
+fn apply_scaffold_creates_entity_types() {
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = ScaffoldRecipe {
+        template_id: "test".to_string(),
+        description: "Test recipe".to_string(),
+        actions: vec![ScaffoldAction::CreateEntityType {
+            name: "TestCell".to_string(),
+            role: "Cell".to_string(),
+            color: [0.5, 0.5, 0.5],
+        }],
+    };
+
+    super::systems::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+
+    assert_eq!(registry.types.len(), 1);
+    assert_eq!(registry.types[0].name, "TestCell");
+    assert_eq!(registry.types[0].role, EntityRole::BoardPosition);
+}
+
+#[test]
+fn apply_scaffold_creates_enums_and_links_properties() {
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = ScaffoldRecipe {
+        template_id: "test".to_string(),
+        description: "Test recipe".to_string(),
+        actions: vec![
+            ScaffoldAction::CreateEntityType {
+                name: "Unit".to_string(),
+                role: "Token".to_string(),
+                color: [0.3, 0.3, 0.3],
+            },
+            ScaffoldAction::CreateEnum {
+                name: "MoveType".to_string(),
+                options: vec!["Foot".to_string(), "Mech".to_string()],
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Unit".to_string(),
+                prop_name: "movement_type".to_string(),
+                prop_type: "Enum(MoveType)".to_string(),
+            },
+        ],
+    };
+
+    super::systems::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+
+    assert_eq!(registry.types.len(), 1);
+    assert_eq!(registry.types[0].role, EntityRole::Token);
+    assert_eq!(registry.types[0].properties.len(), 1);
+    assert_eq!(registry.types[0].properties[0].name, "movement_type");
+
+    assert_eq!(enum_registry.definitions.len(), 1);
+    let enum_def = enum_registry
+        .definitions
+        .values()
+        .next()
+        .expect("enum exists");
+    assert_eq!(enum_def.name, "MoveType");
+    assert_eq!(enum_def.options, vec!["Foot", "Mech"]);
+}
+
+#[test]
+fn apply_scaffold_adds_crt_structure() {
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = ScaffoldRecipe {
+        template_id: "test".to_string(),
+        description: "Test recipe".to_string(),
+        actions: vec![
+            ScaffoldAction::AddCrtColumn {
+                label: "1:2".to_string(),
+                column_type: "OddsRatio".to_string(),
+                threshold: 0.5,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "1:1".to_string(),
+                column_type: "OddsRatio".to_string(),
+                threshold: 1.0,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "1".to_string(),
+                die_min: 1,
+                die_max: 1,
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 0,
+                label: "NE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 1,
+                label: "DR".to_string(),
+            },
+        ],
+    };
+
+    super::systems::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+
+    assert_eq!(crt.columns.len(), 2);
+    assert_eq!(crt.columns[0].column_type, CrtColumnType::OddsRatio);
+    assert_eq!(crt.rows.len(), 1);
+    assert_eq!(crt.outcomes[0][0].label, "NE");
+    assert_eq!(crt.outcomes[0][1].label, "DR");
+}
+
+#[test]
+fn apply_scaffold_adds_phases_and_modifiers() {
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = ScaffoldRecipe {
+        template_id: "test".to_string(),
+        description: "Test recipe".to_string(),
+        actions: vec![
+            ScaffoldAction::AddPhase {
+                name: "Movement".to_string(),
+                phase_type: "Movement".to_string(),
+            },
+            ScaffoldAction::AddPhase {
+                name: "Combat".to_string(),
+                phase_type: "Combat".to_string(),
+            },
+            ScaffoldAction::AddCombatModifier {
+                name: "Forest".to_string(),
+                source: "DefenderTerrain".to_string(),
+                shift: -1,
+                priority: 10,
+            },
+        ],
+    };
+
+    super::systems::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+
+    assert_eq!(turn_structure.phases.len(), 2);
+    assert_eq!(turn_structure.phases[0].phase_type, PhaseType::Movement);
+    assert_eq!(turn_structure.phases[1].phase_type, PhaseType::Combat);
+    assert_eq!(modifiers.modifiers.len(), 1);
+    assert_eq!(
+        modifiers.modifiers[0].source,
+        ModifierSource::DefenderTerrain
+    );
+    assert_eq!(modifiers.modifiers[0].column_shift, -1);
+}
+
+#[test]
+fn parse_scaffold_prop_type_basic_types() {
+    use crate::contracts::game_system::PropertyType;
+
+    let empty = EnumRegistry::default();
+    assert_eq!(
+        super::systems::parse_scaffold_prop_type("Bool", &empty),
+        PropertyType::Bool
+    );
+    assert_eq!(
+        super::systems::parse_scaffold_prop_type("Int", &empty),
+        PropertyType::Int
+    );
+    assert_eq!(
+        super::systems::parse_scaffold_prop_type("Float", &empty),
+        PropertyType::Float
+    );
+    assert_eq!(
+        super::systems::parse_scaffold_prop_type("String", &empty),
+        PropertyType::String
+    );
+    assert_eq!(
+        super::systems::parse_scaffold_prop_type("Color", &empty),
+        PropertyType::Color
+    );
+}
+
+#[test]
+fn parse_scaffold_prop_type_int_range() {
+    use crate::contracts::game_system::PropertyType;
+
+    let empty = EnumRegistry::default();
+    let result = super::systems::parse_scaffold_prop_type("IntRange(0,20)", &empty);
+    assert_eq!(result, PropertyType::IntRange { min: 0, max: 20 });
+}
+
+#[test]
+fn parse_scaffold_prop_type_float_range() {
+    use crate::contracts::game_system::PropertyType;
+
+    let empty = EnumRegistry::default();
+    let result = super::systems::parse_scaffold_prop_type("FloatRange(0.0,1.0)", &empty);
+    assert_eq!(result, PropertyType::FloatRange { min: 0.0, max: 1.0 });
+}
+
+#[test]
+fn parse_scaffold_prop_type_enum_lookup() {
+    use crate::contracts::game_system::{PropertyType, TypeId};
+
+    let mut enum_registry = EnumRegistry::default();
+    let enum_id = TypeId::new();
+    enum_registry.insert(EnumDefinition {
+        id: enum_id,
+        name: "TerrainType".to_string(),
+        options: vec!["Clear".to_string(), "Forest".to_string()],
+    });
+
+    let result = super::systems::parse_scaffold_prop_type("Enum(TerrainType)", &enum_registry);
+    assert_eq!(result, PropertyType::Enum(enum_id));
+}
+
+#[test]
+fn apply_crt_combat_template_populates_registries() {
+    // End-to-end test: applying the actual crt_combat template.
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(crate::mechanic_reference::MechanicReferencePlugin);
+    app.init_resource::<EntityTypeRegistry>();
+    app.init_resource::<EnumRegistry>();
+    app.init_resource::<TurnStructure>();
+    app.init_resource::<CombatResultsTable>();
+    app.init_resource::<CombatModifierRegistry>();
+    app.update();
+
+    let catalog = app
+        .world()
+        .resource::<crate::contracts::mechanic_reference::MechanicCatalog>();
+    let recipe = catalog
+        .get_template("crt_combat")
+        .expect("crt_combat template exists");
+
+    let mut registry_clone = app.world_mut().resource_mut::<EntityTypeRegistry>().clone();
+    let mut enum_registry = app.world_mut().resource_mut::<EnumRegistry>().clone();
+    let mut turn_structure = app.world_mut().resource_mut::<TurnStructure>().clone();
+    let mut crt = app.world_mut().resource_mut::<CombatResultsTable>().clone();
+    let mut modifiers = app
+        .world_mut()
+        .resource_mut::<CombatModifierRegistry>()
+        .clone();
+
+    super::systems::apply_scaffold_recipe(
+        &recipe,
+        &mut registry_clone,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+
+    // CRT combat template should create columns, rows, and outcomes.
+    assert!(
+        !crt.columns.is_empty(),
+        "CRT combat template should add columns"
+    );
+    assert!(!crt.rows.is_empty(), "CRT combat template should add rows");
+    assert!(
+        !crt.outcomes.is_empty(),
+        "CRT combat template should set outcomes"
+    );
+    // Should also add combat modifiers.
+    assert!(
+        !modifiers.modifiers.is_empty(),
+        "CRT combat template should add modifiers"
+    );
+}

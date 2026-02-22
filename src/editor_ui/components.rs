@@ -216,6 +216,10 @@ pub(crate) enum EditorAction {
     RemoveCombatModifier {
         id: TypeId,
     },
+    // -- Mechanic Reference --
+    ApplyTemplate {
+        template_id: String,
+    },
 }
 
 /// Which tab is active in the ontology editor panel.
