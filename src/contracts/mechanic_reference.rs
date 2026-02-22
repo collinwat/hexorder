@@ -96,6 +96,67 @@ pub enum TemplateAvailability {
 }
 
 // ---------------------------------------------------------------------------
+// Scaffolding actions
+// ---------------------------------------------------------------------------
+
+/// A single scaffolding instruction produced by a mechanic template.
+#[derive(Debug, Clone)]
+pub enum ScaffoldAction {
+    /// Create an entity type (cell or token).
+    CreateEntityType {
+        name: String,
+        role: String,
+        color: [f32; 3],
+    },
+    /// Add a property to an entity type (referenced by name).
+    AddProperty {
+        entity_name: String,
+        prop_name: String,
+        prop_type: String,
+    },
+    /// Create an enum definition.
+    CreateEnum { name: String, options: Vec<String> },
+    /// Add a CRT column.
+    AddCrtColumn {
+        label: String,
+        column_type: String,
+        threshold: f64,
+    },
+    /// Add a CRT row (die roll range).
+    AddCrtRow {
+        label: String,
+        die_min: u32,
+        die_max: u32,
+    },
+    /// Set a CRT outcome cell.
+    SetCrtOutcome {
+        row: usize,
+        col: usize,
+        label: String,
+    },
+    /// Add a turn phase.
+    AddPhase { name: String, phase_type: String },
+    /// Add a combat modifier.
+    AddCombatModifier {
+        name: String,
+        source: String,
+        shift: i32,
+        priority: i32,
+    },
+}
+
+/// A complete scaffolding recipe produced by a mechanic template.
+#[derive(Debug, Clone)]
+pub struct ScaffoldRecipe {
+    /// Template identifier (matches `TemplateAvailability::Available::template_id`).
+    pub template_id: String,
+    /// Human-readable description of what the template scaffolds.
+    pub description: String,
+    /// Ordered list of scaffolding actions to execute.
+    pub actions: Vec<ScaffoldAction>,
+}
+
+// ---------------------------------------------------------------------------
 // Catalog entry and resource
 // ---------------------------------------------------------------------------
 
@@ -121,6 +182,7 @@ pub struct MechanicEntry {
 #[derive(Resource, Debug, Default)]
 pub struct MechanicCatalog {
     pub entries: Vec<MechanicEntry>,
+    pub templates: Vec<ScaffoldRecipe>,
 }
 
 impl MechanicCatalog {
@@ -138,5 +200,13 @@ impl MechanicCatalog {
             .iter()
             .filter(|e| matches!(e.template, TemplateAvailability::Available { .. }))
             .collect()
+    }
+
+    /// Looks up a scaffolding recipe by template ID.
+    pub fn get_template(&self, template_id: &str) -> Option<ScaffoldRecipe> {
+        self.templates
+            .iter()
+            .find(|r| r.template_id == template_id)
+            .cloned()
     }
 }

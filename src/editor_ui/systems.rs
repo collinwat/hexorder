@@ -12,7 +12,9 @@ use crate::contracts::game_system::{
 #[cfg(feature = "inspector")]
 use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::mechanic_reference::{MechanicCatalog, MechanicCategory};
+use crate::contracts::mechanic_reference::{
+    MechanicCatalog, MechanicCategory, TemplateAvailability,
+};
 use crate::contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
@@ -473,6 +475,20 @@ fn render_mechanic_reference(ui: &mut egui::Ui, catalog: &MechanicCatalog) {
                                         .small()
                                         .color(BrandTheme::TEXT_TERTIARY),
                                 );
+                            }
+
+                            if let TemplateAvailability::Available { preview, .. } = &entry.template
+                            {
+                                ui.add_space(4.0);
+                                ui.separator();
+                                ui.label(
+                                    egui::RichText::new(format!("Template: {preview}"))
+                                        .small()
+                                        .color(BrandTheme::ACCENT_AMBER),
+                                );
+                                ui.add_enabled_ui(false, |ui| {
+                                    let _ = ui.button("Use Template");
+                                });
                             }
                         });
                     }

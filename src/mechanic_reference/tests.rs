@@ -3,7 +3,10 @@
 use bevy::prelude::*;
 
 use super::MechanicReferencePlugin;
-use super::components::{MechanicCatalog, MechanicCategory, MechanicEntry, TemplateAvailability};
+use super::components::{
+    MechanicCatalog, MechanicCategory, MechanicEntry, ScaffoldAction, ScaffoldRecipe,
+    TemplateAvailability,
+};
 
 fn test_app() -> App {
     let mut app = App::new();
@@ -362,4 +365,137 @@ fn catalog_entry_names_are_unique() {
             entry.name
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Scope 4: Scaffolding templates
+// ---------------------------------------------------------------------------
+
+/// Template IDs that must exist in the catalog.
+const EXPECTED_TEMPLATE_IDS: &[&str] = &[
+    "crt_combat",
+    "movement_points",
+    "zones_of_control",
+    "stacking",
+    "terrain_effects",
+    "supply",
+];
+
+#[test]
+fn catalog_has_entries_with_templates() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    let with_templates = catalog.entries_with_templates();
+    assert!(
+        with_templates.len() >= 6,
+        "Expected at least 6 entries with templates, got {}",
+        with_templates.len()
+    );
+}
+
+#[test]
+fn catalog_template_ids_are_unique() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    let mut seen = std::collections::HashSet::new();
+    for entry in catalog.entries_with_templates() {
+        if let TemplateAvailability::Available { template_id, .. } = &entry.template {
+            assert!(
+                seen.insert(template_id.clone()),
+                "Duplicate template_id: {template_id}"
+            );
+        }
+    }
+}
+
+#[test]
+fn get_template_returns_recipe_for_known_ids() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    for id in EXPECTED_TEMPLATE_IDS {
+        let recipe = catalog.get_template(id);
+        assert!(
+            recipe.is_some(),
+            "get_template({id:?}) should return a recipe"
+        );
+        let recipe = recipe.unwrap();
+        assert_eq!(recipe.template_id, *id);
+        assert!(
+            !recipe.description.is_empty(),
+            "Recipe {id} should have a description"
+        );
+        assert!(
+            !recipe.actions.is_empty(),
+            "Recipe {id} should have at least one action"
+        );
+    }
+}
+
+#[test]
+fn get_template_returns_none_for_unknown_id() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    assert!(catalog.get_template("nonexistent").is_none());
+}
+
+#[test]
+fn crt_combat_template_creates_crt_structure() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    let recipe = catalog
+        .get_template("crt_combat")
+        .expect("crt_combat template should exist");
+
+    // Must create CRT columns, rows, and outcomes.
+    let has_column = recipe
+        .actions
+        .iter()
+        .any(|a| matches!(a, ScaffoldAction::AddCrtColumn { .. }));
+    let has_row = recipe
+        .actions
+        .iter()
+        .any(|a| matches!(a, ScaffoldAction::AddCrtRow { .. }));
+    let has_outcome = recipe
+        .actions
+        .iter()
+        .any(|a| matches!(a, ScaffoldAction::SetCrtOutcome { .. }));
+    assert!(has_column, "CRT combat template should add CRT columns");
+    assert!(has_row, "CRT combat template should add CRT rows");
+    assert!(has_outcome, "CRT combat template should set CRT outcomes");
+}
+
+#[test]
+fn movement_points_template_creates_properties() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    let recipe = catalog
+        .get_template("movement_points")
+        .expect("movement_points template should exist");
+
+    // Must create entity type properties for movement.
+    let has_property = recipe
+        .actions
+        .iter()
+        .any(|a| matches!(a, ScaffoldAction::AddProperty { .. }));
+    assert!(
+        has_property,
+        "Movement points template should add properties"
+    );
+}
+
+#[test]
+fn scaffold_recipe_debug_and_clone() {
+    let recipe = ScaffoldRecipe {
+        template_id: "test".to_string(),
+        description: "A test recipe".to_string(),
+        actions: vec![ScaffoldAction::CreateEnum {
+            name: "TestEnum".to_string(),
+            options: vec!["A".to_string(), "B".to_string()],
+        }],
+    };
+    let cloned = recipe.clone();
+    assert_eq!(cloned.template_id, "test");
+    assert!(!format!("{cloned:?}").is_empty());
 }

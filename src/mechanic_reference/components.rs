@@ -4,5 +4,6 @@
 //! This module re-exports them for plugin-internal convenience.
 
 pub use crate::contracts::mechanic_reference::{
-    MechanicCatalog, MechanicCategory, MechanicEntry, TemplateAvailability,
+    MechanicCatalog, MechanicCategory, MechanicEntry, ScaffoldAction, ScaffoldRecipe,
+    TemplateAvailability,
 };

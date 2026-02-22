@@ -3,7 +3,10 @@
 //! Entries drawn from the Hex Wargame Mechanics Survey (wiki) organized
 //! by the six areas of the Engelstein taxonomy.
 
-use super::components::{MechanicCatalog, MechanicCategory, MechanicEntry, TemplateAvailability};
+use super::components::{
+    MechanicCatalog, MechanicCategory, MechanicEntry, ScaffoldAction, ScaffoldRecipe,
+    TemplateAvailability,
+};
 
 /// Helper to reduce boilerplate when constructing entries.
 fn entry(
@@ -20,6 +23,30 @@ fn entry(
         example_games: examples.iter().map(|s| (*s).to_string()).collect(),
         design_considerations: considerations.to_string(),
         template: TemplateAvailability::None,
+    }
+}
+
+/// Helper for entries that have a scaffolding template.
+#[allow(clippy::too_many_arguments)]
+fn templated_entry(
+    name: &str,
+    category: MechanicCategory,
+    description: &str,
+    examples: &[&str],
+    considerations: &str,
+    template_id: &str,
+    preview: &str,
+) -> MechanicEntry {
+    MechanicEntry {
+        name: name.to_string(),
+        category,
+        description: description.to_string(),
+        example_games: examples.iter().map(|s| (*s).to_string()).collect(),
+        design_considerations: considerations.to_string(),
+        template: TemplateAvailability::Available {
+            template_id: template_id.to_string(),
+            preview: preview.to_string(),
+        },
     }
 }
 
@@ -43,7 +70,7 @@ pub fn create_catalog() -> MechanicCatalog {
          adjacency queries, distance calculations, pathfinding, and LOS ray tracing.",
     ));
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Movement Systems",
         core,
         "Each unit has a Movement Allowance of movement points per turn. Each hex costs MPs to \
@@ -53,9 +80,11 @@ pub fn create_catalog() -> MechanicCatalog {
         "Units need movement_allowance and movement_type. A Terrain Effects Chart maps terrain \
          type x unit movement type to MP cost. Must model hexside terrain distinct from hex \
          terrain.",
+        "movement_points",
+        "Creates movement_allowance property on tokens and movement_cost on cells.",
     ));
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Combat Resolution Systems",
         core,
         "Attacking units designate targets, combat strengths are compared, modifiers applied, \
@@ -70,6 +99,8 @@ pub fn create_catalog() -> MechanicCatalog {
         ],
         "CRT is a first-class data structure with game-defined result codes. Must support ratio \
          and differential calculation, modifier pipelines for column shifts and DRMs.",
+        "crt_combat",
+        "Creates a standard odds-based CRT with columns, rows, outcomes, and terrain modifiers.",
     ));
 
     entries.push(entry(
@@ -83,7 +114,7 @@ pub fn create_catalog() -> MechanicCatalog {
          random/conditional phase sequences, activation pools, and reaction windows.",
     ));
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Zones of Control",
         core,
         "Most combat units project a Zone of Control into surrounding hexes representing \
@@ -92,9 +123,11 @@ pub fn create_catalog() -> MechanicCatalog {
         &["Normandy '44", "Ardennes '44", "Ukraine '43", "France '40"],
         "ZOC is a unit property with configurable type and effects (movement cost, stop/no-stop, \
          supply blocking, retreat interaction).",
+        "zones_of_control",
+        "Creates ZOC type enum and properties for ZOC projection and effects.",
     ));
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Stacking Rules",
         core,
         "Stacking limits restrict how many units can occupy a single hex, expressed as unit \
@@ -102,9 +135,11 @@ pub fn create_catalog() -> MechanicCatalog {
         &["OCS", "Columbia block games"],
         "Each game defines stacking metric, limit, and exceptions. Terrain may modify limits. \
          Transient overstacking during movement must be handled.",
+        "stacking",
+        "Creates stacking_limit on cells and stacking_value on tokens.",
     ));
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Terrain System",
         core,
         "Each hex contains a primary terrain type and hexsides may have features. Terrain affects \
@@ -113,6 +148,8 @@ pub fn create_catalog() -> MechanicCatalog {
         &["Panzerblitz", "Squad Leader"],
         "TEC is a core data table of terrain type x effect category x unit type. Terrain types \
          must be definable per game, not a fixed set.",
+        "terrain_effects",
+        "Creates terrain type enum and defense/movement modifier properties on cells.",
     ));
 
     entries.push(entry(
@@ -142,7 +179,7 @@ pub fn create_catalog() -> MechanicCatalog {
     // -----------------------------------------------------------------------
     let advanced = MechanicCategory::AdvancedCommon;
 
-    entries.push(entry(
+    entries.push(templated_entry(
         "Supply and Logistics",
         advanced,
         "Units must trace a supply line to a supply source; being out of supply degrades \
@@ -151,6 +188,8 @@ pub fn create_catalog() -> MechanicCatalog {
         &["OCS", "Third Reich", "Case Blue"],
         "Need supply sources as tagged hexes, pathfinding for supply tracing, and supply state \
          effects on unit capabilities.",
+        "supply",
+        "Creates supply_source on cells, supply_range and in_supply on tokens.",
     ));
 
     entries.push(entry(
@@ -684,5 +723,313 @@ pub fn create_catalog() -> MechanicCatalog {
          tracks, population dynamics, and hybrid mechanics.",
     ));
 
-    MechanicCatalog { entries }
+    let templates = vec![
+        crt_combat_template(),
+        movement_points_template(),
+        zones_of_control_template(),
+        stacking_template(),
+        terrain_effects_template(),
+        supply_template(),
+    ];
+
+    MechanicCatalog { entries, templates }
+}
+
+// ---------------------------------------------------------------------------
+// Scaffolding template definitions
+// ---------------------------------------------------------------------------
+
+fn crt_combat_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "crt_combat".to_string(),
+        description: "Standard odds-based CRT with 6 columns, 6 die rows, and terrain modifiers."
+            .to_string(),
+        actions: vec![
+            // CRT columns (odds ratios)
+            ScaffoldAction::AddCrtColumn {
+                label: "1:2".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 0.5,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "1:1".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 1.0,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "2:1".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 2.0,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "3:1".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 3.0,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "4:1".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 4.0,
+            },
+            ScaffoldAction::AddCrtColumn {
+                label: "5:1".to_string(),
+                column_type: "odds_ratio".to_string(),
+                threshold: 5.0,
+            },
+            // Die roll rows (1d6)
+            ScaffoldAction::AddCrtRow {
+                label: "1".to_string(),
+                die_min: 1,
+                die_max: 1,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "2".to_string(),
+                die_min: 2,
+                die_max: 2,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "3".to_string(),
+                die_min: 3,
+                die_max: 3,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "4".to_string(),
+                die_min: 4,
+                die_max: 4,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "5".to_string(),
+                die_min: 5,
+                die_max: 5,
+            },
+            ScaffoldAction::AddCrtRow {
+                label: "6".to_string(),
+                die_min: 6,
+                die_max: 6,
+            },
+            // Sample outcomes (row 0 = die 1, col 0 = 1:2)
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 0,
+                label: "AE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 1,
+                label: "AE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 2,
+                label: "AR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 3,
+                label: "NE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 4,
+                label: "DR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 0,
+                col: 5,
+                label: "DR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 0,
+                label: "AR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 1,
+                label: "NE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 2,
+                label: "DR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 3,
+                label: "DR".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 4,
+                label: "DE".to_string(),
+            },
+            ScaffoldAction::SetCrtOutcome {
+                row: 5,
+                col: 5,
+                label: "DE".to_string(),
+            },
+            // Terrain defense modifier
+            ScaffoldAction::AddCombatModifier {
+                name: "Forest defense".to_string(),
+                source: "defender_terrain".to_string(),
+                shift: -1,
+                priority: 10,
+            },
+            ScaffoldAction::AddCombatModifier {
+                name: "City defense".to_string(),
+                source: "defender_terrain".to_string(),
+                shift: -2,
+                priority: 10,
+            },
+        ],
+    }
+}
+
+fn movement_points_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "movement_points".to_string(),
+        description: "Movement point properties on tokens and movement cost on cells.".to_string(),
+        actions: vec![
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "movement_allowance".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "movement_remaining".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "movement_cost".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::CreateEnum {
+                name: "MovementType".to_string(),
+                options: vec![
+                    "Foot".to_string(),
+                    "Mechanized".to_string(),
+                    "Motorized".to_string(),
+                ],
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "movement_type".to_string(),
+                prop_type: "enum:MovementType".to_string(),
+            },
+        ],
+    }
+}
+
+fn zones_of_control_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "zones_of_control".to_string(),
+        description: "ZOC type enum and projection properties for combat units.".to_string(),
+        actions: vec![
+            ScaffoldAction::CreateEnum {
+                name: "ZocType".to_string(),
+                options: vec![
+                    "None".to_string(),
+                    "Rigid".to_string(),
+                    "Semi-Rigid".to_string(),
+                    "Fluid".to_string(),
+                ],
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "zoc_type".to_string(),
+                prop_type: "enum:ZocType".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "zoc_strength".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "zoc_cost".to_string(),
+                prop_type: "int".to_string(),
+            },
+        ],
+    }
+}
+
+fn stacking_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "stacking".to_string(),
+        description: "Stacking limit on cells and stacking value on tokens.".to_string(),
+        actions: vec![
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "stacking_limit".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "stacking_value".to_string(),
+                prop_type: "int".to_string(),
+            },
+        ],
+    }
+}
+
+fn terrain_effects_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "terrain_effects".to_string(),
+        description: "Terrain type enum and defense/movement modifier properties on cells."
+            .to_string(),
+        actions: vec![
+            ScaffoldAction::CreateEnum {
+                name: "TerrainType".to_string(),
+                options: vec![
+                    "Clear".to_string(),
+                    "Forest".to_string(),
+                    "Hill".to_string(),
+                    "Mountain".to_string(),
+                    "Swamp".to_string(),
+                    "City".to_string(),
+                ],
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "terrain_type".to_string(),
+                prop_type: "enum:TerrainType".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "defense_modifier".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "terrain_movement_cost".to_string(),
+                prop_type: "int".to_string(),
+            },
+        ],
+    }
+}
+
+fn supply_template() -> ScaffoldRecipe {
+    ScaffoldRecipe {
+        template_id: "supply".to_string(),
+        description: "Supply source on cells, supply range and status on tokens.".to_string(),
+        actions: vec![
+            ScaffoldAction::AddProperty {
+                entity_name: "Cell".to_string(),
+                prop_name: "supply_source".to_string(),
+                prop_type: "bool".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "supply_range".to_string(),
+                prop_type: "int".to_string(),
+            },
+            ScaffoldAction::AddProperty {
+                entity_name: "Token".to_string(),
+                prop_name: "in_supply".to_string(),
+                prop_type: "bool".to_string(),
+            },
+        ],
+    }
 }
