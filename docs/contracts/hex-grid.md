@@ -141,6 +141,38 @@ pub struct VisibilityRange {
 }
 ```
 
+### Hex Edges (0.12.0)
+
+```rust
+/// A canonical representation of a hex edge — the shared boundary between
+/// two adjacent hex tiles. Stored in canonical form: the "lower" hex
+/// (ordered by q, then r) is always the origin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HexEdge {
+    /// The canonical origin hex (lower of the two adjacent hexes).
+    pub origin: HexPosition,
+    /// Direction index (0-5) from origin to the adjacent hex.
+    pub direction: u8,
+}
+
+/// An annotation on a hex edge. References a user-defined type by name,
+/// resolved against `EntityTypeRegistry` at use time. Same pattern as
+/// `BiomeEntry.terrain_name` for hex centers.
+#[derive(Debug, Clone)]
+pub struct EdgeFeature {
+    /// Name of the entity type this edge annotation represents.
+    pub type_name: String,
+}
+
+/// Resource-based registry of edge annotations. Maps canonical hex edges
+/// to their features. Plugins insert/query/remove edge features through
+/// this registry.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct HexEdgeRegistry {
+    pub edges: HashMap<HexEdge, EdgeFeature>,
+}
+```
+
 ## Invariants
 
 - `HexPosition` coordinates are always valid axial coordinates
@@ -148,13 +180,17 @@ pub struct VisibilityRange {
 - `SelectedHex` is inserted as a resource during `Startup` by the hex_grid plugin
 - `HexTile` is attached to every hex tile entity spawned by the grid
 - `HexMoveEvent` is only fired for moves that have been validated (target is in bounds)
+- `HexEdge` is always in canonical form: origin is the lower hex (by q, then r)
+- `HexEdge.direction` is always in range 0..6
+- `HexEdgeRegistry` is inserted as a resource during `Startup` by the hex_grid plugin
 
 ## Changelog
 
-| Date       | Change                                   | Reason                                                                    |
-| ---------- | ---------------------------------------- | ------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition                       | Foundation for all hex-based features                                     |
-| 2026-02-08 | Added HexTile, SelectedHex               | Promoted from hex_grid internals to fix contract boundary violations      |
-| 2026-02-10 | Added TileBaseMaterial component         | Needed so hover/selection ring overlays can coexist with cell type colors |
-| 2026-02-11 | Added MoveOverlay, MoveOverlayState      | M4 — visual feedback for valid/blocked move destinations                  |
-| 2026-02-15 | Added LineOfSightResult, VisibilityRange | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
+| Date       | Change                                      | Reason                                                                    |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition                          | Foundation for all hex-based features                                     |
+| 2026-02-08 | Added HexTile, SelectedHex                  | Promoted from hex_grid internals to fix contract boundary violations      |
+| 2026-02-10 | Added TileBaseMaterial component            | Needed so hover/selection ring overlays can coexist with cell type colors |
+| 2026-02-11 | Added MoveOverlay, MoveOverlayState         | M4 — visual feedback for valid/blocked move destinations                  |
+| 2026-02-15 | Added LineOfSightResult, VisibilityRange    | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
+| 2026-02-22 | Added HexEdge, EdgeFeature, HexEdgeRegistry | 0.12.0 — hex edge spatial infrastructure for user-defined annotations     |
