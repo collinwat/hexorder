@@ -82,6 +82,7 @@ impl Plugin for EditorUiPlugin {
             (
                 systems::editor_dock_system,
                 systems::sync_workspace_preset,
+                systems::sync_font_size,
                 systems::update_viewport_margins,
             )
                 .chain()
@@ -93,16 +94,20 @@ impl Plugin for EditorUiPlugin {
             (
                 systems::editor_dock_system,
                 systems::sync_workspace_preset,
+                systems::sync_font_size,
                 systems::debug_inspector_panel,
                 systems::update_viewport_margins,
             )
                 .chain()
                 .run_if(in_state(AppScreen::Editor)),
         );
-        // Restore workspace preset from loaded project on editor entry.
+        // Restore workspace preset and font size from loaded project on editor entry.
         app.add_systems(
             OnEnter(AppScreen::Editor),
-            systems::restore_workspace_preset,
+            (
+                systems::restore_workspace_preset,
+                systems::restore_font_size,
+            ),
         );
         // Play panel shown only in Play state.
         app.add_systems(

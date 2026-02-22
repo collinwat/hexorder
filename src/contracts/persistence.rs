@@ -17,7 +17,7 @@ use super::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure
 use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 4;
+pub const FORMAT_VERSION: u32 = 5;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -38,7 +38,7 @@ pub enum AppScreen {
 /// Tool-level session state for the currently open project.
 /// Initialized on `NewProjectEvent` and `LoadRequestEvent`.
 /// Reset on `CloseProjectEvent` / return-to-launcher.
-#[derive(Resource, Debug, Clone, Default)]
+#[derive(Resource, Debug, Clone)]
 pub struct Workspace {
     /// Human-readable project name (display only, not an identifier).
     pub name: String,
@@ -50,6 +50,20 @@ pub struct Workspace {
     /// Active workspace preset identifier (e.g. `map_editing`, `playtesting`).
     /// Empty string means default (Map Editing).
     pub workspace_preset: String,
+    /// Editor font size (points). Default 15.0, range 10–24.
+    pub font_size_base: f32,
+}
+
+impl Default for Workspace {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            file_path: None,
+            dirty: false,
+            workspace_preset: String::new(),
+            font_size_base: 15.0,
+        }
+    }
 }
 
 /// Temporary resource for deferred board state application after load.
@@ -127,6 +141,13 @@ pub struct GameSystemFile {
     /// Active workspace preset identifier (v4+, e.g. `map_editing`).
     #[serde(default)]
     pub workspace_preset: String,
+    /// Editor font size in points (v5+). Default 15.0.
+    #[serde(default = "default_font_size")]
+    pub font_size_base: f32,
+}
+
+fn default_font_size() -> f32 {
+    15.0
 }
 
 /// Serialized form of a hex tile's cell data.

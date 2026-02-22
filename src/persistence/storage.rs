@@ -190,6 +190,7 @@ mod tests {
             }],
             units: Vec::new(),
             workspace_preset: String::new(),
+            font_size_base: 15.0,
         }
     }
 

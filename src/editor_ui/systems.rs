@@ -630,6 +630,20 @@ pub fn restore_workspace_preset(
     }
 }
 
+/// Syncs `EditorState.font_size_base` → `Workspace.font_size_base` each frame.
+/// Runs in the editor system chain so the save system always has the current value.
+pub fn sync_font_size(editor_state: Res<EditorState>, mut workspace: ResMut<Workspace>) {
+    if (workspace.font_size_base - editor_state.font_size_base).abs() > f32::EPSILON {
+        workspace.font_size_base = editor_state.font_size_base;
+    }
+}
+
+/// Restores `Workspace.font_size_base` → `EditorState.font_size_base` on editor entry.
+/// Runs once via `OnEnter(AppScreen::Editor)`.
+pub fn restore_font_size(workspace: Res<Workspace>, mut editor_state: ResMut<EditorState>) {
+    editor_state.font_size_base = workspace.font_size_base;
+}
+
 /// Debug inspector as a right-side panel.
 /// Only compiled when the `inspector` feature is enabled.
 /// Toggled via the `view.toggle_debug_panel` command (backtick key).

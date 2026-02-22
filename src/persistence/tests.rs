@@ -69,6 +69,7 @@ fn test_game_system_file() -> GameSystemFile {
             properties: HashMap::new(),
         }],
         workspace_preset: String::new(),
+        font_size_base: 15.0,
     }
 }
 
@@ -162,8 +163,8 @@ fn game_system_file_workspace_preset_round_trip() {
     assert_eq!(loaded.workspace_preset, "playtesting");
 }
 
-/// Format version was bumped to 4 for `workspace_preset` field.
+/// Format version was bumped to 5 for `font_size_base` field.
 #[test]
-fn format_version_is_4() {
-    assert_eq!(FORMAT_VERSION, 4);
+fn format_version_is_5() {
+    assert_eq!(FORMAT_VERSION, 5);
 }

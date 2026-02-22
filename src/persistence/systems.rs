@@ -165,6 +165,7 @@ pub fn handle_save_request(
         tiles: tile_data,
         units: unit_data,
         workspace_preset: workspace.workspace_preset.clone(),
+        font_size_base: workspace.font_size_base,
     };
 
     match storage.provider().save_at(&path, &file) {
@@ -255,6 +256,7 @@ pub fn handle_load_request(
     workspace.file_path = Some(path);
     workspace.dirty = false;
     workspace.workspace_preset = file.workspace_preset;
+    workspace.font_size_base = file.font_size_base;
 
     // Insert pending board load for deferred application.
     commands.insert_resource(PendingBoardLoad {
@@ -320,6 +322,7 @@ pub fn handle_new_project(
     workspace.file_path = None;
     workspace.dirty = false;
     workspace.workspace_preset = String::new();
+    workspace.font_size_base = 15.0;
 
     next_state.set(AppScreen::Editor);
 }
