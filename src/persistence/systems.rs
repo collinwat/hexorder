@@ -397,12 +397,19 @@ pub fn cleanup_editor_entities(
 /// `PendingBoardLoad` exists, matching loaded tile data to spawned
 /// tile entities by `HexPosition` and spawning unit entities.
 ///
+/// Defers execution until every `HexTile` has an `EntityData` component.
+/// Tiles are spawned without `EntityData` by `spawn_grid`; the cell
+/// plugin's `assign_default_cell_data` adds it via deferred commands.
+/// Waiting avoids a race where both this system and the cell system
+/// queue competing deferred inserts on the same frame.
+///
 /// Unit entities are spawned with core ECS components only (no mesh/material).
 /// The unit plugin's `sync_unit_visuals` and `sync_unit_materials` systems
 /// will attach visuals on the next frame via change detection.
 pub fn apply_pending_board_load(
     pending: Option<Res<PendingBoardLoad>>,
-    tiles: Query<(Entity, &HexPosition), With<HexTile>>,
+    mut tiles: Query<(&HexPosition, &mut EntityData), With<HexTile>>,
+    tiles_pending_data: Query<(), (With<HexTile>, Without<EntityData>)>,
     config: Res<HexGridConfig>,
     mut commands: Commands,
 ) {
@@ -410,19 +417,24 @@ pub fn apply_pending_board_load(
         return;
     };
 
+    // Tiles spawned by spawn_grid initially lack EntityData — the cell
+    // plugin adds defaults via deferred commands. Wait until every tile
+    // has EntityData before overwriting, otherwise the deferred default
+    // insert can race with our changes.
+    if !tiles_pending_data.is_empty() {
+        return;
+    }
+
     // Build a lookup from position to tile save data.
     let tile_lookup: HashMap<HexPosition, &TileSaveData> =
         pending.tiles.iter().map(|t| (t.position, t)).collect();
 
-    // Apply tile data to existing tile entities. Uses `insert` rather than
-    // mutating an existing `EntityData` because tiles may not have one yet
-    // (the cell plugin adds it via deferred commands on the same frame).
-    for (entity, pos) in &tiles {
+    // Apply tile data to existing tile entities via direct mutation
+    // (not deferred commands) so the values are visible immediately.
+    for (pos, mut entity_data) in &mut tiles {
         if let Some(save_data) = tile_lookup.get(pos) {
-            commands.entity(entity).insert(EntityData {
-                entity_type_id: save_data.entity_type_id,
-                properties: save_data.properties.clone(),
-            });
+            entity_data.entity_type_id = save_data.entity_type_id;
+            entity_data.properties.clone_from(&save_data.properties);
         }
     }
 

@@ -93,9 +93,16 @@ fn apply_pending_board_load_maps_tiles_and_spawns_units() {
     let file = test_game_system_file();
     let tile_type_id = file.entity_types.types[0].id;
 
-    // Spawn a tile entity WITHOUT EntityData — mirrors real spawn_grid
-    // behaviour where the cell plugin adds EntityData via deferred commands.
-    app.world_mut().spawn((HexTile, HexPosition::new(0, 0)));
+    // Spawn a tile entity with default EntityData (mirrors the state after
+    // assign_default_cell_data has run — the system waits for this).
+    app.world_mut().spawn((
+        HexTile,
+        HexPosition::new(0, 0),
+        EntityData {
+            entity_type_id: TypeId::new(), // Will be overwritten by load
+            properties: HashMap::new(),
+        },
+    ));
 
     // Insert PendingBoardLoad.
     app.insert_resource(PendingBoardLoad {
@@ -122,6 +129,63 @@ fn apply_pending_board_load_maps_tiles_and_spawns_units() {
     assert_eq!(*units[0].0, HexPosition::new(1, 0));
 
     // Verify PendingBoardLoad was removed.
+    assert!(
+        app.world().get_resource::<PendingBoardLoad>().is_none(),
+        "PendingBoardLoad should be removed after application"
+    );
+}
+
+/// `apply_pending_board_load` defers when tiles lack `EntityData`.
+#[test]
+fn apply_pending_board_load_defers_until_tiles_have_entity_data() {
+    let mut app = test_app();
+
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+
+    app.update(); // Startup
+
+    let file = test_game_system_file();
+    let tile_type_id = file.entity_types.types[0].id;
+
+    // Spawn tile WITHOUT EntityData (mirrors spawn_grid).
+    let tile_entity = app
+        .world_mut()
+        .spawn((HexTile, HexPosition::new(0, 0)))
+        .id();
+
+    app.insert_resource(PendingBoardLoad {
+        tiles: file.tiles.clone(),
+        units: file.units.clone(),
+    });
+
+    app.update(); // System defers — tiles lack EntityData.
+
+    assert!(
+        app.world().get_resource::<PendingBoardLoad>().is_some(),
+        "PendingBoardLoad should remain when tiles lack EntityData"
+    );
+
+    // Simulate assign_default_cell_data adding EntityData.
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: TypeId::new(),
+        properties: HashMap::new(),
+    });
+
+    app.update(); // System proceeds — tiles now have EntityData.
+
+    // Verify tile data was overwritten with saved data.
+    let tile_data = app.world().get::<EntityData>(tile_entity);
+    assert!(tile_data.is_some(), "Tile should have EntityData");
+    assert_eq!(tile_data.expect("checked").entity_type_id, tile_type_id);
+
+    // Verify PendingBoardLoad was consumed.
     assert!(
         app.world().get_resource::<PendingBoardLoad>().is_none(),
         "PendingBoardLoad should be removed after application"
