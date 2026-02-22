@@ -54,11 +54,11 @@ spatial infrastructure for user-defined edge annotations.
       (core determinism proven; UI controls for seed and all noise parameters implemented)
 - [x] [SC-6] Generated maps are fully editable after creation (no link back to generator — writes
       EntityData directly, sync_cell_visuals picks up changes, no generator reference stored)
-- [ ] [SC-7] `hex_edge_identity` — HexEdge correctly identifies shared edges between adjacent hexes
+- [x] [SC-7] `hex_edge_identity` — HexEdge correctly identifies shared edges between adjacent hexes
       (canonical form, equivalence)
-- [ ] [SC-8] `edge_registry_crud` — HexEdgeRegistry supports insert, lookup, remove, and iteration
+- [x] [SC-8] `edge_registry_crud` — HexEdgeRegistry supports insert, lookup, remove, and iteration
       of edge annotations
-- [ ] [SC-9] `edge_annotations_resolve_against_registry` — edge feature types resolve against
+- [x] [SC-9] `edge_annotations_resolve_against_registry` — edge feature types resolve against
       EntityTypeRegistry by name, same pattern as BiomeEntry.terrain_name
 - [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
 - [x] [SC-CLIPPY] `cargo clippy --all-targets` passes

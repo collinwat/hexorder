@@ -1,6 +1,6 @@
 # Plugin Log: map_gen
 
-## Status: building (Scopes 1-2, 5 complete; Scope 6 in progress)
+## Status: building (Scopes 1-2, 5-6 complete)
 
 ## Decision Log
 
@@ -104,6 +104,37 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured
 
 Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unwrap in production.
 
+### 2026-02-22 — Scope 6 complete (hex-edge contract)
+
+```
+running 48 tests (hex_grid)
+test contracts::hex_grid::tests::hex_edge_canonical_form_lower_origin ... ok
+test contracts::hex_grid::tests::hex_edge_canonical_form_swaps_when_needed ... ok
+test contracts::hex_grid::tests::hex_edge_between_non_adjacent_returns_none ... ok
+test contracts::hex_grid::tests::hex_edge_same_edge_from_both_sides_equal ... ok
+test contracts::hex_grid::tests::hex_edge_direction_wraps ... ok
+test contracts::hex_grid::tests::hex_edge_neighbor_pair_returns_both_hexes ... ok
+test contracts::hex_grid::tests::hex_edge_all_six_directions_produce_unique_edges ... ok
+test contracts::hex_grid::tests::hex_edge_new_produces_canonical_form ... ok
+test contracts::hex_grid::tests::edge_registry_insert_and_lookup ... ok
+test contracts::hex_grid::tests::edge_registry_remove ... ok
+test contracts::hex_grid::tests::edge_registry_canonical_lookup ... ok
+test contracts::hex_grid::tests::edge_registry_iter ... ok
+test contracts::hex_grid::tests::edge_registry_edges_for_hex ... ok
+test contracts::hex_grid::tests::edge_feature_type_name_resolves_against_entity_registry ... ok
+(+ 34 existing hex_grid tests)
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured
+```
+
+Full suite: 332 tests pass. Zero clippy warnings. No boundary violations. No unwrap in production.
+
+### 2026-02-22 — BiomeTable defaults neutralized (#156)
+
+Default BiomeTable terrain names changed from game-specific (Water, Plains, Forest, Hills,
+Mountains) to neutral elevation-band labels (Low, Mid-Low, Mid, Mid-High, High). All 13 map_gen
+tests updated and passing.
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -127,3 +158,5 @@ Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unw
 | 2026-02-22 | building  | Scope 5 complete — UI panel with parameter controls |
 | 2026-02-22 | finishing | Scopes 3-4 hammered — hex-edge contract needed      |
 | 2026-02-22 | building  | Scopes 3-4 closed (won't-fix); Scope 6 added (#150) |
+| 2026-02-22 | building  | Scope 6 complete — hex-edge contract (14 tests)     |
+| 2026-02-22 | building  | BiomeTable defaults neutralized (#156)              |
