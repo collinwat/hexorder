@@ -41,6 +41,8 @@ skip = [
   "hashbrown",
   "itertools",
   "objc2",
+  "rand",
+  "rand_core",
   "objc2-app-kit",
   "objc2-foundation",
   "read-fonts",
