@@ -16,7 +16,8 @@ Declared in `main.rs`. Update this when adding a new plugin.
 10. ScriptingPlugin (NEW 0.5.0 — after RulesEnginePlugin, before EditorUiPlugin)
 11. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
 12. UndoRedoPlugin (NEW 0.10.0 — after ShortcutsPlugin, before EditorUiPlugin)
-13. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
+13. ExportPlugin (NEW 0.12.0 — after PersistencePlugin, before EditorUiPlugin)
+14. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
 
 ## Cross-Cutting Concerns
 
@@ -83,6 +84,9 @@ shortcuts (contract)   ──→ undo_redo
 shortcuts (contract)   ──→ editor_ui
 undo_redo (contract)   ──→ editor_ui
 game_system (contract) ──→ undo_redo
+game_system (contract) ──→ export
+hex_grid (contract)    ──→ export
+shortcuts (contract)   ──→ export
 
 shortcuts: independent (provides ShortcutRegistry, CommandExecutedEvent, CommandPaletteState)
 undo_redo: depends on shortcuts + game_system contracts (provides UndoStack, UndoableCommand)
@@ -94,5 +98,6 @@ cell: depends on hex_grid + game_system + editor_ui contracts
 unit: depends on hex_grid + game_system + editor_ui + validation contracts
 rules_engine: depends on game_system + ontology + hex_grid contracts
 persistence: depends on game_system + ontology + hex_grid + validation + persistence + shortcuts contracts
+export: depends on game_system + hex_grid + shortcuts contracts (NEW 0.12.0)
 editor_ui: depends on hex_grid + game_system + ontology + validation + persistence + shortcuts contracts
 ```

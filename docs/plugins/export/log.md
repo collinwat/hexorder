@@ -1,6 +1,6 @@
 # Plugin Log: Export
 
-## Status: speccing
+## Status: building (Scope 2)
 
 ## Decision Log
 
@@ -25,7 +25,13 @@ explicitly excludes this dependency).
 
 ## Test Results
 
-(None yet)
+### 2026-02-21 — Scope 1 (skeleton + trait)
+
+- 7 new tests, all passing (312 total)
+- `cargo clippy --all-targets` — zero warnings
+- `mise check:boundary` — no boundary violations
+- Tests cover: MockExporter trait impl, error Display formatting, data collection from registry,
+  empty state handling, trait object safety, flat-top grid orientation
 
 ## Blockers
 
@@ -40,6 +46,7 @@ explicitly excludes this dependency).
 
 ## Status Updates
 
-| Date       | Status   | Notes                                                   |
-| ---------- | -------- | ------------------------------------------------------- |
-| 2026-02-21 | speccing | Initial spec created during kickoff. Research consumed. |
+| Date       | Status   | Notes                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------ |
+| 2026-02-21 | speccing | Initial spec created during kickoff. Research consumed.                  |
+| 2026-02-21 | building | Scope 1 complete: skeleton + ExportTarget trait (f61642f). 7 tests pass. |
