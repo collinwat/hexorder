@@ -59,27 +59,27 @@ impl Default for BiomeTable {
                 BiomeEntry {
                     min_elevation: 0.0,
                     max_elevation: 0.2,
-                    terrain_name: "Water".to_string(),
+                    terrain_name: "Low".to_string(),
                 },
                 BiomeEntry {
                     min_elevation: 0.2,
                     max_elevation: 0.4,
-                    terrain_name: "Plains".to_string(),
+                    terrain_name: "Mid-Low".to_string(),
                 },
                 BiomeEntry {
                     min_elevation: 0.4,
                     max_elevation: 0.6,
-                    terrain_name: "Forest".to_string(),
+                    terrain_name: "Mid".to_string(),
                 },
                 BiomeEntry {
                     min_elevation: 0.6,
                     max_elevation: 0.8,
-                    terrain_name: "Hills".to_string(),
+                    terrain_name: "Mid-High".to_string(),
                 },
                 BiomeEntry {
                     min_elevation: 0.8,
                     max_elevation: 1.0,
-                    terrain_name: "Mountains".to_string(),
+                    terrain_name: "High".to_string(),
                 },
             ],
         }

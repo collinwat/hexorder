@@ -38,13 +38,13 @@ fn empty_biome_table_fails_validation() {
 #[test]
 fn lookup_biome_covers_full_range() {
     let table = BiomeTable::default();
-    assert_eq!(lookup_biome(&table, 0.0), Some("Water"));
-    assert_eq!(lookup_biome(&table, 0.1), Some("Water"));
-    assert_eq!(lookup_biome(&table, 0.2), Some("Plains"));
-    assert_eq!(lookup_biome(&table, 0.5), Some("Forest"));
-    assert_eq!(lookup_biome(&table, 0.7), Some("Hills"));
-    assert_eq!(lookup_biome(&table, 0.9), Some("Mountains"));
-    assert_eq!(lookup_biome(&table, 1.0), Some("Mountains"));
+    assert_eq!(lookup_biome(&table, 0.0), Some("Low"));
+    assert_eq!(lookup_biome(&table, 0.1), Some("Low"));
+    assert_eq!(lookup_biome(&table, 0.2), Some("Mid-Low"));
+    assert_eq!(lookup_biome(&table, 0.5), Some("Mid"));
+    assert_eq!(lookup_biome(&table, 0.7), Some("Mid-High"));
+    assert_eq!(lookup_biome(&table, 0.9), Some("High"));
+    assert_eq!(lookup_biome(&table, 1.0), Some("High"));
 }
 
 #[test]
@@ -194,30 +194,30 @@ fn heightmap_spatial_coherence() {
 fn biome_lookup_boundary_values() {
     let table = BiomeTable::default();
 
-    // Just below 0.2 boundary: should still be Water
+    // Just below 0.2 boundary: should still be Low
     assert_eq!(
         lookup_biome(&table, 0.199_999_999),
-        Some("Water"),
-        "Elevation just below 0.2 should be Water"
+        Some("Low"),
+        "Elevation just below 0.2 should be Low"
     );
-    // Exactly at 0.2: should transition to Plains (non-last entry has exclusive max)
+    // Exactly at 0.2: should transition to Mid-Low (non-last entry has exclusive max)
     assert_eq!(
         lookup_biome(&table, 0.2),
-        Some("Plains"),
-        "Elevation exactly at 0.2 should be Plains"
+        Some("Mid-Low"),
+        "Elevation exactly at 0.2 should be Mid-Low"
     );
 
-    // Just below 0.4 boundary: should still be Plains
+    // Just below 0.4 boundary: should still be Mid-Low
     assert_eq!(
         lookup_biome(&table, 0.399_999_999),
-        Some("Plains"),
-        "Elevation just below 0.4 should be Plains"
+        Some("Mid-Low"),
+        "Elevation just below 0.4 should be Mid-Low"
     );
-    // Exactly at 0.4: should transition to Forest
+    // Exactly at 0.4: should transition to Mid
     assert_eq!(
         lookup_biome(&table, 0.4),
-        Some("Forest"),
-        "Elevation exactly at 0.4 should be Forest"
+        Some("Mid"),
+        "Elevation exactly at 0.4 should be Mid"
     );
 }
 
@@ -226,16 +226,16 @@ fn biome_table_apply_maps_all_positions() {
     let table = BiomeTable::default();
 
     let mut heightmap = HashMap::new();
-    heightmap.insert(HexPosition::new(0, 0), 0.1); // Water range [0.0, 0.2)
-    heightmap.insert(HexPosition::new(1, 0), 0.5); // Forest range [0.4, 0.6)
-    heightmap.insert(HexPosition::new(0, 1), 0.9); // Mountains range [0.8, 1.0]
+    heightmap.insert(HexPosition::new(0, 0), 0.1); // Low range [0.0, 0.2)
+    heightmap.insert(HexPosition::new(1, 0), 0.5); // Mid range [0.4, 0.6)
+    heightmap.insert(HexPosition::new(0, 1), 0.9); // High range [0.8, 1.0]
 
     let result = apply_biome_table(&heightmap, &table);
 
     assert_eq!(result.len(), 3, "All 3 positions should be mapped");
-    assert_eq!(result[&HexPosition::new(0, 0)], "Water");
-    assert_eq!(result[&HexPosition::new(1, 0)], "Forest");
-    assert_eq!(result[&HexPosition::new(0, 1)], "Mountains");
+    assert_eq!(result[&HexPosition::new(0, 0)], "Low");
+    assert_eq!(result[&HexPosition::new(1, 0)], "Mid");
+    assert_eq!(result[&HexPosition::new(0, 1)], "High");
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn full_generation_pipeline() {
 
     // All terrain names should be from the default biome table
     let valid_names: std::collections::HashSet<&str> =
-        ["Water", "Plains", "Forest", "Hills", "Mountains"]
+        ["Low", "Mid-Low", "Mid", "Mid-High", "High"]
             .iter()
             .copied()
             .collect();
