@@ -556,23 +556,24 @@ egui::Sense::hover()           // only hover detection
 
 Preventing game input when interacting with UI is critical for editor tools.
 
-### Hexorder Strategy: Run Conditions + Absorb
+### Hexorder Strategy: Run Conditions Only (No Absorb)
 
-Hexorder uses **both** approaches together:
+Hexorder uses **run conditions only** — `enable_absorb_bevy_input_system` is **disabled** (the
+default `false`).
 
-1. **Run conditions** on game input systems (pointer and keyboard)
-2. **`enable_absorb_bevy_input_system = true`** for egui text input to work
+1. **Pointer gating**: Custom `pointer_over_ui_panel` run condition on hex_grid and camera systems
+2. **Keyboard gating**: `egui_wants_any_keyboard_input` run condition on camera keyboard_pan
 
-Run conditions alone are **not sufficient** for text input. They only prevent your custom systems
-from running — Bevy's internal input systems still consume keyboard events before egui can process
-them. Without absorb enabled, typing into `text_edit_singleline` fields produces no characters.
-
-```rust
-// In plugin build():
-app.world_mut()
-    .resource_mut::<EguiGlobalSettings>()
-    .enable_absorb_bevy_input_system = true;
-```
+> **Why not absorb?** The `absorb_bevy_input_system` clears both keyboard AND pointer input when
+> egui claims focus. With `egui_dock::DockArea` covering the full window, egui always claims pointer
+> input (`wants_any_pointer_input()` is always true). This causes `ButtonInput<MouseButton>` and
+> `MouseWheel` to be cleared every frame, breaking all viewport interaction (hex clicks, camera
+> pan/zoom). The standard `egui_wants_any_pointer_input` run condition has the same problem —
+> Hexorder uses the custom `pointer_over_ui_panel` condition that checks cursor position against the
+> viewport tab rect instead.
+>
+> Text input works without absorb in Bevy 0.18 because bevy_egui reads keyboard events from the
+> message pipeline before other systems consume them.
 
 ### Option A: Run Conditions (For Game Input Systems)
 
