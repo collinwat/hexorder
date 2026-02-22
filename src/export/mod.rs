@@ -25,9 +25,6 @@ mod tests;
 // Export Trait and Data Types
 // ---------------------------------------------------------------------------
 
-// Types below are defined ahead of their consumers (PDF exporter in Scope 2-3).
-// Allow dead_code at the item level until those scopes land.
-
 /// Snapshot of the current game state, collected from ECS resources and queries.
 /// Exporters receive this immutable snapshot — they never access the ECS directly.
 #[derive(Debug, Clone)]
@@ -48,12 +45,10 @@ pub struct GridSnapshot {
     /// Map radius in hex tiles from center.
     pub map_radius: u32,
     /// Whether the layout is pointy-top (true) or flat-top (false).
-    #[allow(dead_code)]
     pub pointy_top: bool,
 }
 
 /// A single file produced by an export target.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ExportFile {
     /// Suggested filename without extension (e.g., "counter-sheet").
@@ -65,14 +60,12 @@ pub struct ExportFile {
 }
 
 /// Output from an export operation — one or more files.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ExportOutput {
     pub files: Vec<ExportFile>,
 }
 
 /// Errors that can occur during export.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum ExportError {
     /// No data to export (empty game system).
@@ -104,12 +97,12 @@ impl From<std::io::Error> for ExportError {
 /// Exporters are stateless — they receive an `ExportData` snapshot and produce
 /// `ExportOutput`. Configuration (page size, counter size, etc.) is carried on
 /// the implementing struct.
-#[allow(dead_code)]
 pub trait ExportTarget: Send + Sync {
     /// Human-readable name of this export format (e.g., "Print-and-Play PDF").
     fn name(&self) -> &str;
 
     /// File extension this target produces (e.g., "pdf").
+    #[allow(dead_code)]
     fn extension(&self) -> &str;
 
     /// Export the game state snapshot to one or more files.

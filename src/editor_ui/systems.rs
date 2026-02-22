@@ -553,6 +553,13 @@ pub fn editor_dock_system(
                     ui.close();
                 }
                 ui.separator();
+                if ui.button("Export PDF   Cmd+Shift+E").clicked() {
+                    commands.trigger(CommandExecutedEvent {
+                        command_id: CommandId("file.export_pnp"),
+                    });
+                    ui.close();
+                }
+                ui.separator();
                 if ui.button("Close        Cmd+W").clicked() {
                     commands.trigger(CommandExecutedEvent {
                         command_id: CommandId("mode.close"),

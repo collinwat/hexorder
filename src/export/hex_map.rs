@@ -4,9 +4,6 @@
 //! coordinates. Hex size is scaled to match the counter size so physical
 //! counters fit on the printed hexes. Single-page output.
 
-// Types and functions below are consumed in Scope 4 (editor UI integration).
-#![allow(dead_code)]
-
 use printpdf::{
     BuiltinFont, Color, LinePoint, Mm, Op, PaintMode, PdfDocument, PdfFontHandle, PdfPage,
     PdfSaveOptions, Point, Polygon, PolygonRing, Pt, Rgb, TextItem, WindingOrder,

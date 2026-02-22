@@ -4,10 +4,6 @@
 //! the entity type name and up to three numeric property values. Counters are
 //! grouped by entity type and colored with the type's designer-assigned color.
 
-// Types and functions below are consumed in Scope 4 (editor UI integration).
-// Allow dead_code at module level until that scope lands.
-#![allow(dead_code)]
-
 use printpdf::{
     BuiltinFont, Color, Mm, Op, PaintMode, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions,
     Point, Pt, Rect, Rgb, TextItem, WindingOrder,
@@ -22,6 +18,7 @@ use super::{ExportData, ExportError, ExportFile, ExportOutput, ExportTarget};
 // ---------------------------------------------------------------------------
 
 /// Counter size options for print-and-play counter sheets.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CounterSize {
     /// 1/2 inch (12.7 mm) — smallest standard wargame counter.
