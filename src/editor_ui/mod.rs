@@ -126,6 +126,7 @@ fn handle_editor_ui_command(
     tile_entities: Query<Entity, With<HexTile>>,
     mut commands: Commands,
     mut windows: Query<&mut Window>,
+    mut dock_layout: ResMut<components::DockLayoutState>,
 ) {
     match trigger.event().command_id.0 {
         "tool.select" => *tool = EditorTool::Select,
@@ -183,6 +184,19 @@ fn handle_editor_ui_command(
                 window.mode = WindowMode::Windowed;
             }
         }
+        // Workspace presets (Cmd+1–4).
+        "workspace.map_editing" => {
+            dock_layout.apply_preset(components::WorkspacePreset::MapEditing);
+        }
+        "workspace.unit_design" => {
+            dock_layout.apply_preset(components::WorkspacePreset::UnitDesign);
+        }
+        "workspace.rule_authoring" => {
+            dock_layout.apply_preset(components::WorkspacePreset::RuleAuthoring);
+        }
+        "workspace.playtesting" => {
+            dock_layout.apply_preset(components::WorkspacePreset::Playtesting);
+        }
         // Undo/redo handled by UndoRedoPlugin — no no-op fallback needed.
         _ => {}
     }
@@ -232,7 +246,7 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         id: CommandId("mode.editor"),
         name: "Editor Mode".to_string(),
         description: "Switch to editor mode".to_string(),
-        bindings: vec![KeyBinding::new(KeyCode::Digit1, Modifiers::CMD)],
+        bindings: vec![], // Cmd+1 reassigned to workspace.map_editing
         category: CommandCategory::Mode,
         continuous: false,
     });
@@ -242,6 +256,40 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         description: "Close project and return to launcher".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::KeyW, Modifiers::CMD)],
         category: CommandCategory::Mode,
+        continuous: false,
+    });
+
+    // Workspace presets (Cmd+1–4).
+    registry.register(CommandEntry {
+        id: CommandId("workspace.map_editing"),
+        name: "Map Editing".to_string(),
+        description: "Switch to Map Editing workspace".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit1, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("workspace.unit_design"),
+        name: "Unit Design".to_string(),
+        description: "Switch to Unit Design workspace".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit2, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("workspace.rule_authoring"),
+        name: "Rule Authoring".to_string(),
+        description: "Switch to Rule Authoring workspace".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit3, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("workspace.playtesting"),
+        name: "Playtesting".to_string(),
+        description: "Switch to Playtesting workspace".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit4, Modifiers::CMD)],
+        category: CommandCategory::View,
         continuous: false,
     });
 

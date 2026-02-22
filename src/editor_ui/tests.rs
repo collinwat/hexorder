@@ -27,6 +27,7 @@ fn observer_app() -> App {
     app.init_resource::<Selection>();
     app.init_resource::<GridOverlayVisible>();
     app.init_resource::<ToastState>();
+    app.init_resource::<super::components::DockLayoutState>();
     app.add_observer(super::handle_editor_ui_command);
     app.add_observer(super::handle_toast_event);
     app.update();
@@ -419,4 +420,155 @@ fn dock_layout_state_resource_inserts_correctly() {
         }
     }
     assert_eq!(count, 8);
+}
+
+// ---------------------------------------------------------------------------
+// Scope 5 (0.11.0): Workspace presets
+// ---------------------------------------------------------------------------
+
+use super::components::WorkspacePreset;
+
+#[test]
+fn workspace_preset_defaults_to_map_editing() {
+    assert_eq!(WorkspacePreset::default(), WorkspacePreset::MapEditing);
+}
+
+#[test]
+fn workspace_preset_variants_are_distinct() {
+    assert_ne!(WorkspacePreset::MapEditing, WorkspacePreset::UnitDesign);
+    assert_ne!(WorkspacePreset::MapEditing, WorkspacePreset::RuleAuthoring);
+    assert_ne!(WorkspacePreset::MapEditing, WorkspacePreset::Playtesting);
+    assert_ne!(WorkspacePreset::UnitDesign, WorkspacePreset::RuleAuthoring);
+    assert_ne!(WorkspacePreset::UnitDesign, WorkspacePreset::Playtesting);
+    assert_ne!(WorkspacePreset::RuleAuthoring, WorkspacePreset::Playtesting);
+}
+
+#[test]
+fn dock_layout_state_defaults_to_map_editing_preset() {
+    let state = DockLayoutState::default();
+    assert_eq!(state.active_preset, WorkspacePreset::MapEditing);
+}
+
+/// Helper: collect all tabs from a dock state.
+fn collect_tabs(state: &egui_dock::DockState<DockTab>) -> Vec<DockTab> {
+    let mut tabs = Vec::new();
+    for node in state.main_surface().iter() {
+        if let Some(node_tabs) = node.tabs() {
+            for tab in node_tabs {
+                tabs.push(*tab);
+            }
+        }
+    }
+    tabs
+}
+
+#[test]
+fn map_editing_layout_contains_all_8_tabs() {
+    let state = super::components::create_default_dock_layout();
+    let tabs = collect_tabs(&state);
+    assert_eq!(tabs.len(), 8);
+    assert!(tabs.contains(&DockTab::Viewport));
+    assert!(tabs.contains(&DockTab::Palette));
+    assert!(tabs.contains(&DockTab::Design));
+    assert!(tabs.contains(&DockTab::Rules));
+    assert!(tabs.contains(&DockTab::Inspector));
+    assert!(tabs.contains(&DockTab::Settings));
+    assert!(tabs.contains(&DockTab::Selection));
+    assert!(tabs.contains(&DockTab::Validation));
+}
+
+#[test]
+fn unit_design_layout_contains_viewport_and_design_tabs() {
+    let state = super::components::create_unit_design_layout();
+    let tabs = collect_tabs(&state);
+    assert!(tabs.contains(&DockTab::Viewport));
+    assert!(tabs.contains(&DockTab::Design));
+    assert!(tabs.contains(&DockTab::Rules));
+    assert!(tabs.contains(&DockTab::Inspector));
+    assert!(tabs.contains(&DockTab::Settings));
+    assert!(tabs.contains(&DockTab::Selection));
+    assert!(tabs.contains(&DockTab::Palette));
+}
+
+#[test]
+fn rule_authoring_layout_has_design_rules_and_validation() {
+    let state = super::components::create_rule_authoring_layout();
+    let tabs = collect_tabs(&state);
+    assert!(tabs.contains(&DockTab::Design));
+    assert!(tabs.contains(&DockTab::Rules));
+    assert!(tabs.contains(&DockTab::Viewport));
+    assert!(tabs.contains(&DockTab::Inspector));
+    assert!(tabs.contains(&DockTab::Validation));
+}
+
+#[test]
+fn playtesting_layout_has_viewport_and_validation() {
+    let state = super::components::create_playtesting_layout();
+    let tabs = collect_tabs(&state);
+    assert!(tabs.contains(&DockTab::Viewport));
+    assert!(tabs.contains(&DockTab::Validation));
+    // Minimal layout — only 2 tabs.
+    assert_eq!(tabs.len(), 2);
+}
+
+#[test]
+fn apply_preset_switches_layout_and_tracks_preset() {
+    let mut layout = DockLayoutState::default();
+    assert_eq!(layout.active_preset, WorkspacePreset::MapEditing);
+
+    layout.apply_preset(WorkspacePreset::Playtesting);
+    assert_eq!(layout.active_preset, WorkspacePreset::Playtesting);
+    let tabs = collect_tabs(&layout.dock_state);
+    assert_eq!(tabs.len(), 2);
+
+    layout.apply_preset(WorkspacePreset::UnitDesign);
+    assert_eq!(layout.active_preset, WorkspacePreset::UnitDesign);
+    let tabs = collect_tabs(&layout.dock_state);
+    assert!(tabs.contains(&DockTab::Design));
+
+    layout.apply_preset(WorkspacePreset::MapEditing);
+    assert_eq!(layout.active_preset, WorkspacePreset::MapEditing);
+    let tabs = collect_tabs(&layout.dock_state);
+    assert_eq!(tabs.len(), 8);
+}
+
+#[test]
+fn workspace_command_switches_preset() {
+    let mut app = observer_app();
+
+    // Default is MapEditing.
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::MapEditing,
+    );
+
+    // Switch to Playtesting via command.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("workspace.playtesting"),
+    });
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::Playtesting,
+    );
+
+    // Switch to Rule Authoring.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("workspace.rule_authoring"),
+    });
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::RuleAuthoring,
+    );
+}
+
+#[test]
+fn workspace_preset_display_names() {
+    assert_eq!(WorkspacePreset::MapEditing.to_string(), "Map Editing");
+    assert_eq!(WorkspacePreset::UnitDesign.to_string(), "Unit Design");
+    assert_eq!(WorkspacePreset::RuleAuthoring.to_string(), "Rule Authoring");
+    assert_eq!(WorkspacePreset::Playtesting.to_string(), "Playtesting");
 }

@@ -32,6 +32,7 @@ use egui_dock::DockArea;
 use super::components::{
     BrandTheme, DockLayoutState, DockTab, EditorAction, EditorState, GridOverlayVisible,
     MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
+    WorkspacePreset,
 };
 
 // ---------------------------------------------------------------------------
@@ -399,6 +400,26 @@ pub fn editor_dock_system(
                         command_id: CommandId("mode.close"),
                     });
                     ui.close();
+                }
+            });
+            ui.menu_button("View", |ui| {
+                ui.label(
+                    egui::RichText::new("Workspace")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                let active = dock_layout.active_preset;
+                for (preset, label) in [
+                    (WorkspacePreset::MapEditing, "Map Editing      Cmd+1"),
+                    (WorkspacePreset::UnitDesign, "Unit Design      Cmd+2"),
+                    (WorkspacePreset::RuleAuthoring, "Rule Authoring   Cmd+3"),
+                    (WorkspacePreset::Playtesting, "Playtesting      Cmd+4"),
+                ] {
+                    let response = ui.selectable_label(active == preset, label);
+                    if response.clicked() {
+                        dock_layout.apply_preset(preset);
+                        ui.close();
+                    }
                 }
             });
             ui.menu_button("Help", |ui| {

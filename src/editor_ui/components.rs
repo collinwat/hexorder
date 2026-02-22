@@ -550,16 +550,43 @@ impl std::fmt::Display for DockTab {
     }
 }
 
+/// Which workspace preset is active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub(crate) enum WorkspacePreset {
+    /// Large viewport, tool palette left, cell inspector right.
+    #[default]
+    MapEditing,
+    /// Entity type hierarchy left, unit properties right, small viewport.
+    UnitDesign,
+    /// Ontology/mechanics panels center, validation bottom.
+    RuleAuthoring,
+    /// Full viewport, turn controls bottom, minimal panels.
+    Playtesting,
+}
+
+impl std::fmt::Display for WorkspacePreset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MapEditing => write!(f, "Map Editing"),
+            Self::UnitDesign => write!(f, "Unit Design"),
+            Self::RuleAuthoring => write!(f, "Rule Authoring"),
+            Self::Playtesting => write!(f, "Playtesting"),
+        }
+    }
+}
+
 /// Persistent dock layout state wrapping `egui_dock::DockState`.
 #[derive(Resource)]
 pub(crate) struct DockLayoutState {
     pub(crate) dock_state: DockState<DockTab>,
+    pub(crate) active_preset: WorkspacePreset,
 }
 
 impl std::fmt::Debug for DockLayoutState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DockLayoutState")
             .field("dock_state", &"<DockState>")
+            .field("active_preset", &self.active_preset)
             .finish()
     }
 }
@@ -568,7 +595,21 @@ impl Default for DockLayoutState {
     fn default() -> Self {
         Self {
             dock_state: create_default_dock_layout(),
+            active_preset: WorkspacePreset::default(),
         }
+    }
+}
+
+impl DockLayoutState {
+    /// Replace the dock layout with the given workspace preset.
+    pub(crate) fn apply_preset(&mut self, preset: WorkspacePreset) {
+        self.dock_state = match preset {
+            WorkspacePreset::MapEditing => create_default_dock_layout(),
+            WorkspacePreset::UnitDesign => create_unit_design_layout(),
+            WorkspacePreset::RuleAuthoring => create_rule_authoring_layout(),
+            WorkspacePreset::Playtesting => create_playtesting_layout(),
+        };
+        self.active_preset = preset;
     }
 }
 
@@ -596,6 +637,66 @@ pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
 
     // Bottom: Validation gets 15% of center height.
     let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);
+
+    state
+}
+
+/// Unit Design layout: entity types prominent left, properties right, compact viewport.
+///
+/// Layout: Left (25%) Design+Rules | Center viewport | Right (25%) Inspector+Settings+Selection
+pub(crate) fn create_unit_design_layout() -> DockState<DockTab> {
+    let mut state = DockState::new(vec![DockTab::Viewport]);
+    let tree = state.main_surface_mut();
+    let root = egui_dock::NodeIndex::root();
+
+    // Left: Design + Rules tabs get 25% width (wider for type editing).
+    let [center, _left] = tree.split_left(
+        root,
+        0.25,
+        vec![DockTab::Design, DockTab::Rules, DockTab::Palette],
+    );
+
+    // Right: Inspector + Settings + Selection tabs get 25%.
+    let [_center, _right] = tree.split_right(
+        center,
+        0.75,
+        vec![DockTab::Inspector, DockTab::Settings, DockTab::Selection],
+    );
+
+    // No bottom zone — validation is less relevant during unit design.
+    // Validation tab is accessible by dragging from another preset.
+
+    state
+}
+
+/// Rule Authoring layout: ontology/mechanics prominent in center, validation bottom.
+///
+/// Layout: Center Design+Rules+Viewport tabs | Right (25%) Inspector+Settings | Bottom (20%) Validation
+pub(crate) fn create_rule_authoring_layout() -> DockState<DockTab> {
+    let mut state = DockState::new(vec![DockTab::Design, DockTab::Rules, DockTab::Viewport]);
+    let tree = state.main_surface_mut();
+    let root = egui_dock::NodeIndex::root();
+
+    // Right: Inspector + Settings for reference while editing rules.
+    let [center, _right] =
+        tree.split_right(root, 0.75, vec![DockTab::Inspector, DockTab::Settings]);
+
+    // Bottom: Validation output prominent (20% height).
+    let [_main, _bottom] = tree.split_below(center, 0.80, vec![DockTab::Validation]);
+
+    state
+}
+
+/// Playtesting layout: maximized viewport, minimal panels.
+///
+/// Layout: Center viewport (full width) | Bottom (12%) Validation
+pub(crate) fn create_playtesting_layout() -> DockState<DockTab> {
+    let mut state = DockState::new(vec![DockTab::Viewport]);
+    let tree = state.main_surface_mut();
+    let root = egui_dock::NodeIndex::root();
+
+    // Bottom: Validation only — minimal controls for playtesting.
+    let [_viewport, _bottom] = tree.split_below(root, 0.88, vec![DockTab::Validation]);
 
     state
 }
