@@ -455,10 +455,11 @@ pub(super) struct ProjectParams<'w> {
     pub(super) game_system: Res<'w, GameSystem>,
 }
 
-/// Bundled system parameter for active selection state.
+/// Bundled system parameter for active selection and tool state.
 /// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct SelectionParams<'w> {
+    pub(super) editor_tool: ResMut<'w, crate::contracts::editor_ui::EditorTool>,
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,

@@ -21,6 +21,7 @@ use crate::contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
 use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+use crate::contracts::undo_redo::UndoStack;
 use crate::contracts::validation::SchemaValidation;
 
 use crate::contracts::mechanics::{
@@ -394,7 +395,6 @@ fn render_rules_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 #[allow(clippy::too_many_arguments)]
 pub fn editor_dock_system(
     mut contexts: EguiContexts,
-    mut editor_tool: ResMut<EditorTool>,
     mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
     project: ProjectParams,
@@ -409,6 +409,7 @@ pub fn editor_dock_system(
     mut dock_layout: ResMut<DockLayoutState>,
     mut viewport_rect: ResMut<ViewportRect>,
     validation: Res<SchemaValidation>,
+    undo_stack: Res<UndoStack>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -439,6 +440,30 @@ pub fn editor_dock_system(
                 if ui.button("Close        Cmd+W").clicked() {
                     commands.trigger(CommandExecutedEvent {
                         command_id: CommandId("mode.close"),
+                    });
+                    ui.close();
+                }
+            });
+            ui.menu_button("Edit", |ui| {
+                let undo_label = undo_stack.undo_description().map_or_else(
+                    || "Undo         Cmd+Z".to_string(),
+                    |desc| format!("Undo {desc:<5}Cmd+Z"),
+                );
+                let undo_btn = ui.add_enabled(undo_stack.can_undo(), egui::Button::new(undo_label));
+                if undo_btn.clicked() {
+                    commands.trigger(CommandExecutedEvent {
+                        command_id: CommandId("edit.undo"),
+                    });
+                    ui.close();
+                }
+                let redo_label = undo_stack.redo_description().map_or_else(
+                    || "Redo         Cmd+Shift+Z".to_string(),
+                    |desc| format!("Redo {desc:<5}Cmd+Shift+Z"),
+                );
+                let redo_btn = ui.add_enabled(undo_stack.can_redo(), egui::Button::new(redo_label));
+                if redo_btn.clicked() {
+                    commands.trigger(CommandExecutedEvent {
+                        command_id: CommandId("edit.redo"),
                     });
                     ui.close();
                 }
@@ -500,7 +525,7 @@ pub fn editor_dock_system(
         viewport_rect: &mut viewport_rect,
         multi: &selection.multi,
         palette: PaletteData {
-            editor_tool: &mut editor_tool,
+            editor_tool: &mut selection.editor_tool,
             active_board: &mut selection.active_board,
             active_token: &mut selection.active_token,
             project_workspace: &project.workspace,
