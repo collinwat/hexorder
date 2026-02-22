@@ -17,13 +17,14 @@ These values are referenced throughout the workflow using `{{ name }}` syntax. T
 delimiters indicate an assumption lookup. Assumptions can reference other assumptions. If the
 project structure changes, update them here.
 
-| Name           | Value                                       | Description                                    |
-| -------------- | ------------------------------------------- | ---------------------------------------------- |
-| `project_root` | repository root                             | Base directory; all paths are relative to this |
-| `plugins_dir`  | `{{ project_root }}/docs/plugins`           | Plugin spec and log directory                  |
-| `template_dir` | `{{ project_root }}/.github/ISSUE_TEMPLATE` | Issue templates with type labels               |
-| `wiki_dir`     | `.wiki`                                     | GitHub Wiki local clone                        |
-| `wiki_home`    | `{{ wiki_dir }}/Home.md`                    | Wiki landing page                              |
+| Name           | Value                                       | Description                                         |
+| -------------- | ------------------------------------------- | --------------------------------------------------- |
+| `project_root` | repository root                             | Base directory; all paths are relative to this      |
+| `plugins_dir`  | `{{ project_root }}/docs/plugins`           | Plugin spec and log directory                       |
+| `template_dir` | `{{ project_root }}/.github/ISSUE_TEMPLATE` | Issue templates with type labels                    |
+| `wiki_dir`     | `.wiki`                                     | GitHub Wiki local clone                             |
+| `wiki_home`    | `{{ wiki_dir }}/Home.md`                    | Wiki landing page                                   |
+| `obs_marker`   | `[DEV-OBS`                                  | Machine-scannable prefix for developer observations |
 
 ## Gather Context
 
@@ -43,11 +44,15 @@ project structure changes, update them here.
     ```
     Look for the kickoff comment ("Build started"), progress updates, and the final build
     reflection. These are first-person testimony from the agent that did the work.
-5. Check closed issues for this cycle's milestone:
+5. **Read developer observations** — scan the same pitch issue comments for `{{ obs_marker }}`
+   markers. These are first-person observations from the developer, posted during the build via
+   `/hex-observe`. Collect each observation's category, text, and source issue number. Hold them
+   separately from the agent's testimony.
+6. Check closed issues for this cycle's milestone:
     ```bash
     gh issue list --milestone "<milestone>" --state closed
     ```
-6. Check open issues that were NOT completed:
+7. Check open issues that were NOT completed:
     ```bash
     gh issue list --milestone "<milestone>" --state open
     ```
@@ -108,6 +113,22 @@ After presenting the agent's account, proceed immediately to the Developer's Ret
 Ask the user the following questions. Use `AskUserQuestion` or direct prompting — the key
 requirement is that the user responds before the workflow continues. Present all questions together
 so the user can answer in one pass.
+
+### Prior observations
+
+If developer observations were found in step 5, present them before asking questions:
+
+> "Before we discuss, here are N observations you logged during the cycle:"
+>
+> - [category] "observation text..." (#issue)
+> - [category] "observation text..." (#issue)
+>
+> "Do these still reflect your thinking? Anything to add or revise?"
+
+Incorporate the developer's response — confirmations, corrections, or additions — into the
+retrospective narrative alongside their answers to the questions below.
+
+If no developer observations were found, skip this subsection and proceed directly to the questions.
 
 ### Questions for the developer
 
