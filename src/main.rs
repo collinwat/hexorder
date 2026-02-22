@@ -7,6 +7,7 @@ mod contracts;
 mod editor_ui;
 mod game_system;
 mod hex_grid;
+mod map_gen;
 mod mechanic_reference;
 mod ontology;
 mod persistence;
@@ -48,6 +49,7 @@ fn main() {
         .add_plugins(scripting::ScriptingPlugin)
         .add_plugins(persistence::PersistencePlugin)
         .add_plugins(undo_redo::UndoRedoPlugin)
+        .add_plugins(map_gen::MapGenPlugin)
         .add_plugins(mechanic_reference::MechanicReferencePlugin)
         .add_plugins(editor_ui::EditorUiPlugin)
         .add_systems(Update, reveal_window)
