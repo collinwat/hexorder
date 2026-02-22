@@ -60,6 +60,7 @@ use crate::contracts::game_system::{
     PropertyType, SelectedUnit, StructRegistry, TypeId,
 };
 use crate::contracts::hex_grid::SelectedHex;
+use crate::contracts::map_gen;
 use crate::contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
     TurnStructure,
@@ -220,6 +221,8 @@ pub(crate) enum EditorAction {
     ApplyTemplate {
         template_id: String,
     },
+    // -- Map Generation --
+    GenerateMap,
 }
 
 /// Which tab is active in the ontology editor panel.
@@ -457,6 +460,7 @@ impl Default for EditorState {
 pub(super) struct ProjectParams<'w> {
     pub(super) workspace: Res<'w, Workspace>,
     pub(super) game_system: Res<'w, GameSystem>,
+    pub(super) undo_stack: Res<'w, crate::contracts::undo_redo::UndoStack>,
 }
 
 /// Bundled system parameter for active selection and tool state.
@@ -497,6 +501,14 @@ pub(super) struct OntologyParams<'w> {
     pub(super) concept_registry: ResMut<'w, ConceptRegistry>,
     pub(super) relation_registry: ResMut<'w, RelationRegistry>,
     pub(super) constraint_registry: ResMut<'w, ConstraintRegistry>,
+}
+
+/// Bundled system parameter for map generation resources.
+/// Reduces the system parameter count in `editor_dock_system`.
+#[derive(SystemParam)]
+pub(super) struct MapGenDockedParams<'w> {
+    pub(super) params: ResMut<'w, map_gen::MapGenParams>,
+    pub(super) generate: Option<Res<'w, map_gen::GenerateMap>>,
 }
 
 /// Whether the grid coordinate overlay is visible. Toggled by G key.
@@ -543,6 +555,8 @@ pub(crate) enum DockTab {
     Validation,
     /// Mechanic reference library (browsable catalog).
     MechanicReference,
+    /// Procedural map generation controls.
+    MapGenerator,
 }
 
 impl DockTab {
@@ -563,6 +577,7 @@ impl std::fmt::Display for DockTab {
             Self::Selection => write!(f, "Selection"),
             Self::Validation => write!(f, "Validation"),
             Self::MechanicReference => write!(f, "Mechanic Reference"),
+            Self::MapGenerator => write!(f, "Map Generator"),
         }
     }
 }
@@ -652,27 +667,31 @@ impl DockLayoutState {
     }
 }
 
-/// Creates the default four-zone dock layout with 8 content tabs.
+/// Creates the default dock layout with 9 content tabs.
 ///
-/// Layout: Left (20%) | Center viewport (~55%) | Right (~25%) | Bottom (~15%)
+/// ```text
+/// +------------------+----------------------------+------------------+
+/// | Palette          | Viewport / Design / Rules  | Inspector        |
+/// |                  |                            | Selection        |
+/// +------------------+                            +------------------+
+/// | Map Generator    |                            | Settings         |
+/// |                  +----------------------------+                  |
+/// |                  | Validation                 |                  |
+/// +------------------+----------------------------+------------------+
+/// ```
 pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
-    let mut state = DockState::new(vec![DockTab::Viewport]);
+    let mut state = DockState::new(vec![DockTab::Viewport, DockTab::Design, DockTab::Rules]);
     let tree = state.main_surface_mut();
     let root = egui_dock::NodeIndex::root();
 
-    // Left: Palette + Design + Rules tabs get 20% width.
-    let [center, _left] = tree.split_left(
-        root,
-        0.20,
-        vec![DockTab::Palette, DockTab::Design, DockTab::Rules],
-    );
+    // Left: Palette on top, split below for Map Generator.
+    let [center, left] = tree.split_left(root, 0.15, vec![DockTab::Palette]);
+    let [_left_top, _left_bottom] = tree.split_below(left, 0.50, vec![DockTab::MapGenerator]);
 
-    // Right: Inspector + Settings + Selection tabs get 25% of remaining width.
-    let [center, _right] = tree.split_right(
-        center,
-        0.75,
-        vec![DockTab::Inspector, DockTab::Settings, DockTab::Selection],
-    );
+    // Right: Inspector + Selection on top, split below for Settings.
+    let [center, right] =
+        tree.split_right(center, 0.75, vec![DockTab::Inspector, DockTab::Selection]);
+    let [_right_top, _right_bottom] = tree.split_below(right, 0.60, vec![DockTab::Settings]);
 
     // Bottom: Validation gets 15% of center height.
     let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);

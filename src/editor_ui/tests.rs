@@ -364,10 +364,12 @@ fn dock_tab_variants_are_distinct() {
     assert_ne!(DockTab::Viewport, DockTab::Settings);
     assert_ne!(DockTab::Viewport, DockTab::Selection);
     assert_ne!(DockTab::Viewport, DockTab::Validation);
+    assert_ne!(DockTab::Viewport, DockTab::MapGenerator);
     assert_ne!(DockTab::Palette, DockTab::Design);
     assert_ne!(DockTab::Design, DockTab::Rules);
     assert_ne!(DockTab::Inspector, DockTab::Settings);
     assert_ne!(DockTab::Settings, DockTab::Selection);
+    assert_ne!(DockTab::MapGenerator, DockTab::MechanicReference);
 }
 
 #[test]
@@ -382,7 +384,7 @@ fn dock_layout_creates_default_layout() {
             }
         }
     }
-    assert_eq!(tabs.len(), 8);
+    assert_eq!(tabs.len(), 9);
     assert!(tabs.contains(&DockTab::Viewport));
     assert!(tabs.contains(&DockTab::Palette));
     assert!(tabs.contains(&DockTab::Design));
@@ -391,6 +393,7 @@ fn dock_layout_creates_default_layout() {
     assert!(tabs.contains(&DockTab::Settings));
     assert!(tabs.contains(&DockTab::Selection));
     assert!(tabs.contains(&DockTab::Validation));
+    assert!(tabs.contains(&DockTab::MapGenerator));
 }
 
 #[test]
@@ -403,6 +406,7 @@ fn viewport_tab_is_not_closeable() {
     assert!(DockTab::Settings.is_closeable());
     assert!(DockTab::Selection.is_closeable());
     assert!(DockTab::Validation.is_closeable());
+    assert!(DockTab::MapGenerator.is_closeable());
 }
 
 #[test]
@@ -412,14 +416,14 @@ fn dock_layout_state_resource_inserts_correctly() {
     app.update();
 
     let state = app.world().resource::<DockLayoutState>();
-    // Verify the default layout created 8 tabs.
+    // Verify the default layout created 9 tabs.
     let mut count = 0;
     for node in state.dock_state.main_surface().iter() {
         if let Some(tabs) = node.tabs() {
             count += tabs.len();
         }
     }
-    assert_eq!(count, 8);
+    assert_eq!(count, 9);
 }
 
 // ---------------------------------------------------------------------------
@@ -463,10 +467,10 @@ fn collect_tabs(state: &egui_dock::DockState<DockTab>) -> Vec<DockTab> {
 }
 
 #[test]
-fn map_editing_layout_contains_all_8_tabs() {
+fn map_editing_layout_contains_all_9_tabs() {
     let state = super::components::create_default_dock_layout();
     let tabs = collect_tabs(&state);
-    assert_eq!(tabs.len(), 8);
+    assert_eq!(tabs.len(), 9);
     assert!(tabs.contains(&DockTab::Viewport));
     assert!(tabs.contains(&DockTab::Palette));
     assert!(tabs.contains(&DockTab::Design));
@@ -475,6 +479,7 @@ fn map_editing_layout_contains_all_8_tabs() {
     assert!(tabs.contains(&DockTab::Settings));
     assert!(tabs.contains(&DockTab::Selection));
     assert!(tabs.contains(&DockTab::Validation));
+    assert!(tabs.contains(&DockTab::MapGenerator));
 }
 
 #[test]
@@ -529,7 +534,7 @@ fn apply_preset_switches_layout_and_tracks_preset() {
     layout.apply_preset(WorkspacePreset::MapEditing);
     assert_eq!(layout.active_preset, WorkspacePreset::MapEditing);
     let tabs = collect_tabs(&layout.dock_state);
-    assert_eq!(tabs.len(), 8);
+    assert_eq!(tabs.len(), 9);
 }
 
 #[test]

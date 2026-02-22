@@ -12,6 +12,7 @@ use crate::contracts::game_system::{
 #[cfg(feature = "inspector")]
 use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use crate::contracts::map_gen::{GenerateMap, MapGenParams};
 use crate::contracts::mechanic_reference::{
     MechanicCatalog, MechanicCategory, ScaffoldAction, TemplateAvailability,
 };
@@ -24,7 +25,6 @@ use crate::contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
 use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
-use crate::contracts::undo_redo::UndoStack;
 use crate::contracts::validation::SchemaValidation;
 
 use crate::contracts::mechanics::{
@@ -121,6 +121,9 @@ struct EditorDockViewer<'a> {
     design: DesignData<'a>,
     rules: RulesData<'a>,
     inspector: InspectorData<'a>,
+    // Map generation
+    map_gen_params: &'a mut MapGenParams,
+    is_generating: bool,
 }
 
 impl egui_dock::TabViewer for EditorDockViewer<'_> {
@@ -327,6 +330,9 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
             DockTab::MechanicReference => {
                 render_mechanic_reference(ui, self.mechanic_catalog, self.actions);
             }
+            DockTab::MapGenerator => {
+                render_map_generator(ui, self.map_gen_params, self.is_generating, self.actions);
+            }
         }
     }
 
@@ -506,6 +512,109 @@ fn render_mechanic_reference(
     });
 }
 
+/// Renders the Map Generator dock tab (noise parameters + generate button).
+fn render_map_generator(
+    ui: &mut egui::Ui,
+    params: &mut MapGenParams,
+    is_generating: bool,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(
+        egui::RichText::new("Map Generator")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.separator();
+
+    // Seed
+    ui.horizontal(|ui| {
+        ui.label("Seed:");
+        ui.add(egui::DragValue::new(&mut params.seed).speed(1.0));
+    });
+
+    ui.add_space(4.0);
+
+    // Noise parameters
+    egui::CollapsingHeader::new("Noise Parameters")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Octaves:");
+                let mut octaves_u32 = params.octaves as u32;
+                if ui
+                    .add(
+                        egui::DragValue::new(&mut octaves_u32)
+                            .speed(0.1)
+                            .range(1..=12),
+                    )
+                    .changed()
+                {
+                    params.octaves = octaves_u32 as usize;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Frequency:");
+                ui.add(
+                    egui::DragValue::new(&mut params.frequency)
+                        .speed(0.001)
+                        .range(0.001..=1.0)
+                        .max_decimals(3),
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Amplitude:");
+                ui.add(
+                    egui::DragValue::new(&mut params.amplitude)
+                        .speed(0.01)
+                        .range(0.01..=5.0)
+                        .max_decimals(2),
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Lacunarity:");
+                ui.add(
+                    egui::DragValue::new(&mut params.lacunarity)
+                        .speed(0.01)
+                        .range(1.0..=4.0)
+                        .max_decimals(2),
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Persistence:");
+                ui.add(
+                    egui::DragValue::new(&mut params.persistence)
+                        .speed(0.01)
+                        .range(0.01..=1.0)
+                        .max_decimals(2),
+                );
+            });
+        });
+
+    ui.add_space(8.0);
+
+    // Reset to defaults
+    if ui.button("Reset Defaults").clicked() {
+        *params = MapGenParams::default();
+    }
+
+    ui.add_space(4.0);
+
+    // Generate button (disabled while generation is in progress)
+    ui.add_enabled_ui(!is_generating, |ui| {
+        if ui
+            .button("Generate Map")
+            .on_hover_text("Generate terrain using current parameters")
+            .clicked()
+        {
+            actions.push(EditorAction::GenerateMap);
+        }
+    });
+}
+
 /// Unified dock system. Renders the menu bar as a native `TopBottomPanel`, then
 /// delegates all tabbed content to `DockArea`. Replaces the four separate zone systems.
 #[allow(clippy::too_many_arguments)]
@@ -525,11 +634,12 @@ pub fn editor_dock_system(
     mut dock_layout: ResMut<DockLayoutState>,
     mut viewport_rect: ResMut<ViewportRect>,
     validation: Res<SchemaValidation>,
-    undo_stack: Res<UndoStack>,
+    mut map_gen: super::components::MapGenDockedParams,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
+    let is_generating = map_gen.generate.is_some();
 
     // Menu bar as native TopBottomPanel (above dock area).
     egui::TopBottomPanel::top("editor_menu_bar").show(ctx, |ui| {
@@ -568,22 +678,24 @@ pub fn editor_dock_system(
                 }
             });
             ui.menu_button("Edit", |ui| {
-                let undo_label = undo_stack.undo_description().map_or_else(
+                let undo_label = project.undo_stack.undo_description().map_or_else(
                     || "Undo         Cmd+Z".to_string(),
                     |desc| format!("Undo {desc:<5}Cmd+Z"),
                 );
-                let undo_btn = ui.add_enabled(undo_stack.can_undo(), egui::Button::new(undo_label));
+                let undo_btn =
+                    ui.add_enabled(project.undo_stack.can_undo(), egui::Button::new(undo_label));
                 if undo_btn.clicked() {
                     commands.trigger(CommandExecutedEvent {
                         command_id: CommandId("edit.undo"),
                     });
                     ui.close();
                 }
-                let redo_label = undo_stack.redo_description().map_or_else(
+                let redo_label = project.undo_stack.redo_description().map_or_else(
                     || "Redo         Cmd+Shift+Z".to_string(),
                     |desc| format!("Redo {desc:<5}Cmd+Shift+Z"),
                 );
-                let redo_btn = ui.add_enabled(undo_stack.can_redo(), egui::Button::new(redo_label));
+                let redo_btn =
+                    ui.add_enabled(project.undo_stack.can_redo(), egui::Button::new(redo_label));
                 if redo_btn.clicked() {
                     commands.trigger(CommandExecutedEvent {
                         command_id: CommandId("edit.redo"),
@@ -673,6 +785,8 @@ pub fn editor_dock_system(
             tile_entity_data,
             unit_entity_data,
         },
+        map_gen_params: &mut map_gen.params,
+        is_generating,
     };
 
     // Configure dock area style to match brand theme.
@@ -4522,6 +4636,10 @@ fn apply_actions(
                         combat_modifiers,
                     );
                 }
+            }
+            // -- Map Generation --
+            EditorAction::GenerateMap => {
+                commands.insert_resource(GenerateMap);
             }
         }
     }
