@@ -90,3 +90,13 @@ impl Default for BiomeTable {
 /// Consumed (removed) after generation completes.
 #[derive(Resource, Debug)]
 pub struct GenerateMap;
+
+/// Controls visibility of the map generation panel.
+#[derive(Resource, Debug)]
+pub struct MapGenPanelVisible(pub bool);
+
+impl Default for MapGenPanelVisible {
+    fn default() -> Self {
+        Self(true)
+    }
+}

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use super::biome::{apply_biome_table, lookup_biome, validate_biome_table};
-use super::components::{BiomeEntry, BiomeTable, MapGenParams};
+use super::components::{BiomeEntry, BiomeTable, MapGenPanelVisible, MapGenParams};
 use super::heightmap::generate_heightmap;
 use crate::contracts::hex_grid::HexPosition;
 
@@ -271,4 +271,10 @@ fn full_generation_pipeline() {
             "Unexpected terrain name: {name}"
         );
     }
+}
+
+#[test]
+fn panel_visible_defaults_to_true() {
+    let visible = MapGenPanelVisible::default();
+    assert!(visible.0, "Map gen panel should be visible by default");
 }
