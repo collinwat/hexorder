@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
-use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
+use bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 
 use crate::contracts::editor_ui::{
     EditorTool, Selection, ToastEvent, ViewportMargins, ViewportRect,
@@ -40,13 +40,16 @@ impl Plugin for EditorUiPlugin {
 
         app.add_plugins(EguiPlugin::default());
 
-        // Absorb keyboard/pointer events from Bevy's input buffers when egui
-        // has focus (e.g. text field active). Without this, Bevy's internal
-        // systems can consume keyboard events before egui processes them,
-        // preventing text input from working.
-        app.world_mut()
-            .resource_mut::<EguiGlobalSettings>()
-            .enable_absorb_bevy_input_system = true;
+        // Do NOT use `enable_absorb_bevy_input_system = true`. That absorbs
+        // both keyboard AND pointer input when egui claims the area. With
+        // DockArea covering the full window, egui always claims pointer input,
+        // which clears ButtonInput<MouseButton> and MouseWheel every frame —
+        // breaking hex_grid clicks and camera zoom/pan.
+        //
+        // Instead, register a custom keyboard-only absorb system that clears
+        // keyboard input when egui wants it (for text fields) but leaves
+        // pointer input alone. Pointer gating is handled by the
+        // `pointer_over_ui_panel` run condition on consumer systems.
 
         app.insert_resource(EditorTool::default());
         app.init_resource::<ViewportMargins>();
