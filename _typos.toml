@@ -12,3 +12,5 @@ Strat = "Strat"
 Thr = "Thr"
 # Fuzzy search test query (not a typo of "save")
 sav = "sav"
+# Direction suffix in edge_ba, dir_ba (hex B→A direction)
+ba = "ba"
