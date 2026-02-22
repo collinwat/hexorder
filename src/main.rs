@@ -5,6 +5,7 @@ mod camera;
 mod cell;
 mod contracts;
 mod editor_ui;
+mod export;
 mod game_system;
 mod hex_grid;
 mod map_gen;
@@ -51,6 +52,7 @@ fn main() {
         .add_plugins(undo_redo::UndoRedoPlugin)
         .add_plugins(map_gen::MapGenPlugin)
         .add_plugins(mechanic_reference::MechanicReferencePlugin)
+        .add_plugins(export::ExportPlugin)
         .add_plugins(editor_ui::EditorUiPlugin)
         .add_systems(Update, reveal_window)
         .run();

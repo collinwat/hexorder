@@ -1,0 +1,242 @@
+//! Unit tests for the export plugin.
+
+use super::*;
+
+/// A mock export target for testing the trait interface.
+struct MockExporter {
+    should_fail: bool,
+}
+
+#[allow(clippy::unnecessary_literal_bound)]
+impl ExportTarget for MockExporter {
+    fn name(&self) -> &str {
+        "Mock Exporter"
+    }
+
+    fn extension(&self) -> &str {
+        "mock"
+    }
+
+    fn export(&self, data: &ExportData) -> Result<ExportOutput, ExportError> {
+        if self.should_fail {
+            return Err(ExportError::GenerationFailed(
+                "intentional test failure".to_string(),
+            ));
+        }
+
+        let summary = format!(
+            "types={} tiles={} tokens={} radius={}",
+            data.entity_types.len(),
+            data.board_entities.len(),
+            data.token_entities.len(),
+            data.grid_config.map_radius,
+        );
+
+        Ok(ExportOutput {
+            files: vec![ExportFile {
+                name: "test-output".to_string(),
+                extension: "mock".to_string(),
+                data: summary.into_bytes(),
+            }],
+        })
+    }
+}
+
+#[test]
+fn mock_exporter_produces_output() {
+    let exporter = MockExporter { should_fail: false };
+    let data = test_export_data();
+
+    let output = exporter.export(&data).expect("export should succeed");
+    assert_eq!(output.files.len(), 1);
+    assert_eq!(output.files[0].name, "test-output");
+    assert_eq!(output.files[0].extension, "mock");
+
+    let content = String::from_utf8(output.files[0].data.clone()).expect("valid utf8");
+    assert!(content.contains("types=2"));
+    assert!(content.contains("tiles=1"));
+    assert!(content.contains("tokens=1"));
+    assert!(content.contains("radius=5"));
+}
+
+#[test]
+fn mock_exporter_returns_error_on_failure() {
+    let exporter = MockExporter { should_fail: true };
+    let data = test_export_data();
+
+    let result = exporter.export(&data);
+    assert!(result.is_err());
+
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("intentional test failure"));
+}
+
+#[test]
+fn export_error_display_formats_correctly() {
+    let empty = ExportError::EmptyGameSystem;
+    assert_eq!(
+        format!("{empty}"),
+        "Nothing to export — game system is empty"
+    );
+
+    let generation_err = ExportError::GenerationFailed("bad data".to_string());
+    assert_eq!(format!("{generation_err}"), "Export failed: bad data");
+
+    let io = ExportError::IoError(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "file missing",
+    ));
+    assert!(format!("{io}").contains("file missing"));
+}
+
+#[test]
+fn collect_export_data_captures_all_fields() {
+    use crate::contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
+
+    let registry = EntityTypeRegistry {
+        types: vec![
+            EntityType {
+                id: TypeId::new(),
+                name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
+                color: bevy::color::Color::srgb(0.5, 0.8, 0.3),
+                properties: vec![],
+            },
+            EntityType {
+                id: TypeId::new(),
+                name: "Infantry".to_string(),
+                role: EntityRole::Token,
+                color: bevy::color::Color::srgb(0.2, 0.3, 0.8),
+                properties: vec![],
+            },
+        ],
+    };
+
+    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 3,
+    };
+
+    let tiles = vec![(
+        HexPosition::new(0, 0),
+        EntityData {
+            entity_type_id: registry.types[0].id,
+            properties: std::collections::HashMap::new(),
+        },
+    )];
+
+    let tokens = vec![(
+        HexPosition::new(1, 0),
+        EntityData {
+            entity_type_id: registry.types[1].id,
+            properties: std::collections::HashMap::new(),
+        },
+    )];
+
+    let data = collect_export_data(&registry, &grid_config, &tiles, &tokens);
+
+    assert_eq!(data.entity_types.len(), 2);
+    assert_eq!(data.board_entities.len(), 1);
+    assert_eq!(data.token_entities.len(), 1);
+    assert_eq!(data.grid_config.map_radius, 3);
+    assert!(data.grid_config.pointy_top);
+}
+
+#[test]
+fn collect_export_data_handles_empty_state() {
+    let registry = EntityTypeRegistry::default();
+    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 0,
+    };
+
+    let data = collect_export_data(&registry, &grid_config, &[], &[]);
+
+    assert!(data.entity_types.is_empty());
+    assert!(data.board_entities.is_empty());
+    assert!(data.token_entities.is_empty());
+    assert_eq!(data.grid_config.map_radius, 0);
+}
+
+#[test]
+fn export_target_trait_is_object_safe() {
+    // Verify ExportTarget can be used as a trait object (dyn dispatch).
+    let exporter: Box<dyn ExportTarget> = Box::new(MockExporter { should_fail: false });
+    assert_eq!(exporter.name(), "Mock Exporter");
+    assert_eq!(exporter.extension(), "mock");
+}
+
+#[test]
+fn grid_snapshot_captures_flat_top_orientation() {
+    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Flat,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    };
+
+    let data = collect_export_data(&EntityTypeRegistry::default(), &grid_config, &[], &[]);
+
+    assert!(!data.grid_config.pointy_top);
+    assert_eq!(data.grid_config.map_radius, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Build a minimal `ExportData` for tests.
+fn test_export_data() -> ExportData {
+    use crate::contracts::game_system::{EntityRole, EntityType, TypeId};
+
+    let board_type_id = TypeId::new();
+    let token_type_id = TypeId::new();
+
+    ExportData {
+        entity_types: vec![
+            EntityType {
+                id: board_type_id,
+                name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
+                color: bevy::color::Color::srgb(0.5, 0.8, 0.3),
+                properties: vec![],
+            },
+            EntityType {
+                id: token_type_id,
+                name: "Infantry".to_string(),
+                role: EntityRole::Token,
+                color: bevy::color::Color::srgb(0.2, 0.3, 0.8),
+                properties: vec![],
+            },
+        ],
+        board_entities: vec![(
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: board_type_id,
+                properties: std::collections::HashMap::new(),
+            },
+        )],
+        token_entities: vec![(
+            HexPosition::new(1, 0),
+            EntityData {
+                entity_type_id: token_type_id,
+                properties: std::collections::HashMap::new(),
+            },
+        )],
+        grid_config: GridSnapshot {
+            map_radius: 5,
+            pointy_top: true,
+        },
+    }
+}
