@@ -483,6 +483,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) turn_structure: ResMut<'w, TurnStructure>,
     pub(super) combat_results_table: ResMut<'w, CombatResultsTable>,
     pub(super) combat_modifiers: ResMut<'w, CombatModifierRegistry>,
+    pub(super) mechanic_catalog: Res<'w, crate::contracts::mechanic_reference::MechanicCatalog>,
 }
 
 /// Bundled system parameter for ontology-related resources.
@@ -536,6 +537,8 @@ pub(crate) enum DockTab {
     Selection,
     /// Validation output (bottom zone).
     Validation,
+    /// Mechanic reference library (browsable catalog).
+    MechanicReference,
 }
 
 impl DockTab {
@@ -555,6 +558,7 @@ impl std::fmt::Display for DockTab {
             Self::Settings => write!(f, "Settings"),
             Self::Selection => write!(f, "Selection"),
             Self::Validation => write!(f, "Validation"),
+            Self::MechanicReference => write!(f, "Mechanic Reference"),
         }
     }
 }
@@ -704,7 +708,12 @@ pub(crate) fn create_unit_design_layout() -> DockState<DockTab> {
 ///
 /// Layout: Center Design+Rules+Viewport tabs | Right (25%) Inspector+Settings | Bottom (20%) Validation
 pub(crate) fn create_rule_authoring_layout() -> DockState<DockTab> {
-    let mut state = DockState::new(vec![DockTab::Design, DockTab::Rules, DockTab::Viewport]);
+    let mut state = DockState::new(vec![
+        DockTab::Design,
+        DockTab::Rules,
+        DockTab::MechanicReference,
+        DockTab::Viewport,
+    ]);
     let tree = state.main_surface_mut();
     let root = egui_dock::NodeIndex::root();
 

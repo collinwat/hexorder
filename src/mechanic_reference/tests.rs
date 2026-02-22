@@ -305,3 +305,61 @@ fn catalog_entries_have_example_games() {
         "Most entries should have example games, got {with_examples}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Scope 3: Contract boundary and UI integration tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn catalog_accessible_through_contract_boundary() {
+    // Verify the contract re-export path works (editor_ui uses this path).
+    use crate::contracts::mechanic_reference::MechanicCatalog as ContractCatalog;
+    use crate::contracts::mechanic_reference::MechanicCategory as ContractCategory;
+
+    let app = test_app();
+    let catalog = app
+        .world()
+        .get_resource::<ContractCatalog>()
+        .expect("catalog accessible via contract path");
+
+    // Verify filtering works through the contract interface.
+    for category in ContractCategory::all() {
+        let entries = catalog.entries_by_category(*category);
+        assert!(
+            !entries.is_empty(),
+            "Category {category:?} should be browsable via contract interface"
+        );
+    }
+}
+
+#[test]
+fn catalog_categories_return_consistent_entry_counts() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    // Sum of per-category counts must equal total entries.
+    let category_sum: usize = MechanicCategory::all()
+        .iter()
+        .map(|c| catalog.entries_by_category(*c).len())
+        .sum();
+    assert_eq!(
+        category_sum,
+        catalog.entries.len(),
+        "Per-category sums must equal total entry count"
+    );
+}
+
+#[test]
+fn catalog_entry_names_are_unique() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    let mut seen = std::collections::HashSet::new();
+    for entry in &catalog.entries {
+        assert!(
+            seen.insert(&entry.name),
+            "Duplicate entry name: {}",
+            entry.name
+        );
+    }
+}

@@ -12,6 +12,7 @@ use crate::contracts::game_system::{
 #[cfg(feature = "inspector")]
 use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use crate::contracts::mechanic_reference::{MechanicCatalog, MechanicCategory};
 use crate::contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
@@ -112,6 +113,7 @@ struct EditorDockViewer<'a> {
     // Single-tab fields
     viewport_rect: &'a mut ViewportRect,
     multi: &'a crate::contracts::editor_ui::Selection,
+    mechanic_catalog: &'a MechanicCatalog,
     // Tab-specific groups
     palette: PaletteData<'a>,
     design: DesignData<'a>,
@@ -320,6 +322,9 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
             DockTab::Validation => {
                 render_validation_tab(ui, self.schema_validation);
             }
+            DockTab::MechanicReference => {
+                render_mechanic_reference(ui, self.mechanic_catalog);
+            }
         }
     }
 
@@ -388,6 +393,92 @@ fn render_rules_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         }
     });
     ui.separator();
+}
+
+/// Renders the Mechanic Reference panel — a browsable catalog organized by category.
+fn render_mechanic_reference(ui: &mut egui::Ui, catalog: &MechanicCatalog) {
+    ui.label(
+        egui::RichText::new("Mechanic Reference")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.label(
+        egui::RichText::new("Engelstein taxonomy — browse wargame mechanics by area")
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    ui.separator();
+
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        for category in MechanicCategory::all() {
+            let entries = catalog.entries_by_category(*category);
+            let header = format!("{} ({})", category.display_name(), entries.len());
+            let id = ui.make_persistent_id(category.display_name());
+            egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+                .show_header(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new(header)
+                            .strong()
+                            .color(BrandTheme::TEXT_PRIMARY),
+                    );
+                })
+                .body(|ui| {
+                    ui.label(
+                        egui::RichText::new(category.description())
+                            .small()
+                            .color(BrandTheme::TEXT_SECONDARY),
+                    );
+                    ui.add_space(4.0);
+
+                    for entry in &entries {
+                        let entry_id = ui.make_persistent_id(&entry.name);
+                        egui::collapsing_header::CollapsingState::load_with_default_open(
+                            ui.ctx(),
+                            entry_id,
+                            false,
+                        )
+                        .show_header(ui, |ui| {
+                            ui.label(
+                                egui::RichText::new(&entry.name).color(BrandTheme::ACCENT_TEAL),
+                            );
+                        })
+                        .body(|ui| {
+                            ui.label(&entry.description);
+                            ui.add_space(4.0);
+
+                            if !entry.example_games.is_empty() {
+                                ui.label(
+                                    egui::RichText::new("Example games:")
+                                        .small()
+                                        .strong()
+                                        .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                                ui.label(
+                                    egui::RichText::new(entry.example_games.join(", "))
+                                        .small()
+                                        .color(BrandTheme::TEXT_TERTIARY),
+                                );
+                                ui.add_space(4.0);
+                            }
+
+                            if !entry.design_considerations.is_empty() {
+                                ui.label(
+                                    egui::RichText::new("Design considerations:")
+                                        .small()
+                                        .strong()
+                                        .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                                ui.label(
+                                    egui::RichText::new(&entry.design_considerations)
+                                        .small()
+                                        .color(BrandTheme::TEXT_TERTIARY),
+                                );
+                            }
+                        });
+                    }
+                });
+        }
+    });
 }
 
 /// Unified dock system. Renders the menu bar as a native `TopBottomPanel`, then
@@ -524,6 +615,7 @@ pub fn editor_dock_system(
         schema_validation: &validation,
         viewport_rect: &mut viewport_rect,
         multi: &selection.multi,
+        mechanic_catalog: &mechanics.mechanic_catalog,
         palette: PaletteData {
             editor_tool: &mut selection.editor_tool,
             active_board: &mut selection.active_board,
