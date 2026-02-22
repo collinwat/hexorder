@@ -1,6 +1,6 @@
 # Plugin Log: mechanic_reference
 
-## Status: speccing
+## Status: complete
 
 ## Decision Log
 
@@ -23,9 +23,25 @@ taxonomy, 203 mechanisms across 13 categories). **Rationale**: Substantial resea
 no new investigation needed. The survey provides descriptions, example games, and data model
 implications.
 
+### 2026-02-22 — ScaffoldAction string-based design
+
+**Context**: Scaffold templates need to create entity types, enums, properties, CRT structures,
+phases, and combat modifiers. These span `game_system` and `mechanics` contracts. **Decision**: Use
+string-based `ScaffoldAction` variants (role as `"Cell"`/`"Token"`, prop_type as
+`"Int"`/`"Enum(Name)"`, etc.) with conversion at application time in `editor_ui`. **Rationale**:
+Avoids cross-contract type dependencies in the `mechanic_reference` contract. The converter
+(`apply_scaffold_recipe`) lives in `editor_ui` where all registries are mutable. **Alternatives
+rejected**: Typed ScaffoldAction using game_system types directly (would couple the
+mechanic_reference contract to game_system internals).
+
 ## Test Results
 
-(none yet)
+### 2026-02-22 — Full audit pass
+
+- `mise check:audit`: All checks pass
+- 340 total tests (35 mechanic_reference + editor_ui Scope 5 tests)
+- Zero clippy warnings, zero boundary violations, zero unwrap in production
+- Coverage: 26 mechanic_reference tests + 9 editor_ui scaffold application tests
 
 ## Blockers
 
@@ -39,6 +55,7 @@ implications.
 
 ## Status Updates
 
-| Date       | Status   | Notes                        |
-| ---------- | -------- | ---------------------------- |
-| 2026-02-21 | speccing | Initial spec and log created |
+| Date       | Status   | Notes                                             |
+| ---------- | -------- | ------------------------------------------------- |
+| 2026-02-21 | speccing | Initial spec and log created                      |
+| 2026-02-22 | complete | All 5 scopes built, audit passed, ready for merge |

@@ -41,15 +41,15 @@ entity types, properties, and rules for mechanics Hexorder already supports.
 
 ## Success Criteria
 
-- [ ] [SC-1] `MechanicCatalog` resource loads at startup with categorized entries
-- [ ] [SC-2] Catalog contains entries for all 6 Engelstein taxonomy areas
-- [ ] [SC-3] Browsable panel renders categories and entries with descriptions
-- [ ] [SC-4] "Use Template" scaffolds entity types and properties into registries
-- [ ] [SC-5] Scaffolded elements are fully editable (no template link)
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
-- [ ] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
-- [ ] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
+- [x] [SC-1] `MechanicCatalog` resource loads at startup with categorized entries
+- [x] [SC-2] Catalog contains entries for all 6 Engelstein taxonomy areas
+- [x] [SC-3] Browsable panel renders categories and entries with descriptions
+- [x] [SC-4] "Use Template" scaffolds entity types and properties into registries
+- [x] [SC-5] Scaffolded elements are fully editable (no template link)
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
+- [x] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
+- [x] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
       `crate::contracts::`
 
 ## UAT Checklist
