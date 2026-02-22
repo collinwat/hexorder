@@ -402,7 +402,7 @@ pub fn cleanup_editor_entities(
 /// will attach visuals on the next frame via change detection.
 pub fn apply_pending_board_load(
     pending: Option<Res<PendingBoardLoad>>,
-    mut tiles: Query<(&HexPosition, &mut EntityData), With<HexTile>>,
+    tiles: Query<(Entity, &HexPosition), With<HexTile>>,
     config: Res<HexGridConfig>,
     mut commands: Commands,
 ) {
@@ -414,11 +414,15 @@ pub fn apply_pending_board_load(
     let tile_lookup: HashMap<HexPosition, &TileSaveData> =
         pending.tiles.iter().map(|t| (t.position, t)).collect();
 
-    // Apply tile data to existing tile entities.
-    for (pos, mut entity_data) in &mut tiles {
+    // Apply tile data to existing tile entities. Uses `insert` rather than
+    // mutating an existing `EntityData` because tiles may not have one yet
+    // (the cell plugin adds it via deferred commands on the same frame).
+    for (entity, pos) in &tiles {
         if let Some(save_data) = tile_lookup.get(pos) {
-            entity_data.entity_type_id = save_data.entity_type_id;
-            entity_data.properties.clone_from(&save_data.properties);
+            commands.entity(entity).insert(EntityData {
+                entity_type_id: save_data.entity_type_id,
+                properties: save_data.properties.clone(),
+            });
         }
     }
 

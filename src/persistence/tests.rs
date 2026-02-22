@@ -93,15 +93,9 @@ fn apply_pending_board_load_maps_tiles_and_spawns_units() {
     let file = test_game_system_file();
     let tile_type_id = file.entity_types.types[0].id;
 
-    // Spawn a tile entity to match against.
-    app.world_mut().spawn((
-        HexTile,
-        HexPosition::new(0, 0),
-        EntityData {
-            entity_type_id: TypeId::new(), // Will be overwritten by load
-            properties: HashMap::new(),
-        },
-    ));
+    // Spawn a tile entity WITHOUT EntityData — mirrors real spawn_grid
+    // behaviour where the cell plugin adds EntityData via deferred commands.
+    app.world_mut().spawn((HexTile, HexPosition::new(0, 0)));
 
     // Insert PendingBoardLoad.
     app.insert_resource(PendingBoardLoad {
