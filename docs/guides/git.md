@@ -714,6 +714,7 @@ begins.
 | 0.8.0   | `0.8.0`  | `v0.8.0`  | Process Reform           |
 | 0.9.0   | `0.9.0`  | `v0.9.0`  | The World Comes Alive    |
 | 0.10.0  | `0.10.0` | `v0.10.0` | Sharpen the Tools        |
+| 0.11.0  | `0.11.0` | `v0.11.0` | Sharpen & Rearchitect    |
 
 To determine the next version for a merge:
 
