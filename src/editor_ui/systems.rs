@@ -63,28 +63,49 @@ pub fn update_viewport_margins(
 // Dock-based editor (Scope 4 — tab support)
 // ---------------------------------------------------------------------------
 
-/// Viewer context that borrows system resources for the duration of `DockArea::show()`.
-struct EditorDockViewer<'a> {
+/// Data for the Palette tab (tool selection, cell/unit palettes, project info).
+struct PaletteData<'a> {
     editor_tool: &'a mut EditorTool,
-    editor_state: &'a mut EditorState,
     active_board: &'a mut ActiveBoardType,
     active_token: &'a mut ActiveTokenType,
-    multi: &'a crate::contracts::editor_ui::Selection,
     project_workspace: &'a Workspace,
     project_game_system: &'a GameSystem,
+}
+
+/// Data for the Design tab (type editors, ontology sub-tabs).
+struct DesignData<'a> {
     registry: &'a mut EntityTypeRegistry,
     enum_registry: &'a mut EnumRegistry,
     struct_registry: &'a mut StructRegistry,
     concept_registry: &'a mut crate::contracts::ontology::ConceptRegistry,
     relation_registry: &'a mut crate::contracts::ontology::RelationRegistry,
+}
+
+/// Data for the Rules tab (constraints, validation, mechanics sub-tabs).
+struct RulesData<'a> {
     constraint_registry: &'a mut crate::contracts::ontology::ConstraintRegistry,
-    schema_validation: &'a SchemaValidation,
     turn_structure: &'a mut crate::contracts::mechanics::TurnStructure,
     combat_results_table: &'a mut CombatResultsTable,
     combat_modifiers: &'a mut crate::contracts::mechanics::CombatModifierRegistry,
-    next_state: &'a mut NextState<AppScreen>,
+}
+
+/// Viewer context that borrows system resources for the duration of `DockArea::show()`.
+///
+/// Fields are grouped by tab ownership. Cross-cutting fields (`editor_state`, `actions`)
+/// remain at the top level because they are shared across multiple tabs.
+struct EditorDockViewer<'a> {
+    // Cross-cutting (shared by multiple tabs)
+    editor_state: &'a mut EditorState,
     actions: &'a mut Vec<EditorAction>,
+    next_state: &'a mut NextState<AppScreen>,
+    schema_validation: &'a SchemaValidation,
+    // Single-tab fields
     viewport_rect: &'a mut ViewportRect,
+    multi: &'a crate::contracts::editor_ui::Selection,
+    // Tab-specific groups
+    palette: PaletteData<'a>,
+    design: DesignData<'a>,
+    rules: RulesData<'a>,
 }
 
 impl egui_dock::TabViewer for EditorDockViewer<'_> {
@@ -100,9 +121,13 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 self.viewport_rect.0 = Some(ui.max_rect());
             }
             DockTab::Palette => {
-                render_workspace_header(ui, self.project_workspace, self.project_game_system);
+                render_workspace_header(
+                    ui,
+                    self.palette.project_workspace,
+                    self.palette.project_game_system,
+                );
                 if self.editor_state.toolbar_visible {
-                    render_tool_mode(ui, self.editor_tool);
+                    render_tool_mode(ui, self.palette.editor_tool);
                 }
                 if ui
                     .button(
@@ -116,11 +141,11 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                     self.next_state.set(AppScreen::Play);
                 }
                 ui.separator();
-                if *self.editor_tool == EditorTool::Paint {
-                    render_cell_palette(ui, self.registry, self.active_board);
+                if *self.palette.editor_tool == EditorTool::Paint {
+                    render_cell_palette(ui, self.design.registry, self.palette.active_board);
                 }
-                if *self.editor_tool == EditorTool::Place {
-                    render_unit_palette(ui, self.registry, self.active_token);
+                if *self.palette.editor_tool == EditorTool::Place {
+                    render_unit_palette(ui, self.design.registry, self.palette.active_token);
                 }
             }
             DockTab::Design => {
@@ -130,17 +155,17 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Types => {
                             render_entity_type_editor(
                                 ui,
-                                self.registry,
+                                self.design.registry,
                                 self.editor_state,
                                 self.actions,
-                                self.enum_registry,
-                                self.struct_registry,
+                                self.design.enum_registry,
+                                self.design.struct_registry,
                             );
                         }
                         OntologyTab::Enums => {
                             render_enums_tab(
                                 ui,
-                                self.enum_registry,
+                                self.design.enum_registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -148,8 +173,8 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Structs => {
                             render_structs_tab(
                                 ui,
-                                self.struct_registry,
-                                self.enum_registry,
+                                self.design.struct_registry,
+                                self.design.enum_registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -157,8 +182,8 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Concepts => {
                             render_concepts_tab(
                                 ui,
-                                self.concept_registry,
-                                self.registry,
+                                self.design.concept_registry,
+                                self.design.registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -166,8 +191,8 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Relations => {
                             render_relations_tab(
                                 ui,
-                                self.relation_registry,
-                                self.concept_registry,
+                                self.design.relation_registry,
+                                self.design.concept_registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -177,11 +202,11 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                             self.editor_state.active_tab = OntologyTab::Types;
                             render_entity_type_editor(
                                 ui,
-                                self.registry,
+                                self.design.registry,
                                 self.editor_state,
                                 self.actions,
-                                self.enum_registry,
-                                self.struct_registry,
+                                self.design.enum_registry,
+                                self.design.struct_registry,
                             );
                         }
                     }
@@ -194,8 +219,8 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Constraints => {
                             render_constraints_tab(
                                 ui,
-                                self.constraint_registry,
-                                self.concept_registry,
+                                self.rules.constraint_registry,
+                                self.design.concept_registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -206,9 +231,9 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                         OntologyTab::Mechanics => {
                             render_mechanics_tab(
                                 ui,
-                                self.turn_structure,
-                                self.combat_results_table,
-                                self.combat_modifiers,
+                                self.rules.turn_structure,
+                                self.rules.combat_results_table,
+                                self.rules.combat_modifiers,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -218,8 +243,8 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                             self.editor_state.active_tab = OntologyTab::Constraints;
                             render_constraints_tab(
                                 ui,
-                                self.constraint_registry,
-                                self.concept_registry,
+                                self.rules.constraint_registry,
+                                self.design.concept_registry,
                                 self.editor_state,
                                 self.actions,
                             );
@@ -438,26 +463,32 @@ pub fn editor_dock_system(
 
     // DockArea for all tabbed content.
     let mut viewer = EditorDockViewer {
-        editor_tool: &mut editor_tool,
         editor_state: &mut editor_state,
-        active_board: &mut selection.active_board,
-        active_token: &mut selection.active_token,
-        multi: &selection.multi,
-        project_workspace: &project.workspace,
-        project_game_system: &project.game_system,
-        registry: &mut registry,
-        enum_registry: &mut enum_registry,
-        struct_registry: &mut struct_registry,
-        concept_registry: &mut ontology.concept_registry,
-        relation_registry: &mut ontology.relation_registry,
-        constraint_registry: &mut ontology.constraint_registry,
-        schema_validation: &validation,
-        turn_structure: &mut mechanics.turn_structure,
-        combat_results_table: &mut mechanics.combat_results_table,
-        combat_modifiers: &mut mechanics.combat_modifiers,
-        next_state: &mut next_state,
         actions: &mut actions,
+        next_state: &mut next_state,
+        schema_validation: &validation,
         viewport_rect: &mut viewport_rect,
+        multi: &selection.multi,
+        palette: PaletteData {
+            editor_tool: &mut editor_tool,
+            active_board: &mut selection.active_board,
+            active_token: &mut selection.active_token,
+            project_workspace: &project.workspace,
+            project_game_system: &project.game_system,
+        },
+        design: DesignData {
+            registry: &mut registry,
+            enum_registry: &mut enum_registry,
+            struct_registry: &mut struct_registry,
+            concept_registry: &mut ontology.concept_registry,
+            relation_registry: &mut ontology.relation_registry,
+        },
+        rules: RulesData {
+            constraint_registry: &mut ontology.constraint_registry,
+            turn_structure: &mut mechanics.turn_structure,
+            combat_results_table: &mut mechanics.combat_results_table,
+            combat_modifiers: &mut mechanics.combat_modifiers,
+        },
     };
 
     // Configure dock area style to match brand theme.
