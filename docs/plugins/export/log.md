@@ -1,6 +1,6 @@
 # Plugin Log: Export
 
-## Status: building (Scope 3)
+## Status: building (Scope 4)
 
 ## Decision Log
 
@@ -49,6 +49,14 @@ explicitly excludes this dependency).
 - Tests cover: PDF output validation, all 3 counter sizes, empty state, type-definition fallback,
   property value formatting (numeric, bool), non-displayable type filtering
 
+### 2026-02-22 — Scope 3 (hex map PDF)
+
+- 6 new tests (19 total export, 324 total)
+- `cargo clippy --all-targets` — zero warnings
+- `mise check:boundary` — no boundary violations
+- Tests cover: PDF output validation, empty state rejection, flat-top orientation, all 3 counter
+  sizes, board entity coloring, oversized grid rejection
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -67,3 +75,4 @@ explicitly excludes this dependency).
 | 2026-02-21 | speccing | Initial spec created during kickoff. Research consumed.                  |
 | 2026-02-21 | building | Scope 1 complete: skeleton + ExportTarget trait (f61642f). 7 tests pass. |
 | 2026-02-21 | building | Scope 2 complete: counter sheet PDF with printpdf (fd9f1e7). 13 tests.   |
+| 2026-02-22 | building | Scope 3 complete: hex map PDF with terrain coloring (42c4144). 19 tests. |
