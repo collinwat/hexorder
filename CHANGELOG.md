@@ -5,7 +5,50 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.10.0] — 2026-02-19
+## [0.11.0] — 2026-02-22
+
+### Added
+
+- add developer retrospective gate to hex-retro skill (project)
+- add changelog header verification to ship workflow (project)
+- clarify pre-release version source in branch setup (project)
+- enforce worktree invariant for integration branches (project)
+- add cargo safety guardrails to build workflow (project)
+- add hex-bisect skill and shared target dir docs (project)
+- add agent reflection protocol and checkpoints (project)
+- strengthen abstraction check and add lines-changed (project)
+- add test coverage enforcement with cargo-llvm-cov (project)
+- add task list coordination protocol (#138) (project)
+- add batch ceremonies and phase model (#139, #143) (project)
+- log kickoff orientation for dockable panels (editor_ui)
+- add egui_dock four-zone dockable layout (Scope 1) (editor_ui)
+- native panels for four-zone layout (Scope 2) (editor_ui)
+- decompose panel system into four zone systems (Scope 3) (editor_ui)
+- add about panel render tests (Scope 3) (editor_ui)
+- add Scope 4 tab support design (editor_ui)
+- add Scope 4 tab support implementation plan (editor_ui)
+- replace zone systems with DockArea tab support (editor_ui)
+- add workspace presets with Cmd+1-4 switching (Scope 5) (editor_ui)
+- persist workspace preset to project file (Scope 6) (editor_ui)
+- log Scope 5-6 decisions and quality gate results (editor_ui)
+- update bevy-egui input passthrough to no-absorb strategy (project)
+
+### Changed
+
+- set up feature branch for build discipline (project)
+- commit Cargo.lock version bump (project)
+- set up feature branch for dockable panels (project)
+- bump version to 0.11.0 (project)
+
+### Fixed
+
+- recognize bare version tags in changelog generation (project)
+- correct pre-release version to 0.11.0-build-discipline (project)
+- account for viewport margins in fit scale and centering (camera)
+- resolve ship gate manual check findings (project)
+- disable absorb system to restore viewport interaction (editor_ui)
+
+## [0.10.0] — 2026-02-20
 
 ### Added
 
@@ -55,6 +98,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - fix TOML formatting in Cargo.toml (project)
 - set up feature branch (undo_redo)
 - fix debug check for manual Debug impls and taplo fmt (project)
+- bump version to 0.10.0 (project)
 - bump version to 0.10.0 (project)
 
 ### Fixed
