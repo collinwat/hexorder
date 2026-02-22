@@ -41,17 +41,18 @@ define-play-observe-revise design loop by enabling rapid map prototyping.
 
 ## Success Criteria
 
-- [ ] [SC-1] `heightmap_generates_consistent_elevations` — same seed produces identical elevation
+- [x] [SC-1] `heightmap_generates_consistent_elevations` — same seed produces identical elevation
       values across runs
-- [ ] [SC-2] `biome_table_assigns_correct_terrain` — elevation ranges correctly map to cell types
+- [x] [SC-2] `biome_table_assigns_correct_terrain` — elevation ranges correctly map to cell types
 - [ ] [SC-3] `rivers_flow_downhill` — river paths always follow decreasing elevation
 - [ ] [SC-4] `roads_connect_endpoints` — road pathfinding produces valid connected paths
-- [ ] [SC-5] `seed_reproducibility` — full generation with same parameters produces identical output
+- [x] [SC-5] `seed_reproducibility` — full generation with same parameters produces identical output
+      (core determinism proven; UI controls deferred to Scope 5)
 - [ ] [SC-6] Generated maps are fully editable after creation (no link back to generator)
-- [ ] [SC-BUILD] `cargo build` succeeds with this plugin registered
-- [ ] [SC-CLIPPY] `cargo clippy --all-targets` passes
-- [ ] [SC-TEST] `cargo test` passes
-- [ ] [SC-BOUNDARY] No imports from other plugins' internals
+- [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
+- [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
+- [x] [SC-TEST] `cargo test` passes
+- [x] [SC-BOUNDARY] No imports from other plugins' internals
 
 ## UAT Checklist
 
@@ -77,9 +78,10 @@ rivers/roads).
 
 ## Open Questions
 
-- Should generation replace the current map or require a blank map first?
-- How does the biome table interact with user-defined cell types? (Likely: map to existing
-  registered cell types by name)
+- ~~Should generation replace the current map or require a blank map first?~~ Resolved: overwrites
+  in-place (design doc decision)
+- ~~How does the biome table interact with user-defined cell types?~~ Resolved: maps to existing
+  registered cell types by name via `EntityTypeRegistry` lookup
 
 ## Deferred Items
 
