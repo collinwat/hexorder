@@ -187,16 +187,121 @@ fn plugin_registers_catalog_resource() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Catalog content tests (Scope 2)
+// ---------------------------------------------------------------------------
+
 #[test]
-fn plugin_catalog_starts_empty() {
+fn catalog_has_entries_in_all_six_categories() {
     let app = test_app();
     let catalog = app
         .world()
         .get_resource::<MechanicCatalog>()
         .expect("catalog should exist");
-    // Scope 1 provides an empty catalog; Scope 2 populates it
+
+    for category in MechanicCategory::all() {
+        let entries = catalog.entries_by_category(*category);
+        assert!(
+            !entries.is_empty(),
+            "Category {:?} ({}) should have at least one entry",
+            category,
+            category.display_name()
+        );
+    }
+}
+
+#[test]
+fn catalog_core_universal_has_expected_count() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    let core = catalog.entries_by_category(MechanicCategory::CoreUniversal);
+    assert_eq!(core.len(), 9, "Area 1 has 9 mechanics (1.1 through 1.9)");
+}
+
+#[test]
+fn catalog_advanced_common_has_expected_count() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    let advanced = catalog.entries_by_category(MechanicCategory::AdvancedCommon);
+    assert_eq!(
+        advanced.len(),
+        10,
+        "Area 2 has 10 mechanics (2.1 through 2.10)"
+    );
+}
+
+#[test]
+fn catalog_total_entry_count() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+    assert_eq!(catalog.entries.len(), 56, "Survey has 56 total mechanics");
+}
+
+#[test]
+fn catalog_entries_have_nonempty_fields() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    for entry in &catalog.entries {
+        assert!(!entry.name.is_empty(), "Entry has empty name");
+        assert!(
+            !entry.description.is_empty(),
+            "Entry '{}' has empty description",
+            entry.name
+        );
+        assert!(
+            !entry.design_considerations.is_empty(),
+            "Entry '{}' has empty design_considerations",
+            entry.name
+        );
+    }
+}
+
+#[test]
+fn catalog_known_entries_are_present() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    let names: Vec<&str> = catalog.entries.iter().map(|e| e.name.as_str()).collect();
     assert!(
-        catalog.entries.is_empty(),
-        "Catalog should start empty in Scope 1 (content added in Scope 2)"
+        names.contains(&"Hex Grid Systems"),
+        "Missing Hex Grid Systems"
+    );
+    assert!(
+        names.contains(&"Movement Systems"),
+        "Missing Movement Systems"
+    );
+    assert!(
+        names.contains(&"Combat Resolution Systems"),
+        "Missing Combat Resolution"
+    );
+    assert!(
+        names.contains(&"Zones of Control"),
+        "Missing Zones of Control"
+    );
+    assert!(
+        names.contains(&"Supply and Logistics"),
+        "Missing Supply and Logistics"
+    );
+    assert!(
+        names.contains(&"Chit-Pull Activation Systems"),
+        "Missing Chit-Pull"
+    );
+}
+
+#[test]
+fn catalog_entries_have_example_games() {
+    let app = test_app();
+    let catalog = app.world().resource::<MechanicCatalog>();
+
+    // Most entries should have at least one example game
+    let with_examples = catalog
+        .entries
+        .iter()
+        .filter(|e| !e.example_games.is_empty())
+        .count();
+    assert!(
+        with_examples > 40,
+        "Most entries should have example games, got {with_examples}"
     );
 }
