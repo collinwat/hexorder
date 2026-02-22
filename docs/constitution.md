@@ -28,6 +28,50 @@ Hexorder is a **game system design tool**, not a consumer game. Its purpose is t
 rules, develop aesthetics, run experiments, and export game system definitions. A separate
 application consumes the exported assets for distribution.
 
+The tool is **game-neutral**. It must serve any hex-based game system — historical wargames, sci-fi
+skirmishes, fantasy campaigns, abstract strategy — without favoring one genre. The first game system
+being designed happens to be historical military, but that is a user choice, not a tool assumption.
+
+## Tool / Game Boundary
+
+The tool provides **primitives** and optional **scaffolding**. It never provides game mechanics.
+
+### Primitives (game-neutral, never polluted with game-specific concepts)
+
+Infrastructure types that any hex-based game system needs. These use neutral, structural vocabulary:
+
+- Hex grid: cells, edges, positions, adjacency
+- Spatial properties: elevation, regions, layers
+- Entity types: user-defined names and attributes (via `EntityTypeRegistry`)
+- Rule authoring: phases, actions, conditions — the grammar for expressing rules
+- Serialization: export/import of complete game system definitions
+
+Primitives must **never** embed game-specific terminology (no "river," "road," "infantry,"
+"forest"). A primitive named `BiomeEntry` holds a `terrain_name` that resolves against user-defined
+types — it does not hardcode what those types are.
+
+### Scaffolding (genre-specific starter content, layered on top)
+
+Templates, presets, and example configurations that help designers get started quickly with a
+particular genre. Scaffolding is always:
+
+- **Optional** — the tool works without it
+- **Labeled by genre** — e.g., "Historical Wargame Starter," "Sci-Fi Skirmish Template"
+- **Separate from primitives** — stored as loadable presets or example projects, never as default
+  values in core types
+- **User-editable** — scaffolding is a starting point, not a constraint
+
+Examples of scaffolding: a historical wargame biome table (Water, Plains, Forest, Hills, Mountains),
+a sci-fi terrain set (Void, Asteroid, Nebula, Station), a set of movement cost rules.
+
+### Game mechanics (user-defined, never hardcoded)
+
+What terrain costs to cross, how combat resolves, what edges mean for movement — these are rules the
+designer authors. The tool provides the grammar for expressing them, not the rules themselves.
+
+**Test**: If a feature would make no sense in a space hex game, it is a game mechanic, not a
+primitive. It belongs in scaffolding or the user's rule set, not in core infrastructure.
+
 ## Simulation & Game Systems
 
 - Hex coordinates use axial (q, r) system (cube coordinates derived)
@@ -36,7 +80,6 @@ application consumes the exported assets for distribution.
 - Turn-based: game logic runs in discrete phases, not continuous
 - All simulation entities exist on the hex grid (no off-grid entities except UI/tooling)
 - Game systems (rules, units, terrain, phases) must be serializable for export
-- Historical military setting — unit types, terrain, and mechanics should reflect this
 - The tool must support defining, editing, and experimenting with rule sets at runtime
 
 ## Platform
