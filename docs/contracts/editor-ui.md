@@ -75,6 +75,27 @@ pub struct Selection {
 }
 ```
 
+```rust
+/// Screen rect of the Viewport dock tab, updated each frame by `editor_ui`.
+/// Used by `pointer_over_ui_panel` and viewport margin calculation.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct ViewportRect(pub Option<bevy_egui::egui::Rect>);
+```
+
+### Functions
+
+```rust
+/// Returns `true` when the pointer is over a non-viewport UI panel.
+///
+/// Replacement for `egui_wants_any_pointer_input` which always returns `true`
+/// when `DockArea` covers the full window. Uses Bevy's window cursor position
+/// to avoid borrowing `EguiContexts` (which would conflict in run conditions).
+pub fn pointer_over_ui_panel(
+    viewport_rect: Res<ViewportRect>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+) -> bool;
+```
+
 ### Events
 
 ```rust
@@ -104,6 +125,10 @@ pub enum ToastKind {
 - `ViewportMargins` is initialized by the editor_ui plugin and updated each frame after panel
   rendering
 - Only the editor_ui plugin should write to `ViewportMargins` (camera reads it)
+- `ViewportRect` is initialized by the editor_ui plugin and updated each frame with the dock
+  viewport tab rect
+- `pointer_over_ui_panel` is a system run condition that replaces `egui_wants_any_pointer_input`
+  when DockArea covers the full window
 - `Selection` is initialized by editor_ui; hex_grid writes on Shift+click; editor_ui writes on Cmd+A
 - Normal click clears `Selection`; Shift+click toggles individual tile entities
 - `ToastEvent` can be triggered by any plugin via `commands.trigger()`
@@ -122,3 +147,4 @@ pub enum ToastKind {
 | 2026-02-17 | Added ViewportMargins resource                          | Dynamic viewport centering for camera plugin                          |
 | 2026-02-18 | Added ToastEvent and ToastKind                          | Action confirmation toasts for save/load/delete feedback              |
 | 2026-02-18 | Added Selection resource                                | Multi-selection for bulk operations (Shift+click, Cmd+A)              |
+| 2026-02-21 | Added ViewportRect resource and pointer_over_ui_panel   | Dockable panels input passthrough (DockArea covers full window)       |

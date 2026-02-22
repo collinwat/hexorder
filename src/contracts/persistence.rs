@@ -45,7 +45,7 @@ pub struct Workspace {
     /// Path to the last-saved file. `None` if never saved.
     pub file_path: Option<PathBuf>,
     /// Whether the project has unsaved changes.
-    /// Placeholder for future use — not actively tracked in this pitch.
+    /// TODO(#111): not actively tracked yet — see unsaved changes issue.
     pub dirty: bool,
     /// Active workspace preset identifier (e.g. `map_editing`, `playtesting`).
     /// Empty string means default (Map Editing).

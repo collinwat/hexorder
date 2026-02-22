@@ -235,7 +235,7 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 );
                 ui.separator();
                 ui.label(
-                    egui::RichText::new("Tile/unit inspector (coming soon)")
+                    egui::RichText::new("Tile/unit inspector (#144)")
                         .color(BrandTheme::TEXT_SECONDARY),
                 );
             }
@@ -2914,9 +2914,9 @@ pub(crate) fn render_constraints_tab(
                     }
                 }
                 _ => {
-                    // CrossCompare and IsType — simplified for now
+                    // TODO(#17): CrossCompare and IsType editors
                     ui.label(
-                        egui::RichText::new("(full editor coming soon)")
+                        egui::RichText::new("(full editor — #17)")
                             .small()
                             .color(BrandTheme::TEXT_SECONDARY),
                     );
@@ -4517,7 +4517,7 @@ fn build_constraint_expression(
             }
         }
         _ => {
-            // Placeholder for CrossCompare and IsType
+            // TODO(#17): CrossCompare and IsType constraint expressions
             ConstraintExpr::All(Vec::new())
         }
     }

@@ -542,7 +542,7 @@ pub fn draw_los_ray(
         return;
     }
 
-    // Placeholder: nothing blocks LOS until property system (#81) ships.
+    // TODO(#95): nothing blocks LOS until hex visibility system ships.
     let result = algorithms::line_of_sight(unit_pos, hover_pos, |_| false);
 
     let color = if result.clear {
