@@ -4,6 +4,51 @@
 
 ## Decision Log
 
+### 2026-02-21 — 0.11.0: Scope 6 — Layout persistence (#135)
+
+**Result: DONE** — Active workspace preset persists to `.hexorder` project files via
+`GameSystemFile.workspace_preset` string field.
+
+**Key decisions**:
+
+- **Persist preset ID, not dock tree**: `egui_dock::DockState` doesn't derive Serialize/Deserialize.
+  Only the preset identifier string is saved (e.g. `"map_editing"`). Full dock tree serialization
+  deferred to a future pitch if user-defined layouts are needed.
+- **Cross-plugin boundary via `Workspace` resource**: `sync_workspace_preset` copies the active
+  preset from `DockLayoutState` (editor_ui-internal) to `Workspace.workspace_preset` (contract
+  resource). Persistence plugin reads/writes only `Workspace`. No boundary violations.
+- **`OnEnter(AppScreen::Editor)` for restore**: `restore_workspace_preset` runs once on editor
+  entry, applying the loaded preset. Avoids running every frame.
+- **FORMAT_VERSION 3→4**: `#[serde(default)]` on `workspace_preset` allows v3 files to load
+  gracefully (empty string = MapEditing default). v4 readers get the new field.
+- **Stable string IDs**: `WorkspacePreset::as_id()`/`from_id()` use stable snake_case strings for
+  serialization rather than enum variant names, preventing breakage if variants are renamed.
+
+**Verification**: `mise check:audit` — all checks pass. 305/305 tests pass, zero clippy warnings, no
+boundary violations, 43.35% line coverage (above 40% threshold).
+
+### 2026-02-21 — 0.11.0: Scope 5 — Workspace presets (#135)
+
+**Result: DONE** — 4 workspace presets (MapEditing, UnitDesign, RuleAuthoring, Playtesting) with
+Cmd+1–4 switching and View menu.
+
+**Key decisions**:
+
+- **`WorkspacePreset` enum**: 4 fixed variants with `Default` derive (MapEditing). Each preset has a
+  factory function producing a distinct `DockState<DockTab>` layout.
+- **Layout differentiation**: MapEditing = full 8-tab layout (all panels). UnitDesign = no bottom
+  panel, Design/Rules/Palette left. RuleAuthoring = Design/Rules as center tabs with Viewport,
+  Inspector+Settings right, Validation bottom. Playtesting = Viewport + Validation only.
+- **Cmd+1 conflict resolved**: `mode.editor` had Cmd+1 binding. Removed it (empty bindings vec) and
+  reassigned Cmd+1–4 to workspace presets under `CommandCategory::View`.
+- **View menu**: Added between File and Help in the menu bar. Shows all 4 presets as selectable
+  labels with keyboard shortcut hints. Active preset is highlighted.
+- **`apply_preset` method**: Sets both `dock_state` and `active_preset` atomically. Ensures the
+  tracking field always matches the active layout.
+
+**Verification**: `mise check` — all checks pass. 295/295 tests pass (10 new), zero clippy warnings,
+no boundary violations.
+
 ### 2026-02-21 — 0.11.0: Scope 3 — Panel decomposition (#135)
 
 **Result: DONE** — `editor_panel_system` (13 params, 1 system) decomposed into 4 independent
@@ -293,8 +338,11 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-21 | `mise check`                  | PASS   | All checks pass (Scope 3)            |
 | 2026-02-21 | `cargo test`                  | PASS   | 285/285 tests pass                   |
 | 2026-02-21 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
+| 2026-02-21 | `mise check:audit`            | PASS   | All checks pass (Scopes 5+6)         |
+| 2026-02-21 | `cargo test`                  | PASS   | 305/305 tests pass (40 editor_ui)    |
+| 2026-02-21 | `cargo clippy --all-targets`  | PASS   | Zero warnings                        |
 
-### Tests (26):
+### Tests (40):
 
 1. `editor_tool_defaults_to_select` — EditorTool default is Select
 2. `editor_tool_variants_are_distinct` — Select != Paint
@@ -322,6 +370,20 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 24. `dock_tab_variants_are_distinct` — all DockTab variants differ
 25. `dock_layout_creates_four_zones` — default layout produces 4 tabs
 26. `dock_layout_state_resource_inserts_correctly` — resource initializes in ECS with 4 tabs
+27. `workspace_preset_defaults_to_map_editing` — default preset is MapEditing
+28. `workspace_preset_variants_are_distinct` — all 4 variants differ
+29. `dock_layout_state_defaults_to_map_editing` — DockLayoutState starts with MapEditing preset
+30. `map_editing_layout_contains_all_tabs` — all 8 DockTab variants present
+31. `unit_design_layout_tab_contents` — 7 tabs, no Validation
+32. `rule_authoring_layout_tab_contents` — 7 tabs with Design+Rules in center
+33. `playtesting_layout_tab_contents` — 2 tabs: Viewport + Validation
+34. `apply_preset_updates_active_preset` — apply_preset tracks which preset is active
+35. `workspace_command_switches_preset` — observer command handler switches presets
+36. `workspace_preset_display_names` — Display impl returns human-readable names
+37. `workspace_preset_id_round_trip` — as_id/from_id round-trips all variants
+38. `workspace_preset_unknown_id_defaults_to_map_editing` — unknown IDs fall back to MapEditing
+39. `workspace_preset_stable_id_values` — string IDs are stable for serialization
+40. `workspace_default_has_empty_preset` — Workspace preset defaults to empty string
 
 ## Blockers
 
@@ -342,3 +404,5 @@ parameter counts. Dual `init_resource` calls are safe (no-op if resource already
 | 2026-02-18 | complete | 0.10.0 editor QoL: all 7 scopes shipped. 258/258 tests pass.                                                     |
 | 2026-02-20 | building | 0.11.0 Scope 1: egui_dock evaluation complete. GO decision. All 3 unknowns resolved. 285/285 tests pass.         |
 | 2026-02-21 | building | 0.11.0 Scope 3: Panel decomposition. 1 system → 4 systems. Tool palette retains 13 params; 3 new systems at 2-3. |
+| 2026-02-21 | building | 0.11.0 Scope 5: Workspace presets (4 built-in, Cmd+1-4, View menu). 295/295 tests pass.                          |
+| 2026-02-21 | ready    | 0.11.0 Scope 6: Layout persistence. All 6 scopes complete. Quality gate passed. 305/305 tests pass.              |
