@@ -99,14 +99,17 @@ Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unw
 
 ## Deferred / Future Work
 
-- Hexside features (rivers/roads) require contract extension — not modeled yet
+- Hex-edge contract extension (#150) — required for rivers and roads
+- River placement (#151) — hammered from Scope 3, depends on hex-edge contract
+- Road networks (#152) — hammered from Scope 4, depends on hex-edge contract
 - Background threading for large maps (>1000 hexes) — deferred per pitch rabbit hole guidance
 - Display + Error impl for BiomeTableError — nice to have for future UI integration
 
 ## Status Updates
 
-| Date       | Status   | Notes                                               |
-| ---------- | -------- | --------------------------------------------------- |
-| 2026-02-21 | speccing | Initial spec created                                |
-| 2026-02-22 | building | Scope 1 complete — heightmap + biome table (+651)   |
-| 2026-02-22 | building | Scope 5 complete — UI panel with parameter controls |
+| Date       | Status    | Notes                                               |
+| ---------- | --------- | --------------------------------------------------- |
+| 2026-02-21 | speccing  | Initial spec created                                |
+| 2026-02-22 | building  | Scope 1 complete — heightmap + biome table (+651)   |
+| 2026-02-22 | building  | Scope 5 complete — UI panel with parameter controls |
+| 2026-02-22 | finishing | Scopes 3-4 hammered — hex-edge contract needed      |

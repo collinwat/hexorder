@@ -86,6 +86,8 @@ rivers/roads).
 
 ## Deferred Items
 
+- River placement — requires hex-edge contract (#150, #151)
+- Road networks — requires hex-edge contract (#150, #152)
 - Temperature and moisture axes for biome selection (#102 No Go)
 - City/town auto-placement (#102 No Go)
 - Historical map import / real-world elevation data (#102 No Go)
