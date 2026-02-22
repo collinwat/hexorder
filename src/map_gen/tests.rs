@@ -7,6 +7,14 @@ use super::components::{BiomeEntry, BiomeTable, MapGenParams};
 use super::heightmap::generate_heightmap;
 use crate::contracts::hex_grid::HexPosition;
 
+fn default_layout() -> hexx::HexLayout {
+    hexx::HexLayout {
+        orientation: hexx::HexOrientation::Pointy,
+        scale: bevy::math::Vec2::splat(1.0),
+        origin: bevy::math::Vec2::ZERO,
+    }
+}
+
 #[test]
 fn default_biome_table_is_valid() {
     let table = BiomeTable::default();
@@ -41,11 +49,7 @@ fn lookup_biome_covers_full_range() {
 
 #[test]
 fn heightmap_deterministic_with_same_seed() {
-    let layout = hexx::HexLayout {
-        orientation: hexx::HexOrientation::Pointy,
-        scale: bevy::math::Vec2::splat(1.0),
-        origin: bevy::math::Vec2::ZERO,
-    };
+    let layout = default_layout();
     let positions = vec![
         HexPosition::new(0, 0),
         HexPosition::new(1, 0),
@@ -67,11 +71,7 @@ fn heightmap_deterministic_with_same_seed() {
 
 #[test]
 fn heightmap_values_in_unit_range() {
-    let layout = hexx::HexLayout {
-        orientation: hexx::HexOrientation::Pointy,
-        scale: bevy::math::Vec2::splat(1.0),
-        origin: bevy::math::Vec2::ZERO,
-    };
+    let layout = default_layout();
     let positions: Vec<_> = hexx::shapes::hexagon(hexx::Hex::ZERO, 3)
         .map(HexPosition::from_hex)
         .collect();
@@ -121,11 +121,7 @@ fn map_gen_params_default_has_expected_seed() {
 
 #[test]
 fn heightmap_different_seeds_differ() {
-    let layout = hexx::HexLayout {
-        orientation: hexx::HexOrientation::Pointy,
-        scale: bevy::math::Vec2::splat(1.0),
-        origin: bevy::math::Vec2::ZERO,
-    };
+    let layout = default_layout();
     let positions: Vec<_> = hexx::shapes::hexagon(hexx::Hex::ZERO, 3)
         .map(HexPosition::from_hex)
         .collect();
@@ -159,11 +155,7 @@ fn heightmap_different_seeds_differ() {
 
 #[test]
 fn heightmap_spatial_coherence() {
-    let layout = hexx::HexLayout {
-        orientation: hexx::HexOrientation::Pointy,
-        scale: bevy::math::Vec2::splat(1.0),
-        origin: bevy::math::Vec2::ZERO,
-    };
+    let layout = default_layout();
 
     let center = hexx::Hex::ZERO;
     let neighbors = center.all_neighbors();
