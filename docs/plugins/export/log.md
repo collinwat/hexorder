@@ -1,8 +1,16 @@
 # Plugin Log: Export
 
-## Status: building (Scope 2)
+## Status: building (Scope 3)
 
 ## Decision Log
+
+### 2026-02-21 — printpdf 0.9 API confirmed
+
+**Context**: Evaluating printpdf for counter sheet generation. **Decision**: Use printpdf 0.9 with
+built-in Helvetica fonts (BuiltinFont enum). **Rationale**: Built-in fonts eliminate TTF bundling
+complexity. Operation-based API (Vec<Op>) is clean for batch PDF generation. 12 transitive
+dependency splits added to deny.toml skip list. **Lesson**: Web docs show outdated API; had to read
+crate source to find correct `PdfFontHandle::Builtin`, `Op::SetFont` + `Op::ShowText` pattern.
 
 ### 2026-02-21 — PDF crate selection
 
@@ -33,6 +41,14 @@ explicitly excludes this dependency).
 - Tests cover: MockExporter trait impl, error Display formatting, data collection from registry,
   empty state handling, trait object safety, flat-top grid orientation
 
+### 2026-02-21 — Scope 2 (counter sheet PDF)
+
+- 6 new tests (13 total export, 318 total)
+- `cargo clippy --all-targets` — zero warnings
+- `cargo deny check` — all pass (12 new transitive deps added to skip list)
+- Tests cover: PDF output validation, all 3 counter sizes, empty state, type-definition fallback,
+  property value formatting (numeric, bool), non-displayable type filtering
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -50,3 +66,4 @@ explicitly excludes this dependency).
 | ---------- | -------- | ------------------------------------------------------------------------ |
 | 2026-02-21 | speccing | Initial spec created during kickoff. Research consumed.                  |
 | 2026-02-21 | building | Scope 1 complete: skeleton + ExportTarget trait (f61642f). 7 tests pass. |
+| 2026-02-21 | building | Scope 2 complete: counter sheet PDF with printpdf (fd9f1e7). 13 tests.   |
