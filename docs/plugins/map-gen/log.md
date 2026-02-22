@@ -1,6 +1,6 @@
 # Plugin Log: map_gen
 
-## Status: building (Scope 1 complete)
+## Status: building (Scopes 1-2, 5 complete)
 
 ## Decision Log
 
@@ -45,6 +45,16 @@ validate. **Decision**: Added `validate_biome_table` call at start of `run_gener
 warning and skips generation if table is invalid. **Rationale**: Defensive for user-defined biome
 tables in future scopes. Low cost, prevents silent incorrect generation.
 
+### 2026-02-22 — UI panel as standalone egui window (not dock tab)
+
+**Context**: Need to add UI controls for generation parameters. The editor uses egui_dock for panel
+layout. **Decision**: Render the map generation panel as a standalone `egui::Window` owned by the
+map_gen plugin, not as a dock tab in editor_ui. **Rationale**: Adding a dock tab would require
+modifying editor_ui internals (DockTab enum, EditorDockViewer), creating a cross-plugin boundary
+violation. A standalone window respects plugin boundaries, is self-contained, and can be freely
+moved/resized by the user. **Alternatives rejected**: Dock tab (boundary violation), contract
+extension for dock registration (over-engineering for one panel).
+
 ## Test Results
 
 ### 2026-02-22 — Scope 1 complete
@@ -69,6 +79,18 @@ test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured
 
 Full suite: 316 tests pass. Zero clippy warnings. No boundary violations. No unwrap in production.
 
+### 2026-02-22 — Scope 5 complete (UI panel)
+
+```
+running 13 tests
+test map_gen::tests::panel_visible_defaults_to_true ... ok
+(+ 12 previous tests)
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured
+```
+
+Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unwrap in production.
+
 ## Blockers
 
 | Blocker | Waiting On | Raised | Resolved |
@@ -83,7 +105,8 @@ Full suite: 316 tests pass. Zero clippy warnings. No boundary violations. No unw
 
 ## Status Updates
 
-| Date       | Status   | Notes                                             |
-| ---------- | -------- | ------------------------------------------------- |
-| 2026-02-21 | speccing | Initial spec created                              |
-| 2026-02-22 | building | Scope 1 complete — heightmap + biome table (+651) |
+| Date       | Status   | Notes                                               |
+| ---------- | -------- | --------------------------------------------------- |
+| 2026-02-21 | speccing | Initial spec created                                |
+| 2026-02-22 | building | Scope 1 complete — heightmap + biome table (+651)   |
+| 2026-02-22 | building | Scope 5 complete — UI panel with parameter controls |

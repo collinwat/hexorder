@@ -10,7 +10,7 @@ define-play-observe-revise design loop by enabling rapid map prototyping.
 
 - Module: `src/map_gen/`
 - Plugin struct: `MapGenPlugin`
-- Schedule: `Update` (generation triggered by user action, not per-frame)
+- Schedule: `Update` (generation system), `EguiPrimaryContextPass` (UI panel)
 
 ## Appetite
 
@@ -47,8 +47,9 @@ define-play-observe-revise design loop by enabling rapid map prototyping.
 - [ ] [SC-3] `rivers_flow_downhill` — river paths always follow decreasing elevation
 - [ ] [SC-4] `roads_connect_endpoints` — road pathfinding produces valid connected paths
 - [x] [SC-5] `seed_reproducibility` — full generation with same parameters produces identical output
-      (core determinism proven; UI controls deferred to Scope 5)
-- [ ] [SC-6] Generated maps are fully editable after creation (no link back to generator)
+      (core determinism proven; UI controls for seed and all noise parameters implemented)
+- [x] [SC-6] Generated maps are fully editable after creation (no link back to generator — writes
+      EntityData directly, sync_cell_visuals picks up changes, no generator reference stored)
 - [x] [SC-BUILD] `cargo build` succeeds with this plugin registered
 - [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
 - [x] [SC-TEST] `cargo test` passes
