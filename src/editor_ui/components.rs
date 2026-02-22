@@ -56,7 +56,8 @@ impl BrandTheme {
 }
 
 use crate::contracts::game_system::{
-    ActiveBoardType, ActiveTokenType, EntityRole, GameSystem, PropertyType, SelectedUnit, TypeId,
+    ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumRegistry, GameSystem,
+    PropertyType, SelectedUnit, StructRegistry, TypeId,
 };
 use crate::contracts::hex_grid::SelectedHex;
 use crate::contracts::mechanics::{
@@ -462,9 +463,16 @@ pub(super) struct SelectionParams<'w> {
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,
     pub(super) multi: Res<'w, crate::contracts::editor_ui::Selection>,
-    /// Used by the Inspector tab (Scope 3 — Query migration).
-    #[allow(dead_code)]
     pub(super) selected_hex: Res<'w, SelectedHex>,
+}
+
+/// Bundled system parameter for entity type registries.
+/// Reduces the system parameter count in `editor_dock_system`.
+#[derive(SystemParam)]
+pub(super) struct TypeRegistryParams<'w> {
+    pub(super) registry: ResMut<'w, EntityTypeRegistry>,
+    pub(super) enum_registry: ResMut<'w, EnumRegistry>,
+    pub(super) struct_registry: ResMut<'w, StructRegistry>,
 }
 
 /// Bundled system parameter for mechanics-related resources.

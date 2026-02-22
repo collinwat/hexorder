@@ -9,7 +9,9 @@ use crate::contracts::game_system::{
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
     SelectedUnit, StructDefinition, StructRegistry, TypeId, UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, SelectedHex};
+#[cfg(feature = "inspector")]
+use crate::contracts::hex_grid::SelectedHex;
+use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 use crate::contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
@@ -32,7 +34,7 @@ use egui_dock::DockArea;
 use super::components::{
     BrandTheme, DockLayoutState, DockTab, EditorAction, EditorState, GridOverlayVisible,
     MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
-    WorkspacePreset,
+    TypeRegistryParams, WorkspacePreset,
 };
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,13 @@ struct RulesData<'a> {
     combat_modifiers: &'a mut crate::contracts::mechanics::CombatModifierRegistry,
 }
 
+/// Data for the Inspector tab (selected tile/unit property editors).
+struct InspectorData<'a> {
+    tile_position: Option<HexPosition>,
+    tile_entity_data: Option<Mut<'a, EntityData>>,
+    unit_entity_data: Option<Mut<'a, EntityData>>,
+}
+
 /// Viewer context that borrows system resources for the duration of `DockArea::show()`.
 ///
 /// Fields are grouped by tab ownership. Cross-cutting fields (`editor_state`, `actions`)
@@ -106,6 +115,7 @@ struct EditorDockViewer<'a> {
     palette: PaletteData<'a>,
     design: DesignData<'a>,
     rules: RulesData<'a>,
+    inspector: InspectorData<'a>,
 }
 
 impl egui_dock::TabViewer for EditorDockViewer<'_> {
@@ -253,15 +263,21 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 });
             }
             DockTab::Inspector => {
-                ui.label(
-                    egui::RichText::new("Inspector")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
+                render_inspector(
+                    ui,
+                    self.inspector.tile_position,
+                    self.inspector.tile_entity_data.as_deref_mut(),
+                    self.design.registry,
+                    self.design.enum_registry,
+                    self.design.struct_registry,
                 );
-                ui.separator();
-                ui.label(
-                    egui::RichText::new("Tile/unit inspector (#144)")
-                        .color(BrandTheme::TEXT_SECONDARY),
+                render_unit_inspector(
+                    ui,
+                    self.inspector.unit_entity_data.as_deref_mut(),
+                    self.design.registry,
+                    self.design.enum_registry,
+                    self.design.struct_registry,
+                    self.actions,
                 );
             }
             DockTab::Settings => {
@@ -382,10 +398,10 @@ pub fn editor_dock_system(
     mut selection: SelectionParams,
     mut editor_state: ResMut<EditorState>,
     project: ProjectParams,
-    mut registry: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
+    mut type_regs: TypeRegistryParams,
     mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
+    tile_query: Query<(&HexPosition, Entity), With<HexTile>>,
+    mut unit_data_query: Query<&mut EntityData, With<UnitInstance>>,
     mut commands: Commands,
     mut ontology: OntologyParams,
     mut mechanics: MechanicsParams,
@@ -461,6 +477,20 @@ pub fn editor_dock_system(
 
     let mut actions: Vec<EditorAction> = Vec::new();
 
+    // Pre-extract inspector data from queries.
+    let tile_position = selection.selected_hex.position;
+    let tile_entity = tile_position.and_then(|pos| {
+        tile_query
+            .iter()
+            .find(|(tp, _)| **tp == pos)
+            .map(|(_, e)| e)
+    });
+    let tile_entity_data = tile_entity.and_then(|e| tile_data_query.get_mut(e).ok());
+    let unit_entity_data = selection
+        .selected_unit
+        .entity
+        .and_then(|e| unit_data_query.get_mut(e).ok());
+
     // DockArea for all tabbed content.
     let mut viewer = EditorDockViewer {
         editor_state: &mut editor_state,
@@ -477,9 +507,9 @@ pub fn editor_dock_system(
             project_game_system: &project.game_system,
         },
         design: DesignData {
-            registry: &mut registry,
-            enum_registry: &mut enum_registry,
-            struct_registry: &mut struct_registry,
+            registry: &mut type_regs.registry,
+            enum_registry: &mut type_regs.enum_registry,
+            struct_registry: &mut type_regs.struct_registry,
             concept_registry: &mut ontology.concept_registry,
             relation_registry: &mut ontology.relation_registry,
         },
@@ -488,6 +518,11 @@ pub fn editor_dock_system(
             turn_structure: &mut mechanics.turn_structure,
             combat_results_table: &mut mechanics.combat_results_table,
             combat_modifiers: &mut mechanics.combat_modifiers,
+        },
+        inspector: InspectorData {
+            tile_position,
+            tile_entity_data,
+            unit_entity_data,
         },
     };
 
@@ -527,9 +562,9 @@ pub fn editor_dock_system(
     // Apply deferred actions.
     apply_actions(
         actions,
-        &mut registry,
-        &mut enum_registry,
-        &mut struct_registry,
+        &mut type_regs.registry,
+        &mut type_regs.enum_registry,
+        &mut type_regs.struct_registry,
         &mut tile_data_query,
         &mut selection.active_board,
         &mut selection.active_token,
@@ -3460,41 +3495,31 @@ pub(crate) fn render_mechanics_tab(
     }
 }
 
-/// Renders the tile inspector panel. Used by the Inspector dock tab (Scope 3).
-#[allow(dead_code, clippy::type_complexity, clippy::too_many_arguments)]
-pub(crate) fn render_inspector(
+/// Renders the tile inspector panel inside the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
+fn render_inspector(
     ui: &mut egui::Ui,
-    selected_hex: &SelectedHex,
-    tile_query: &Query<(&HexPosition, Entity), With<HexTile>>,
-    tile_data_query: &mut Query<&mut EntityData, Without<UnitInstance>>,
+    position: Option<HexPosition>,
+    entity_data: Option<&mut EntityData>,
     registry: &EntityTypeRegistry,
     enum_registry: &EnumRegistry,
     struct_registry: &StructRegistry,
 ) {
     egui::CollapsingHeader::new(
-        egui::RichText::new("Inspector")
+        egui::RichText::new("Tile Inspector")
             .strong()
             .color(BrandTheme::ACCENT_AMBER),
     )
     .default_open(true)
     .show(ui, |ui| {
-        let Some(pos) = selected_hex.position else {
+        let Some(pos) = position else {
             ui.label(egui::RichText::new("No tile selected").color(BrandTheme::TEXT_SECONDARY));
             return;
         };
 
         ui.label(egui::RichText::new(format!("Position: ({}, {})", pos.q, pos.r)).monospace());
 
-        let Some(entity) = tile_query
-            .iter()
-            .find(|(tp, _)| **tp == pos)
-            .map(|(_, e)| e)
-        else {
-            ui.label("Tile not found");
-            return;
-        };
-
-        let Ok(mut entity_data) = tile_data_query.get_mut(entity) else {
+        let Some(entity_data) = entity_data else {
             ui.label("No cell data");
             return;
         };
@@ -3546,12 +3571,11 @@ pub(crate) fn render_inspector(
     });
 }
 
-/// Renders the unit inspector panel. Used by the Inspector dock tab (Scope 3).
-#[allow(dead_code, clippy::too_many_arguments)]
-pub(crate) fn render_unit_inspector(
+/// Renders the unit inspector panel inside the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
+fn render_unit_inspector(
     ui: &mut egui::Ui,
-    selected_unit: &SelectedUnit,
-    unit_data_query: &mut Query<&mut EntityData, With<UnitInstance>>,
+    entity_data: Option<&mut EntityData>,
     registry: &EntityTypeRegistry,
     enum_registry: &EnumRegistry,
     struct_registry: &StructRegistry,
@@ -3564,13 +3588,8 @@ pub(crate) fn render_unit_inspector(
     )
     .default_open(true)
     .show(ui, |ui| {
-        let Some(entity) = selected_unit.entity else {
+        let Some(entity_data) = entity_data else {
             ui.label(egui::RichText::new("No unit selected").color(BrandTheme::TEXT_SECONDARY));
-            return;
-        };
-
-        let Ok(mut entity_data) = unit_data_query.get_mut(entity) else {
-            ui.label("Unit entity not found");
             return;
         };
 
@@ -3624,8 +3643,8 @@ pub(crate) fn render_unit_inspector(
     });
 }
 
-/// Renders an inline property value editor. Used by the Inspector dock tab (Scope 3).
-#[allow(dead_code, clippy::too_many_arguments)]
+/// Renders an inline property value editor for the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
 fn render_property_value_editor(
     ui: &mut egui::Ui,
     value: &mut PropertyValue,
