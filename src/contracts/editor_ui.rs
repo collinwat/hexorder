@@ -71,3 +71,31 @@ pub enum ToastKind {
     Error,
     Info,
 }
+
+/// Screen rect of the Viewport dock tab, updated each frame by `editor_ui`.
+/// Used by `pointer_over_ui_panel` and viewport margin calculation.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct ViewportRect(pub Option<bevy_egui::egui::Rect>);
+
+/// Returns `true` when the pointer is over a non-viewport UI panel.
+///
+/// Replacement for `egui_wants_any_pointer_input` which always returns `true`
+/// when `DockArea` covers the full window. Uses Bevy's window cursor position
+/// to avoid borrowing `EguiContexts` (which would conflict in run conditions).
+pub fn pointer_over_ui_panel(
+    viewport_rect: Res<ViewportRect>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+) -> bool {
+    let Some(vp_rect) = viewport_rect.0 else {
+        return false;
+    };
+    let Ok(window) = windows.single() else {
+        return false;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return false;
+    };
+    // Bevy cursor is (0,0) at top-left, Y increases downward — same as egui.
+    let pos = bevy_egui::egui::Pos2::new(cursor.x, cursor.y);
+    !vp_rect.contains(pos)
+}

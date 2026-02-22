@@ -68,7 +68,6 @@ use crate::contracts::ontology::{
     RelationTrigger,
 };
 use crate::contracts::persistence::Workspace;
-use crate::contracts::validation::SchemaValidation;
 
 /// Deferred actions to apply after the egui closure completes.
 /// Avoids side effects inside the closure (multi-pass safe).
@@ -448,7 +447,7 @@ impl Default for EditorState {
 }
 
 /// Bundled system parameter for project-level read-only resources.
-/// Reduces the system parameter count in `editor_tool_palette_system`.
+/// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct ProjectParams<'w> {
     pub(super) workspace: Res<'w, Workspace>,
@@ -456,7 +455,7 @@ pub(super) struct ProjectParams<'w> {
 }
 
 /// Bundled system parameter for active selection state.
-/// Reduces the system parameter count in `editor_tool_palette_system`.
+/// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct SelectionParams<'w> {
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
@@ -469,7 +468,7 @@ pub(super) struct SelectionParams<'w> {
 }
 
 /// Bundled system parameter for mechanics-related resources.
-/// Reduces the system parameter count in `editor_tool_palette_system`.
+/// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct MechanicsParams<'w> {
     pub(super) turn_structure: ResMut<'w, TurnStructure>,
@@ -478,13 +477,12 @@ pub(super) struct MechanicsParams<'w> {
 }
 
 /// Bundled system parameter for ontology-related resources.
-/// Reduces the system parameter count in `editor_tool_palette_system`.
+/// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct OntologyParams<'w> {
     pub(super) concept_registry: ResMut<'w, ConceptRegistry>,
     pub(super) relation_registry: ResMut<'w, RelationRegistry>,
     pub(super) constraint_registry: ResMut<'w, ConstraintRegistry>,
-    pub(super) schema_validation: Res<'w, SchemaValidation>,
 }
 
 /// Whether the grid coordinate overlay is visible. Toggled by G key.
@@ -516,29 +514,45 @@ pub(crate) enum DockTab {
     /// 3D scene — always present, transparent background.
     Viewport,
     /// Tool mode + cell/unit palette (left zone).
-    ToolPalette,
+    Palette,
+    /// Ontology design tabs: Types, Enums, Structs, Concepts, Relations.
+    Design,
+    /// Rules tabs: Constraints, Validation, Mechanics.
+    Rules,
     /// Tile/unit inspector (right zone).
     Inspector,
+    /// Editor settings (font size, etc.).
+    Settings,
+    /// Multi-selection summary.
+    Selection,
     /// Validation output (bottom zone).
     Validation,
+}
+
+impl DockTab {
+    pub(crate) fn is_closeable(self) -> bool {
+        !matches!(self, Self::Viewport)
+    }
 }
 
 impl std::fmt::Display for DockTab {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Viewport => write!(f, "Viewport"),
-            Self::ToolPalette => write!(f, "Tool Palette"),
+            Self::Palette => write!(f, "Palette"),
+            Self::Design => write!(f, "Design"),
+            Self::Rules => write!(f, "Rules"),
             Self::Inspector => write!(f, "Inspector"),
+            Self::Settings => write!(f, "Settings"),
+            Self::Selection => write!(f, "Selection"),
             Self::Validation => write!(f, "Validation"),
         }
     }
 }
 
 /// Persistent dock layout state wrapping `egui_dock::DockState`.
-/// Currently used by tests; active rendering moves here in Scope 4 (tab support).
 #[derive(Resource)]
 pub(crate) struct DockLayoutState {
-    #[allow(dead_code)]
     pub(crate) dock_state: DockState<DockTab>,
 }
 
@@ -558,19 +572,27 @@ impl Default for DockLayoutState {
     }
 }
 
-/// Creates the default four-zone dock layout.
+/// Creates the default four-zone dock layout with 8 content tabs.
 ///
-/// Layout: Left (20%) | Center viewport (~60%) | Right (~20%) | Bottom (~12%)
+/// Layout: Left (20%) | Center viewport (~55%) | Right (~25%) | Bottom (~15%)
 pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
     let mut state = DockState::new(vec![DockTab::Viewport]);
     let tree = state.main_surface_mut();
     let root = egui_dock::NodeIndex::root();
 
-    // Left: ToolPalette gets 20% width.
-    let [center, _left] = tree.split_left(root, 0.20, vec![DockTab::ToolPalette]);
+    // Left: Palette + Design + Rules tabs get 20% width.
+    let [center, _left] = tree.split_left(
+        root,
+        0.20,
+        vec![DockTab::Palette, DockTab::Design, DockTab::Rules],
+    );
 
-    // Right: Inspector gets 25% of remaining width (after left split).
-    let [center, _right] = tree.split_right(center, 0.75, vec![DockTab::Inspector]);
+    // Right: Inspector + Settings + Selection tabs get 25% of remaining width.
+    let [center, _right] = tree.split_right(
+        center,
+        0.75,
+        vec![DockTab::Inspector, DockTab::Settings, DockTab::Selection],
+    );
 
     // Bottom: Validation gets 15% of center height.
     let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);

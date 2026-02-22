@@ -245,25 +245,6 @@ fn tool_mode_click_place_changes_tool() {
 }
 
 // ---------------------------------------------------------------------------
-// Tab Bar
-// ---------------------------------------------------------------------------
-
-#[test]
-fn tab_bar_shows_all_tabs() {
-    let mut state = EditorState::default();
-    let harness = Harness::new_ui(|ui| {
-        systems::render_tab_bar(ui, &mut state);
-    });
-    harness.get_by_label("Types");
-    harness.get_by_label("Enums");
-    harness.get_by_label("Structs");
-    harness.get_by_label("Concepts");
-    harness.get_by_label("Relations");
-    harness.get_by_label_contains("Constr");
-    harness.get_by_label_contains("Valid");
-}
-
-// ---------------------------------------------------------------------------
 // Types Tab (Entity Type Editor)
 // ---------------------------------------------------------------------------
 

@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use crate::contracts::editor_ui::{EditorTool, ToastKind, ViewportMargins};
+use crate::contracts::editor_ui::{EditorTool, ToastKind, ViewportMargins, ViewportRect};
 use crate::contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
@@ -27,27 +27,470 @@ use crate::contracts::mechanics::{
     PlayerOrder, TurnState, TurnStructure,
 };
 
+use egui_dock::DockArea;
+
 use super::components::{
-    BrandTheme, EditorAction, EditorState, GridOverlayVisible, MechanicsParams, OntologyParams,
-    OntologyTab, ProjectParams, SelectionParams, ToastState,
+    BrandTheme, DockLayoutState, DockTab, EditorAction, EditorState, GridOverlayVisible,
+    MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
 };
 
 // ---------------------------------------------------------------------------
 // Zone rendering helpers (Scope 2 — native panel layout)
 // ---------------------------------------------------------------------------
 
-/// Updates `ViewportMargins` from the actual egui panel layout.
-/// Runs after the editor panel system so `available_rect()` reflects all panels.
-pub fn update_viewport_margins(mut contexts: EguiContexts, mut margins: ResMut<ViewportMargins>) {
+/// Updates `ViewportMargins` from the `ViewportRect` set by `editor_dock_system`.
+/// Runs after the dock system so `viewport_rect` has been populated for this frame.
+pub fn update_viewport_margins(
+    mut contexts: EguiContexts,
+    mut margins: ResMut<ViewportMargins>,
+    viewport_rect: Res<ViewportRect>,
+) {
+    let Some(rect) = viewport_rect.0 else {
+        return;
+    };
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
     let screen = ctx.input(bevy_egui::egui::InputState::viewport_rect);
-    let available = ctx.available_rect();
-    margins.left = available.left();
-    margins.top = available.top();
-    margins.right = screen.right() - available.right();
-    margins.bottom = screen.bottom() - available.bottom();
+    margins.left = rect.left();
+    margins.top = rect.top();
+    margins.right = screen.right() - rect.right();
+    margins.bottom = screen.bottom() - rect.bottom();
+}
+
+// ---------------------------------------------------------------------------
+// Dock-based editor (Scope 4 — tab support)
+// ---------------------------------------------------------------------------
+
+/// Viewer context that borrows system resources for the duration of `DockArea::show()`.
+struct EditorDockViewer<'a> {
+    editor_tool: &'a mut EditorTool,
+    editor_state: &'a mut EditorState,
+    active_board: &'a mut ActiveBoardType,
+    active_token: &'a mut ActiveTokenType,
+    multi: &'a crate::contracts::editor_ui::Selection,
+    project_workspace: &'a Workspace,
+    project_game_system: &'a GameSystem,
+    registry: &'a mut EntityTypeRegistry,
+    enum_registry: &'a mut EnumRegistry,
+    struct_registry: &'a mut StructRegistry,
+    concept_registry: &'a mut crate::contracts::ontology::ConceptRegistry,
+    relation_registry: &'a mut crate::contracts::ontology::RelationRegistry,
+    constraint_registry: &'a mut crate::contracts::ontology::ConstraintRegistry,
+    schema_validation: &'a SchemaValidation,
+    turn_structure: &'a mut crate::contracts::mechanics::TurnStructure,
+    combat_results_table: &'a mut CombatResultsTable,
+    combat_modifiers: &'a mut crate::contracts::mechanics::CombatModifierRegistry,
+    next_state: &'a mut NextState<AppScreen>,
+    actions: &'a mut Vec<EditorAction>,
+    viewport_rect: &'a mut ViewportRect,
+}
+
+impl egui_dock::TabViewer for EditorDockViewer<'_> {
+    type Tab = DockTab;
+
+    fn title(&mut self, tab: &mut DockTab) -> egui::WidgetText {
+        tab.to_string().into()
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut DockTab) {
+        match tab {
+            DockTab::Viewport => {
+                self.viewport_rect.0 = Some(ui.max_rect());
+            }
+            DockTab::Palette => {
+                render_workspace_header(ui, self.project_workspace, self.project_game_system);
+                if self.editor_state.toolbar_visible {
+                    render_tool_mode(ui, self.editor_tool);
+                }
+                if ui
+                    .button(
+                        egui::RichText::new("\u{25B6} Play")
+                            .strong()
+                            .color(BrandTheme::SUCCESS),
+                    )
+                    .on_hover_text("Enter play mode to test turns and combat")
+                    .clicked()
+                {
+                    self.next_state.set(AppScreen::Play);
+                }
+                ui.separator();
+                if *self.editor_tool == EditorTool::Paint {
+                    render_cell_palette(ui, self.registry, self.active_board);
+                }
+                if *self.editor_tool == EditorTool::Place {
+                    render_unit_palette(ui, self.registry, self.active_token);
+                }
+            }
+            DockTab::Design => {
+                render_design_tab_bar(ui, self.editor_state);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    match self.editor_state.active_tab {
+                        OntologyTab::Types => {
+                            render_entity_type_editor(
+                                ui,
+                                self.registry,
+                                self.editor_state,
+                                self.actions,
+                                self.enum_registry,
+                                self.struct_registry,
+                            );
+                        }
+                        OntologyTab::Enums => {
+                            render_enums_tab(
+                                ui,
+                                self.enum_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Structs => {
+                            render_structs_tab(
+                                ui,
+                                self.struct_registry,
+                                self.enum_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Concepts => {
+                            render_concepts_tab(
+                                ui,
+                                self.concept_registry,
+                                self.registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Relations => {
+                            render_relations_tab(
+                                ui,
+                                self.relation_registry,
+                                self.concept_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        // If user had a Rules sub-tab selected, show Types as fallback.
+                        _ => {
+                            self.editor_state.active_tab = OntologyTab::Types;
+                            render_entity_type_editor(
+                                ui,
+                                self.registry,
+                                self.editor_state,
+                                self.actions,
+                                self.enum_registry,
+                                self.struct_registry,
+                            );
+                        }
+                    }
+                });
+            }
+            DockTab::Rules => {
+                render_rules_tab_bar(ui, self.editor_state);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    match self.editor_state.active_tab {
+                        OntologyTab::Constraints => {
+                            render_constraints_tab(
+                                ui,
+                                self.constraint_registry,
+                                self.concept_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        OntologyTab::Validation => {
+                            render_validation_tab(ui, self.schema_validation);
+                        }
+                        OntologyTab::Mechanics => {
+                            render_mechanics_tab(
+                                ui,
+                                self.turn_structure,
+                                self.combat_results_table,
+                                self.combat_modifiers,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                        // If user had a Design sub-tab selected, show Constraints as fallback.
+                        _ => {
+                            self.editor_state.active_tab = OntologyTab::Constraints;
+                            render_constraints_tab(
+                                ui,
+                                self.constraint_registry,
+                                self.concept_registry,
+                                self.editor_state,
+                                self.actions,
+                            );
+                        }
+                    }
+                });
+            }
+            DockTab::Inspector => {
+                ui.label(
+                    egui::RichText::new("Inspector")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.separator();
+                ui.label(
+                    egui::RichText::new("Tile/unit inspector (coming soon)")
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            }
+            DockTab::Settings => {
+                ui.label(
+                    egui::RichText::new("Settings")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Font size:");
+                    if ui.button(" \u{2212} ").clicked() && self.editor_state.font_size_base > 10.0
+                    {
+                        self.editor_state.font_size_base -= 1.0;
+                    }
+                    ui.monospace(format!("{}", self.editor_state.font_size_base as i32));
+                    if ui.button(" + ").clicked() && self.editor_state.font_size_base < 24.0 {
+                        self.editor_state.font_size_base += 1.0;
+                    }
+                });
+            }
+            DockTab::Selection => {
+                ui.label(
+                    egui::RichText::new("Selection")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.separator();
+                let count = self.multi.entities.len();
+                if count > 0 {
+                    ui.label(
+                        egui::RichText::new(format!("{count} tiles selected"))
+                            .color(BrandTheme::ACCENT_TEAL),
+                    );
+                } else {
+                    ui.label(egui::RichText::new("No selection").color(BrandTheme::TEXT_SECONDARY));
+                }
+            }
+            DockTab::Validation => {
+                render_validation_tab(ui, self.schema_validation);
+            }
+        }
+    }
+
+    fn closeable(&mut self, tab: &mut DockTab) -> bool {
+        tab.is_closeable()
+    }
+
+    fn clear_background(&self, tab: &DockTab) -> bool {
+        !matches!(tab, DockTab::Viewport)
+    }
+
+    fn allowed_in_windows(&self, _tab: &mut DockTab) -> bool {
+        false // No floating windows (pitch no-go).
+    }
+}
+
+/// Sub-tab bar for the Design dock tab (Types, Enums, Structs, Concepts, Relations).
+fn render_design_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+    ui.horizontal_wrapped(|ui| {
+        for tab in [
+            OntologyTab::Types,
+            OntologyTab::Enums,
+            OntologyTab::Structs,
+            OntologyTab::Concepts,
+            OntologyTab::Relations,
+        ] {
+            let label = match tab {
+                OntologyTab::Types => "Types",
+                OntologyTab::Enums => "Enums",
+                OntologyTab::Structs => "Structs",
+                OntologyTab::Concepts => "Concepts",
+                OntologyTab::Relations => "Relations",
+                _ => continue,
+            };
+            if ui
+                .selectable_label(editor_state.active_tab == tab, label)
+                .clicked()
+            {
+                editor_state.active_tab = tab;
+            }
+        }
+    });
+    ui.separator();
+}
+
+/// Sub-tab bar for the Rules dock tab (Constraints, Validation, Mechanics).
+fn render_rules_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+    ui.horizontal_wrapped(|ui| {
+        for tab in [
+            OntologyTab::Constraints,
+            OntologyTab::Validation,
+            OntologyTab::Mechanics,
+        ] {
+            let label = match tab {
+                OntologyTab::Constraints => "Constraints",
+                OntologyTab::Validation => "Validation",
+                OntologyTab::Mechanics => "Mechanics",
+                _ => continue,
+            };
+            if ui
+                .selectable_label(editor_state.active_tab == tab, label)
+                .clicked()
+            {
+                editor_state.active_tab = tab;
+            }
+        }
+    });
+    ui.separator();
+}
+
+/// Unified dock system. Renders the menu bar as a native `TopBottomPanel`, then
+/// delegates all tabbed content to `DockArea`. Replaces the four separate zone systems.
+#[allow(clippy::too_many_arguments)]
+pub fn editor_dock_system(
+    mut contexts: EguiContexts,
+    mut editor_tool: ResMut<EditorTool>,
+    mut selection: SelectionParams,
+    mut editor_state: ResMut<EditorState>,
+    project: ProjectParams,
+    mut registry: ResMut<EntityTypeRegistry>,
+    mut enum_registry: ResMut<EnumRegistry>,
+    mut struct_registry: ResMut<StructRegistry>,
+    mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
+    mut commands: Commands,
+    mut ontology: OntologyParams,
+    mut mechanics: MechanicsParams,
+    mut next_state: ResMut<NextState<AppScreen>>,
+    mut dock_layout: ResMut<DockLayoutState>,
+    mut viewport_rect: ResMut<ViewportRect>,
+    validation: Res<SchemaValidation>,
+) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+
+    // Menu bar as native TopBottomPanel (above dock area).
+    egui::TopBottomPanel::top("editor_menu_bar").show(ctx, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New          Cmd+N").clicked() {
+                    commands.trigger(CloseProjectEvent);
+                    ui.close();
+                }
+                if ui.button("Open...      Cmd+O").clicked() {
+                    commands.trigger(LoadRequestEvent);
+                    ui.close();
+                }
+                ui.separator();
+                if ui.button("Save         Cmd+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: false });
+                    ui.close();
+                }
+                if ui.button("Save As...   Cmd+Shift+S").clicked() {
+                    commands.trigger(SaveRequestEvent { save_as: true });
+                    ui.close();
+                }
+                ui.separator();
+                if ui.button("Close        Cmd+W").clicked() {
+                    commands.trigger(CommandExecutedEvent {
+                        command_id: CommandId("mode.close"),
+                    });
+                    ui.close();
+                }
+            });
+            ui.menu_button("Help", |ui| {
+                if ui.button("About Hexorder").clicked() {
+                    editor_state.about_panel_visible = true;
+                    ui.close();
+                }
+            });
+        });
+    });
+
+    // About panel (modal, renders over everything).
+    render_about_panel(ctx, &mut editor_state);
+
+    let mut actions: Vec<EditorAction> = Vec::new();
+
+    // DockArea for all tabbed content.
+    let mut viewer = EditorDockViewer {
+        editor_tool: &mut editor_tool,
+        editor_state: &mut editor_state,
+        active_board: &mut selection.active_board,
+        active_token: &mut selection.active_token,
+        multi: &selection.multi,
+        project_workspace: &project.workspace,
+        project_game_system: &project.game_system,
+        registry: &mut registry,
+        enum_registry: &mut enum_registry,
+        struct_registry: &mut struct_registry,
+        concept_registry: &mut ontology.concept_registry,
+        relation_registry: &mut ontology.relation_registry,
+        constraint_registry: &mut ontology.constraint_registry,
+        schema_validation: &validation,
+        turn_structure: &mut mechanics.turn_structure,
+        combat_results_table: &mut mechanics.combat_results_table,
+        combat_modifiers: &mut mechanics.combat_modifiers,
+        next_state: &mut next_state,
+        actions: &mut actions,
+        viewport_rect: &mut viewport_rect,
+    };
+
+    // Configure dock area style to match brand theme.
+    let mut style = egui_dock::Style::from_egui(ctx.style().as_ref());
+    // Tab bar background.
+    style.tab_bar.bg_fill = BrandTheme::BG_DEEP;
+    style.tab_bar.hline_color = BrandTheme::BORDER_SUBTLE;
+    // Tab body background.
+    style.tab.tab_body.bg_fill = BrandTheme::BG_PANEL;
+    // Active/focused tab.
+    style.tab.active.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.active.bg_fill = BrandTheme::BG_PANEL;
+    style.tab.focused.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.focused.bg_fill = BrandTheme::BG_PANEL;
+    // Inactive tab.
+    style.tab.inactive.text_color = BrandTheme::TEXT_SECONDARY;
+    style.tab.inactive.bg_fill = BrandTheme::BG_DEEP;
+    // Hovered tab.
+    style.tab.hovered.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.hovered.bg_fill = BrandTheme::BG_SURFACE;
+    // Separator (between dock zones).
+    style.separator.color_idle = BrandTheme::BORDER_SUBTLE;
+    style.separator.color_hovered = BrandTheme::ACCENT_TEAL;
+    style.separator.color_dragged = BrandTheme::ACCENT_TEAL;
+    // Overlay (drag-to-dock indicators).
+    style.overlay.selection_color = egui::Color32::from_rgba_premultiplied(0, 92, 128, 80);
+
+    DockArea::new(&mut dock_layout.dock_state)
+        .style(style)
+        .draggable_tabs(true)
+        .show_close_buttons(true)
+        .show_leaf_close_all_buttons(false)
+        .show_leaf_collapse_buttons(false)
+        .show(ctx, &mut viewer);
+
+    // Apply deferred actions.
+    apply_actions(
+        actions,
+        &mut registry,
+        &mut enum_registry,
+        &mut struct_registry,
+        &mut tile_data_query,
+        &mut selection.active_board,
+        &mut selection.active_token,
+        &mut selection.selected_unit,
+        &editor_state,
+        &mut commands,
+        &mut ontology.concept_registry,
+        &mut ontology.relation_registry,
+        &mut ontology.constraint_registry,
+        &mut mechanics.turn_structure,
+        &mut mechanics.combat_results_table,
+        &mut mechanics.combat_modifiers,
+    );
 }
 
 /// Debug inspector as a right-side panel.
@@ -348,273 +791,6 @@ pub fn launcher_system(
                 }
             });
         });
-}
-
-/// Menu bar system. Renders the file menu bar (top zone) and about modal.
-pub fn editor_menu_system(
-    mut contexts: EguiContexts,
-    mut editor_state: ResMut<EditorState>,
-    mut commands: Commands,
-) {
-    let Ok(ctx) = contexts.ctx_mut() else {
-        return;
-    };
-
-    egui::TopBottomPanel::top("file_menu_bar").show(ctx, |ui| {
-        egui::MenuBar::new().ui(ui, |ui| {
-            ui.menu_button("File", |ui| {
-                if ui.button("New          Cmd+N").clicked() {
-                    commands.trigger(CloseProjectEvent);
-                    ui.close();
-                }
-                if ui.button("Open...      Cmd+O").clicked() {
-                    commands.trigger(LoadRequestEvent);
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Save         Cmd+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: false });
-                    ui.close();
-                }
-                if ui.button("Save As...   Cmd+Shift+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: true });
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Close        Cmd+W").clicked() {
-                    commands.trigger(CommandExecutedEvent {
-                        command_id: CommandId("mode.close"),
-                    });
-                    ui.close();
-                }
-            });
-            ui.menu_button("Help", |ui| {
-                if ui.button("About Hexorder").clicked() {
-                    editor_state.about_panel_visible = true;
-                    ui.close();
-                }
-            });
-        });
-    });
-
-    render_about_panel(ctx, &mut editor_state);
-}
-
-/// Validation panel system. Renders the validation bottom zone.
-pub fn editor_validation_system(mut contexts: EguiContexts, validation: Res<SchemaValidation>) {
-    let Ok(ctx) = contexts.ctx_mut() else {
-        return;
-    };
-
-    egui::TopBottomPanel::bottom("validation_zone")
-        .default_height(100.0)
-        .resizable(true)
-        .show(ctx, |ui| {
-            render_validation_tab(ui, &validation);
-        });
-}
-
-/// Inspector panel system. Renders the inspector right zone.
-pub fn editor_inspector_system(mut contexts: EguiContexts, _editor_state: Res<EditorState>) {
-    let Ok(ctx) = contexts.ctx_mut() else {
-        return;
-    };
-
-    egui::SidePanel::right("inspector_zone")
-        .default_width(200.0)
-        .resizable(true)
-        .show(ctx, |ui| {
-            ui.label(
-                egui::RichText::new("Inspector")
-                    .strong()
-                    .color(BrandTheme::ACCENT_AMBER),
-            );
-            ui.separator();
-            ui.label(
-                egui::RichText::new("Tile/unit inspector (Scope 3)")
-                    .color(BrandTheme::TEXT_SECONDARY),
-            );
-        });
-}
-
-/// Tool palette system. Renders the left zone with tab content and apply-actions.
-///
-/// This system retains all tab rendering and the deferred action pattern.
-/// Decomposing tabs into individual systems requires converting the local
-/// `Vec<EditorAction>` to a shared resource or event — that is Scope 4 work.
-#[allow(clippy::too_many_arguments)]
-pub fn editor_tool_palette_system(
-    mut contexts: EguiContexts,
-    mut editor_tool: ResMut<EditorTool>,
-    mut selection: SelectionParams,
-    mut editor_state: ResMut<EditorState>,
-    project: ProjectParams,
-    mut registry: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
-    mut tile_data_query: Query<&mut EntityData, Without<UnitInstance>>,
-    mut commands: Commands,
-    mut ontology: OntologyParams,
-    mut mechanics: MechanicsParams,
-    mut next_state: ResMut<NextState<AppScreen>>,
-) {
-    let Ok(ctx) = contexts.ctx_mut() else {
-        return;
-    };
-
-    let mut actions: Vec<EditorAction> = Vec::new();
-
-    egui::SidePanel::left("tool_palette_zone")
-        .default_width(200.0)
-        .resizable(true)
-        .show(ctx, |ui| {
-            render_workspace_header(ui, &project.workspace, &project.game_system);
-
-            if editor_state.toolbar_visible {
-                render_tool_mode(ui, &mut editor_tool);
-            }
-
-            // Play Mode Toggle.
-            if ui
-                .button(
-                    egui::RichText::new("\u{25B6} Play")
-                        .strong()
-                        .color(BrandTheme::SUCCESS),
-                )
-                .on_hover_text("Enter play mode to test turns and combat")
-                .clicked()
-            {
-                next_state.set(AppScreen::Play);
-            }
-            ui.separator();
-
-            render_tab_bar(ui, &mut editor_state);
-
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                match editor_state.active_tab {
-                    OntologyTab::Types => {
-                        render_entity_type_editor(
-                            ui,
-                            &mut registry,
-                            &mut editor_state,
-                            &mut actions,
-                            &enum_registry,
-                            &struct_registry,
-                        );
-                    }
-                    OntologyTab::Enums => {
-                        render_enums_tab(ui, &enum_registry, &mut editor_state, &mut actions);
-                    }
-                    OntologyTab::Structs => {
-                        render_structs_tab(
-                            ui,
-                            &struct_registry,
-                            &enum_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Concepts => {
-                        render_concepts_tab(
-                            ui,
-                            &mut ontology.concept_registry,
-                            &registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Relations => {
-                        render_relations_tab(
-                            ui,
-                            &mut ontology.relation_registry,
-                            &ontology.concept_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Constraints => {
-                        render_constraints_tab(
-                            ui,
-                            &mut ontology.constraint_registry,
-                            &ontology.concept_registry,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                    OntologyTab::Validation => {
-                        render_validation_tab(ui, &ontology.schema_validation);
-                    }
-                    OntologyTab::Mechanics => {
-                        render_mechanics_tab(
-                            ui,
-                            &mechanics.turn_structure,
-                            &mechanics.combat_results_table,
-                            &mechanics.combat_modifiers,
-                            &mut editor_state,
-                            &mut actions,
-                        );
-                    }
-                }
-
-                ui.separator();
-
-                if *editor_tool == EditorTool::Paint {
-                    render_cell_palette(ui, &registry, &mut selection.active_board);
-                }
-
-                if *editor_tool == EditorTool::Place {
-                    render_unit_palette(ui, &registry, &mut selection.active_token);
-                }
-
-                egui::CollapsingHeader::new(
-                    egui::RichText::new("Settings").color(BrandTheme::TEXT_SECONDARY),
-                )
-                .default_open(false)
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Font size:");
-                        if ui.button(" − ").clicked() && editor_state.font_size_base > 10.0 {
-                            editor_state.font_size_base -= 1.0;
-                        }
-                        ui.monospace(format!("{}", editor_state.font_size_base as i32));
-                        if ui.button(" + ").clicked() && editor_state.font_size_base < 24.0 {
-                            editor_state.font_size_base += 1.0;
-                        }
-                    });
-                });
-
-                if selection.multi.entities.len() > 1 {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{} tiles selected",
-                            selection.multi.entities.len()
-                        ))
-                        .color(BrandTheme::ACCENT_TEAL),
-                    );
-                    ui.separator();
-                }
-            });
-        });
-
-    // -- Apply deferred actions --
-    apply_actions(
-        actions,
-        &mut registry,
-        &mut enum_registry,
-        &mut struct_registry,
-        &mut tile_data_query,
-        &mut selection.active_board,
-        &mut selection.active_token,
-        &mut selection.selected_unit,
-        &editor_state,
-        &mut commands,
-        &mut ontology.concept_registry,
-        &mut ontology.relation_registry,
-        &mut ontology.constraint_registry,
-        &mut mechanics.turn_structure,
-        &mut mechanics.combat_results_table,
-        &mut mechanics.combat_modifiers,
-    );
 }
 
 /// Play mode panel system. Shows the turn tracker, combat panel, and mode toggle.
@@ -1155,55 +1331,6 @@ pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) 
             .clicked()
         {
             *editor_tool = EditorTool::Place;
-        }
-    });
-    ui.separator();
-}
-
-pub(crate) fn render_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorState) {
-    ui.horizontal_wrapped(|ui| {
-        for tab in [
-            OntologyTab::Types,
-            OntologyTab::Enums,
-            OntologyTab::Structs,
-            OntologyTab::Concepts,
-            OntologyTab::Relations,
-            OntologyTab::Constraints,
-            OntologyTab::Validation,
-            OntologyTab::Mechanics,
-        ] {
-            let label = match tab {
-                OntologyTab::Types => "Types",
-                OntologyTab::Enums => "Enums",
-                OntologyTab::Structs => "Structs",
-                OntologyTab::Concepts => "Concepts",
-                OntologyTab::Relations => "Relations",
-                OntologyTab::Constraints => "Constr.",
-                OntologyTab::Validation => "Valid.",
-                OntologyTab::Mechanics => "Mech.",
-            };
-            let tooltip = match tab {
-                OntologyTab::Types => "Define entity types and their properties",
-                OntologyTab::Enums => "Define enumeration types for properties",
-                OntologyTab::Structs => "Define composite struct types",
-                OntologyTab::Concepts => "Define abstract concepts and roles",
-                OntologyTab::Relations => "Define relationships between concepts",
-                OntologyTab::Constraints => "Define validation constraints",
-                OntologyTab::Validation => "Run schema validation checks",
-                OntologyTab::Mechanics => "Configure game mechanics and combat",
-            };
-            let text = if editor_state.active_tab == tab {
-                egui::RichText::new(label).color(BrandTheme::ACCENT_AMBER)
-            } else {
-                egui::RichText::new(label)
-            };
-            if ui
-                .selectable_label(editor_state.active_tab == tab, text)
-                .on_hover_text(tooltip)
-                .clicked()
-            {
-                editor_state.active_tab = tab;
-            }
         }
     });
     ui.separator();

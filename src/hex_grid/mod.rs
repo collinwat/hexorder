@@ -3,13 +3,12 @@
 //! Spawns a hexagonal grid on the XZ ground plane, handles tile selection
 //! via mouse click, and provides hover feedback.
 
-use bevy::prelude::*;
-use bevy_egui::input::egui_wants_any_pointer_input;
-
+use crate::contracts::editor_ui::pointer_over_ui_panel;
 use crate::contracts::persistence::AppScreen;
 use crate::contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
+use bevy::prelude::*;
 
 #[allow(dead_code)]
 mod algorithms;
@@ -40,8 +39,8 @@ impl Plugin for HexGridPlugin {
         .add_systems(
             Update,
             (
-                systems::update_hover.run_if(not(egui_wants_any_pointer_input)),
-                systems::handle_click.run_if(not(egui_wants_any_pointer_input)),
+                systems::update_hover.run_if(not(pointer_over_ui_panel)),
+                systems::handle_click.run_if(not(pointer_over_ui_panel)),
                 systems::update_indicators,
                 systems::sync_multi_select_indicators,
                 systems::sync_move_overlays,

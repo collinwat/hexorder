@@ -5,9 +5,9 @@
 //! No rotation is permitted.
 
 use bevy::prelude::*;
-use bevy_egui::input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input};
+use bevy_egui::input::egui_wants_any_keyboard_input;
 
-use crate::contracts::editor_ui::ViewportMargins;
+use crate::contracts::editor_ui::{ViewportMargins, pointer_over_ui_panel};
 use crate::contracts::persistence::AppScreen;
 use crate::contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
@@ -61,10 +61,10 @@ impl Plugin for CameraPlugin {
                         .run_if(not(egui_wants_any_keyboard_input)),
                     systems::mouse_pan
                         .in_set(CameraSet::Input)
-                        .run_if(not(egui_wants_any_pointer_input)),
+                        .run_if(not(pointer_over_ui_panel)),
                     systems::scroll_zoom
                         .in_set(CameraSet::Input)
-                        .run_if(not(egui_wants_any_pointer_input)),
+                        .run_if(not(pointer_over_ui_panel)),
                     systems::compensate_resize.in_set(CameraSet::Apply),
                     systems::smooth_camera
                         .in_set(CameraSet::Apply)

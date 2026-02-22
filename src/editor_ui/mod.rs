@@ -7,7 +7,9 @@ use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
 use bevy_egui::{EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass};
 
-use crate::contracts::editor_ui::{EditorTool, Selection, ToastEvent, ViewportMargins};
+use crate::contracts::editor_ui::{
+    EditorTool, Selection, ToastEvent, ViewportMargins, ViewportRect,
+};
 use crate::contracts::game_system::SelectedUnit;
 use crate::contracts::hex_grid::HexTile;
 use crate::contracts::mechanics::{ActiveCombat, TurnState};
@@ -51,6 +53,7 @@ impl Plugin for EditorUiPlugin {
         app.insert_resource(components::EditorState::default());
         app.init_resource::<Selection>();
         app.init_resource::<components::DockLayoutState>();
+        app.init_resource::<ViewportRect>();
         app.init_resource::<components::ToastState>();
         app.init_resource::<components::GridOverlayVisible>();
         app.init_resource::<ConceptRegistry>();
@@ -67,19 +70,14 @@ impl Plugin for EditorUiPlugin {
             EguiPrimaryContextPass,
             systems::launcher_system.run_if(in_state(AppScreen::Launcher)),
         );
-        // Editor panels shown only in Editor state.
-        // Four independent systems, chained so each panel claims its zone in order:
-        // menu bar (top) → validation (bottom) → tool palette (left) → inspector (right).
-        // When the inspector feature is enabled, chain the debug panel before
-        // update_viewport_margins so available_rect() reflects both side panels.
+        // Editor dock system shown only in Editor state.
+        // Single DockArea system replaces the four separate zone systems.
+        // When the inspector feature is enabled, chain the debug panel after.
         #[cfg(not(feature = "inspector"))]
         app.add_systems(
             EguiPrimaryContextPass,
             (
-                systems::editor_menu_system,
-                systems::editor_validation_system,
-                systems::editor_tool_palette_system,
-                systems::editor_inspector_system,
+                systems::editor_dock_system,
                 systems::update_viewport_margins,
             )
                 .chain()
@@ -89,10 +87,7 @@ impl Plugin for EditorUiPlugin {
         app.add_systems(
             EguiPrimaryContextPass,
             (
-                systems::editor_menu_system,
-                systems::editor_validation_system,
-                systems::editor_tool_palette_system,
-                systems::editor_inspector_system,
+                systems::editor_dock_system,
                 systems::debug_inspector_panel,
                 systems::update_viewport_margins,
             )

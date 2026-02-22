@@ -356,16 +356,21 @@ use super::components::{DockLayoutState, DockTab};
 
 #[test]
 fn dock_tab_variants_are_distinct() {
-    assert_ne!(DockTab::Viewport, DockTab::ToolPalette);
+    assert_ne!(DockTab::Viewport, DockTab::Palette);
+    assert_ne!(DockTab::Viewport, DockTab::Design);
+    assert_ne!(DockTab::Viewport, DockTab::Rules);
     assert_ne!(DockTab::Viewport, DockTab::Inspector);
+    assert_ne!(DockTab::Viewport, DockTab::Settings);
+    assert_ne!(DockTab::Viewport, DockTab::Selection);
     assert_ne!(DockTab::Viewport, DockTab::Validation);
-    assert_ne!(DockTab::ToolPalette, DockTab::Inspector);
-    assert_ne!(DockTab::ToolPalette, DockTab::Validation);
-    assert_ne!(DockTab::Inspector, DockTab::Validation);
+    assert_ne!(DockTab::Palette, DockTab::Design);
+    assert_ne!(DockTab::Design, DockTab::Rules);
+    assert_ne!(DockTab::Inspector, DockTab::Settings);
+    assert_ne!(DockTab::Settings, DockTab::Selection);
 }
 
 #[test]
-fn dock_layout_creates_four_zones() {
+fn dock_layout_creates_default_layout() {
     let state = super::components::create_default_dock_layout();
     // Collect all tabs across the dock state's main surface.
     let mut tabs = Vec::new();
@@ -376,11 +381,27 @@ fn dock_layout_creates_four_zones() {
             }
         }
     }
-    assert_eq!(tabs.len(), 4);
+    assert_eq!(tabs.len(), 8);
     assert!(tabs.contains(&DockTab::Viewport));
-    assert!(tabs.contains(&DockTab::ToolPalette));
+    assert!(tabs.contains(&DockTab::Palette));
+    assert!(tabs.contains(&DockTab::Design));
+    assert!(tabs.contains(&DockTab::Rules));
     assert!(tabs.contains(&DockTab::Inspector));
+    assert!(tabs.contains(&DockTab::Settings));
+    assert!(tabs.contains(&DockTab::Selection));
     assert!(tabs.contains(&DockTab::Validation));
+}
+
+#[test]
+fn viewport_tab_is_not_closeable() {
+    assert!(!DockTab::Viewport.is_closeable());
+    assert!(DockTab::Palette.is_closeable());
+    assert!(DockTab::Design.is_closeable());
+    assert!(DockTab::Rules.is_closeable());
+    assert!(DockTab::Inspector.is_closeable());
+    assert!(DockTab::Settings.is_closeable());
+    assert!(DockTab::Selection.is_closeable());
+    assert!(DockTab::Validation.is_closeable());
 }
 
 #[test]
@@ -390,12 +411,12 @@ fn dock_layout_state_resource_inserts_correctly() {
     app.update();
 
     let state = app.world().resource::<DockLayoutState>();
-    // Verify the default layout created 4 tabs.
+    // Verify the default layout created 8 tabs.
     let mut count = 0;
     for node in state.dock_state.main_surface().iter() {
         if let Some(tabs) = node.tabs() {
             count += tabs.len();
         }
     }
-    assert_eq!(count, 4);
+    assert_eq!(count, 8);
 }
