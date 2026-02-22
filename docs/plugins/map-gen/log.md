@@ -102,8 +102,9 @@ Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unw
 - Hex-edge contract extension (#150) — required for rivers and roads
 - River placement (#151) — hammered from Scope 3, depends on hex-edge contract
 - Road networks (#152) — hammered from Scope 4, depends on hex-edge contract
-- Background threading for large maps (>1000 hexes) — deferred per pitch rabbit hole guidance
-- Display + Error impl for BiomeTableError — nice to have for future UI integration
+- Background threading for large maps (#153) — deferred per pitch rabbit hole guidance
+- Display + Error impl for BiomeTableError (#154) — nice to have for future UI integration
+- Multi-page or infinite map generation (#155)
 
 ## Status Updates
 

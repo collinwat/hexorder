@@ -91,4 +91,6 @@ rivers/roads).
 - Temperature and moisture axes for biome selection (#102 No Go)
 - City/town auto-placement (#102 No Go)
 - Historical map import / real-world elevation data (#102 No Go)
-- Multi-page generation or infinite maps
+- Multi-page or infinite map generation (#155)
+- Background threading for large maps (#153)
+- Display + Error impl for BiomeTableError (#154)
