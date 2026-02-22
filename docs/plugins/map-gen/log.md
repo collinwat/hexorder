@@ -1,6 +1,6 @@
 # Plugin Log: map_gen
 
-## Status: building (Scopes 1-2, 5 complete)
+## Status: building (Scopes 1-2, 5 complete; Scope 6 in progress)
 
 ## Decision Log
 
@@ -55,6 +55,19 @@ violation. A standalone window respects plugin boundaries, is self-contained, an
 moved/resized by the user. **Alternatives rejected**: Dock tab (boundary violation), contract
 extension for dock registration (over-engineering for one panel).
 
+### 2026-02-22 — Scopes 3-4 closed, hex-edge reframed as tool primitive
+
+**Context**: Scopes 3 (rivers) and 4 (roads) were originally hammered citing missing hex-edge
+contract. Issue #150 was reframed: #151 (rivers) and #152 (roads) closed as won't-fix because they
+embed game mechanics into tool-level infrastructure. Constitution on main now establishes a Tool /
+Game Boundary with three layers: primitives (game-neutral spatial infrastructure), scaffolding
+(optional genre-specific starter content), and game mechanics (user-defined rules, never hardcoded).
+**Decision**: Add Scope 6 — hex-edge contract as a tool primitive. Provides spatial modeling (edge
+identity, adjacency, annotation slots) with annotations resolving against `EntityTypeRegistry`. No
+hardcoded edge feature types. **Rationale**: Hex edges are a legitimate spatial primitive any hex
+game might need. What edges mean (crossing costs, movement bonuses) is a game mechanic the designer
+defines.
+
 ## Test Results
 
 ### 2026-02-22 — Scope 1 complete
@@ -99,9 +112,8 @@ Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unw
 
 ## Deferred / Future Work
 
-- Hex-edge contract extension (#150) — required for rivers and roads
-- River placement (#151) — hammered from Scope 3, depends on hex-edge contract
-- Road networks (#152) — hammered from Scope 4, depends on hex-edge contract
+- ~~River placement (#151)~~ — closed as won't-fix (game-specific mechanic)
+- ~~Road networks (#152)~~ — closed as won't-fix (game-specific mechanic)
 - Background threading for large maps (#153) — deferred per pitch rabbit hole guidance
 - Display + Error impl for BiomeTableError (#154) — nice to have for future UI integration
 - Multi-page or infinite map generation (#155)
@@ -114,3 +126,4 @@ Full suite: 318 tests pass. Zero clippy warnings. No boundary violations. No unw
 | 2026-02-22 | building  | Scope 1 complete — heightmap + biome table (+651)   |
 | 2026-02-22 | building  | Scope 5 complete — UI panel with parameter controls |
 | 2026-02-22 | finishing | Scopes 3-4 hammered — hex-edge contract needed      |
+| 2026-02-22 | building  | Scopes 3-4 closed (won't-fix); Scope 6 added (#150) |
