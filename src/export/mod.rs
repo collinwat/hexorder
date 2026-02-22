@@ -15,6 +15,7 @@ use crate::contracts::shortcuts::{
 };
 
 pub(crate) mod counter_sheet;
+pub(crate) mod hex_map;
 mod systems;
 
 #[cfg(test)]

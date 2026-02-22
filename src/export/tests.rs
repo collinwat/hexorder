@@ -346,6 +346,150 @@ fn format_property_value_skips_non_displayable() {
 }
 
 // ---------------------------------------------------------------------------
+// Hex Map Tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn hex_map_exports_pdf_bytes() {
+    use hex_map::HexMapExporter;
+
+    let exporter = HexMapExporter::default();
+    let data = test_export_data();
+
+    let output = exporter.export(&data).expect("export should succeed");
+    assert_eq!(output.files.len(), 1);
+    assert_eq!(output.files[0].name, "hex-map");
+    assert_eq!(output.files[0].extension, "pdf");
+
+    // PDF files start with %PDF header.
+    assert!(
+        output.files[0].data.starts_with(b"%PDF"),
+        "output should be a valid PDF"
+    );
+    assert!(
+        output.files[0].data.len() > 100,
+        "PDF should have meaningful content"
+    );
+}
+
+#[test]
+fn hex_map_fails_on_empty_state() {
+    use hex_map::HexMapExporter;
+
+    let exporter = HexMapExporter::default();
+    let data = ExportData {
+        entity_types: vec![],
+        board_entities: vec![],
+        token_entities: vec![],
+        grid_config: GridSnapshot {
+            map_radius: 0,
+            pointy_top: true,
+        },
+    };
+
+    let result = exporter.export(&data);
+    assert!(result.is_err());
+}
+
+#[test]
+fn hex_map_renders_flat_top_orientation() {
+    use hex_map::HexMapExporter;
+
+    let exporter = HexMapExporter::default();
+    let mut data = test_export_data();
+    data.grid_config.pointy_top = false;
+
+    let output = exporter
+        .export(&data)
+        .expect("flat-top export should succeed");
+    assert!(output.files[0].data.starts_with(b"%PDF"));
+}
+
+#[test]
+fn hex_map_all_counter_sizes_produce_valid_pdf() {
+    use counter_sheet::CounterSize;
+    use hex_map::HexMapExporter;
+
+    // Use radius 2 so even the largest counter size fits on one page.
+    let mut data = test_export_data();
+    data.grid_config.map_radius = 2;
+
+    for size in [
+        CounterSize::Half,
+        CounterSize::FiveEighths,
+        CounterSize::ThreeQuarters,
+    ] {
+        let exporter = HexMapExporter { counter_size: size };
+        let output = exporter
+            .export(&data)
+            .unwrap_or_else(|_| panic!("export should succeed for size {size:?}"));
+        assert!(
+            output.files[0].data.starts_with(b"%PDF"),
+            "size {size:?} should produce valid PDF"
+        );
+    }
+}
+
+#[test]
+fn hex_map_colors_board_entities() {
+    use crate::contracts::game_system::{EntityRole, EntityType, TypeId};
+    use hex_map::HexMapExporter;
+
+    let board_type_id = TypeId::new();
+    let data = ExportData {
+        entity_types: vec![EntityType {
+            id: board_type_id,
+            name: "Forest".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.1, 0.5, 0.1),
+            properties: vec![],
+        }],
+        board_entities: vec![
+            (
+                HexPosition::new(0, 0),
+                EntityData {
+                    entity_type_id: board_type_id,
+                    properties: std::collections::HashMap::new(),
+                },
+            ),
+            (
+                HexPosition::new(1, 0),
+                EntityData {
+                    entity_type_id: board_type_id,
+                    properties: std::collections::HashMap::new(),
+                },
+            ),
+        ],
+        token_entities: vec![],
+        grid_config: GridSnapshot {
+            map_radius: 2,
+            pointy_top: true,
+        },
+    };
+
+    let exporter = HexMapExporter::default();
+    let output = exporter
+        .export(&data)
+        .expect("export with board entities should succeed");
+    assert!(output.files[0].data.starts_with(b"%PDF"));
+}
+
+#[test]
+fn hex_map_rejects_oversized_grid() {
+    use counter_sheet::CounterSize;
+    use hex_map::HexMapExporter;
+
+    let exporter = HexMapExporter {
+        counter_size: CounterSize::ThreeQuarters,
+    };
+    let mut data = test_export_data();
+    data.grid_config.map_radius = 10;
+
+    let result = exporter.export(&data);
+    assert!(result.is_err(), "large grid should exceed page area");
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
