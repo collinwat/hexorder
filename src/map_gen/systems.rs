@@ -7,8 +7,10 @@ use bevy::prelude::*;
 use crate::contracts::game_system::{EntityData, EntityRole, EntityTypeRegistry, PropertyValue};
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 
-use super::biome::{apply_biome_table, validate_biome_table};
-use super::components::{BiomeTable, GenerateMap, MapGenParams};
+use crate::contracts::map_gen::{GenerateMap, MapGenParams};
+
+use super::biome::{apply_biome_table_indexed, validate_biome_table};
+use super::components::BiomeTable;
 use super::heightmap::generate_heightmap;
 
 /// System that runs when `GenerateMap` resource is present.
@@ -47,34 +49,34 @@ pub fn run_generation(
     // Generate heightmap.
     let heightmap = generate_heightmap(&params, &positions, &grid_config.layout);
 
-    // Apply biome table to get terrain names.
-    let terrain_names = apply_biome_table(&heightmap, &biome_table);
+    // Apply biome table to get entry indices per position.
+    let biome_indices = apply_biome_table_indexed(&heightmap, &biome_table);
 
-    // Build name-to-TypeId lookup for BoardPosition entity types.
-    let name_to_type: HashMap<&str, _> = registry
-        .types_by_role(EntityRole::BoardPosition)
-        .into_iter()
-        .map(|et| (et.name.as_str(), et))
-        .collect();
+    // Collect BoardPosition entity types in a stable order for ordinal mapping.
+    // The Nth biome entry maps to the Nth BoardPosition type.
+    let board_types: Vec<_> = registry.types_by_role(EntityRole::BoardPosition);
+
+    if board_types.is_empty() {
+        warn!("No BoardPosition entity types in registry -- skipping map generation");
+        commands.remove_resource::<GenerateMap>();
+        return;
+    }
 
     // Write EntityData to tiles.
     for (pos, mut entity_data) in &mut tiles {
-        if let Some(terrain_name) = terrain_names.get(pos) {
-            if let Some(entity_type) = name_to_type.get(terrain_name.as_str()) {
-                let new_properties: HashMap<_, _> = entity_type
-                    .properties
-                    .iter()
-                    .map(|pd| (pd.id, PropertyValue::default_for(&pd.property_type)))
-                    .collect();
+        if let Some(&biome_index) = biome_indices.get(pos) {
+            // Clamp index to available types (wraps if more biome entries than types).
+            let type_index = biome_index % board_types.len();
+            let entity_type = board_types[type_index];
 
-                entity_data.entity_type_id = entity_type.id;
-                entity_data.properties = new_properties;
-            } else {
-                warn!(
-                    "Biome table references terrain '{}' not found in registry",
-                    terrain_name
-                );
-            }
+            let new_properties: HashMap<_, _> = entity_type
+                .properties
+                .iter()
+                .map(|pd| (pd.id, PropertyValue::default_for(&pd.property_type)))
+                .collect();
+
+            entity_data.entity_type_id = entity_type.id;
+            entity_data.properties = new_properties;
         }
     }
 

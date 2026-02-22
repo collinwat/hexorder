@@ -11,6 +11,8 @@ pub mod game_system;
 #[allow(dead_code)]
 pub mod hex_grid;
 #[allow(dead_code)]
+pub mod map_gen;
+#[allow(dead_code)]
 pub mod mechanic_reference;
 #[allow(dead_code)]
 pub mod mechanics;

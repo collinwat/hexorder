@@ -9,6 +9,7 @@ use super::components::{BiomeEntry, BiomeTable};
 /// Look up the terrain name for a given elevation value.
 ///
 /// Returns `None` if no biome entry covers the given elevation.
+#[cfg(test)]
 pub fn lookup_biome(table: &BiomeTable, elevation: f64) -> Option<&str> {
     for (i, entry) in table.entries.iter().enumerate() {
         let is_last = i == table.entries.len() - 1;
@@ -27,10 +28,28 @@ pub fn lookup_biome(table: &BiomeTable, elevation: f64) -> Option<&str> {
     None
 }
 
+/// Look up the biome entry index for a given elevation value.
+///
+/// Returns `None` if no biome entry covers the given elevation.
+pub fn lookup_biome_index(table: &BiomeTable, elevation: f64) -> Option<usize> {
+    for (i, entry) in table.entries.iter().enumerate() {
+        let is_last = i == table.entries.len() - 1;
+        if is_last {
+            if elevation >= entry.min_elevation && elevation <= entry.max_elevation {
+                return Some(i);
+            }
+        } else if elevation >= entry.min_elevation && elevation < entry.max_elevation {
+            return Some(i);
+        }
+    }
+    None
+}
+
 /// Apply a biome table to a heightmap, returning terrain names per hex position.
 ///
 /// Positions whose elevation doesn't match any biome entry are omitted from
 /// the result.
+#[cfg(test)]
 pub fn apply_biome_table(
     heightmap: &HashMap<HexPosition, f64>,
     table: &BiomeTable,
@@ -40,6 +59,25 @@ pub fn apply_biome_table(
     for (&pos, &elevation) in heightmap {
         if let Some(name) = lookup_biome(table, elevation) {
             result.insert(pos, name.to_string());
+        }
+    }
+
+    result
+}
+
+/// Apply a biome table to a heightmap, returning biome entry indices per hex
+/// position. Used for ordinal mapping to entity types.
+///
+/// Positions whose elevation doesn't match any biome entry are omitted.
+pub fn apply_biome_table_indexed(
+    heightmap: &HashMap<HexPosition, f64>,
+    table: &BiomeTable,
+) -> HashMap<HexPosition, usize> {
+    let mut result = HashMap::with_capacity(heightmap.len());
+
+    for (&pos, &elevation) in heightmap {
+        if let Some(index) = lookup_biome_index(table, elevation) {
+            result.insert(pos, index);
         }
     }
 

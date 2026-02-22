@@ -6,7 +6,7 @@ use noise::{NoiseFn, Perlin};
 
 use crate::contracts::hex_grid::HexPosition;
 
-use super::components::MapGenParams;
+use crate::contracts::map_gen::MapGenParams;
 
 /// Generate a heightmap for the given hex positions.
 ///
