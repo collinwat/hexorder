@@ -47,6 +47,7 @@ pub fn configure_bounds_from_grid(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
     mut cameras: Query<&mut Camera, With<TopDownCamera>>,
+    margins: Res<ViewportMargins>,
 ) {
     // Always request a deferred reset so centering happens once margins are known,
     // even if grid config isn't available yet (apply_pending_reset handles that).
@@ -69,7 +70,7 @@ pub fn configure_bounds_from_grid(
     // Compute fit scale using actual window dimensions if available,
     // otherwise estimate from a reasonable default viewport size.
     if let Ok(window) = windows.single() {
-        camera_state.target_scale = fit_scale(&config, window, &camera_state);
+        camera_state.target_scale = fit_scale(&config, window, &camera_state, &margins);
     } else {
         let estimated_scale = grid_extent / 800.0;
         camera_state.target_scale =
@@ -106,7 +107,7 @@ pub fn apply_pending_reset(
 
     // Recompute fit scale with actual window.
     if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
-        camera_state.target_scale = fit_scale(config, window, &camera_state);
+        camera_state.target_scale = fit_scale(config, window, &camera_state, &margins);
         camera_state.current_scale = camera_state.target_scale;
     }
 
@@ -229,7 +230,12 @@ pub fn scroll_zoom(scroll: Res<AccumulatedMouseScroll>, mut camera_state: ResMut
 }
 
 /// Computes the orthographic scale needed to fit the entire hex grid in the viewport.
-fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &CameraState) -> f32 {
+fn fit_scale(
+    grid_config: &HexGridConfig,
+    window: &Window,
+    camera_state: &CameraState,
+    margins: &ViewportMargins,
+) -> f32 {
     let layout = &grid_config.layout;
     let r = grid_config.map_radius as i32;
     let hex_size = layout.scale.x.max(layout.scale.y);
@@ -255,9 +261,11 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
     let extent_x = (max_x + hex_size) * 2.0;
     let extent_y = (max_y + hex_size) * 2.0;
 
-    // Fit both dimensions with 5% padding.
-    let scale_x = extent_x / window.width();
-    let scale_y = extent_y / window.height();
+    // Fit both dimensions with 5% padding, using actual viewport size.
+    let viewport_width = window.width() - margins.left - margins.right;
+    let viewport_height = window.height() - margins.top - margins.bottom;
+    let scale_x = extent_x / viewport_width;
+    let scale_y = extent_y / viewport_height;
     let scale = scale_x.max(scale_y) * 1.05;
     scale.clamp(camera_state.min_scale, camera_state.max_scale)
 }
@@ -277,7 +285,7 @@ fn fit_scale(grid_config: &HexGridConfig, window: &Window, camera_state: &Camera
 /// half the menu bar height.
 fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
     let x = ((margins.left - margins.right) / 2.0) * scale;
-    let z = (margins.top / 2.0) * scale;
+    let z = ((margins.top - margins.bottom) / 2.0) * scale;
     Vec2::new(x, z)
 }
 
@@ -310,12 +318,12 @@ pub fn handle_camera_command(
         }
         "camera.fit" => {
             if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
-                camera_state.target_scale = fit_scale(config, window, &camera_state);
+                camera_state.target_scale = fit_scale(config, window, &camera_state, &margins);
             }
         }
         "camera.reset_view" => {
             if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
-                camera_state.target_scale = fit_scale(config, window, &camera_state);
+                camera_state.target_scale = fit_scale(config, window, &camera_state, &margins);
             }
             let scale = camera_state.target_scale;
             camera_state.target_position = ui_center_offset(scale, &margins);

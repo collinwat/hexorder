@@ -60,6 +60,8 @@ pub struct ViewportMargins {
     pub top: f32,
     /// Width in logical pixels consumed by the right side panel (e.g., debug inspector).
     pub right: f32,
+    /// Height in logical pixels consumed by the bottom panel.
+    pub bottom: f32,
 }
 ```
 

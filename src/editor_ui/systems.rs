@@ -47,6 +47,7 @@ pub fn update_viewport_margins(mut contexts: EguiContexts, mut margins: ResMut<V
     margins.left = available.left();
     margins.top = available.top();
     margins.right = screen.right() - available.right();
+    margins.bottom = screen.bottom() - available.bottom();
 }
 
 /// Debug inspector as a right-side panel.

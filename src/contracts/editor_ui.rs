@@ -34,6 +34,8 @@ pub struct ViewportMargins {
     pub top: f32,
     /// Width in logical pixels consumed by the right side panel (e.g. debug inspector).
     pub right: f32,
+    /// Height in logical pixels consumed by the bottom panel.
+    pub bottom: f32,
 }
 
 impl Default for ViewportMargins {
@@ -42,6 +44,7 @@ impl Default for ViewportMargins {
             left: 0.0,
             top: 0.0,
             right: 0.0,
+            bottom: 0.0,
         }
     }
 }
