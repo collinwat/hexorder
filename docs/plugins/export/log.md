@@ -1,0 +1,45 @@
+# Plugin Log: Export
+
+## Status: speccing
+
+## Decision Log
+
+### 2026-02-21 — PDF crate selection
+
+**Context**: The pitch identifies printpdf and genpdf as candidates. Need to choose before
+implementing counter sheet generation. **Decision**: Evaluate printpdf first per pitch
+recommendation. **Rationale**: printpdf is well-maintained, handles basic layout (rectangles, text,
+color fills), and has no unsafe code. Our needs are simple — no complex typography or vector
+graphics. **Alternatives rejected**: genpdf (fallback if printpdf insufficient), LaTeX (pitch
+explicitly excludes this dependency).
+
+### 2026-02-21 — Research summary
+
+**Context**: Wiki research consumed during kickoff orientation. **Key findings**:
+
+- Community Analysis confirms physical prototyping is central to wargame design workflow
+- HexDraw (discontinued Oct 2023) left a critical gap in integrated design-to-physical tools
+- LaTeX wargame package is the closest existing integrated solution (requires LaTeX expertise)
+- Component Studio demonstrates the target workflow: print-and-play + digital export from one source
+- Battle for Moscow is the recommended reference game for complexity validation (39 counters, 1 map)
+
+## Test Results
+
+(None yet)
+
+## Blockers
+
+| Blocker | Waiting On | Raised | Resolved |
+| ------- | ---------- | ------ | -------- |
+|         |            |        |          |
+
+## Deferred / Future Work
+
+- Multi-page map tiling (#66 — future scope)
+- VASSAL/TTS export (#65)
+
+## Status Updates
+
+| Date       | Status   | Notes                                                   |
+| ---------- | -------- | ------------------------------------------------------- |
+| 2026-02-21 | speccing | Initial spec created during kickoff. Research consumed. |
