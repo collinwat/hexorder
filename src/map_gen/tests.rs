@@ -237,3 +237,38 @@ fn biome_table_apply_maps_all_positions() {
     assert_eq!(result[&HexPosition::new(1, 0)], "Forest");
     assert_eq!(result[&HexPosition::new(0, 1)], "Mountains");
 }
+
+#[test]
+fn full_generation_pipeline() {
+    // End-to-end test: params -> heightmap -> biome -> terrain names
+    let params = MapGenParams::default();
+    let layout = default_layout();
+
+    // Generate a larger grid: radius 3 = 37 hexes
+    let positions: Vec<HexPosition> = hexx::shapes::hexagon(hexx::Hex::ZERO, 3)
+        .map(HexPosition::from_hex)
+        .collect();
+
+    let heightmap = generate_heightmap(&params, &positions, &layout);
+
+    assert_eq!(heightmap.len(), positions.len());
+
+    let table = BiomeTable::default();
+    let terrain = apply_biome_table(&heightmap, &table);
+
+    // Every position should get a terrain assignment
+    assert_eq!(terrain.len(), positions.len());
+
+    // All terrain names should be from the default biome table
+    let valid_names: std::collections::HashSet<&str> =
+        ["Water", "Plains", "Forest", "Hills", "Mountains"]
+            .iter()
+            .copied()
+            .collect();
+    for name in terrain.values() {
+        assert!(
+            valid_names.contains(name.as_str()),
+            "Unexpected terrain name: {name}"
+        );
+    }
+}
