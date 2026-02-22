@@ -129,7 +129,7 @@ pub struct VisibilityRange {
 /// A canonical representation of a hex edge — the shared boundary between
 /// two adjacent hex tiles. Stored in canonical form: the "lower" hex
 /// (ordered by q, then r) is always the origin.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
 pub struct HexEdge {
     /// The canonical origin hex (lower of the two adjacent hexes).
     pub origin: HexPosition,
@@ -139,11 +139,30 @@ pub struct HexEdge {
 
 impl HexEdge {
     /// Create a new edge from an origin hex and direction (0-5).
-    /// Direction is taken modulo 6.
+    /// Direction is taken modulo 6. The result is always in canonical
+    /// form: the "lower" hex (by q, then r) becomes the origin.
     pub fn new(origin: HexPosition, direction: u8) -> Self {
-        Self {
-            origin,
-            direction: direction % 6,
+        let dir = direction % 6;
+        let origin_hex = origin.to_hex();
+        let all_dirs = hexx::EdgeDirection::ALL_DIRECTIONS;
+        let edge_dir = all_dirs[dir as usize];
+        let neighbor = origin_hex.neighbor(edge_dir);
+        let neighbor_pos = HexPosition::from_hex(neighbor);
+
+        if (origin.q, origin.r) <= (neighbor_pos.q, neighbor_pos.r) {
+            Self {
+                origin,
+                direction: dir,
+            }
+        } else {
+            // Swap: use neighbor as origin with the reverse direction
+            let reverse_dir = neighbor
+                .neighbor_direction(origin_hex)
+                .map_or(0, hexx::EdgeDirection::index);
+            Self {
+                origin: neighbor_pos,
+                direction: reverse_dir,
+            }
         }
     }
 
@@ -183,14 +202,14 @@ impl HexEdge {
 
 /// An annotation on a hex edge. References a user-defined type by name,
 /// resolved against `EntityTypeRegistry` at use time.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct EdgeFeature {
     /// Name of the entity type this edge annotation represents.
     pub type_name: String,
 }
 
 /// Resource-based registry of edge annotations.
-#[derive(Resource, Debug, Clone, Default, Reflect)]
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
 #[reflect(opaque)]
 pub struct HexEdgeRegistry {
     pub edges: HashMap<HexEdge, EdgeFeature>,
@@ -363,6 +382,43 @@ mod tests {
             },
         );
         assert_eq!(registry.iter().count(), 2);
+    }
+
+    #[test]
+    fn hex_edge_new_produces_canonical_form() {
+        // HexEdge::new from the "higher" hex should canonicalize to match between()
+        let a = HexPosition::new(0, 0);
+        let b = HexPosition::new(1, 0);
+        let edge_between = HexEdge::between(a, b).unwrap();
+        // Find which direction from b points to a
+        let hex_b = b.to_hex();
+        let hex_a = a.to_hex();
+        let dir_ba = hex_b.neighbor_direction(hex_a).unwrap();
+        let edge_new = HexEdge::new(b, dir_ba.index());
+        assert_eq!(edge_new, edge_between);
+    }
+
+    #[test]
+    fn edge_feature_type_name_resolves_against_entity_registry() {
+        use crate::contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
+
+        let mut registry = EntityTypeRegistry::default();
+        registry.types.push(EntityType {
+            id: TypeId::new(),
+            name: "Wall".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.5, 0.5, 0.5),
+            properties: vec![],
+        });
+
+        let feature = EdgeFeature {
+            type_name: "Wall".to_string(),
+        };
+
+        // Resolve: look up feature type_name in entity registry
+        let resolved = registry.types.iter().find(|t| t.name == feature.type_name);
+        assert!(resolved.is_some());
+        assert_eq!(resolved.unwrap().name, "Wall");
     }
 
     #[test]

@@ -26,34 +26,35 @@ impl Plugin for HexGridPlugin {
     fn build(&self, app: &mut App) {
         register_shortcuts(&mut app.world_mut().resource_mut::<ShortcutRegistry>());
 
-        app.add_systems(
-            OnEnter(AppScreen::Editor),
-            (
-                systems::setup_grid_config,
-                systems::setup_materials,
-                systems::spawn_grid,
-                systems::setup_indicators,
+        app.init_resource::<crate::contracts::hex_grid::HexEdgeRegistry>()
+            .add_systems(
+                OnEnter(AppScreen::Editor),
+                (
+                    systems::setup_grid_config,
+                    systems::setup_materials,
+                    systems::spawn_grid,
+                    systems::setup_indicators,
+                )
+                    .chain(),
             )
-                .chain(),
-        )
-        .add_systems(
-            Update,
-            (
-                systems::update_hover.run_if(not(pointer_over_ui_panel)),
-                systems::handle_click.run_if(not(pointer_over_ui_panel)),
-                systems::update_indicators,
-                systems::sync_multi_select_indicators,
-                systems::sync_move_overlays,
-                systems::draw_los_ray,
+            .add_systems(
+                Update,
+                (
+                    systems::update_hover.run_if(not(pointer_over_ui_panel)),
+                    systems::handle_click.run_if(not(pointer_over_ui_panel)),
+                    systems::update_indicators,
+                    systems::sync_multi_select_indicators,
+                    systems::sync_move_overlays,
+                    systems::draw_los_ray,
+                )
+                    .chain()
+                    .run_if(in_state(AppScreen::Editor)),
             )
-                .chain()
-                .run_if(in_state(AppScreen::Editor)),
-        )
-        .add_systems(
-            OnExit(AppScreen::Editor),
-            systems::cleanup_internal_entities,
-        )
-        .add_observer(systems::handle_hex_grid_command);
+            .add_systems(
+                OnExit(AppScreen::Editor),
+                systems::cleanup_internal_entities,
+            )
+            .add_observer(systems::handle_hex_grid_command);
     }
 }
 
