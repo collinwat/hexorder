@@ -27,9 +27,7 @@ pub fn generate_heightmap(
             &perlin,
             f64::from(world.x) * params.frequency,
             f64::from(world.y) * params.frequency,
-            params.octaves,
-            params.lacunarity,
-            params.persistence,
+            params,
         );
         // Normalize from roughly [-1, 1] to [0, 1]
         let normalized = (value + 1.0) * 0.5;
@@ -40,24 +38,17 @@ pub fn generate_heightmap(
 }
 
 /// Fractal Brownian motion: layer multiple octaves of Perlin noise.
-fn fbm_sample(
-    noise: &Perlin,
-    x: f64,
-    y: f64,
-    octaves: usize,
-    lacunarity: f64,
-    persistence: f64,
-) -> f64 {
+fn fbm_sample(noise: &Perlin, x: f64, y: f64, params: &MapGenParams) -> f64 {
     let mut total = 0.0;
     let mut freq = 1.0;
-    let mut amp = 1.0;
+    let mut amp = params.amplitude;
     let mut max_amp = 0.0;
 
-    for _ in 0..octaves {
+    for _ in 0..params.octaves {
         total += noise.get([x * freq, y * freq]) * amp;
         max_amp += amp;
-        freq *= lacunarity;
-        amp *= persistence;
+        freq *= params.lacunarity;
+        amp *= params.persistence;
     }
 
     // Normalize by max possible amplitude so output stays in [-1, 1]

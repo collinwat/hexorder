@@ -11,8 +11,9 @@ pub struct MapGenParams {
     pub octaves: usize,
     /// Base frequency of the noise. Lower = larger terrain features.
     pub frequency: f64,
-    /// Controls the overall height range of the noise output.
-    #[allow(dead_code)]
+    /// Initial amplitude for the first noise octave. Controls terrain roughness:
+    /// higher values make the first octave dominant (smoother terrain), lower
+    /// values let higher-frequency octaves show through more.
     pub amplitude: f64,
     /// Frequency multiplier per octave. Typical: 2.0.
     pub lacunarity: f64,

@@ -7,7 +7,6 @@ use bevy::prelude::*;
 
 use crate::contracts::persistence::AppScreen;
 
-#[allow(dead_code)]
 mod biome;
 mod components;
 mod heightmap;

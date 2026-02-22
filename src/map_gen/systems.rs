@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use crate::contracts::game_system::{EntityData, EntityRole, EntityTypeRegistry, PropertyValue};
 use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 
-use super::biome::apply_biome_table;
+use super::biome::{apply_biome_table, validate_biome_table};
 use super::components::{BiomeTable, GenerateMap, MapGenParams};
 use super::heightmap::generate_heightmap;
 
@@ -26,6 +26,13 @@ pub fn run_generation(
 ) {
     // Only run when GenerateMap marker resource is present.
     if generate.is_none() {
+        return;
+    }
+
+    // Validate the biome table before using it.
+    if let Err(err) = validate_biome_table(&biome_table) {
+        warn!("Biome table validation failed: {err} -- skipping map generation");
+        commands.remove_resource::<GenerateMap>();
         return;
     }
 

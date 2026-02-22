@@ -94,3 +94,20 @@ pub enum BiomeTableError {
     GapAtEnd(f64),
     Gap { after: String, before: String },
 }
+
+impl std::fmt::Display for BiomeTableError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => write!(f, "biome table is empty"),
+            Self::GapAtStart(min) => {
+                write!(f, "biome table does not start at 0.0 (starts at {min})")
+            }
+            Self::GapAtEnd(max) => {
+                write!(f, "biome table does not reach 1.0 (ends at {max})")
+            }
+            Self::Gap { after, before } => {
+                write!(f, "gap between biome entries '{after}' and '{before}'")
+            }
+        }
+    }
+}
