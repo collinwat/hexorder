@@ -273,7 +273,7 @@ mod tests {
     fn hex_edge_canonical_form_swaps_when_needed() {
         let a = HexPosition::new(1, 0);
         let b = HexPosition::new(0, 0);
-        let edge = HexEdge::between(a, b).unwrap();
+        let edge = HexEdge::between(a, b).expect("adjacent hexes should produce an edge");
         // (0,0) < (1,0) so origin should be (0,0)
         assert_eq!(edge.origin, HexPosition::new(0, 0));
     }
@@ -331,7 +331,13 @@ mod tests {
         registry.insert(edge, feature);
         assert_eq!(registry.len(), 1);
         assert!(!registry.is_empty());
-        assert_eq!(registry.get(&edge).unwrap().type_name, "River");
+        assert_eq!(
+            registry
+                .get(&edge)
+                .expect("inserted edge should be present")
+                .type_name,
+            "River"
+        );
     }
 
     #[test]
@@ -354,7 +360,7 @@ mod tests {
         let mut registry = HexEdgeRegistry::default();
         let a = HexPosition::new(0, 0);
         let b = HexPosition::new(1, 0);
-        let edge = HexEdge::between(a, b).unwrap();
+        let edge = HexEdge::between(a, b).expect("adjacent hexes should produce an edge");
         registry.insert(
             edge,
             EdgeFeature {
@@ -362,8 +368,14 @@ mod tests {
             },
         );
         // Look up from the other side — same canonical edge
-        let edge_ba = HexEdge::between(b, a).unwrap();
-        assert_eq!(registry.get(&edge_ba).unwrap().type_name, "Path");
+        let edge_ba = HexEdge::between(b, a).expect("adjacent hexes should produce an edge");
+        assert_eq!(
+            registry
+                .get(&edge_ba)
+                .expect("canonical lookup should find edge")
+                .type_name,
+            "Path"
+        );
     }
 
     #[test]
@@ -389,11 +401,13 @@ mod tests {
         // HexEdge::new from the "higher" hex should canonicalize to match between()
         let a = HexPosition::new(0, 0);
         let b = HexPosition::new(1, 0);
-        let edge_between = HexEdge::between(a, b).unwrap();
+        let edge_between = HexEdge::between(a, b).expect("adjacent hexes should produce an edge");
         // Find which direction from b points to a
         let hex_b = b.to_hex();
         let hex_a = a.to_hex();
-        let dir_ba = hex_b.neighbor_direction(hex_a).unwrap();
+        let dir_ba = hex_b
+            .neighbor_direction(hex_a)
+            .expect("adjacent hexes should have a direction");
         let edge_new = HexEdge::new(b, dir_ba.index());
         assert_eq!(edge_new, edge_between);
     }
@@ -417,8 +431,8 @@ mod tests {
 
         // Resolve: look up feature type_name in entity registry
         let resolved = registry.types.iter().find(|t| t.name == feature.type_name);
-        assert!(resolved.is_some());
-        assert_eq!(resolved.unwrap().name, "Wall");
+        let resolved = resolved.expect("Wall type should resolve in entity registry");
+        assert_eq!(resolved.name, "Wall");
     }
 
     #[test]
