@@ -31,23 +31,35 @@ exceptions = [ { allow = [ "LicenseRef-Proprietary" ], crate = "hexorder" } ]
 [bans]
 multiple-versions = "deny"
 wildcards = "allow"
-# Bevy transitive dependency version splits — we cannot control these
+# Bevy / printpdf transitive dependency version splits — we cannot control these
 skip = [
   "bitflags",
   "block2",
+  "convert_case",
   "core-foundation",
   "core-graphics-types",
+  "derive_more",
   "foldhash",
+  "getrandom",
   "hashbrown",
+  "heck",
   "itertools",
+  "itoa",
   "objc2",
   "rand",
   "rand_core",
   "objc2-app-kit",
   "objc2-foundation",
+  "phf_generator",
+  "phf_shared",
+  "rand",
+  "rand_chacha",
+  "rand_core",
   "read-fonts",
   "rustc-hash",
+  "siphasher",
   "skrifa",
+  "syn",
   "toml_datetime",
   "toml_edit",
 ]

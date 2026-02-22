@@ -193,6 +193,159 @@ fn grid_snapshot_captures_flat_top_orientation() {
 }
 
 // ---------------------------------------------------------------------------
+// Counter Sheet Tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn counter_sheet_exports_pdf_bytes() {
+    use counter_sheet::PrintAndPlayExporter;
+
+    let exporter = PrintAndPlayExporter::default();
+    let data = test_export_data();
+
+    let output = exporter.export(&data).expect("export should succeed");
+    assert_eq!(output.files.len(), 1);
+    assert_eq!(output.files[0].name, "counter-sheet");
+    assert_eq!(output.files[0].extension, "pdf");
+
+    // PDF files start with %PDF header.
+    assert!(
+        output.files[0].data.starts_with(b"%PDF"),
+        "output should be a valid PDF"
+    );
+    // Sanity check: non-trivial size.
+    assert!(
+        output.files[0].data.len() > 100,
+        "PDF should have meaningful content"
+    );
+}
+
+#[test]
+fn counter_sheet_fails_on_empty_game_system() {
+    use counter_sheet::PrintAndPlayExporter;
+
+    let exporter = PrintAndPlayExporter::default();
+    let data = ExportData {
+        entity_types: vec![],
+        board_entities: vec![],
+        token_entities: vec![],
+        grid_config: GridSnapshot {
+            map_radius: 5,
+            pointy_top: true,
+        },
+    };
+
+    let result = exporter.export(&data);
+    assert!(result.is_err());
+}
+
+#[test]
+fn counter_sheet_generates_from_type_definitions_when_no_instances() {
+    use crate::contracts::game_system::{
+        EntityRole, EntityType, PropertyDefinition, PropertyType, PropertyValue, TypeId,
+    };
+    use counter_sheet::PrintAndPlayExporter;
+
+    let exporter = PrintAndPlayExporter::default();
+    let data = ExportData {
+        entity_types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Panzer".to_string(),
+            role: EntityRole::Token,
+            color: bevy::color::Color::srgb(0.5, 0.5, 0.5),
+            properties: vec![
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "Attack".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(6),
+                },
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "Defense".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(5),
+                },
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "Movement".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(4),
+                },
+            ],
+        }],
+        board_entities: vec![],
+        token_entities: vec![],
+        grid_config: GridSnapshot {
+            map_radius: 5,
+            pointy_top: true,
+        },
+    };
+
+    let output = exporter.export(&data).expect("export should succeed");
+    assert!(output.files[0].data.starts_with(b"%PDF"));
+}
+
+#[test]
+fn counter_sheet_all_sizes_produce_valid_pdf() {
+    use counter_sheet::{CounterSize, PrintAndPlayExporter};
+
+    let data = test_export_data();
+
+    for size in [
+        CounterSize::Half,
+        CounterSize::FiveEighths,
+        CounterSize::ThreeQuarters,
+    ] {
+        let exporter = PrintAndPlayExporter { counter_size: size };
+        let output = exporter
+            .export(&data)
+            .unwrap_or_else(|_| panic!("export should succeed for size {size:?}"));
+        assert!(
+            output.files[0].data.starts_with(b"%PDF"),
+            "size {size:?} should produce valid PDF"
+        );
+    }
+}
+
+#[test]
+fn format_property_value_displays_numeric_types() {
+    use crate::contracts::game_system::PropertyValue;
+    use counter_sheet::format_property_value;
+
+    assert_eq!(
+        format_property_value(&PropertyValue::Int(42)),
+        Some("42".to_string())
+    );
+    assert_eq!(
+        format_property_value(&PropertyValue::IntRange(7)),
+        Some("7".to_string())
+    );
+    assert_eq!(
+        format_property_value(&PropertyValue::Float(2.75)),
+        Some("2.8".to_string())
+    );
+    assert_eq!(
+        format_property_value(&PropertyValue::Bool(true)),
+        Some("Y".to_string())
+    );
+    assert_eq!(
+        format_property_value(&PropertyValue::Bool(false)),
+        Some("N".to_string())
+    );
+}
+
+#[test]
+fn format_property_value_skips_non_displayable() {
+    use crate::contracts::game_system::PropertyValue;
+    use counter_sheet::format_property_value;
+
+    assert!(format_property_value(&PropertyValue::List(vec![])).is_none());
+    assert!(format_property_value(&PropertyValue::String(String::new())).is_none());
+    assert!(format_property_value(&PropertyValue::EntityRef(None)).is_none());
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

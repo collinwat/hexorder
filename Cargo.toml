@@ -33,6 +33,7 @@ ron = "0.12"
 serde = { version = "1", features = [ "derive" ] }
 sublime_fuzzy = "0.7"
 toml = "0.8"
+printpdf = "0.9"
 uuid = { version = "1", features = [ "v4" ] }
 
 [dev-dependencies]

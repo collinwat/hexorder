@@ -14,6 +14,7 @@ use crate::contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 
+pub(crate) mod counter_sheet;
 mod systems;
 
 #[cfg(test)]
