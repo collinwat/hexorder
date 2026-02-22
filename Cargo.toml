@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.12.0-mechanic-reference"
+version = "0.12.0-map-gen"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
