@@ -514,6 +514,31 @@ pub fn editor_dock_system(
     );
 }
 
+/// Syncs `Workspace.workspace_preset` from `DockLayoutState.active_preset`.
+/// Runs after `editor_dock_system` so the View menu and keyboard shortcuts
+/// are captured before the next save.
+pub fn sync_workspace_preset(dock_layout: Res<DockLayoutState>, mut workspace: ResMut<Workspace>) {
+    let preset_id = dock_layout.active_preset.as_id();
+    if workspace.workspace_preset != preset_id {
+        preset_id.clone_into(&mut workspace.workspace_preset);
+    }
+}
+
+/// Restores the workspace preset from `Workspace.workspace_preset` on editor entry.
+/// Runs once via `OnEnter(AppScreen::Editor)`.
+pub fn restore_workspace_preset(
+    workspace: Res<Workspace>,
+    mut dock_layout: ResMut<DockLayoutState>,
+) {
+    if workspace.workspace_preset.is_empty() {
+        return;
+    }
+    let preset = WorkspacePreset::from_id(&workspace.workspace_preset);
+    if dock_layout.active_preset != preset {
+        dock_layout.apply_preset(preset);
+    }
+}
+
 /// Debug inspector as a right-side panel.
 /// Only compiled when the `inspector` feature is enabled.
 /// Toggled via the `view.toggle_debug_panel` command (backtick key).

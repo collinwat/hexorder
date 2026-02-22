@@ -189,6 +189,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
             units: Vec::new(),
+            workspace_preset: String::new(),
         }
     }
 

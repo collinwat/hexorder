@@ -68,6 +68,7 @@ fn test_game_system_file() -> GameSystemFile {
             entity_type_id: type_id,
             properties: HashMap::new(),
         }],
+        workspace_preset: String::new(),
     }
 }
 
@@ -130,4 +131,39 @@ fn apply_pending_board_load_maps_tiles_and_spawns_units() {
         app.world().get_resource::<PendingBoardLoad>().is_none(),
         "PendingBoardLoad should be removed after application"
     );
+}
+
+/// `GameSystemFile` `workspace_preset` defaults to empty for backward compat.
+#[test]
+fn game_system_file_workspace_preset_defaults_on_deserialize() {
+    // Minimal RON without workspace_preset (simulates v3 file).
+    let file = test_game_system_file();
+    let ron_str =
+        ron::ser::to_string_pretty(&file, ron::ser::PrettyConfig::default()).expect("serialize");
+
+    // Remove workspace_preset from serialized RON to simulate old file.
+    let without_preset = ron_str.replace("    workspace_preset: \"\",\n", "");
+
+    let loaded: GameSystemFile =
+        ron::from_str(&without_preset).expect("deserialize without workspace_preset");
+    assert!(loaded.workspace_preset.is_empty());
+}
+
+/// Round-trip: `workspace_preset` survives serialization.
+#[test]
+fn game_system_file_workspace_preset_round_trip() {
+    let mut file = test_game_system_file();
+    file.workspace_preset = "playtesting".to_string();
+
+    let ron_str =
+        ron::ser::to_string_pretty(&file, ron::ser::PrettyConfig::default()).expect("serialize");
+    let loaded: GameSystemFile = ron::from_str(&ron_str).expect("deserialize");
+
+    assert_eq!(loaded.workspace_preset, "playtesting");
+}
+
+/// Format version was bumped to 4 for `workspace_preset` field.
+#[test]
+fn format_version_is_4() {
+    assert_eq!(FORMAT_VERSION, 4);
 }

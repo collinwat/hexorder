@@ -17,7 +17,7 @@ use super::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure
 use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 4;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -47,6 +47,9 @@ pub struct Workspace {
     /// Whether the project has unsaved changes.
     /// Placeholder for future use — not actively tracked in this pitch.
     pub dirty: bool,
+    /// Active workspace preset identifier (e.g. `map_editing`, `playtesting`).
+    /// Empty string means default (Map Editing).
+    pub workspace_preset: String,
 }
 
 /// Temporary resource for deferred board state application after load.
@@ -121,6 +124,9 @@ pub struct GameSystemFile {
     pub tiles: Vec<TileSaveData>,
     /// Board state: placed units.
     pub units: Vec<UnitSaveData>,
+    /// Active workspace preset identifier (v4+, e.g. `map_editing`).
+    #[serde(default)]
+    pub workspace_preset: String,
 }
 
 /// Serialized form of a hex tile's cell data.

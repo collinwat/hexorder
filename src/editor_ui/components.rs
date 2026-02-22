@@ -564,6 +564,28 @@ pub(crate) enum WorkspacePreset {
     Playtesting,
 }
 
+impl WorkspacePreset {
+    /// Stable string identifier for serialization.
+    pub(crate) fn as_id(self) -> &'static str {
+        match self {
+            Self::MapEditing => "map_editing",
+            Self::UnitDesign => "unit_design",
+            Self::RuleAuthoring => "rule_authoring",
+            Self::Playtesting => "playtesting",
+        }
+    }
+
+    /// Parse a preset from its string identifier. Unknown values default to `MapEditing`.
+    pub(crate) fn from_id(id: &str) -> Self {
+        match id {
+            "unit_design" => Self::UnitDesign,
+            "rule_authoring" => Self::RuleAuthoring,
+            "playtesting" => Self::Playtesting,
+            _ => Self::MapEditing,
+        }
+    }
+}
+
 impl std::fmt::Display for WorkspacePreset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

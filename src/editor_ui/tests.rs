@@ -572,3 +572,43 @@ fn workspace_preset_display_names() {
     assert_eq!(WorkspacePreset::RuleAuthoring.to_string(), "Rule Authoring");
     assert_eq!(WorkspacePreset::Playtesting.to_string(), "Playtesting");
 }
+
+// ---------------------------------------------------------------------------
+// Scope 6 (0.11.0): Layout persistence
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_preset_id_round_trip() {
+    for preset in [
+        WorkspacePreset::MapEditing,
+        WorkspacePreset::UnitDesign,
+        WorkspacePreset::RuleAuthoring,
+        WorkspacePreset::Playtesting,
+    ] {
+        let id = preset.as_id();
+        assert_eq!(WorkspacePreset::from_id(id), preset);
+    }
+}
+
+#[test]
+fn workspace_preset_from_id_unknown_defaults_to_map_editing() {
+    assert_eq!(
+        WorkspacePreset::from_id("unknown"),
+        WorkspacePreset::MapEditing,
+    );
+    assert_eq!(WorkspacePreset::from_id(""), WorkspacePreset::MapEditing,);
+}
+
+#[test]
+fn workspace_preset_as_id_values_are_stable() {
+    assert_eq!(WorkspacePreset::MapEditing.as_id(), "map_editing");
+    assert_eq!(WorkspacePreset::UnitDesign.as_id(), "unit_design");
+    assert_eq!(WorkspacePreset::RuleAuthoring.as_id(), "rule_authoring");
+    assert_eq!(WorkspacePreset::Playtesting.as_id(), "playtesting");
+}
+
+#[test]
+fn workspace_default_has_empty_preset() {
+    let ws = crate::contracts::persistence::Workspace::default();
+    assert!(ws.workspace_preset.is_empty());
+}

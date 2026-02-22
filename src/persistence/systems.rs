@@ -164,6 +164,7 @@ pub fn handle_save_request(
         map_radius: config.map_radius,
         tiles: tile_data,
         units: unit_data,
+        workspace_preset: workspace.workspace_preset.clone(),
     };
 
     match storage.provider().save_at(&path, &file) {
@@ -253,6 +254,7 @@ pub fn handle_load_request(
     workspace.name = name;
     workspace.file_path = Some(path);
     workspace.dirty = false;
+    workspace.workspace_preset = file.workspace_preset;
 
     // Insert pending board load for deferred application.
     commands.insert_resource(PendingBoardLoad {
@@ -317,6 +319,7 @@ pub fn handle_new_project(
     workspace.name.clone_from(&event.name);
     workspace.file_path = None;
     workspace.dirty = false;
+    workspace.workspace_preset = String::new();
 
     next_state.set(AppScreen::Editor);
 }
