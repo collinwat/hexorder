@@ -232,6 +232,27 @@ pub fn delete_selected_unit(
     }
 }
 
+/// Attaches mesh and material to `UnitInstance` entities that lack them.
+/// This covers units spawned by `apply_pending_board_load` which only
+/// adds core ECS components (no visuals).
+#[allow(clippy::type_complexity)]
+pub fn assign_unit_visuals(
+    mut commands: Commands,
+    unit_mesh: Res<UnitMesh>,
+    unit_materials: Res<UnitMaterials>,
+    units: Query<(Entity, &EntityData), (With<UnitInstance>, Without<Mesh3d>)>,
+) {
+    for (entity, entity_data) in &units {
+        let Some(material) = unit_materials.get(entity_data.entity_type_id) else {
+            continue;
+        };
+        commands.entity(entity).insert((
+            Mesh3d(unit_mesh.handle.clone()),
+            MeshMaterial3d(material.clone()),
+        ));
+    }
+}
+
 /// Updates material colors when the `EntityTypeRegistry` changes.
 pub fn sync_unit_materials(
     registry: Res<EntityTypeRegistry>,

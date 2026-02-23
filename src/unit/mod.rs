@@ -25,6 +25,7 @@ impl Plugin for UnitPlugin {
                 Update,
                 (
                     systems::delete_selected_unit,
+                    systems::assign_unit_visuals,
                     systems::sync_unit_materials,
                     systems::sync_unit_visuals,
                 )

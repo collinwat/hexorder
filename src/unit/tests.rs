@@ -531,3 +531,43 @@ fn place_undo_redo_restores_unit() {
     assert_eq!(*units[0].0, HexPosition::new(2, 0));
     assert_eq!(units[0].1.entity_type_id, first_id);
 }
+
+/// `assign_unit_visuals` adds mesh and material to bare unit entities.
+#[test]
+fn assign_unit_visuals_adds_mesh_to_bare_units() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.add_systems(Update, systems::assign_unit_visuals);
+    app.update(); // Startup — creates UnitMaterials and UnitMesh.
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types[0].id;
+
+    // Spawn a unit WITHOUT Mesh3d (as apply_pending_board_load does).
+    let entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.update(); // assign_unit_visuals runs.
+    app.update(); // Deferred commands applied.
+
+    assert!(
+        app.world().get::<Mesh3d>(entity).is_some(),
+        "Unit should have Mesh3d after assign_unit_visuals"
+    );
+    assert!(
+        app.world()
+            .get::<MeshMaterial3d<StandardMaterial>>(entity)
+            .is_some(),
+        "Unit should have MeshMaterial3d after assign_unit_visuals"
+    );
+}
