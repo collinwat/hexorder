@@ -475,7 +475,7 @@ fn hex_map_colors_board_entities() {
 }
 
 #[test]
-fn hex_map_rejects_oversized_grid() {
+fn hex_map_auto_scales_oversized_grid() {
     use counter_sheet::CounterSize;
     use hex_map::HexMapExporter;
 
@@ -486,7 +486,7 @@ fn hex_map_rejects_oversized_grid() {
     data.grid_config.map_radius = 10;
 
     let result = exporter.export(&data);
-    assert!(result.is_err(), "large grid should exceed page area");
+    assert!(result.is_ok(), "large grid should auto-scale to fit page");
 }
 
 // ---------------------------------------------------------------------------

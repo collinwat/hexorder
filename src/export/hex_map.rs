@@ -73,7 +73,7 @@ impl ExportTarget for HexMapExporter {
             return Err(ExportError::EmptyGameSystem);
         }
 
-        let pdf_bytes = generate_hex_map(data, self.counter_size)?;
+        let pdf_bytes = generate_hex_map(data, self.counter_size);
 
         Ok(ExportOutput {
             files: vec![ExportFile {
@@ -96,6 +96,26 @@ impl ExportTarget for HexMapExporter {
 /// We use the flat-to-flat distance to match the counter width.
 fn hex_size_from_counter(counter_mm: f32) -> f32 {
     counter_mm / 3.0_f32.sqrt()
+}
+
+/// Compute the bounding box of all hex vertices.
+fn grid_bounds(hexes: &[(i32, i32)], hex_size: f32, pointy_top: bool) -> (f32, f32, f32, f32) {
+    let mut min_x = f32::MAX;
+    let mut max_x = f32::MIN;
+    let mut min_y = f32::MAX;
+    let mut max_y = f32::MIN;
+
+    for &(q, r) in hexes {
+        let (cx, cy) = hex_center(q, r, hex_size, pointy_top);
+        for &(vx, vy) in &hex_vertices(cx, cy, hex_size, pointy_top) {
+            min_x = min_x.min(vx);
+            max_x = max_x.max(vx);
+            min_y = min_y.min(vy);
+            max_y = max_y.max(vy);
+        }
+    }
+
+    (min_x, max_x, min_y, max_y)
 }
 
 /// Compute pixel position of hex center from axial coordinates.
@@ -145,8 +165,8 @@ fn hex_vertices(cx: f32, cy: f32, size: f32, pointy_top: bool) -> [(f32, f32); 6
 // ---------------------------------------------------------------------------
 
 /// Generate the hex map PDF bytes.
-fn generate_hex_map(data: &ExportData, counter_size: CounterSize) -> Result<Vec<u8>, ExportError> {
-    let hex_size = hex_size_from_counter(counter_size.mm());
+fn generate_hex_map(data: &ExportData, counter_size: CounterSize) -> Vec<u8> {
+    let mut hex_size = hex_size_from_counter(counter_size.mm());
     let map_radius = data.grid_config.map_radius;
     let pointy_top = data.grid_config.pointy_top;
 
@@ -156,34 +176,23 @@ fn generate_hex_map(data: &ExportData, counter_size: CounterSize) -> Result<Vec<
         .map(|hex| (hex.x(), hex.y()))
         .collect();
 
-    // Compute bounding box of the grid (in mm, centered at origin).
-    let mut min_x = f32::MAX;
-    let mut max_x = f32::MIN;
-    let mut min_y = f32::MAX;
-    let mut max_y = f32::MIN;
-
-    for &(q, r) in &all_hexes {
-        let (cx, cy) = hex_center(q, r, hex_size, pointy_top);
-        for &(vx, vy) in &hex_vertices(cx, cy, hex_size, pointy_top) {
-            min_x = min_x.min(vx);
-            max_x = max_x.max(vx);
-            min_y = min_y.min(vy);
-            max_y = max_y.max(vy);
-        }
-    }
-
-    let grid_width = max_x - min_x;
-    let grid_height = max_y - min_y;
     let usable_width = LETTER_WIDTH_MM - 2.0 * MARGIN_MM;
     let usable_height = LETTER_HEIGHT_MM - 2.0 * MARGIN_MM;
 
-    // Check if the grid fits on a single page.
+    // Compute bounding box and auto-scale hex size to fit the page.
+    let (min_x, max_x, min_y, max_y) = grid_bounds(&all_hexes, hex_size, pointy_top);
+    let grid_width = max_x - min_x;
+    let grid_height = max_y - min_y;
+
     if grid_width > usable_width || grid_height > usable_height {
-        return Err(ExportError::GenerationFailed(format!(
-            "Hex map ({grid_width:.1}mm x {grid_height:.1}mm) exceeds page area ({usable_width:.1}mm x {usable_height:.1}mm). \
-             Reduce map radius or counter size."
-        )));
+        let scale = (usable_width / grid_width).min(usable_height / grid_height);
+        hex_size *= scale;
     }
+
+    // Recompute bounds with the (possibly scaled) hex size.
+    let (min_x, max_x, min_y, max_y) = grid_bounds(&all_hexes, hex_size, pointy_top);
+    let grid_width = max_x - min_x;
+    let grid_height = max_y - min_y;
 
     // Offset to center the grid on the page.
     let offset_x = MARGIN_MM + (usable_width - grid_width) / 2.0 - min_x;
@@ -272,9 +281,7 @@ fn generate_hex_map(data: &ExportData, counter_size: CounterSize) -> Result<Vec<
     let mut doc = PdfDocument::new("Hexorder Hex Map");
     doc.with_pages(vec![page]);
     let mut warnings = Vec::new();
-    let bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
-
-    Ok(bytes)
+    doc.save(&PdfSaveOptions::default(), &mut warnings)
 }
 
 /// Create a hexagon polygon from 6 vertices.
