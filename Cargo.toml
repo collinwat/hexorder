@@ -68,6 +68,8 @@ too_many_lines = "allow"
 struct_field_names = "allow"
 # &Option<Res<T>> is idiomatic in Bevy UI helper functions
 ref_option = "allow"
+# Prevent debug macros from reaching commits
+dbg_macro = "deny"
 
 # Faster incremental builds on macOS (splits DWARF debug info)
 [profile.dev]
