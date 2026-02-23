@@ -1,6 +1,6 @@
 [package]
 name = "hexorder"
-version = "0.12.0-export"
+version = "0.12.0-chore-zed-patterns"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
