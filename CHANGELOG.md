@@ -5,6 +5,86 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] — 2026-02-23
+
+### Added
+
+- establish tool/game boundary in constitution (project)
+- add hex-observe skill and update hex-retro integration (project)
+- add editor dock polish design (editor_ui)
+- wire Inspector tab to tile/unit inspectors (#144) (editor_ui)
+- add Edit menu with dynamic undo/redo labels (#130) (editor_ui)
+- persist font size across sessions (#128) (persistence)
+- add catalog data model and plugin registration (mechanic_reference)
+- populate catalog with 56 mechanics from survey (mechanic_reference)
+- add browsable UI panel with contract types (mechanic_reference)
+- add scaffolding templates for 6 mechanics (mechanic_reference)
+- wire template application from mechanic reference panel (editor_ui)
+- update spec, log, and add contract spec (mechanic_reference)
+- add heightmap generation design document (map_gen)
+- add scope 1 implementation plan (map_gen)
+- add plugin skeleton with heightmap and biome modules (map_gen)
+- add heightmap and biome table unit tests (map_gen)
+- add full generation pipeline integration test (map_gen)
+- update spec criteria and log with scope 1 results (map_gen)
+- add scope 5 UI implementation plan (map_gen)
+- add generation parameter UI panel (map_gen)
+- update spec and log with scope 5 UI results (map_gen)
+- hammer scopes 3-4, capture as issues #150-#152 (map_gen)
+- capture all deferred items as issues #153-#155 (map_gen)
+- reframe scopes per Tool/Game Boundary (map_gen)
+- add hex-edge contract implementation plan (map_gen)
+- add hex-edge types to hex-grid spec (contracts)
+- add hex-edge types to hex_grid contract (contracts)
+- update spec and log with scope 6 results (map_gen)
+- add export plugin skeleton with ExportTarget trait (export)
+- update architecture and plugin log for Scope 1 (export)
+- add counter sheet PDF generation with printpdf (export)
+- update plugin log for Scope 2 completion (export)
+- add hex map PDF generation with terrain coloring (export)
+- update plugin log for Scope 3 completion (export)
+- wire PDF export to editor UI with save dialog (export)
+- update plugin log — all scopes complete (export)
+- add map_gen shared types for cross-plugin access (contracts)
+- add map generator dock tab (editor_ui)
+- add keyboard pan direction regression tests (camera)
+- add debug_panic! macro (ref #168) (project)
+- add status bar panel (ref #159) (editor_ui)
+- add dock layout persistence (ref #160) (editor_ui)
+
+### Changed
+
+- set up feature branch (editor_ui)
+- group EditorDockViewer into sub-structs (#146) (editor_ui)
+- set up feature branch (mechanic_reference)
+- set up feature branch (map_gen)
+- add noise crate dependency (map_gen)
+- extract default_layout helper in tests (map_gen)
+- add ba to typos allowlist for hex edge tests (project)
+- skip rand duplicate in deny.toml for noise crate (project)
+- set up feature branch (export)
+- set up feature branch (project)
+- add dev profile build optimizations (ref #166) (project)
+- add dbg_macro deny lint (ref #167) (project)
+- fix taplo formatting in Cargo.toml (project)
+- remove transient plan documents (project)
+- bump version to 0.12.0 (project)
+
+### Fixed
+
+- integrate amplitude param and add biome table validation (map_gen)
+- canonicalize HexEdge::new, init registry (contracts)
+- replace game-specific biome defaults with neutral labels (map_gen)
+- replace unwrap with expect in hex_grid tests (contracts)
+- guard observer against missing HexGridConfig (export)
+- load tiles without requiring EntityData (persistence)
+- defer board load until tiles have EntityData (persistence)
+- add assign_unit_visuals for loaded units without mesh (unit)
+- reset viewport state on editor re-entry (camera)
+- clear keyboard state after native file dialogs (persistence)
+- disable egui zoom shortcuts to prevent Retina jitter (editor_ui)
+- auto-scale hex map to fit page instead of rejecting (export)
+
 ## [0.11.0] — 2026-02-22
 
 ### Added
@@ -39,6 +119,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - commit Cargo.lock version bump (project)
 - set up feature branch for dockable panels (project)
 - bump version to 0.11.0 (project)
+- generate changelog for v0.11.0 (project)
 
 ### Fixed
 
