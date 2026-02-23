@@ -28,5 +28,8 @@ Thumbs.db
 # Wiki (separate git repo, cloned locally)
 /.wiki/
 
+# User-local config (dock layout, preferences)
+/config/
+
 # Local overrides
 *.local.*
