@@ -923,6 +923,90 @@ pub fn restore_font_size(workspace: Res<Workspace>, mut editor_state: ResMut<Edi
     editor_state.font_size_base = workspace.font_size_base;
 }
 
+// ---------------------------------------------------------------------------
+// Dock layout persistence
+// ---------------------------------------------------------------------------
+
+/// Returns the path to the dock layout config file.
+fn dock_layout_config_path() -> std::path::PathBuf {
+    #[cfg(feature = "macos-app")]
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        std::path::PathBuf::from(home).join("Library/Application Support/hexorder/dock_layout.ron")
+    }
+
+    #[cfg(not(feature = "macos-app"))]
+    {
+        std::path::PathBuf::from("config").join("dock_layout.ron")
+    }
+}
+
+/// Saves the dock layout to a RON config file when it changes.
+/// Uses Bevy change detection on `DockLayoutState`.
+pub fn save_dock_layout(dock_layout: Res<DockLayoutState>) {
+    if !dock_layout.is_changed() {
+        return;
+    }
+
+    let file = super::components::DockLayoutFile {
+        preset: dock_layout.active_preset,
+        dock_state: dock_layout.dock_state.clone(),
+    };
+
+    let path = dock_layout_config_path();
+    if let Some(parent) = path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        warn!("Failed to create dock layout config dir: {e}");
+        return;
+    }
+
+    let config = ron::ser::PrettyConfig::default();
+    match ron::ser::to_string_pretty(&file, config) {
+        Ok(ron_str) => {
+            if let Err(e) = std::fs::write(&path, ron_str) {
+                warn!("Failed to write dock layout to {}: {e}", path.display());
+            }
+        }
+        Err(e) => {
+            warn!("Failed to serialize dock layout: {e}");
+        }
+    }
+}
+
+/// Restores the dock layout from a RON config file on editor entry.
+/// Runs once via `OnEnter(AppScreen::Editor)`, after `restore_workspace_preset`.
+/// If a saved layout exists, it overrides the preset-based layout.
+pub fn restore_dock_layout(mut dock_layout: ResMut<DockLayoutState>) {
+    let path = dock_layout_config_path();
+
+    let contents = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            info!(
+                "No dock layout config at {}, using preset default",
+                path.display()
+            );
+            return;
+        }
+        Err(e) => {
+            warn!("Failed to read dock layout config {}: {e}", path.display());
+            return;
+        }
+    };
+
+    match ron::from_str::<super::components::DockLayoutFile>(&contents) {
+        Ok(file) => {
+            dock_layout.dock_state = file.dock_state;
+            dock_layout.active_preset = file.preset;
+            info!("Restored dock layout from {}", path.display());
+        }
+        Err(e) => {
+            warn!("Failed to parse dock layout config {}: {e}", path.display());
+        }
+    }
+}
+
 /// Debug inspector as a right-side panel.
 /// Only compiled when the `inspector` feature is enabled.
 /// Toggled via the `view.toggle_debug_panel` command (backtick key).

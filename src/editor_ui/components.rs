@@ -7,6 +7,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_egui::egui;
 use egui_dock::DockState;
+use serde::{Deserialize, Serialize};
 
 /// Brand palette constants for the editor UI.
 /// Source of truth: `docs/brand.md`
@@ -535,7 +536,7 @@ pub(crate) struct ActiveToast {
 // ---------------------------------------------------------------------------
 
 /// Which logical panel occupies a dock tab.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum DockTab {
     /// 3D scene — always present, transparent background.
     Viewport,
@@ -583,7 +584,7 @@ impl std::fmt::Display for DockTab {
 }
 
 /// Which workspace preset is active.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub(crate) enum WorkspacePreset {
     /// Large viewport, tool palette left, cell inspector right.
     #[default]
@@ -665,6 +666,13 @@ impl DockLayoutState {
         };
         self.active_preset = preset;
     }
+}
+
+/// Serializable snapshot of the dock layout for file persistence.
+#[derive(Serialize, Deserialize)]
+pub(crate) struct DockLayoutFile {
+    pub(crate) preset: WorkspacePreset,
+    pub(crate) dock_state: DockState<DockTab>,
 }
 
 /// Creates the default dock layout with 9 content tabs.

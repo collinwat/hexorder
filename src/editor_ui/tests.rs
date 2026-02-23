@@ -618,6 +618,52 @@ fn workspace_default_has_empty_preset() {
     assert!(ws.workspace_preset.is_empty());
 }
 
+#[test]
+fn dock_layout_file_ron_round_trip() {
+    use super::components::DockLayoutFile;
+
+    let layout = DockLayoutState::default();
+    let file = DockLayoutFile {
+        preset: layout.active_preset,
+        dock_state: layout.dock_state.clone(),
+    };
+
+    let config = ron::ser::PrettyConfig::default();
+    let ron_str = ron::ser::to_string_pretty(&file, config).expect("serialize");
+    let loaded: DockLayoutFile = ron::from_str(&ron_str).expect("deserialize");
+
+    assert_eq!(loaded.preset, WorkspacePreset::MapEditing);
+    let original_tabs = collect_tabs(&layout.dock_state);
+    let loaded_tabs = collect_tabs(&loaded.dock_state);
+    assert_eq!(original_tabs.len(), loaded_tabs.len());
+    for tab in &original_tabs {
+        assert!(loaded_tabs.contains(tab), "missing tab: {tab}");
+    }
+}
+
+#[test]
+fn dock_layout_file_preserves_preset_variants() {
+    use super::components::DockLayoutFile;
+
+    for preset in [
+        WorkspacePreset::MapEditing,
+        WorkspacePreset::UnitDesign,
+        WorkspacePreset::RuleAuthoring,
+        WorkspacePreset::Playtesting,
+    ] {
+        let mut layout = DockLayoutState::default();
+        layout.apply_preset(preset);
+        let file = DockLayoutFile {
+            preset: layout.active_preset,
+            dock_state: layout.dock_state.clone(),
+        };
+
+        let ron_str = ron::to_string(&file).expect("serialize");
+        let loaded: DockLayoutFile = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(loaded.preset, preset);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Scope 5: Template application (mechanic_reference)
 // ---------------------------------------------------------------------------

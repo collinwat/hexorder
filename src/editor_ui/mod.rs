@@ -101,13 +101,22 @@ impl Plugin for EditorUiPlugin {
                 .chain()
                 .run_if(in_state(AppScreen::Editor)),
         );
-        // Restore workspace preset and font size from loaded project on editor entry.
+        // Restore workspace preset, dock layout, and font size on editor entry.
+        // restore_dock_layout runs after restore_workspace_preset to override
+        // the preset with the user's saved panel arrangement (if any).
         app.add_systems(
             OnEnter(AppScreen::Editor),
             (
                 systems::restore_workspace_preset,
+                systems::restore_dock_layout,
                 systems::restore_font_size,
-            ),
+            )
+                .chain(),
+        );
+        // Persist dock layout changes to config file.
+        app.add_systems(
+            PostUpdate,
+            systems::save_dock_layout.run_if(in_state(AppScreen::Editor)),
         );
         // Play panel shown only in Play state.
         app.add_systems(
