@@ -296,7 +296,6 @@ fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
 }
 
 /// Observer: handles discrete camera commands dispatched via the shortcut registry.
-#[allow(clippy::too_many_arguments)]
 pub fn handle_camera_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
@@ -304,7 +303,6 @@ pub fn handle_camera_command(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
     margins: Res<ViewportMargins>,
-    mut cameras: Query<&mut Camera, With<TopDownCamera>>,
 ) {
     let zoom_step = 0.2; // 20% per press
     match trigger.event().command_id.0 {
@@ -333,16 +331,12 @@ pub fn handle_camera_command(
             if let (Ok(window), Some(config)) = (windows.single(), &grid_config) {
                 camera_state.target_scale = fit_scale(config, window, &camera_state, &margins);
             }
+            // Snap scale so smooth_camera applies it on the next frame
+            // without multi-frame interpolation.
+            camera_state.current_scale = camera_state.target_scale;
             let scale = camera_state.target_scale;
             camera_state.target_position = ui_center_offset(scale, &margins);
-            // Cancel any pending reset and re-enable the camera. Without this,
-            // if configure_bounds_from_grid disabled the camera and
-            // apply_pending_reset hasn't fired yet, pressing 0 would update
-            // targets but the camera would stay inactive.
             camera_state.pending_reset = false;
-            if let Ok(mut cam) = cameras.single_mut() {
-                cam.is_active = true;
-            }
         }
         "view.zoom_to_selection" => {
             if let (Some(sel), Some(config)) = (&selected_hex, &grid_config)

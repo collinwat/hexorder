@@ -1191,6 +1191,39 @@ if should_fire_event {
 
 See [§16 Deprecations & Migration](#16-deprecations--migration) for the full table.
 
+### 13. Disable `zoom_with_keyboard` to Prevent Retina Jitter
+
+egui enables `zoom_with_keyboard` by default (`memory.options.zoom_with_keyboard = true`). This maps
+`Cmd+0` to `ctx.set_zoom_factor(1.0)`, resetting the zoom factor to 1.0 regardless of the display's
+`pixels_per_point`.
+
+On macOS with Retina displays (`scale_factor = 2.0`), this causes a one-frame layout jitter: egui
+briefly renders with `ppp=1.0` and physical pixel dimensions (e.g. 2560x1440) instead of logical
+dimensions (1280x720), causing panels to grow and shrink for one frame.
+
+**Trigger**: After a native file dialog (`Cmd+O` via rfd), macOS can leave the `Cmd` modifier
+"stuck" in the keyboard state. When the user then presses `0` (e.g. for camera reset), egui
+interprets it as `Cmd+0` and resets the zoom factor.
+
+**Root cause chain**: `end_pass()` → `zoom_with_keyboard(ctx)` (in `egui/src/gui_zoom.rs`) →
+`ctx.set_zoom_factor(1.0)` → next frame's `begin_pass()` consumes the pending value → all panels
+render at wrong scale for one frame.
+
+**Fix**: Disable the feature at startup if your app does not use egui's zoom:
+
+```rust
+pub fn disable_egui_zoom_shortcuts(mut contexts: EguiContexts) {
+    let Ok(ctx) = contexts.ctx_mut() else { return; };
+    ctx.options_mut(|o| o.zoom_with_keyboard = false);
+}
+
+// Register with run_once so it only runs on the first frame:
+app.add_systems(
+    EguiPrimaryContextPass,
+    disable_egui_zoom_shortcuts.run_if(run_once),
+);
+```
+
 ---
 
 ## 16. Deprecations & Migration

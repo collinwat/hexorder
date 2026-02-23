@@ -59,10 +59,34 @@ pub fn update_viewport_margins(
         return;
     };
     let screen = ctx.input(bevy_egui::egui::InputState::viewport_rect);
-    margins.left = rect.left();
-    margins.top = rect.top();
-    margins.right = screen.right() - rect.right();
-    margins.bottom = screen.bottom() - rect.bottom();
+
+    let new_left = rect.left();
+    let new_top = rect.top();
+    let new_right = screen.right() - rect.right();
+    let new_bottom = screen.bottom() - rect.bottom();
+
+    margins.left = new_left;
+    margins.top = new_top;
+    margins.right = new_right;
+    margins.bottom = new_bottom;
+}
+
+/// Disables egui's built-in `Cmd+0` zoom-reset shortcut.
+///
+/// egui enables `zoom_with_keyboard` by default, which maps `Cmd+0` to
+/// `set_zoom_factor(1.0)`.  On macOS, after a native file dialog
+/// (`Cmd+O`), the Cmd modifier can remain "stuck" in the key state.
+/// When the user then presses `0` (camera reset), egui interprets it
+/// as `Cmd+0` and resets its zoom factor to 1.0 — collapsing the
+/// Retina `HiDPI` scaling and causing a one-frame layout jitter.
+///
+/// Hexorder does not use egui's zoom feature, so we disable it.
+/// Runs once at startup via a run-once condition.
+pub fn disable_egui_zoom_shortcuts(mut contexts: EguiContexts) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+    ctx.options_mut(|o| o.zoom_with_keyboard = false);
 }
 
 // ---------------------------------------------------------------------------

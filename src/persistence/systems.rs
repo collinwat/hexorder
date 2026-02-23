@@ -33,10 +33,20 @@ use crate::contracts::validation::SchemaValidation;
 /// Without this reset, keys pressed during dialog navigation (especially
 /// arrow keys) remain "stuck" in `ButtonInput`, causing systems like
 /// `keyboard_pan` to fire continuously after the dialog closes.
+///
+/// Also resets the `bevy_egui` `ModifierKeysState` so that modifier keys
+/// (Cmd, Ctrl, Shift, Alt) held when the dialog opened are not treated
+/// as still pressed after it closes.
 fn clear_keyboard_after_dialog(commands: &mut Commands) {
     commands.queue(|world: &mut World| {
         if let Some(mut keys) = world.get_resource_mut::<ButtonInput<KeyCode>>() {
             keys.reset_all();
+        }
+        if let Some(mut mods) = world.get_resource_mut::<bevy_egui::input::ModifierKeysState>() {
+            mods.shift = false;
+            mods.ctrl = false;
+            mods.alt = false;
+            mods.win = false;
         }
     });
 }

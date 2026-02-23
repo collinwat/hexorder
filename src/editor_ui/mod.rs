@@ -66,6 +66,13 @@ impl Plugin for EditorUiPlugin {
         app.init_resource::<ActiveCombat>();
         app.init_resource::<TurnState>();
 
+        // Disable egui's built-in Cmd+0 zoom-reset shortcut to prevent
+        // Retina HiDPI jitter after native file dialogs on macOS.
+        app.add_systems(
+            EguiPrimaryContextPass,
+            systems::disable_egui_zoom_shortcuts.run_if(run_once),
+        );
+
         // Theme applies unconditionally so both launcher and editor get dark theming.
         app.add_systems(EguiPrimaryContextPass, systems::configure_theme);
         // Launcher screen shown only in Launcher state.
