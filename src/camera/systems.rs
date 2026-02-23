@@ -47,16 +47,22 @@ pub fn configure_bounds_from_grid(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
     mut cameras: Query<&mut Camera, With<TopDownCamera>>,
-    margins: Res<ViewportMargins>,
+    mut margins: ResMut<ViewportMargins>,
 ) {
     // Always request a deferred reset so centering happens once margins are known,
     // even if grid config isn't available yet (apply_pending_reset handles that).
     // Deactivate the camera while the reset is pending to prevent rendering
     // at the wrong position (visible as a flash).
     camera_state.pending_reset = true;
+    camera_state.target_position = Vec2::ZERO;
     if let Ok(mut cam) = cameras.single_mut() {
         cam.is_active = false;
     }
+
+    // Reset margins to zero so that apply_pending_reset waits for the egui
+    // system to compute fresh values. Stale margins from a previous editor
+    // session would produce a wrong center offset.
+    *margins = ViewportMargins::default();
 
     let Some(config) = grid_config else {
         return;
@@ -290,6 +296,7 @@ fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
 }
 
 /// Observer: handles discrete camera commands dispatched via the shortcut registry.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_camera_command(
     trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
@@ -297,6 +304,7 @@ pub fn handle_camera_command(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_state: ResMut<CameraState>,
     margins: Res<ViewportMargins>,
+    mut cameras: Query<&mut Camera, With<TopDownCamera>>,
 ) {
     let zoom_step = 0.2; // 20% per press
     match trigger.event().command_id.0 {
@@ -327,6 +335,14 @@ pub fn handle_camera_command(
             }
             let scale = camera_state.target_scale;
             camera_state.target_position = ui_center_offset(scale, &margins);
+            // Cancel any pending reset and re-enable the camera. Without this,
+            // if configure_bounds_from_grid disabled the camera and
+            // apply_pending_reset hasn't fired yet, pressing 0 would update
+            // targets but the camera would stay inactive.
+            camera_state.pending_reset = false;
+            if let Ok(mut cam) = cameras.single_mut() {
+                cam.is_active = true;
+            }
         }
         "view.zoom_to_selection" => {
             if let (Some(sel), Some(config)) = (&selected_hex, &grid_config)
