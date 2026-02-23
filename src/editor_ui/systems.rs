@@ -732,6 +732,46 @@ pub fn editor_dock_system(
         });
     });
 
+    // Status bar at the bottom of the editor window.
+    egui::TopBottomPanel::bottom("status_bar")
+        .exact_height(22.0)
+        .show(ctx, |ui| {
+            ui.horizontal_centered(|ui| {
+                // Left: current tool mode.
+                let tool_label = match *selection.editor_tool {
+                    EditorTool::Select => "Select",
+                    EditorTool::Paint => "Paint",
+                    EditorTool::Place => "Place",
+                };
+                ui.label(
+                    egui::RichText::new(tool_label)
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+
+                ui.separator();
+
+                // Left: workspace preset.
+                ui.label(
+                    egui::RichText::new(dock_layout.active_preset.to_string())
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+
+                // Right-aligned items.
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Selected hex coordinates.
+                    if let Some(pos) = selection.selected_hex.position {
+                        ui.label(
+                            egui::RichText::new(format!("({}, {})", pos.q, pos.r))
+                                .small()
+                                .color(BrandTheme::TEXT_SECONDARY),
+                        );
+                    }
+                });
+            });
+        });
+
     // About panel (modal, renders over everything).
     render_about_panel(ctx, &mut editor_state);
 
