@@ -1,5 +1,6 @@
 //! Systems for the export plugin.
 
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::{ToastEvent, ToastKind};
@@ -52,7 +53,16 @@ pub(crate) fn handle_export_command(
 
     // Ask user for output directory.
     let dialog = rfd::FileDialog::new().set_title("Export Print-and-Play PDFs");
-    let Some(output_dir) = dialog.pick_folder() else {
+    let output_dir = dialog.pick_folder();
+    // Native file dialogs take over the macOS event loop, so key-up events
+    // that occur while the dialog is open are never delivered to Bevy.
+    // Reset keyboard state to prevent stuck keys after the dialog closes.
+    commands.queue(|world: &mut World| {
+        if let Some(mut keys) = world.get_resource_mut::<ButtonInput<KeyCode>>() {
+            keys.reset_all();
+        }
+    });
+    let Some(output_dir) = output_dir else {
         return; // User cancelled.
     };
 

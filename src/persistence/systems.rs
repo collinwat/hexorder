@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::contracts::editor_ui::{ToastEvent, ToastKind};
@@ -24,6 +25,21 @@ use crate::contracts::validation::SchemaValidation;
 // ---------------------------------------------------------------------------
 // Shared Helpers
 // ---------------------------------------------------------------------------
+
+/// Clears all keyboard input state via a deferred command.
+///
+/// Native file dialogs (`rfd`) take over the macOS event loop, so key-up
+/// events that occur while the dialog is open are never delivered to Bevy.
+/// Without this reset, keys pressed during dialog navigation (especially
+/// arrow keys) remain "stuck" in `ButtonInput`, causing systems like
+/// `keyboard_pan` to fire continuously after the dialog closes.
+fn clear_keyboard_after_dialog(commands: &mut Commands) {
+    commands.queue(|world: &mut World| {
+        if let Some(mut keys) = world.get_resource_mut::<ButtonInput<KeyCode>>() {
+            keys.reset_all();
+        }
+    });
+}
 
 /// Reset all registries and derived state to factory defaults.
 /// Used by both `handle_new_project` and `handle_close_project`.
@@ -121,7 +137,9 @@ pub fn handle_save_request(
             }
         }
 
-        match dialog.save_file() {
+        let result = dialog.save_file();
+        clear_keyboard_after_dialog(&mut commands);
+        match result {
             Some(p) => p,
             None => return, // User cancelled.
         }
@@ -210,7 +228,9 @@ pub fn handle_load_request(
     mut commands: Commands,
 ) {
     let dialog = rfd::FileDialog::new().add_filter("Hexorder", &["hexorder"]);
-    let Some(path) = dialog.pick_file() else {
+    let path = dialog.pick_file();
+    clear_keyboard_after_dialog(&mut commands);
+    let Some(path) = path else {
         return; // User cancelled.
     };
 
