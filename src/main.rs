@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy::winit::{UpdateMode, WinitSettings};
 
+mod macros;
+
 mod camera;
 mod cell;
 mod contracts;
