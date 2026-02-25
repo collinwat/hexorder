@@ -354,7 +354,7 @@ pub(crate) fn config_path() -> PathBuf {
 // ---------------------------------------------------------------------------
 
 /// Load the user settings layer from disk. Returns default (empty) on missing
-/// or unparseable file.
+/// or unparsable file.
 pub(crate) fn load_user_settings() -> PartialSettings {
     let path = config_path();
 
