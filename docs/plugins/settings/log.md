@@ -59,7 +59,19 @@ file-scan-and-parse with a hardcoded brand fallback.
 
 ## Test Results
 
-### 2026-02-24 — Scope 3
+### 2026-02-24 — Scope 4
+
+**Context**: Add keyboard shortcuts reference panel and verify rebindable shortcuts. **Decision**:
+Existing `shortcuts/config.rs` already loads `shortcuts.toml` with `apply_config_overrides` — no
+separate `keymap.toml` needed, the functionality is identical. SC-4 is satisfied by the existing
+shortcuts plugin. **Decision**: Keyboard shortcuts data cached on `EditorState.shortcut_entries`
+rather than passing `ShortcutRegistry` through the 16-parameter dock system. Populated by
+`restore_shortcuts` on editor entry. **Decision**: `DockTab::Shortcuts` added to MapEditing,
+UnitDesign, and RuleAuthoring layouts (alongside Settings tab). Not in Playtesting (minimal panels).
+**Abstraction check**: No abstraction needed — the reference panel is a simple read-only list
+renderer with no reuse potential.
+
+### 2026-02-24 — Scope 3+4
 
 - 411 tests pass (full suite, 5 new theme tests, no regressions)
 - `cargo clippy --all-targets`: zero warnings
@@ -89,3 +101,4 @@ file-scan-and-parse with a hardcoded brand fallback.
 | 2026-02-24 | building | Scope 1+5 complete — infrastructure + contract |
 | 2026-02-24 | building | Scope 2 complete — preference migration        |
 | 2026-02-24 | building | Scope 3 complete — custom themes               |
+| 2026-02-24 | building | Scope 4 complete — rebindable shortcuts        |

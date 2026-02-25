@@ -544,7 +544,7 @@ fn dock_layout_creates_default_layout() {
             }
         }
     }
-    assert_eq!(tabs.len(), 9);
+    assert_eq!(tabs.len(), 10);
     assert!(tabs.contains(&DockTab::Viewport));
     assert!(tabs.contains(&DockTab::Palette));
     assert!(tabs.contains(&DockTab::Design));
@@ -554,6 +554,7 @@ fn dock_layout_creates_default_layout() {
     assert!(tabs.contains(&DockTab::Selection));
     assert!(tabs.contains(&DockTab::Validation));
     assert!(tabs.contains(&DockTab::MapGenerator));
+    assert!(tabs.contains(&DockTab::Shortcuts));
 }
 
 #[test]
@@ -576,14 +577,14 @@ fn dock_layout_state_resource_inserts_correctly() {
     app.update();
 
     let state = app.world().resource::<DockLayoutState>();
-    // Verify the default layout created 9 tabs.
+    // Verify the default layout created 10 tabs (9 content + Shortcuts).
     let mut count = 0;
     for node in state.dock_state.main_surface().iter() {
         if let Some(tabs) = node.tabs() {
             count += tabs.len();
         }
     }
-    assert_eq!(count, 9);
+    assert_eq!(count, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -627,10 +628,10 @@ fn collect_tabs(state: &egui_dock::DockState<DockTab>) -> Vec<DockTab> {
 }
 
 #[test]
-fn map_editing_layout_contains_all_9_tabs() {
+fn map_editing_layout_contains_all_tabs() {
     let state = super::components::create_default_dock_layout();
     let tabs = collect_tabs(&state);
-    assert_eq!(tabs.len(), 9);
+    assert_eq!(tabs.len(), 10);
     assert!(tabs.contains(&DockTab::Viewport));
     assert!(tabs.contains(&DockTab::Palette));
     assert!(tabs.contains(&DockTab::Design));
@@ -640,6 +641,7 @@ fn map_editing_layout_contains_all_9_tabs() {
     assert!(tabs.contains(&DockTab::Selection));
     assert!(tabs.contains(&DockTab::Validation));
     assert!(tabs.contains(&DockTab::MapGenerator));
+    assert!(tabs.contains(&DockTab::Shortcuts));
 }
 
 #[test]
@@ -694,7 +696,7 @@ fn apply_preset_switches_layout_and_tracks_preset() {
     layout.apply_preset(WorkspacePreset::MapEditing);
     assert_eq!(layout.active_preset, WorkspacePreset::MapEditing);
     let tabs = collect_tabs(&layout.dock_state);
-    assert_eq!(tabs.len(), 9);
+    assert_eq!(tabs.len(), 10);
 }
 
 #[test]

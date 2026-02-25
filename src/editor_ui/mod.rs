@@ -123,6 +123,7 @@ impl Plugin for EditorUiPlugin {
                 systems::restore_dock_layout,
                 systems::restore_font_size,
                 systems::restore_theme,
+                systems::restore_shortcuts,
             )
                 .chain()
                 .after(SettingsReady),

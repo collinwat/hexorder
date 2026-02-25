@@ -25,7 +25,9 @@ use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
 use hexorder_contracts::settings::{SettingsRegistry, ThemeLibrary};
-use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+use hexorder_contracts::shortcuts::{
+    CommandCategory, CommandExecutedEvent, CommandId, KeyBinding, ShortcutRegistry,
+};
 use hexorder_contracts::validation::SchemaValidation;
 
 use hexorder_contracts::mechanics::{
@@ -38,8 +40,8 @@ use egui_dock::DockArea;
 
 use super::components::{
     BrandTheme, DockLayoutState, DockTab, EditorAction, EditorState, GridOverlayVisible,
-    MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams, ToastState,
-    TypeRegistryParams, WorkspacePreset,
+    MechanicsParams, OntologyParams, OntologyTab, ProjectParams, SelectionParams,
+    ShortcutDisplayEntry, ToastState, TypeRegistryParams, WorkspacePreset,
 };
 
 // ---------------------------------------------------------------------------
@@ -372,6 +374,55 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
             }
             DockTab::MapGenerator => {
                 render_map_generator(ui, self.map_gen_params, self.is_generating, self.actions);
+            }
+            DockTab::Shortcuts => {
+                ui.label(
+                    egui::RichText::new("Keyboard Shortcuts")
+                        .strong()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.separator();
+                if self.editor_state.shortcut_entries.is_empty() {
+                    ui.label(
+                        egui::RichText::new("No shortcuts loaded")
+                            .color(BrandTheme::TEXT_SECONDARY),
+                    );
+                } else {
+                    let mut current_category = "";
+                    for entry in &self.editor_state.shortcut_entries {
+                        if entry.category != current_category {
+                            if !current_category.is_empty() {
+                                ui.add_space(6.0);
+                            }
+                            ui.label(
+                                egui::RichText::new(&entry.category)
+                                    .small()
+                                    .color(BrandTheme::TEXT_SECONDARY),
+                            );
+                            ui.separator();
+                            current_category = &entry.category;
+                        }
+                        ui.horizontal(|ui| {
+                            ui.label(&entry.name);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if entry.binding.is_empty() {
+                                        ui.label(
+                                            egui::RichText::new("—")
+                                                .color(BrandTheme::TEXT_SECONDARY),
+                                        );
+                                    } else {
+                                        ui.monospace(
+                                            egui::RichText::new(&entry.binding)
+                                                .color(BrandTheme::ACCENT_TEAL),
+                                        );
+                                    }
+                                },
+                            );
+                        });
+                    }
+                }
             }
         }
     }
@@ -988,6 +1039,43 @@ pub fn sync_theme(editor_state: Res<EditorState>, mut settings: ResMut<SettingsR
             .active_theme
             .clone_from(&editor_state.active_theme_name);
     }
+}
+
+/// Populates the keyboard shortcuts reference data on `EditorState`.
+/// Runs on `OnEnter(AppScreen::Editor)`, after `SettingsReady`.
+pub fn restore_shortcuts(registry: Res<ShortcutRegistry>, mut editor_state: ResMut<EditorState>) {
+    let commands = registry.commands();
+    let mut entries: Vec<ShortcutDisplayEntry> = Vec::with_capacity(commands.len());
+
+    // Sort by category for grouped display.
+    let category_order = |cat: &CommandCategory| match cat {
+        CommandCategory::File => 0,
+        CommandCategory::Edit => 1,
+        CommandCategory::View => 2,
+        CommandCategory::Tool => 3,
+        CommandCategory::Mode => 4,
+        CommandCategory::Camera => 5,
+    };
+
+    let mut sorted: Vec<_> = commands.iter().collect();
+    sorted.sort_by_key(|c| category_order(&c.category));
+
+    for cmd in sorted {
+        let binding_str = cmd
+            .bindings
+            .iter()
+            .map(KeyBinding::display_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        entries.push(ShortcutDisplayEntry {
+            category: format!("{:?}", cmd.category),
+            name: cmd.name.clone(),
+            binding: binding_str,
+        });
+    }
+
+    editor_state.shortcut_entries = entries;
 }
 
 // ---------------------------------------------------------------------------

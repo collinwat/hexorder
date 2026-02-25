@@ -383,6 +383,8 @@ pub struct EditorState {
     pub theme_names: Vec<String>,
     /// Currently active theme name, synced with `SettingsRegistry.active_theme`.
     pub active_theme_name: String,
+    /// Cached shortcut entries for the keyboard shortcuts reference panel.
+    pub shortcut_entries: Vec<ShortcutDisplayEntry>,
 
     // -- About panel --
     /// Whether the About panel is visible.
@@ -462,9 +464,18 @@ impl Default for EditorState {
             font_size_base: 15.0,
             theme_names: vec!["Brand".to_string()],
             active_theme_name: "brand".to_string(),
+            shortcut_entries: Vec::new(),
             about_panel_visible: false,
         }
     }
+}
+
+/// Entry for the keyboard shortcuts reference display.
+#[derive(Debug, Clone)]
+pub(crate) struct ShortcutDisplayEntry {
+    pub(crate) category: String,
+    pub(crate) name: String,
+    pub(crate) binding: String,
 }
 
 /// Bundled system parameter for project-level read-only resources.
@@ -570,6 +581,8 @@ pub(crate) enum DockTab {
     MechanicReference,
     /// Procedural map generation controls.
     MapGenerator,
+    /// Keyboard shortcuts reference (read-only).
+    Shortcuts,
 }
 
 impl DockTab {
@@ -591,6 +604,7 @@ impl std::fmt::Display for DockTab {
             Self::Validation => write!(f, "Validation"),
             Self::MechanicReference => write!(f, "Mechanic Reference"),
             Self::MapGenerator => write!(f, "Map Generator"),
+            Self::Shortcuts => write!(f, "Shortcuts"),
         }
     }
 }
@@ -708,10 +722,11 @@ pub(crate) fn create_default_dock_layout() -> DockState<DockTab> {
     let [center, left] = tree.split_left(root, 0.15, vec![DockTab::Palette]);
     let [_left_top, _left_bottom] = tree.split_below(left, 0.50, vec![DockTab::MapGenerator]);
 
-    // Right: Inspector + Selection on top, split below for Settings.
+    // Right: Inspector + Selection on top, split below for Settings + Shortcuts.
     let [center, right] =
         tree.split_right(center, 0.75, vec![DockTab::Inspector, DockTab::Selection]);
-    let [_right_top, _right_bottom] = tree.split_below(right, 0.60, vec![DockTab::Settings]);
+    let [_right_top, _right_bottom] =
+        tree.split_below(right, 0.60, vec![DockTab::Settings, DockTab::Shortcuts]);
 
     // Bottom: Validation gets 15% of center height.
     let [_viewport, _bottom] = tree.split_below(center, 0.85, vec![DockTab::Validation]);
@@ -734,11 +749,16 @@ pub(crate) fn create_unit_design_layout() -> DockState<DockTab> {
         vec![DockTab::Design, DockTab::Rules, DockTab::Palette],
     );
 
-    // Right: Inspector + Settings + Selection tabs get 25%.
+    // Right: Inspector + Settings + Selection + Shortcuts tabs get 25%.
     let [_center, _right] = tree.split_right(
         center,
         0.75,
-        vec![DockTab::Inspector, DockTab::Settings, DockTab::Selection],
+        vec![
+            DockTab::Inspector,
+            DockTab::Settings,
+            DockTab::Selection,
+            DockTab::Shortcuts,
+        ],
     );
 
     // No bottom zone — validation is less relevant during unit design.
@@ -760,9 +780,12 @@ pub(crate) fn create_rule_authoring_layout() -> DockState<DockTab> {
     let tree = state.main_surface_mut();
     let root = egui_dock::NodeIndex::root();
 
-    // Right: Inspector + Settings for reference while editing rules.
-    let [center, _right] =
-        tree.split_right(root, 0.75, vec![DockTab::Inspector, DockTab::Settings]);
+    // Right: Inspector + Settings + Shortcuts for reference while editing rules.
+    let [center, _right] = tree.split_right(
+        root,
+        0.75,
+        vec![DockTab::Inspector, DockTab::Settings, DockTab::Shortcuts],
+    );
 
     // Bottom: Validation output prominent (20% height).
     let [_main, _bottom] = tree.split_below(center, 0.80, vec![DockTab::Validation]);
