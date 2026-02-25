@@ -26,7 +26,14 @@ allow = [
   "Ubuntu-font-1.0",
 ]
 confidence-threshold = 0.8
-exceptions = [ { allow = [ "LicenseRef-Proprietary" ], crate = "hexorder" } ]
+exceptions = [
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-contracts" },
+]
 
 [bans]
 multiple-versions = "deny"
