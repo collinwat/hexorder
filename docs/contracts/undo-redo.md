@@ -76,6 +76,18 @@ Built-in command for reversible unit (token) placement. Undo despawns; redo resp
 - `transform: Transform`
 - `label: String`
 
+### DeleteUnitCommand (struct)
+
+Built-in command for reversible unit (token) deletion. Undo respawns; redo despawns.
+
+- `entity: Option<Entity>`
+- `position: HexPosition`
+- `entity_data: EntityData`
+- `mesh: Handle<Mesh>`
+- `material: Handle<StandardMaterial>`
+- `transform: Transform`
+- `label: String`
+
 ### CompoundCommand (struct)
 
 Groups multiple commands into a single undoable step.
@@ -88,7 +100,7 @@ Execute runs all sub-commands in order; undo reverses them in reverse order.
 ## Consumers
 
 - `editor_ui` — reads `can_undo/can_redo` and descriptions for menu labels; pushes
-  `SetPropertyCommand` for inspector edits
+  `SetPropertyCommand` for inspector edits; pushes `DeleteUnitCommand` for unit deletion
 - `cell` — pushes `SetTerrainCommand` for terrain painting
 - `unit` — pushes `PlaceUnitCommand` for unit placement
 - `persistence` — calls `clear()` on project load

@@ -10,8 +10,8 @@ use bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 use hexorder_contracts::editor_ui::{
     EditorTool, Selection, ToastEvent, ViewportMargins, ViewportRect,
 };
-use hexorder_contracts::game_system::SelectedUnit;
-use hexorder_contracts::hex_grid::HexTile;
+use hexorder_contracts::game_system::{EntityData, SelectedUnit, UnitInstance};
+use hexorder_contracts::hex_grid::{HexPosition, HexTile};
 use hexorder_contracts::mechanics::{ActiveCombat, TurnState};
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use hexorder_contracts::persistence::AppScreen;
@@ -19,6 +19,7 @@ use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandExecutedEvent, CommandId, KeyBinding, Modifiers,
     ShortcutRegistry,
 };
+use hexorder_contracts::undo_redo::{DeleteUnitCommand, UndoStack};
 use hexorder_contracts::validation::SchemaValidation;
 
 mod components;
@@ -145,7 +146,7 @@ impl Plugin for EditorUiPlugin {
 }
 
 /// Observer: handles tool switching, mode switching, and discoverable commands.
-#[allow(clippy::too_many_arguments)] // Tracked by #115 — decompose editor observers.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn handle_editor_ui_command(
     trigger: On<CommandExecutedEvent>,
     mut tool: ResMut<EditorTool>,
@@ -158,6 +159,17 @@ fn handle_editor_ui_command(
     mut commands: Commands,
     mut windows: Query<&mut Window>,
     mut dock_layout: ResMut<components::DockLayoutState>,
+    unit_query: Query<
+        (
+            &HexPosition,
+            &EntityData,
+            &Mesh3d,
+            &MeshMaterial3d<StandardMaterial>,
+            &Transform,
+        ),
+        With<UnitInstance>,
+    >,
+    mut undo_stack: Option<ResMut<UndoStack>>,
 ) {
     match trigger.event().command_id.0 {
         "tool.select" => *tool = EditorTool::Select,
@@ -172,7 +184,7 @@ fn handle_editor_ui_command(
                     commands.entity(entity).despawn();
                 }
             } else if let Some(entity) = selected_unit.entity {
-                commands.entity(entity).despawn();
+                delete_unit(entity, &unit_query, &mut undo_stack, &mut commands);
                 selected_unit.entity = None;
             }
         }
@@ -230,6 +242,44 @@ fn handle_editor_ui_command(
         }
         // Undo/redo handled by UndoRedoPlugin — no no-op fallback needed.
         _ => {}
+    }
+}
+
+/// Capture a unit's state, despawn it, and record a `DeleteUnitCommand`.
+/// If the entity is not a unit (missing components), falls back to a plain despawn.
+#[allow(clippy::type_complexity)]
+fn delete_unit(
+    entity: Entity,
+    unit_query: &Query<
+        (
+            &HexPosition,
+            &EntityData,
+            &Mesh3d,
+            &MeshMaterial3d<StandardMaterial>,
+            &Transform,
+        ),
+        With<UnitInstance>,
+    >,
+    undo_stack: &mut Option<ResMut<UndoStack>>,
+    commands: &mut Commands,
+) {
+    if let Ok((pos, data, mesh, mat, transform)) = unit_query.get(entity) {
+        let cmd = DeleteUnitCommand {
+            entity: Some(entity),
+            position: *pos,
+            entity_data: data.clone(),
+            mesh: mesh.0.clone(),
+            material: mat.0.clone(),
+            transform: *transform,
+            label: format!("Delete unit at ({}, {})", pos.q, pos.r),
+        };
+        commands.entity(entity).despawn();
+        if let Some(stack) = undo_stack.as_mut() {
+            stack.record(Box::new(cmd));
+        }
+    } else {
+        // Not a unit — plain despawn without undo.
+        commands.entity(entity).despawn();
     }
 }
 

@@ -254,6 +254,166 @@ fn delete_command_falls_back_to_selected_unit() {
 }
 
 // ---------------------------------------------------------------------------
+// Scope: Unit deletion undo (#127)
+// ---------------------------------------------------------------------------
+
+/// Helper: create an observer app that also has `UndoStack` + undo/redo pipeline.
+fn observer_app_with_undo() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
+    app.insert_resource(EditorTool::default());
+    app.insert_resource(SelectedUnit::default());
+    app.insert_resource(EditorState::default());
+    app.init_resource::<Selection>();
+    app.init_resource::<GridOverlayVisible>();
+    app.init_resource::<ToastState>();
+    app.init_resource::<super::components::DockLayoutState>();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
+    app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
+    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+    app.add_observer(super::handle_editor_ui_command);
+    app.add_observer(super::handle_toast_event);
+    app.update();
+    app
+}
+
+/// Helper: spawn a unit entity with all components needed for undo/redo.
+fn spawn_test_unit(
+    app: &mut App,
+    q: i32,
+    r: i32,
+) -> (Entity, hexorder_contracts::game_system::TypeId) {
+    let type_id = hexorder_contracts::game_system::TypeId::new();
+    let entity = app
+        .world_mut()
+        .spawn((
+            hexorder_contracts::game_system::UnitInstance,
+            hexorder_contracts::hex_grid::HexPosition::new(q, r),
+            hexorder_contracts::game_system::EntityData {
+                entity_type_id: type_id,
+                properties: std::collections::HashMap::new(),
+            },
+            Mesh3d(Handle::default()),
+            MeshMaterial3d::<StandardMaterial>(Handle::default()),
+            Transform::from_xyz(1.0, 0.5, 2.0),
+        ))
+        .id();
+    (entity, type_id)
+}
+
+/// Deleting a selected unit records a `DeleteUnitCommand` on the undo stack.
+#[test]
+fn delete_unit_records_undo_command() {
+    let mut app = observer_app_with_undo();
+
+    let (entity, _type_id) = spawn_test_unit(&mut app, 0, 0);
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(entity);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.delete"),
+    });
+    app.update();
+
+    let stack = app
+        .world()
+        .resource::<hexorder_contracts::undo_redo::UndoStack>();
+    assert!(
+        stack.can_undo(),
+        "Undo stack should have a command after deleting"
+    );
+    assert!(
+        stack
+            .undo_description()
+            .expect("should have description")
+            .contains("Delete"),
+        "Undo description should mention Delete"
+    );
+}
+
+/// Undoing a unit deletion restores the unit with its original data.
+#[test]
+fn delete_then_undo_restores_unit() {
+    let mut app = observer_app_with_undo();
+
+    let (entity, type_id) = spawn_test_unit(&mut app, 1, -1);
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(entity);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.delete"),
+    });
+    app.update();
+
+    // Confirm unit is gone.
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<hexorder_contracts::game_system::UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "Unit should be gone after delete"
+    );
+
+    // Undo the deletion.
+    app.world_mut()
+        .resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+        .request_undo();
+    app.update();
+
+    // Unit should be restored with original data.
+    let mut query = app.world_mut().query_filtered::<(
+        &hexorder_contracts::hex_grid::HexPosition,
+        &hexorder_contracts::game_system::EntityData,
+    ), With<hexorder_contracts::game_system::UnitInstance>>();
+    let units: Vec<_> = query.iter(app.world()).collect();
+    assert_eq!(units.len(), 1, "Unit should be restored after undo");
+    assert_eq!(
+        *units[0].0,
+        hexorder_contracts::hex_grid::HexPosition::new(1, -1)
+    );
+    assert_eq!(units[0].1.entity_type_id, type_id);
+}
+
+/// Redo after undoing a deletion removes the unit again.
+#[test]
+fn delete_undo_redo_removes_again() {
+    let mut app = observer_app_with_undo();
+
+    let (entity, _type_id) = spawn_test_unit(&mut app, 3, 0);
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(entity);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.delete"),
+    });
+    app.update();
+
+    // Undo (restore).
+    app.world_mut()
+        .resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+        .request_undo();
+    app.update();
+
+    // Redo (delete again).
+    app.world_mut()
+        .resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+        .request_redo();
+    app.update();
+
+    // Unit should be gone again.
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<hexorder_contracts::game_system::UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "Unit should be deleted again after redo"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Scope 4: Grid overlay toggle
 // ---------------------------------------------------------------------------
 

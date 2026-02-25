@@ -326,6 +326,72 @@ impl UndoableCommand for PlaceUnitCommand {
 }
 
 // ---------------------------------------------------------------------------
+// Built-in Command: DeleteUnitCommand
+// ---------------------------------------------------------------------------
+
+/// Command for reversible unit (token) deletion from the hex grid.
+///
+/// Captures the entity ID, position, entity data, and visual component handles
+/// so the unit can be respawned on undo and re-deleted on redo.
+pub struct DeleteUnitCommand {
+    /// The entity to delete (set to `None` after deletion, updated on undo).
+    pub entity: Option<Entity>,
+    /// Hex position where the unit was located.
+    pub position: HexPosition,
+    /// Entity data (type ID and properties) for the deleted unit.
+    pub entity_data: EntityData,
+    /// Mesh handle for rendering.
+    pub mesh: Handle<Mesh>,
+    /// Material handle for rendering.
+    pub material: Handle<StandardMaterial>,
+    /// World-space transform.
+    pub transform: Transform,
+    /// Human-readable label (e.g., "Delete Infantry at (0, 1)").
+    pub label: String,
+}
+
+impl fmt::Debug for DeleteUnitCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeleteUnitCommand")
+            .field("entity", &self.entity)
+            .field("position", &self.position)
+            .field("label", &self.label)
+            .finish_non_exhaustive()
+    }
+}
+
+impl UndoableCommand for DeleteUnitCommand {
+    fn execute(&mut self, world: &mut World) {
+        // Redo: despawn the unit again.
+        if let Some(entity) = self.entity {
+            if world.get_entity(entity).is_ok() {
+                world.despawn(entity);
+            }
+            self.entity = None;
+        }
+    }
+
+    fn undo(&mut self, world: &mut World) {
+        // Undo: respawn the unit with all its original components.
+        let entity = world
+            .spawn((
+                UnitInstance,
+                self.position,
+                self.entity_data.clone(),
+                Mesh3d(self.mesh.clone()),
+                MeshMaterial3d(self.material.clone()),
+                self.transform,
+            ))
+            .id();
+        self.entity = Some(entity);
+    }
+
+    fn description(&self) -> String {
+        self.label.clone()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Built-in Command: CompoundCommand
 // ---------------------------------------------------------------------------
 
@@ -599,6 +665,42 @@ mod tests {
         stack.record(make_cmd("action"));
         stack.clear();
         assert!(!stack.has_new_records());
+    }
+
+    #[test]
+    fn delete_unit_command_description() {
+        let cmd = DeleteUnitCommand {
+            entity: Some(Entity::PLACEHOLDER),
+            position: HexPosition::new(2, -1),
+            entity_data: EntityData {
+                entity_type_id: TypeId::new(),
+                properties: HashMap::new(),
+            },
+            mesh: Handle::default(),
+            material: Handle::default(),
+            transform: Transform::IDENTITY,
+            label: "Delete Infantry at (2, -1)".to_string(),
+        };
+        assert_eq!(cmd.description(), "Delete Infantry at (2, -1)");
+    }
+
+    #[test]
+    fn delete_unit_command_debug_impl() {
+        let cmd = DeleteUnitCommand {
+            entity: None,
+            position: HexPosition::new(0, 0),
+            entity_data: EntityData {
+                entity_type_id: TypeId::new(),
+                properties: HashMap::new(),
+            },
+            mesh: Handle::default(),
+            material: Handle::default(),
+            transform: Transform::IDENTITY,
+            label: "test".to_string(),
+        };
+        let debug = format!("{cmd:?}");
+        assert!(debug.contains("DeleteUnitCommand"));
+        assert!(debug.contains("position"));
     }
 
     #[test]
