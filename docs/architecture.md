@@ -4,8 +4,8 @@
 
 Hexorder is a Cargo workspace with two members:
 
-- **`hexorder-contracts/`** — library crate containing shared contract types (components, resources,
-  events). All plugins depend on this crate. Mirrors `docs/contracts/`.
+- **`crates/hexorder-contracts/`** — library crate containing shared contract types (components,
+  resources, events). All plugins depend on this crate. Mirrors `docs/contracts/`.
 - **`hexorder/`** (root) — binary crate containing the application, all plugins, and `main.rs`.
   Depends on `hexorder-contracts`.
 

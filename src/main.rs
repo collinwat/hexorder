@@ -89,7 +89,7 @@ mod architecture_tests {
 
     /// Scans all plugin mod.rs files and fails if any sub-module is declared
     /// `pub mod` (except for re-exports). Plugin internals must be private;
-    /// shared types go through `hexorder-contracts/`.
+    /// shared types go through `crates/hexorder-contracts/`.
     #[test]
     fn plugin_modules_are_private() {
         let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -126,7 +126,7 @@ mod architecture_tests {
                 if trimmed.starts_with("pub mod ") && trimmed.ends_with(';') {
                     violations.push(format!(
                         "{}:{}: `{}` — plugin sub-modules must be private (use `mod` not `pub mod`). \
-                         Shared types belong in hexorder-contracts/.",
+                         Shared types belong in crates/hexorder-contracts/.",
                         mod_file.display(),
                         line_num + 1,
                         trimmed,

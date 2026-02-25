@@ -1,5 +1,5 @@
 [workspace]
-members = [ "hexorder-contracts" ]
+members = [ "crates/hexorder-contracts" ]
 
 [workspace.dependencies]
 bevy = { version = "0.18", default-features = false }
@@ -56,7 +56,7 @@ inspector = [  ]
 macos-app = [  ]
 
 [dependencies]
-hexorder-contracts = { path = "hexorder-contracts" }
+hexorder-contracts = { path = "crates/hexorder-contracts" }
 dirs = { version = "6", optional = true }
 bevy = { workspace = true, features = [
   "default_app",

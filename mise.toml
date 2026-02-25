@@ -101,7 +101,7 @@ echo "No boundary violations found."
 [tasks."check:unwrap"]
 description = "Check no unwrap() in production code"
 run = """
-violations=$(grep -rn '\\.unwrap()' src/ hexorder-contracts/src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\\[cfg(test)\\]' | grep -v '#\\[test\\]' || true)
+violations=$(grep -rn '\\.unwrap()' src/ crates/hexorder-contracts/src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\\[cfg(test)\\]' | grep -v '#\\[test\\]' || true)
 if [ -n "$violations" ]; then
   echo "ERROR: unwrap() found in production code (test files exempt):"
   echo "$violations"
@@ -121,7 +121,7 @@ run = "gitleaks detect --no-banner --baseline-path .gitleaks-baseline.json"
 [tasks."check:debug"]
 description = "Check all public types derive Debug (derive or manual impl)"
 run = """
-candidates=$(find src hexorder-contracts/src -name '*.rs' ! -name 'tests.rs' -exec awk '
+candidates=$(find src crates/hexorder-contracts/src -name '*.rs' ! -name 'tests.rs' -exec awk '
   /^#\\[derive\\(/ { has_debug = ($0 ~ /Debug/) }
   /^pub (struct|enum) / {
     if (!has_debug) print FILENAME ":" NR ":" $0
