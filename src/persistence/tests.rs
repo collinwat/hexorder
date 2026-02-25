@@ -364,7 +364,7 @@ fn save_to_path_writes_file_and_updates_workspace() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// `load_from_path` overwrites registries and inserts PendingBoardLoad.
+/// `load_from_path` overwrites registries and inserts `PendingBoardLoad`.
 #[test]
 fn load_from_path_overwrites_registries() {
     use hexorder_contracts::storage::Storage;

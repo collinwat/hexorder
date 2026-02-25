@@ -95,7 +95,7 @@ pub(crate) fn spawn_save_dialog(
     file_name: &str,
 ) -> Task<DialogResult> {
     let file_name = file_name.to_string();
-    let initial_dir = initial_dir.map(|p| p.to_path_buf());
+    let initial_dir = initial_dir.map(std::path::Path::to_path_buf);
 
     IoTaskPool::get().spawn(async move {
         let mut dialog = rfd::AsyncFileDialog::new()
@@ -274,7 +274,7 @@ mod tests {
         );
 
         // Clean up: drop sender so the task's receiver unblocks.
-        drop(sender);
+        let _ = sender;
     }
 
     /// `ConfirmChoice` variants are distinct.

@@ -21,7 +21,7 @@ use hexorder_contracts::persistence::{
 use hexorder_contracts::storage::Storage;
 use hexorder_contracts::validation::SchemaValidation;
 
-use crate::persistence::async_dialog::{
+use super::async_dialog::{
     AsyncDialogTask, ConfirmChoice, DialogCompleted, DialogKind, DialogResult, PendingAction,
     spawn_confirm_dialog, spawn_open_dialog,
 };
@@ -134,10 +134,11 @@ pub(crate) fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
     match write_result {
         Ok(()) => {
             info!("Saved to {}", path.display());
-            let mut workspace = world.resource_mut::<Workspace>();
-            workspace.file_path = Some(path.to_path_buf());
-            workspace.dirty = false;
-            drop(workspace);
+            {
+                let mut workspace = world.resource_mut::<Workspace>();
+                workspace.file_path = Some(path.to_path_buf());
+                workspace.dirty = false;
+            }
 
             world.trigger(ToastEvent {
                 message: "Project saved".to_string(),
@@ -291,7 +292,7 @@ fn spawn_save_dialog_for_current_project(world: &mut World, then: Option<Pending
             .file_path
             .as_ref()
             .and_then(|p| p.parent())
-            .map(|p| p.to_path_buf());
+            .map(std::path::Path::to_path_buf);
         (file_name, dir)
     };
 
@@ -364,22 +365,19 @@ pub(crate) fn dispatch_dialog_result(kind: DialogKind, result: DialogResult, wor
 
         // --- Save File ---
         (DialogKind::SaveFile { then, .. }, DialogResult::FilePicked(Some(path))) => {
-            if save_to_path(&path, world) {
-                if let Some(action) = then {
-                    execute_pending_action(action, world);
-                }
+            if save_to_path(&path, world)
+                && let Some(action) = then
+            {
+                execute_pending_action(action, world);
             }
         }
-        (DialogKind::SaveFile { .. }, DialogResult::FilePicked(None)) => {
-            // User cancelled save dialog — abort chain.
+        (DialogKind::SaveFile { .. } | DialogKind::OpenFile, DialogResult::FilePicked(None)) => {
+            // User cancelled — do nothing.
         }
 
         // --- Open File ---
         (DialogKind::OpenFile, DialogResult::FilePicked(Some(path))) => {
             load_from_path(&path, world);
-        }
-        (DialogKind::OpenFile, DialogResult::FilePicked(None)) => {
-            // User cancelled — do nothing.
         }
 
         // --- Unhandled combinations ---
