@@ -606,354 +606,101 @@ fn do_save(
 // Observer Systems
 // ---------------------------------------------------------------------------
 
-/// Handles save requests. Builds a `GameSystemFile` from current state
-/// and writes it to disk via RON.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_save_request(
-    trigger: On<SaveRequestEvent>,
-    game_system: Res<GameSystem>,
-    entity_types: Res<EntityTypeRegistry>,
-    enum_registry: Res<EnumRegistry>,
-    struct_registry: Res<StructRegistry>,
-    concepts: Res<ConceptRegistry>,
-    relations: Res<RelationRegistry>,
-    constraints: Res<ConstraintRegistry>,
-    turn_structure: Res<TurnStructure>,
-    crt: Res<CombatResultsTable>,
-    combat_modifiers: Res<CombatModifierRegistry>,
-    config: Res<HexGridConfig>,
-    tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
-    units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    storage: Res<Storage>,
-    mut workspace: ResMut<Workspace>,
-    mut commands: Commands,
-) {
-    let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
-    let unit_vec: Vec<_> = units.iter().map(|(p, d)| (*p, d.clone())).collect();
+/// Handles save requests. If the workspace has a path and this is not save-as,
+/// saves directly. Otherwise spawns an async save dialog.
+pub fn handle_save_request(trigger: On<SaveRequestEvent>, mut commands: Commands) {
+    let save_as = trigger.event().save_as;
+    commands.queue(move |world: &mut World| {
+        if world.contains_resource::<AsyncDialogTask>() {
+            return; // Dialog already open.
+        }
 
-    do_save(
-        trigger.event().save_as,
-        &mut workspace,
-        &game_system,
-        &entity_types,
-        &enum_registry,
-        &struct_registry,
-        &concepts,
-        &relations,
-        &constraints,
-        &turn_structure,
-        &crt,
-        &combat_modifiers,
-        &config,
-        &tile_vec,
-        &unit_vec,
-        &storage,
-        &mut commands,
-    );
+        let maybe_path = if save_as {
+            None
+        } else {
+            world.resource::<Workspace>().file_path.clone()
+        };
+
+        if let Some(path) = maybe_path {
+            save_to_path(&path, world);
+        } else {
+            spawn_save_dialog_for_current_project(world, None);
+        }
+    });
 }
 
-/// Handles load requests. Opens a file dialog, loads the file, overwrites
-/// registries, and inserts `PendingBoardLoad` for deferred board reconstruction.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn handle_load_request(
-    _trigger: On<LoadRequestEvent>,
-    mut game_system: ResMut<GameSystem>,
-    mut entity_types: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
-    mut concepts: ResMut<ConceptRegistry>,
-    mut relations: ResMut<RelationRegistry>,
-    mut constraints: ResMut<ConstraintRegistry>,
-    mut turn_structure: ResMut<TurnStructure>,
-    mut crt: ResMut<CombatResultsTable>,
-    mut combat_modifiers: ResMut<CombatModifierRegistry>,
-    mut workspace: ResMut<Workspace>,
-    storage: Res<Storage>,
-    save_ctx: (
-        Res<HexGridConfig>,
-        Query<(&HexPosition, &EntityData), With<HexTile>>,
-        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    ),
-    load_ctx: (ResMut<SchemaValidation>, ResMut<NextState<AppScreen>>),
-    mut commands: Commands,
-) {
-    let (config, tiles, units_q) = save_ctx;
-    let (mut schema, mut next_state) = load_ctx;
-    let confirm = check_unsaved_changes(&workspace);
-    match confirm {
-        ConfirmAction::Cancel => return,
-        ConfirmAction::SavedThenProceed => {
-            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
-            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
-            if !do_save(
-                false,
-                &mut workspace,
-                &game_system,
-                &entity_types,
-                &enum_registry,
-                &struct_registry,
-                &concepts,
-                &relations,
-                &constraints,
-                &turn_structure,
-                &crt,
-                &combat_modifiers,
-                &config,
-                &tile_vec,
-                &unit_vec,
-                &storage,
-                &mut commands,
-            ) {
-                return; // Save cancelled or failed — abort load.
-            }
-        }
-        ConfirmAction::Proceed => {}
-    }
-
-    let dialog = rfd::FileDialog::new().add_filter("Hexorder", &["hexorder"]);
-    let path = dialog.pick_file();
-    clear_keyboard_after_dialog(&mut commands);
-    let Some(path) = path else {
-        return; // User cancelled.
-    };
-
-    let file = match storage.provider().load(&path) {
-        Ok(f) => f,
-        Err(e) => {
-            error!("Failed to load: {e}");
-            commands.trigger(ToastEvent {
-                message: format!("Load failed: {e}"),
-                kind: ToastKind::Error,
-            });
+/// Handles load requests. If the workspace is dirty, spawns a confirm dialog
+/// first. Otherwise spawns an async open-file dialog directly.
+pub fn handle_load_request(_trigger: On<LoadRequestEvent>, mut commands: Commands) {
+    commands.queue(move |world: &mut World| {
+        if world.contains_resource::<AsyncDialogTask>() {
             return;
         }
-    };
 
-    // Overwrite registries.
-    *game_system = file.game_system;
-    *entity_types = file.entity_types;
-    *enum_registry = file.enums;
-    *struct_registry = file.structs;
-    *concepts = file.concepts;
-    *relations = file.relations;
-    *constraints = file.constraints;
-    *turn_structure = file.turn_structure;
-    *crt = file.combat_results_table;
-    *combat_modifiers = file.combat_modifiers;
-
-    // Reset derived state.
-    *schema = SchemaValidation::default();
-
-    // Derive workspace name: use file name field if present (v3+),
-    // otherwise derive from filename stem (v2 backward compat).
-    let name = if file.name.is_empty() {
-        path.file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("Untitled")
-            .to_string()
-    } else {
-        file.name
-    };
-
-    workspace.name = name;
-    workspace.file_path = Some(path);
-    workspace.dirty = false;
-    workspace.workspace_preset = file.workspace_preset;
-    workspace.font_size_base = file.font_size_base;
-
-    // Insert pending board load for deferred application.
-    commands.insert_resource(PendingBoardLoad {
-        tiles: file.tiles,
-        units: file.units,
+        let dirty = world.resource::<Workspace>().dirty;
+        if dirty {
+            let task = spawn_confirm_dialog();
+            world.insert_resource(AsyncDialogTask {
+                kind: DialogKind::ConfirmUnsavedChanges {
+                    then: PendingAction::Load,
+                },
+                task,
+            });
+        } else {
+            let task = spawn_open_dialog();
+            world.insert_resource(AsyncDialogTask {
+                kind: DialogKind::OpenFile,
+                task,
+            });
+        }
     });
-
-    // Transition to editor (may already be in editor if loading from editor).
-    next_state.set(AppScreen::Editor);
-
-    commands.trigger(ToastEvent {
-        message: "Project loaded".to_string(),
-        kind: ToastKind::Success,
-    });
-
-    info!("Loaded game system: {}", game_system.id);
 }
 
-/// Handles new project requests. Resets all registries to defaults,
-/// sets workspace name, and transitions to the editor.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn handle_new_project(
-    trigger: On<NewProjectEvent>,
-    mut game_system: ResMut<GameSystem>,
-    mut entity_types: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
-    mut concepts: ResMut<ConceptRegistry>,
-    mut relations: ResMut<RelationRegistry>,
-    mut constraints: ResMut<ConstraintRegistry>,
-    mut turn_structure: ResMut<TurnStructure>,
-    mut crt: ResMut<CombatResultsTable>,
-    mut combat_modifiers: ResMut<CombatModifierRegistry>,
-    mut workspace: ResMut<Workspace>,
-    storage: Res<Storage>,
-    save_ctx: (
-        Res<HexGridConfig>,
-        Query<(&HexPosition, &EntityData), With<HexTile>>,
-        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    ),
-    new_ctx: (
-        ResMut<TurnState>,
-        ResMut<ActiveCombat>,
-        ResMut<SchemaValidation>,
-        ResMut<SelectedUnit>,
-        ResMut<NextState<AppScreen>>,
-    ),
-    mut commands: Commands,
-) {
-    let (config, tiles, units_q) = save_ctx;
-    let (mut turn_state, mut active_combat, mut schema, mut selected_unit, mut next_state) =
-        new_ctx;
-
-    let confirm = check_unsaved_changes(&workspace);
-    match confirm {
-        ConfirmAction::Cancel => return,
-        ConfirmAction::SavedThenProceed => {
-            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
-            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
-            if !do_save(
-                false,
-                &mut workspace,
-                &game_system,
-                &entity_types,
-                &enum_registry,
-                &struct_registry,
-                &concepts,
-                &relations,
-                &constraints,
-                &turn_structure,
-                &crt,
-                &combat_modifiers,
-                &config,
-                &tile_vec,
-                &unit_vec,
-                &storage,
-                &mut commands,
-            ) {
-                return; // Save cancelled or failed — abort new project.
-            }
+/// Handles new project requests. If the workspace is dirty, spawns a confirm
+/// dialog first. Otherwise resets to a new project directly.
+pub fn handle_new_project(trigger: On<NewProjectEvent>, mut commands: Commands) {
+    let name = trigger.event().name.clone();
+    commands.queue(move |world: &mut World| {
+        if world.contains_resource::<AsyncDialogTask>() {
+            return;
         }
-        ConfirmAction::Proceed => {}
-    }
 
-    let event = trigger.event();
-
-    reset_all_registries(
-        &mut game_system,
-        &mut entity_types,
-        &mut enum_registry,
-        &mut struct_registry,
-        &mut concepts,
-        &mut relations,
-        &mut constraints,
-        &mut schema,
-        &mut selected_unit,
-    );
-
-    // Reset mechanics to factory defaults.
-    *turn_structure = crate::game_system::create_default_turn_structure();
-    *crt = crate::game_system::create_default_crt();
-    *combat_modifiers = CombatModifierRegistry::default();
-    *turn_state = TurnState::default();
-    *active_combat = ActiveCombat::default();
-
-    workspace.name.clone_from(&event.name);
-    workspace.file_path = None;
-    workspace.dirty = false;
-    workspace.workspace_preset = String::new();
-    workspace.font_size_base = 15.0;
-
-    next_state.set(AppScreen::Editor);
+        let dirty = world.resource::<Workspace>().dirty;
+        if dirty {
+            let task = spawn_confirm_dialog();
+            world.insert_resource(AsyncDialogTask {
+                kind: DialogKind::ConfirmUnsavedChanges {
+                    then: PendingAction::NewProject { name },
+                },
+                task,
+            });
+        } else {
+            reset_to_new_project(&name, world);
+        }
+    });
 }
 
-/// Handles close project requests. Resets all state and returns to launcher.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn handle_close_project(
-    _trigger: On<CloseProjectEvent>,
-    mut workspace: ResMut<Workspace>,
-    mut game_system: ResMut<GameSystem>,
-    mut entity_types: ResMut<EntityTypeRegistry>,
-    mut enum_registry: ResMut<EnumRegistry>,
-    mut struct_registry: ResMut<StructRegistry>,
-    mut concepts: ResMut<ConceptRegistry>,
-    mut relations: ResMut<RelationRegistry>,
-    mut constraints: ResMut<ConstraintRegistry>,
-    save_ctx: (
-        Res<TurnStructure>,
-        Res<CombatResultsTable>,
-        Res<CombatModifierRegistry>,
-        Res<HexGridConfig>,
-        Res<Storage>,
-    ),
-    board_queries: (
-        Query<(&HexPosition, &EntityData), With<HexTile>>,
-        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    ),
-    close_ctx: (
-        ResMut<SchemaValidation>,
-        ResMut<SelectedUnit>,
-        ResMut<NextState<AppScreen>>,
-    ),
-    mut commands: Commands,
-) {
-    let (turn_structure, crt, combat_modifiers, config, storage) = save_ctx;
-    let (tiles, units_q) = board_queries;
-    let (mut schema, mut selected_unit, mut next_state) = close_ctx;
-
-    let confirm = check_unsaved_changes(&workspace);
-    match confirm {
-        ConfirmAction::Cancel => return,
-        ConfirmAction::SavedThenProceed => {
-            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
-            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
-            if !do_save(
-                false,
-                &mut workspace,
-                &game_system,
-                &entity_types,
-                &enum_registry,
-                &struct_registry,
-                &concepts,
-                &relations,
-                &constraints,
-                &turn_structure,
-                &crt,
-                &combat_modifiers,
-                &config,
-                &tile_vec,
-                &unit_vec,
-                &storage,
-                &mut commands,
-            ) {
-                return; // Save cancelled or failed — abort close.
-            }
+/// Handles close project requests. If the workspace is dirty, spawns a confirm
+/// dialog first. Otherwise closes the project directly.
+pub fn handle_close_project(_trigger: On<CloseProjectEvent>, mut commands: Commands) {
+    commands.queue(move |world: &mut World| {
+        if world.contains_resource::<AsyncDialogTask>() {
+            return;
         }
-        ConfirmAction::Proceed => {}
-    }
 
-    *workspace = Workspace::default();
-
-    reset_all_registries(
-        &mut game_system,
-        &mut entity_types,
-        &mut enum_registry,
-        &mut struct_registry,
-        &mut concepts,
-        &mut relations,
-        &mut constraints,
-        &mut schema,
-        &mut selected_unit,
-    );
-
-    next_state.set(AppScreen::Launcher);
+        let dirty = world.resource::<Workspace>().dirty;
+        if dirty {
+            let task = spawn_confirm_dialog();
+            world.insert_resource(AsyncDialogTask {
+                kind: DialogKind::ConfirmUnsavedChanges {
+                    then: PendingAction::CloseProject,
+                },
+                task,
+            });
+        } else {
+            close_project(world);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
