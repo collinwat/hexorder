@@ -74,6 +74,25 @@ pub struct SettingsReady;
 pub struct SettingsChanged;
 
 // ---------------------------------------------------------------------------
+// Theme Library
+// ---------------------------------------------------------------------------
+
+/// Available themes for the editor. Loaded at startup by `SettingsPlugin`.
+/// The brand theme is always present as the first entry.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct ThemeLibrary {
+    /// All available themes, with brand theme first.
+    pub themes: Vec<ThemeDefinition>,
+}
+
+impl ThemeLibrary {
+    /// Find a theme by name. Returns `None` if not found.
+    pub fn find(&self, name: &str) -> Option<&ThemeDefinition> {
+        self.themes.iter().find(|t| t.name == name)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Theme Definition
 // ---------------------------------------------------------------------------
 

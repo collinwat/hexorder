@@ -24,7 +24,7 @@ use hexorder_contracts::ontology::{
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
-use hexorder_contracts::settings::SettingsRegistry;
+use hexorder_contracts::settings::{SettingsRegistry, ThemeLibrary};
 use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 use hexorder_contracts::validation::SchemaValidation;
 
@@ -330,6 +330,21 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                     if ui.button(" + ").clicked() && self.editor_state.font_size_base < 24.0 {
                         self.editor_state.font_size_base += 1.0;
                     }
+                });
+                ui.add_space(4.0);
+                // Theme selector
+                ui.horizontal(|ui| {
+                    ui.label("Theme:");
+                    egui::ComboBox::from_id_salt("theme_selector")
+                        .selected_text(&self.editor_state.active_theme_name)
+                        .show_ui(ui, |ui| {
+                            for name in &self.editor_state.theme_names {
+                                let selected = *name == self.editor_state.active_theme_name;
+                                if ui.selectable_label(selected, name).clicked() {
+                                    self.editor_state.active_theme_name.clone_from(name);
+                                }
+                            }
+                        });
                 });
             }
             DockTab::Selection => {
@@ -948,6 +963,33 @@ pub fn restore_font_size(settings: Res<SettingsRegistry>, mut editor_state: ResM
     editor_state.font_size_base = settings.editor.font_size;
 }
 
+/// Restores theme state from `SettingsRegistry` + `ThemeLibrary` → `EditorState` on editor entry.
+/// Populates available theme names and active theme for the Settings dock tab.
+pub fn restore_theme(
+    settings: Res<SettingsRegistry>,
+    theme_library: Res<ThemeLibrary>,
+    mut editor_state: ResMut<EditorState>,
+) {
+    editor_state.theme_names = theme_library
+        .themes
+        .iter()
+        .map(|t| t.name.clone())
+        .collect();
+    editor_state
+        .active_theme_name
+        .clone_from(&settings.active_theme);
+}
+
+/// Syncs `EditorState.active_theme_name` → `SettingsRegistry.active_theme` each frame.
+/// Runs after `editor_dock_system` so Settings tab changes propagate immediately.
+pub fn sync_theme(editor_state: Res<EditorState>, mut settings: ResMut<SettingsRegistry>) {
+    if settings.active_theme != editor_state.active_theme_name {
+        settings
+            .active_theme
+            .clone_from(&editor_state.active_theme_name);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Dock layout persistence
 // ---------------------------------------------------------------------------
@@ -1148,32 +1190,60 @@ pub fn debug_inspector_panel(
         });
 }
 
+/// Convert an RGB `[u8; 3]` array to an `egui::Color32`.
+fn rgb(c: [u8; 3]) -> egui::Color32 {
+    egui::Color32::from_rgb(c[0], c[1], c[2])
+}
+
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
 /// always applied, even after a window visibility change resets the context.
-pub fn configure_theme(mut contexts: EguiContexts, editor_state: Res<EditorState>) {
+///
+/// Reads the active theme from `SettingsRegistry` and looks it up in
+/// `ThemeLibrary`. Falls back to the brand theme (always first in library).
+pub fn configure_theme(
+    mut contexts: EguiContexts,
+    editor_state: Res<EditorState>,
+    settings: Res<SettingsRegistry>,
+    theme_library: Res<ThemeLibrary>,
+) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
 
+    // Look up active theme; fall back to first (brand) theme.
+    let theme = theme_library
+        .find(&settings.active_theme)
+        .or_else(|| theme_library.themes.first());
+
+    let Some(theme) = theme else {
+        // No themes at all — should never happen (brand is always loaded).
+        return;
+    };
+
     let mut visuals = egui::Visuals::dark();
-    visuals.panel_fill = BrandTheme::BG_PANEL;
-    visuals.window_fill = BrandTheme::BG_PANEL;
-    visuals.extreme_bg_color = BrandTheme::BG_DEEP;
-    visuals.faint_bg_color = BrandTheme::BG_SURFACE;
-    visuals.widgets.noninteractive.bg_fill = BrandTheme::WIDGET_NONINTERACTIVE;
-    visuals.widgets.inactive.bg_fill = BrandTheme::WIDGET_INACTIVE;
-    visuals.widgets.hovered.bg_fill = BrandTheme::WIDGET_HOVERED;
-    visuals.widgets.active.bg_fill = BrandTheme::WIDGET_ACTIVE;
-    visuals.selection.bg_fill = BrandTheme::ACCENT_TEAL;
-    visuals.window_stroke = egui::Stroke::new(1.0, BrandTheme::BORDER_SUBTLE);
+    visuals.panel_fill = rgb(theme.bg_panel);
+    visuals.window_fill = rgb(theme.bg_panel);
+    visuals.extreme_bg_color = rgb(theme.bg_deep);
+    visuals.faint_bg_color = rgb(theme.bg_surface);
+    // Noninteractive fill derived from inactive (slightly darker).
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(
+        theme.widget_inactive[0].saturating_sub(10),
+        theme.widget_inactive[1].saturating_sub(10),
+        theme.widget_inactive[2].saturating_sub(10),
+    );
+    visuals.widgets.inactive.bg_fill = rgb(theme.widget_inactive);
+    visuals.widgets.hovered.bg_fill = rgb(theme.widget_hovered);
+    visuals.widgets.active.bg_fill = rgb(theme.widget_active);
+    visuals.selection.bg_fill = rgb(theme.accent_primary);
+    visuals.window_stroke = egui::Stroke::new(1.0, rgb(theme.border));
 
     // Text colors (fg_stroke)
-    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
-    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_SECONDARY);
-    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
-    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
-    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, BrandTheme::TEXT_PRIMARY);
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_secondary));
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
     ctx.set_visuals(visuals);
 
     let scale = editor_state.font_size_base / 15.0;

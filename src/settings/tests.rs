@@ -1,5 +1,7 @@
-use crate::contracts::settings::SettingsRegistry;
-use crate::settings::config::{PartialEditorSettings, PartialSettings, merge};
+use crate::contracts::settings::{SettingsRegistry, ThemeDefinition};
+use crate::settings::config::{
+    PartialEditorSettings, PartialSettings, brand_theme_definition, merge,
+};
 
 fn empty() -> PartialSettings {
     PartialSettings::default()
@@ -135,4 +137,59 @@ fn settings_registry_default() {
     assert!((reg.editor.font_size - 15.0).abs() < f32::EPSILON);
     assert!(reg.editor.workspace_preset.is_empty());
     assert_eq!(reg.active_theme, "brand");
+}
+
+// ---------------------------------------------------------------------------
+// Theme tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn brand_theme_has_correct_name() {
+    let theme = brand_theme_definition();
+    assert_eq!(theme.name, "Brand");
+}
+
+#[test]
+fn brand_theme_bg_deep_matches_constant() {
+    let theme = brand_theme_definition();
+    // BrandTheme::BG_DEEP = from_gray(10)
+    assert_eq!(theme.bg_deep, [10, 10, 10]);
+}
+
+#[test]
+fn brand_theme_accent_primary_matches_teal() {
+    let theme = brand_theme_definition();
+    // BrandTheme::ACCENT_TEAL = from_rgb(0, 92, 128)
+    assert_eq!(theme.accent_primary, [0, 92, 128]);
+}
+
+#[test]
+fn brand_theme_accent_secondary_matches_amber() {
+    let theme = brand_theme_definition();
+    // BrandTheme::ACCENT_AMBER = from_rgb(200, 150, 64)
+    assert_eq!(theme.accent_secondary, [200, 150, 64]);
+}
+
+#[test]
+fn theme_definition_deserializes_from_toml() {
+    let toml_str = r#"
+        name = "Test Theme"
+        bg_deep = [0, 0, 0]
+        bg_panel = [20, 20, 20]
+        bg_surface = [30, 30, 30]
+        widget_inactive = [40, 40, 40]
+        widget_hovered = [50, 50, 50]
+        widget_active = [60, 60, 60]
+        accent_primary = [0, 100, 200]
+        accent_secondary = [200, 100, 0]
+        text_primary = [220, 220, 220]
+        text_secondary = [120, 120, 120]
+        border = [50, 50, 50]
+        danger = [200, 0, 0]
+        success = [0, 200, 0]
+    "#;
+    let theme: ThemeDefinition = toml::from_str(toml_str).expect("should parse theme TOML");
+    assert_eq!(theme.name, "Test Theme");
+    assert_eq!(theme.accent_primary, [0, 100, 200]);
+    assert_eq!(theme.danger, [200, 0, 0]);
 }

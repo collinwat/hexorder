@@ -23,9 +23,15 @@ impl BrandTheme {
     pub const BG_SURFACE: egui::Color32 = egui::Color32::from_gray(35);
 
     // -- Widget fills (graduated brightness for state) --
+    // These constants are the brand palette reference. configure_theme now reads
+    // from ThemeDefinition, so these are used only for documentation/testing.
+    #[allow(dead_code)]
     pub const WIDGET_NONINTERACTIVE: egui::Color32 = egui::Color32::from_gray(30);
+    #[allow(dead_code)]
     pub const WIDGET_INACTIVE: egui::Color32 = egui::Color32::from_gray(40);
+    #[allow(dead_code)]
     pub const WIDGET_HOVERED: egui::Color32 = egui::Color32::from_gray(55);
+    #[allow(dead_code)]
     pub const WIDGET_ACTIVE: egui::Color32 = egui::Color32::from_gray(70);
 
     // -- Accent --
@@ -373,6 +379,10 @@ pub struct EditorState {
     // -- Settings --
     /// Base font size in points. Range 10.0–24.0, default 15.0.
     pub font_size_base: f32,
+    /// Available theme names, populated from `ThemeLibrary` on editor entry.
+    pub theme_names: Vec<String>,
+    /// Currently active theme name, synced with `SettingsRegistry.active_theme`.
+    pub active_theme_name: String,
 
     // -- About panel --
     /// Whether the About panel is visible.
@@ -450,6 +460,8 @@ impl Default for EditorState {
             combat_attacker_strength: 0.0,
             combat_defender_strength: 0.0,
             font_size_base: 15.0,
+            theme_names: vec!["Brand".to_string()],
+            active_theme_name: "brand".to_string(),
             about_panel_visible: false,
         }
     }

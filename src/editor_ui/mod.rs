@@ -92,6 +92,7 @@ impl Plugin for EditorUiPlugin {
                 systems::editor_dock_system,
                 systems::sync_workspace_preset,
                 systems::sync_font_size,
+                systems::sync_theme,
                 systems::update_viewport_margins,
             )
                 .chain()
@@ -104,6 +105,7 @@ impl Plugin for EditorUiPlugin {
                 systems::editor_dock_system,
                 systems::sync_workspace_preset,
                 systems::sync_font_size,
+                systems::sync_theme,
                 systems::debug_inspector_panel,
                 systems::update_viewport_margins,
             )
@@ -120,6 +122,7 @@ impl Plugin for EditorUiPlugin {
                 systems::restore_workspace_preset,
                 systems::restore_dock_layout,
                 systems::restore_font_size,
+                systems::restore_theme,
             )
                 .chain()
                 .after(SettingsReady),

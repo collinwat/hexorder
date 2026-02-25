@@ -49,6 +49,19 @@ plugins schedule their restore systems `.after(SettingsReady)` on `OnEnter(AppSc
 Observer event fired when any settings layer changes. No fields — observers re-read
 `Res<SettingsRegistry>` for updated values.
 
+### `ThemeLibrary`
+
+Resource holding all available themes. Loaded at startup by `SettingsPlugin`. Brand theme is always
+present as the first entry.
+
+| Field    | Type                   | Description                         |
+| -------- | ---------------------- | ----------------------------------- |
+| `themes` | `Vec<ThemeDefinition>` | Available themes, brand theme first |
+
+Methods:
+
+- `find(&self, name: &str) -> Option<&ThemeDefinition>` — look up a theme by name
+
 ### `ThemeDefinition`
 
 Serializable theme with ~14 color fields. Loaded from TOML.
@@ -73,6 +86,7 @@ Serializable theme with ~14 color fields. Loaded from TOML.
 ## Invariants
 
 - `SettingsRegistry` is inserted during `SettingsPlugin::build()` (immediate, before consumers)
+- `ThemeLibrary` is inserted during `SettingsPlugin::build()` (brand theme always present)
 - `SettingsPlugin` must be registered before `EditorUiPlugin` in `main.rs`
 - `SettingsChanged` is fired via `commands.trigger()` (observer event, not deprecated EventWriter)
 - Missing user config file is not an error — all defaults are used
@@ -84,3 +98,4 @@ Serializable theme with ~14 color fields. Loaded from TOML.
 | ---------- | ------------------- | --------------------------------------- |
 | 2026-02-24 | Initial definition  | Pitch #173 — settings infrastructure    |
 | 2026-02-24 | Add `SettingsReady` | Scope 2 — system ordering for consumers |
+| 2026-02-24 | Add `ThemeLibrary`  | Scope 3 — custom theme loading          |

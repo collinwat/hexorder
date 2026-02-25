@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 use serde::Deserialize;
 
-use crate::contracts::settings::{EditorSettings, SettingsRegistry};
+use crate::contracts::settings::{EditorSettings, SettingsRegistry, ThemeDefinition, ThemeLibrary};
 
 // ---------------------------------------------------------------------------
 // Partial types (for merge semantics — Option<T> fields)
@@ -134,4 +134,82 @@ pub(crate) fn merge(
             .or_else(|| defaults.theme.clone())
             .unwrap_or_else(|| "brand".to_string()),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Theme loading
+// ---------------------------------------------------------------------------
+
+/// Returns the compiled brand theme as a `ThemeDefinition`.
+/// Values match the `BrandTheme` constants in `editor_ui/components.rs`.
+pub(crate) fn brand_theme_definition() -> ThemeDefinition {
+    ThemeDefinition {
+        name: "Brand".to_string(),
+        bg_deep: [10, 10, 10],
+        bg_panel: [25, 25, 25],
+        bg_surface: [35, 35, 35],
+        widget_inactive: [40, 40, 40],
+        widget_hovered: [55, 55, 55],
+        widget_active: [70, 70, 70],
+        accent_primary: [0, 92, 128],
+        accent_secondary: [200, 150, 64],
+        text_primary: [224, 224, 224],
+        text_secondary: [128, 128, 128],
+        border: [60, 60, 60],
+        danger: [200, 80, 80],
+        success: [80, 152, 80],
+    }
+}
+
+/// Load custom themes from the themes directory. Returns the brand theme
+/// first, followed by any custom themes found on disk.
+pub(crate) fn load_themes() -> ThemeLibrary {
+    let mut themes = vec![brand_theme_definition()];
+
+    let themes_dir = config_dir().join("themes");
+    let entries = match std::fs::read_dir(&themes_dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            info!(
+                "No themes directory at {}, using brand theme only",
+                themes_dir.display()
+            );
+            return ThemeLibrary { themes };
+        }
+        Err(e) => {
+            warn!(
+                "Failed to read themes directory {}: {e}",
+                themes_dir.display()
+            );
+            return ThemeLibrary { themes };
+        }
+    };
+
+    for entry in entries {
+        let Ok(entry) = entry else { continue };
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+            continue;
+        }
+
+        let contents = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("Failed to read theme file {}: {e}", path.display());
+                continue;
+            }
+        };
+
+        match toml::from_str::<ThemeDefinition>(&contents) {
+            Ok(theme) => {
+                info!("Loaded theme '{}' from {}", theme.name, path.display());
+                themes.push(theme);
+            }
+            Err(e) => {
+                warn!("Failed to parse theme file {}: {e}", path.display());
+            }
+        }
+    }
+
+    ThemeLibrary { themes }
 }

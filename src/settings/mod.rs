@@ -43,7 +43,11 @@ impl Plugin for SettingsPlugin {
             project,
         });
 
-        // 3. Project layer lifecycle.
+        // 3. Load themes (brand default + custom TOML files).
+        let theme_library = config::load_themes();
+        app.insert_resource(theme_library);
+
+        // 4. Project layer lifecycle.
         app.add_systems(
             OnEnter(AppScreen::Editor),
             systems::apply_project_layer.in_set(SettingsReady),

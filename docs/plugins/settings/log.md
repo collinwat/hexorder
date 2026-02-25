@@ -45,11 +45,23 @@ ordering. `apply_project_layer` runs in `SettingsReady`, editor_ui restore syste
 `.after(SettingsReady)`. **Abstraction check**: `SettingsReady` is a clean cross-plugin ordering
 mechanism — reusable by any future consumer of SettingsRegistry.
 
+### 2026-02-24 — Scope 3: Custom themes
+
+**Context**: Wire ThemeDefinition loading from TOML files into the editor. **Decision**: Separate
+`ThemeLibrary` resource in the contract (not on `SettingsRegistry`) — themes don't participate in
+three-layer merge, they're loaded once at startup. **Decision**: Theme selector placed in the
+Settings dock tab rather than the View menu — `editor_dock_system` already has 16 parameters (Bevy
+maximum) and cannot accept more resources. EditorState bridges theme state between the dock tab and
+`configure_theme`. **Decision**: `widget_noninteractive` derived from `widget_inactive - 10` rather
+than adding a 15th field to ThemeDefinition — keeps the contract simpler, matches brand palette
+exactly. **Abstraction check**: No abstraction needed — the theme loading is straightforward
+file-scan-and-parse with a hardcoded brand fallback.
+
 ## Test Results
 
-### 2026-02-24 — Scope 2
+### 2026-02-24 — Scope 3
 
-- 406 tests pass (full suite, no regressions)
+- 411 tests pass (full suite, 5 new theme tests, no regressions)
 - `cargo clippy --all-targets`: zero warnings
 - `mise check:boundary`: no violations
 
@@ -76,3 +88,4 @@ mechanism — reusable by any future consumer of SettingsRegistry.
 | 2026-02-24 | speccing | Initial spec created                           |
 | 2026-02-24 | building | Scope 1+5 complete — infrastructure + contract |
 | 2026-02-24 | building | Scope 2 complete — preference migration        |
+| 2026-02-24 | building | Scope 3 complete — custom themes               |
