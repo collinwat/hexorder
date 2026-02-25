@@ -97,6 +97,42 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
     }
 }
 
+/// Result of the unsaved-changes confirmation dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConfirmAction {
+    /// No unsaved changes, or user chose "Don't Save" — proceed with the action.
+    Proceed,
+    /// User chose "Save" and save succeeded — proceed with the action.
+    SavedThenProceed,
+    /// User cancelled or save failed — abort the action.
+    Cancel,
+}
+
+/// Check for unsaved changes and prompt the user if dirty.
+/// Returns the action to take. When `workspace.dirty` is false, returns
+/// `Proceed` immediately without showing a dialog.
+///
+/// This function is NOT called in tests because it shows a blocking dialog.
+/// Tests verify the `ConfirmAction` enum and the clean-path logic.
+pub(crate) fn check_unsaved_changes(workspace: &Workspace) -> ConfirmAction {
+    if !workspace.dirty {
+        return ConfirmAction::Proceed;
+    }
+
+    let result = rfd::MessageDialog::new()
+        .set_title("Unsaved Changes")
+        .set_description("You have unsaved changes. Do you want to save before continuing?")
+        .set_buttons(rfd::MessageButtons::YesNoCancel)
+        .set_level(rfd::MessageLevel::Warning)
+        .show();
+
+    match result {
+        rfd::MessageDialogResult::Yes => ConfirmAction::SavedThenProceed,
+        rfd::MessageDialogResult::No => ConfirmAction::Proceed,
+        _ => ConfirmAction::Cancel,
+    }
+}
+
 /// Perform the save operation. Returns `true` if save succeeded, `false` if
 /// cancelled or failed. When `force_dialog` is true, always shows the file
 /// picker (Save As behavior).
@@ -263,7 +299,7 @@ pub fn handle_save_request(
 
 /// Handles load requests. Opens a file dialog, loads the file, overwrites
 /// registries, and inserts `PendingBoardLoad` for deferred board reconstruction.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn handle_load_request(
     _trigger: On<LoadRequestEvent>,
     mut game_system: ResMut<GameSystem>,
@@ -276,12 +312,49 @@ pub fn handle_load_request(
     mut turn_structure: ResMut<TurnStructure>,
     mut crt: ResMut<CombatResultsTable>,
     mut combat_modifiers: ResMut<CombatModifierRegistry>,
-    mut schema: ResMut<SchemaValidation>,
     mut workspace: ResMut<Workspace>,
     storage: Res<Storage>,
-    mut next_state: ResMut<NextState<AppScreen>>,
+    save_ctx: (
+        Res<HexGridConfig>,
+        Query<(&HexPosition, &EntityData), With<HexTile>>,
+        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    ),
+    load_ctx: (ResMut<SchemaValidation>, ResMut<NextState<AppScreen>>),
     mut commands: Commands,
 ) {
+    let (config, tiles, units_q) = save_ctx;
+    let (mut schema, mut next_state) = load_ctx;
+    let confirm = check_unsaved_changes(&workspace);
+    match confirm {
+        ConfirmAction::Cancel => return,
+        ConfirmAction::SavedThenProceed => {
+            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
+            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
+            if !do_save(
+                false,
+                &mut workspace,
+                &game_system,
+                &entity_types,
+                &enum_registry,
+                &struct_registry,
+                &concepts,
+                &relations,
+                &constraints,
+                &turn_structure,
+                &crt,
+                &combat_modifiers,
+                &config,
+                &tile_vec,
+                &unit_vec,
+                &storage,
+                &mut commands,
+            ) {
+                return; // Save cancelled or failed — abort load.
+            }
+        }
+        ConfirmAction::Proceed => {}
+    }
+
     let dialog = rfd::FileDialog::new().add_filter("Hexorder", &["hexorder"]);
     let path = dialog.pick_file();
     clear_keyboard_after_dialog(&mut commands);
@@ -352,7 +425,7 @@ pub fn handle_load_request(
 
 /// Handles new project requests. Resets all registries to defaults,
 /// sets workspace name, and transitions to the editor.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn handle_new_project(
     trigger: On<NewProjectEvent>,
     mut game_system: ResMut<GameSystem>,
@@ -365,13 +438,57 @@ pub fn handle_new_project(
     mut turn_structure: ResMut<TurnStructure>,
     mut crt: ResMut<CombatResultsTable>,
     mut combat_modifiers: ResMut<CombatModifierRegistry>,
-    mut turn_state: ResMut<TurnState>,
-    mut active_combat: ResMut<ActiveCombat>,
-    mut schema: ResMut<SchemaValidation>,
-    mut selected_unit: ResMut<SelectedUnit>,
     mut workspace: ResMut<Workspace>,
-    mut next_state: ResMut<NextState<AppScreen>>,
+    storage: Res<Storage>,
+    save_ctx: (
+        Res<HexGridConfig>,
+        Query<(&HexPosition, &EntityData), With<HexTile>>,
+        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    ),
+    new_ctx: (
+        ResMut<TurnState>,
+        ResMut<ActiveCombat>,
+        ResMut<SchemaValidation>,
+        ResMut<SelectedUnit>,
+        ResMut<NextState<AppScreen>>,
+    ),
+    mut commands: Commands,
 ) {
+    let (config, tiles, units_q) = save_ctx;
+    let (mut turn_state, mut active_combat, mut schema, mut selected_unit, mut next_state) =
+        new_ctx;
+
+    let confirm = check_unsaved_changes(&workspace);
+    match confirm {
+        ConfirmAction::Cancel => return,
+        ConfirmAction::SavedThenProceed => {
+            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
+            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
+            if !do_save(
+                false,
+                &mut workspace,
+                &game_system,
+                &entity_types,
+                &enum_registry,
+                &struct_registry,
+                &concepts,
+                &relations,
+                &constraints,
+                &turn_structure,
+                &crt,
+                &combat_modifiers,
+                &config,
+                &tile_vec,
+                &unit_vec,
+                &storage,
+                &mut commands,
+            ) {
+                return; // Save cancelled or failed — abort new project.
+            }
+        }
+        ConfirmAction::Proceed => {}
+    }
+
     let event = trigger.event();
 
     reset_all_registries(
@@ -403,7 +520,7 @@ pub fn handle_new_project(
 }
 
 /// Handles close project requests. Resets all state and returns to launcher.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn handle_close_project(
     _trigger: On<CloseProjectEvent>,
     mut workspace: ResMut<Workspace>,
@@ -414,10 +531,59 @@ pub fn handle_close_project(
     mut concepts: ResMut<ConceptRegistry>,
     mut relations: ResMut<RelationRegistry>,
     mut constraints: ResMut<ConstraintRegistry>,
-    mut schema: ResMut<SchemaValidation>,
-    mut selected_unit: ResMut<SelectedUnit>,
-    mut next_state: ResMut<NextState<AppScreen>>,
+    save_ctx: (
+        Res<TurnStructure>,
+        Res<CombatResultsTable>,
+        Res<CombatModifierRegistry>,
+        Res<HexGridConfig>,
+        Res<Storage>,
+    ),
+    board_queries: (
+        Query<(&HexPosition, &EntityData), With<HexTile>>,
+        Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    ),
+    close_ctx: (
+        ResMut<SchemaValidation>,
+        ResMut<SelectedUnit>,
+        ResMut<NextState<AppScreen>>,
+    ),
+    mut commands: Commands,
 ) {
+    let (turn_structure, crt, combat_modifiers, config, storage) = save_ctx;
+    let (tiles, units_q) = board_queries;
+    let (mut schema, mut selected_unit, mut next_state) = close_ctx;
+
+    let confirm = check_unsaved_changes(&workspace);
+    match confirm {
+        ConfirmAction::Cancel => return,
+        ConfirmAction::SavedThenProceed => {
+            let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
+            let unit_vec: Vec<_> = units_q.iter().map(|(p, d)| (*p, d.clone())).collect();
+            if !do_save(
+                false,
+                &mut workspace,
+                &game_system,
+                &entity_types,
+                &enum_registry,
+                &struct_registry,
+                &concepts,
+                &relations,
+                &constraints,
+                &turn_structure,
+                &crt,
+                &combat_modifiers,
+                &config,
+                &tile_vec,
+                &unit_vec,
+                &storage,
+                &mut commands,
+            ) {
+                return; // Save cancelled or failed — abort close.
+            }
+        }
+        ConfirmAction::Proceed => {}
+    }
+
     *workspace = Workspace::default();
 
     reset_all_registries(

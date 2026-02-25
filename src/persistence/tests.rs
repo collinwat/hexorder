@@ -264,6 +264,18 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
     );
 }
 
+/// `check_unsaved_changes` returns `Proceed` when workspace is clean.
+#[test]
+fn check_unsaved_changes_proceeds_when_clean() {
+    use crate::persistence::systems::ConfirmAction;
+
+    let workspace = crate::contracts::persistence::Workspace::default();
+    assert_eq!(
+        crate::persistence::systems::check_unsaved_changes(&workspace),
+        ConfirmAction::Proceed,
+    );
+}
+
 /// Format version was bumped to 5 for `font_size_base` field.
 #[test]
 fn format_version_is_5() {
