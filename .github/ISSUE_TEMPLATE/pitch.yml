@@ -107,6 +107,7 @@ body:
         - [ ] Build started — kickoff comment posted *(pitch agent)*
         - [ ] All build checklist scopes complete *(pitch agent)*
         - [ ] Quality gate passed — `mise check:audit` *(pitch agent)*
+        - [ ] UAT passed — all criteria verified on pitch branch *(pitch agent)*
         - [ ] Build reflection posted *(pitch agent)*
         - [ ] Ready for integration — spec criteria met, deferred items captured *(pitch agent)*
         - [ ] Merged to integration branch *(cycle agent)*

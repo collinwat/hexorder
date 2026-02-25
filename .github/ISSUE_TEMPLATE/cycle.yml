@@ -45,9 +45,9 @@ body:
       description: >-
         One row per bet pitch. Update via comments — do not edit this table after creation.
       placeholder: |
-        | Pitch | Assignee | Branch | Started | Scopes Done | Gate | Merged | Reflection |
-        | ----- | -------- | ------ | ------- | ----------- | ---- | ------ | ---------- |
-        | #N title | - | - | - | - | - | - | - |
+        | Pitch | Assignee | Branch | Started | Scopes Done | UAT | Gate | Merged | Reflection |
+        | ----- | -------- | ------ | ------- | ----------- | --- | ---- | ------ | ---------- |
+        | #N title | - | - | - | - | - | - | - | - |
     validations:
       required: true
   - type: textarea

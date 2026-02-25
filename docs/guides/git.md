@@ -511,27 +511,29 @@ working tree must always stay on `main`.
 
 1. **Quality gate?** Run `mise check:audit` on the feature branch. All checks must pass.
 2. **Spec criteria met?** Every success criterion in `docs/plugins/<name>/spec.md` is satisfied.
-3. **Deferred items captured?** Check spec and log for deferred items. Every item must have a
+3. **UAT passed?** Walk through the pitch's UAT Criteria on the pitch branch. Record results as a
+   comment on the pitch issue. All criteria must pass before integration. See `docs/guides/uat.md`.
+4. **Deferred items captured?** Check spec and log for deferred items. Every item must have a
    corresponding GitHub Issue. Scan source code for TODO/FIXME comments — these must have
    corresponding issues or be removed.
-4. **Rebase onto integration branch.** From the feature branch worktree:
+5. **Rebase onto integration branch.** From the feature branch worktree:
     ```bash
     cd .worktrees/<release>-<feature>
     git fetch origin <version>
     git rebase origin/<version>
     ```
     If conflicts arise, resolve them commit-by-commit. After resolving, run `mise check:audit`.
-5. **Fast-forward merge.** From the integration branch worktree:
+6. **Fast-forward merge.** From the integration branch worktree:
     ```bash
     cd .worktrees/<version>
     git merge --ff-only <release>-<feature>
     ```
-6. **Re-test after merge?** Run `mise check:audit` on the integration branch. All checks must pass.
-7. **Push integration branch.** Push the updated integration branch to the remote:
+7. **Re-test after merge?** Run `mise check:audit` on the integration branch. All checks must pass.
+8. **Push integration branch.** Push the updated integration branch to the remote:
     ```bash
     git push origin <version>
     ```
-8. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
+9. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
    section. Post a status comment on the cycle tracking issue.
 
 ### Ship Merge (integration branch → main)

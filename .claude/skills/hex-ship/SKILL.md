@@ -40,7 +40,7 @@ From the tracking issue, verify:
 
 - **Integration Setup complete** — all 5 checklist items checked
 - **All pitches merged** — every pitch in the Pitch Status table shows "Merged"
-- **Lifecycle through item 7** — each pitch issue has lifecycle items 1–7 checked
+- **Lifecycle through item 8** — each pitch issue has lifecycle items 1–8 checked
 
 If any prerequisite is not met, **stop** and report what is missing. The ship gate cannot proceed
 with unmerged pitches or incomplete integration setup. Read `{{ agent_ops }}` Guard Protocol for the
