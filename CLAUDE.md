@@ -116,7 +116,7 @@ Post comments on the pitch issue as you build. These comments are the agent's na
 — the retro will read them later. When completing a scope, reference the Build Checklist item number
 and include the commit SHA. Post when something worth noting happens:
 
-- A scope is completed — reference the checklist item number and commit SHA
+- A scope is completed — reference the checklist item number, commit SHA, and UAT criteria results
 - Something is harder or easier than the pitch anticipated
 - A rabbit hole was encountered (or avoided thanks to the pitch calling it out)
 - Scope was hammered — what was cut and why
