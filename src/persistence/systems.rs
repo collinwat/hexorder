@@ -363,6 +363,95 @@ fn spawn_save_dialog_for_current_project(world: &mut World, then: Option<Pending
     });
 }
 
+/// Dispatch a pending action after a dialog chain resolves.
+fn execute_pending_action(action: PendingAction, world: &mut World) {
+    match action {
+        PendingAction::Load => {
+            // Spawn async open-file dialog.
+            let task = spawn_open_dialog();
+            world.insert_resource(AsyncDialogTask {
+                kind: DialogKind::OpenFile,
+                task,
+            });
+        }
+        PendingAction::NewProject { name } => {
+            reset_to_new_project(&name, world);
+        }
+        PendingAction::CloseProject => {
+            close_project(world);
+        }
+    }
+}
+
+/// Central router for dialog completion results. Handles all dialog kind + result
+/// combinations including dialog chaining (confirm → save → action).
+fn dispatch_dialog_result(kind: DialogKind, result: DialogResult, world: &mut World) {
+    match (kind, result) {
+        // --- Confirm Unsaved Changes ---
+        (DialogKind::ConfirmUnsavedChanges { then }, DialogResult::Confirmed(choice)) => {
+            match choice {
+                ConfirmChoice::Yes => {
+                    // Save first, then execute the pending action.
+                    let maybe_path = world.resource::<Workspace>().file_path.clone();
+                    if let Some(path) = maybe_path {
+                        if save_to_path(&path, world) {
+                            execute_pending_action(then, world);
+                        }
+                        // Save failed → abort chain.
+                    } else {
+                        // No existing path — spawn save-as dialog with chained action.
+                        spawn_save_dialog_for_current_project(world, Some(then));
+                    }
+                }
+                ConfirmChoice::No => {
+                    // Skip save, execute the pending action directly.
+                    execute_pending_action(then, world);
+                }
+                ConfirmChoice::Cancel => {
+                    // User cancelled — do nothing.
+                }
+            }
+        }
+
+        // --- Save File ---
+        (DialogKind::SaveFile { then, .. }, DialogResult::FilePicked(Some(path))) => {
+            if save_to_path(&path, world) {
+                if let Some(action) = then {
+                    execute_pending_action(action, world);
+                }
+            }
+        }
+        (DialogKind::SaveFile { .. }, DialogResult::FilePicked(None)) => {
+            // User cancelled save dialog — abort chain.
+        }
+
+        // --- Open File ---
+        (DialogKind::OpenFile, DialogResult::FilePicked(Some(path))) => {
+            load_from_path(&path, world);
+        }
+        (DialogKind::OpenFile, DialogResult::FilePicked(None)) => {
+            // User cancelled — do nothing.
+        }
+
+        // --- Unhandled combinations ---
+        (kind, result) => {
+            warn!("Unhandled dialog completion: {kind:?} + {result:?}");
+        }
+    }
+}
+
+/// Observer for `DialogCompleted` events. Clones event data and queues an
+/// exclusive-world command for dispatch (observers can't take `&mut World`
+/// alongside `On<E>`).
+pub(crate) fn handle_dialog_completed(trigger: On<DialogCompleted>, mut commands: Commands) {
+    let kind = trigger.event().kind.clone();
+    let result = trigger.event().result.clone();
+
+    commands.queue(move |world: &mut World| {
+        dispatch_dialog_result(kind, result, world);
+    });
+}
+
 /// Result of the unsaved-changes confirmation dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ConfirmAction {

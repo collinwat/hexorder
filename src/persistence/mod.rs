@@ -59,6 +59,7 @@ impl Plugin for PersistencePlugin {
         app.add_observer(systems::handle_load_request);
         app.add_observer(systems::handle_new_project);
         app.add_observer(systems::handle_close_project);
+        app.add_observer(systems::handle_dialog_completed);
         app.add_observer(systems::handle_file_command);
         app.add_systems(OnExit(AppScreen::Editor), systems::cleanup_editor_entities);
     }
