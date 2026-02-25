@@ -97,6 +97,111 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
     }
 }
 
+/// Build a `GameSystemFile` from current world state and pre-collected board data.
+fn build_game_system_file(
+    world: &World,
+    tiles: &[(HexPosition, EntityData)],
+    units: &[(HexPosition, EntityData)],
+) -> GameSystemFile {
+    let workspace = world.resource::<Workspace>();
+    let game_system = world.resource::<GameSystem>();
+    let entity_types = world.resource::<EntityTypeRegistry>();
+    let enum_registry = world.resource::<EnumRegistry>();
+    let struct_registry = world.resource::<StructRegistry>();
+    let concepts = world.resource::<ConceptRegistry>();
+    let relations = world.resource::<RelationRegistry>();
+    let constraints = world.resource::<ConstraintRegistry>();
+    let turn_structure = world.resource::<TurnStructure>();
+    let crt = world.resource::<CombatResultsTable>();
+    let combat_modifiers = world.resource::<CombatModifierRegistry>();
+    let config = world.resource::<HexGridConfig>();
+
+    let tile_data: Vec<TileSaveData> = tiles
+        .iter()
+        .map(|(pos, data)| TileSaveData {
+            position: *pos,
+            entity_type_id: data.entity_type_id,
+            properties: data.properties.clone(),
+        })
+        .collect();
+
+    let unit_data: Vec<UnitSaveData> = units
+        .iter()
+        .map(|(pos, data)| UnitSaveData {
+            position: *pos,
+            entity_type_id: data.entity_type_id,
+            properties: data.properties.clone(),
+        })
+        .collect();
+
+    GameSystemFile {
+        format_version: FORMAT_VERSION,
+        name: workspace.name.clone(),
+        game_system: game_system.clone(),
+        entity_types: entity_types.clone(),
+        enums: enum_registry.clone(),
+        structs: struct_registry.clone(),
+        concepts: concepts.clone(),
+        relations: relations.clone(),
+        constraints: constraints.clone(),
+        turn_structure: turn_structure.clone(),
+        combat_results_table: crt.clone(),
+        combat_modifiers: combat_modifiers.clone(),
+        map_radius: config.map_radius,
+        tiles: tile_data,
+        units: unit_data,
+        workspace_preset: workspace.workspace_preset.clone(),
+        font_size_base: workspace.font_size_base,
+    }
+}
+
+/// Save the current project to the given path. Returns `true` on success.
+/// Updates workspace path and dirty flag on success.
+/// No dialog logic — pure file I/O and state update.
+fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
+    // Collect board data via queries (releases world borrow after each block).
+    let tiles: Vec<(HexPosition, EntityData)> = {
+        let mut q = world.query_filtered::<(&HexPosition, &EntityData), With<HexTile>>();
+        q.iter(world).map(|(p, d)| (*p, d.clone())).collect()
+    };
+    let units: Vec<(HexPosition, EntityData)> = {
+        let mut q = world.query_filtered::<(&HexPosition, &EntityData), With<UnitInstance>>();
+        q.iter(world).map(|(p, d)| (*p, d.clone())).collect()
+    };
+
+    let file = build_game_system_file(world, &tiles, &units);
+
+    // Write to disk — scope the storage borrow.
+    let write_result = {
+        let storage = world.resource::<Storage>();
+        storage.provider().save_at(path, &file)
+    };
+
+    match write_result {
+        Ok(()) => {
+            info!("Saved to {}", path.display());
+            let mut workspace = world.resource_mut::<Workspace>();
+            workspace.file_path = Some(path.to_path_buf());
+            workspace.dirty = false;
+            drop(workspace);
+
+            world.trigger(ToastEvent {
+                message: "Project saved".to_string(),
+                kind: ToastKind::Success,
+            });
+            true
+        }
+        Err(e) => {
+            error!("Failed to save: {e}");
+            world.trigger(ToastEvent {
+                message: format!("Save failed: {e}"),
+                kind: ToastKind::Error,
+            });
+            false
+        }
+    }
+}
+
 /// Result of the unsaved-changes confirmation dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ConfirmAction {
