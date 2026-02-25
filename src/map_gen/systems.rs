@@ -99,13 +99,13 @@ pub fn run_generation(
     }
 
     // Record compound undo command if any tiles were changed.
-    if !tile_commands.is_empty() {
-        if let Some(ref mut stack) = undo_stack {
-            stack.record(Box::new(CompoundCommand {
-                commands: tile_commands,
-                label: "Generate Map".to_string(),
-            }));
-        }
+    if !tile_commands.is_empty()
+        && let Some(ref mut stack) = undo_stack
+    {
+        stack.record(Box::new(CompoundCommand {
+            commands: tile_commands,
+            label: "Generate Map".to_string(),
+        }));
     }
 
     // Remove the marker to prevent re-running.
