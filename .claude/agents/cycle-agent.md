@@ -39,11 +39,11 @@ Read these documents in order:
 
 Run `/hex-integrate` for each pitch that is ready. The skill handles:
 
-- Readiness assessment (lifecycle items 1–5 checked)
+- Readiness assessment (lifecycle items 1–6 checked)
 - Rebase onto integration branch
 - Fast-forward merge
 - Re-testing with `mise check:audit`
-- Lifecycle updates (item 6)
+- Lifecycle updates (item 7)
 - Tracking issue status comments
 
 All integrations use rebase + fast-forward to maintain linear commit history on the integration
@@ -60,7 +60,8 @@ Read `docs/guides/agent-ops.md` Guard Protocol. The cycle tracking guards define
 before each section can be completed:
 
 - **Integration Setup**: all 5 items checked, branch exists on remote
-- **Pitch merged**: pitch lifecycle item 5 checked, rebase + FF succeeded, audit passes
+- **Pitch merged**: pitch lifecycle item 6 ("Ready for integration") checked, rebase + FF succeeded,
+  audit passes
 - **Ship readiness**: all pitches merged, audit passes, manual checks pass, UAT complete
 
 ## Blocking Rules

@@ -529,8 +529,6 @@ working tree must always stay on `main`.
     ```
 8. **Update lifecycle.** Check off "Merged to integration branch" on the pitch issue's Lifecycle
    section. Post a status comment on the cycle tracking issue.
-9. **Post retro comment.** Post a build reflection comment on the pitch issue (see CLAUDE.md →
-   Progress Updates).
 
 ### Ship Merge (integration branch → main)
 

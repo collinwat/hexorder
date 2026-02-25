@@ -103,9 +103,9 @@ When on a `<version>-<feature>` branch, you are a pitch agent resuming work.
     | Branch created        | Post kickoff comment, check off "Build started"                         |
     | Build started         | Resume building — find next unchecked scope in Build Checklist          |
     | Scopes complete       | Run `mise check:audit` for quality gate                                 |
-    | Gate passed           | Verify spec criteria + deferred items → declare "Ready for integration" |
+    | Gate passed           | Post build reflection on pitch issue                                    |
+    | Reflection posted     | Verify spec criteria + deferred items → declare "Ready for integration" |
     | Ready for integration | Waiting for cycle agent to merge — nothing to do                        |
-    | Merged to integration | Post build reflection comment                                           |
 
 7. **Report.** Present: last completed phase, next action, blockers, sync status.
 
@@ -129,7 +129,7 @@ When on a `<version>` branch, you are a cycle agent resuming work.
     gh issue list --label "{{ pitch_label }}" --milestone "<version>" --json number,title
     gh issue view <pitch-number>
     ```
-    Look for lifecycle item 5 ("Ready for integration") being checked.
+    Look for lifecycle item 6 ("Ready for integration") being checked.
 5. **Determine next action:**
 
     | Condition                         | Next action                                                    |

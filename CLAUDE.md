@@ -151,9 +151,12 @@ today), not an imagined ideal. If time runs short, cut scope to ship — do not 
     - What did you learn that future agents (or future cycles) should know?
     - Were there repetitive multi-step workflows that would benefit from a dedicated skill? (A skill
       candidate needs 2+ use cases, involves non-deterministic decisions, and is expected to recur.)
-19. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
+19. **Ready for integration**: Verify all spec success criteria are met and all deferred items have
+    GitHub Issues. Check off "Ready for integration" on the pitch issue's Lifecycle section. The
+    pitch agent's build work is complete — the cycle agent handles the merge from here.
+20. **Merge**: When the scope is complete, follow the Pre-Merge Checklist in `docs/guides/git.md` —
     version bump, changelog, tag
-20. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
+21. **Teardown**: After merge is verified, run the Feature Branch Teardown Checklist in
     `docs/guides/git.md` — remove worktree, delete branch, update ownership
 
 ## Ship Gate

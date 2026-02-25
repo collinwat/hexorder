@@ -18,7 +18,7 @@ ownership boundaries and coordinates through GitHub Issue checklists.
 - **Scope**: one pitch, one feature branch, one worktree
 - **Owns**: feature branch + worktree
 - **Skills**: `/hex-kickoff`, `/hex-commit`, `/hex-idea`, `/hex-continue`, `/hex-status`
-- **Lifecycle items**: 1–5 and 7 on the pitch issue's Lifecycle section
+- **Lifecycle items**: 1–6 on the pitch issue's Lifecycle section
 - **Handoff**: checks "Ready for integration" when its work is done
 
 ### Cycle Agent
@@ -26,7 +26,7 @@ ownership boundaries and coordinates through GitHub Issue checklists.
 - **Scope**: the entire build cycle, the integration branch
 - **Owns**: integration branch + cycle tracking issue
 - **Skills**: `/hex-integrate`, `/hex-ship`, `/hex-continue`, `/hex-status`
-- **Lifecycle items**: item 6 (Merged to integration branch) on each pitch issue
+- **Lifecycle items**: item 7 (Merged to integration branch) on each pitch issue
 - **Tracking**: manages the cycle tracking issue's Integration Setup, Pitch Status, and Ship
   Readiness sections
 
@@ -95,16 +95,16 @@ ensures restart recovery — a new agent can trust that checked items are truly 
 | Build started         | Branch exists, kickoff comment posted on pitch issue, tracking issue updated                                                                                 |
 | Scopes complete       | Every item in the Build Checklist section is checked off                                                                                                     |
 | Gate passed           | `mise check:audit` passes on the feature branch with zero failures                                                                                           |
-| Ready for integration | Gate passed + every spec success criterion met + all deferred items have GitHub Issues                                                                       |
-| Merged to integration | Cycle agent performed rebase + fast-forward merge + `mise check:audit` passes on integration branch                                                          |
 | Reflection posted     | Final reflection comment on pitch issue addresses: final shape vs. original pitch, harder/easier than expected, what to do differently, learnings for future |
+| Ready for integration | Gate passed + reflection posted + every spec success criterion met + all deferred items have GitHub Issues                                                   |
+| Merged to integration | Cycle agent performed rebase + fast-forward merge + `mise check:audit` passes on integration branch                                                          |
 
 ### Cycle Tracking Guards
 
 | Section                    | Prerequisites                                                                                                                             |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Integration Setup complete | All 5 checklist items checked, branch exists on remote, milestone description updated                                                     |
-| Pitch merged               | Pitch lifecycle item 5 ("Ready for integration") is checked, rebase + FF merge succeeded, `mise check:audit` passes on integration branch |
+| Pitch merged               | Pitch lifecycle item 6 ("Ready for integration") is checked, rebase + FF merge succeeded, `mise check:audit` passes on integration branch |
 | Ship readiness             | All pitches show "Merged" status, `mise check:audit` passes, manual ship gate checks pass, UAT complete                                   |
 
 ---
@@ -187,7 +187,7 @@ checklist IS the coordination mechanism.
 - A **pitch agent** must NOT merge its own branch to the integration branch. That is the cycle
   agent's responsibility. The pitch agent's job ends at "Ready for integration."
 - A **cycle agent** must NOT merge a pitch that hasn't checked "Ready for integration" on its
-  Lifecycle. Always verify lifecycle item 5 before proceeding.
+  Lifecycle. Always verify lifecycle item 6 before proceeding.
 - **Neither agent** runs the ship gate without all pitches merged to the integration branch.
 - A **pitch agent** must NOT run the ship gate. Only the cycle agent (or the orchestrator via
   `/hex-ship`) does this.

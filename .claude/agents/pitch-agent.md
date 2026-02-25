@@ -32,15 +32,15 @@ Read these documents in order:
 
 ## Your Lifecycle
 
-The pitch issue has a Lifecycle section with these items. You own items 1–5 and 7:
+The pitch issue has a Lifecycle section with these items. You own items 1–6:
 
 1. **Branch created** — via `/hex-kickoff`
 2. **Build started** — post kickoff comment, update tracking issue
 3. **Scopes complete** — build loop from CLAUDE.md, check off Build Checklist items
 4. **Gate passed** — run `mise check:audit`
-5. **Ready for integration** — verify spec criteria + deferred items captured
-6. _(Cycle agent merges — not your responsibility)_
-7. **Reflection posted** — post build reflection comment
+5. **Reflection posted** — post build reflection comment while context is fresh
+6. **Ready for integration** — verify spec criteria + deferred items captured
+7. _(Cycle agent merges — not your responsibility)_
 
 ## Guard Rules
 
@@ -78,5 +78,5 @@ lifecycle checklist and git state to identify the next action.
 3. Post progress comments on the pitch issue as you build (reference Build Checklist items)
 4. Run `mise check:audit` after completing all scopes
 5. Capture deferred items as GitHub Issues via `/hex-idea`
-6. Declare "Ready for integration" when gate passes and spec criteria are met
-7. Post build reflection after the cycle agent merges your work
+6. Post build reflection while context is fresh
+7. Declare "Ready for integration" when gate passes, reflection posted, and spec criteria are met

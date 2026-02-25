@@ -51,11 +51,12 @@ For each pitch in the cycle:
     ```bash
     gh issue view <pitch-number>
     ```
-2. A pitch is **ready** when lifecycle items 1–5 are checked:
+2. A pitch is **ready** when lifecycle items 1–6 are checked:
     - [x] Branch created from integration branch
     - [x] Build started — kickoff comment posted
     - [x] All build checklist scopes complete
     - [x] Quality gate passed — `mise check:audit`
+    - [x] Build reflection posted
     - [x] Ready for integration — spec criteria met, deferred items captured
 3. If a pitch is **not ready**, report which items are unchecked and skip it.
 4. Present the readiness assessment before proceeding with any merges.
@@ -86,7 +87,7 @@ summary:
     ```
 6. **Re-test.** Run `mise check:audit` on the integration branch worktree. All checks must pass.
 7. **Push.** Push the updated integration branch: `git push origin <version>`.
-8. **Update lifecycle.** Check off lifecycle item 6 ("Merged to integration branch") on the pitch
+8. **Update lifecycle.** Check off lifecycle item 7 ("Merged to integration branch") on the pitch
    issue.
 9. **Post status comment** on the tracking issue with the merge result:
     ```bash
