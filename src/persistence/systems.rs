@@ -22,6 +22,11 @@ use hexorder_contracts::persistence::{
 use hexorder_contracts::storage::Storage;
 use hexorder_contracts::validation::SchemaValidation;
 
+use crate::persistence::async_dialog::{
+    AsyncDialogTask, ConfirmChoice, DialogCompleted, DialogKind, DialogResult, PendingAction,
+    spawn_confirm_dialog, spawn_open_dialog,
+};
+
 // ---------------------------------------------------------------------------
 // Shared Helpers
 // ---------------------------------------------------------------------------
@@ -277,6 +282,85 @@ fn load_from_path(path: &std::path::Path, world: &mut World) -> bool {
     info!("Loaded game system: {gs_id}");
 
     true
+}
+
+/// Reset all registries and derived state to factory defaults using world access.
+fn reset_all_registries_world(world: &mut World) {
+    *world.resource_mut::<GameSystem>() = crate::game_system::create_game_system();
+    *world.resource_mut::<EntityTypeRegistry>() = crate::game_system::create_entity_type_registry();
+    *world.resource_mut::<EnumRegistry>() = crate::game_system::create_enum_registry();
+    *world.resource_mut::<StructRegistry>() = StructRegistry::default();
+    *world.resource_mut::<ConceptRegistry>() = ConceptRegistry::default();
+    *world.resource_mut::<RelationRegistry>() = RelationRegistry::default();
+    *world.resource_mut::<ConstraintRegistry>() = ConstraintRegistry::default();
+    *world.resource_mut::<SchemaValidation>() = SchemaValidation::default();
+    world.resource_mut::<SelectedUnit>().entity = None;
+}
+
+/// Reset all state and initialize a new project with the given name.
+fn reset_to_new_project(name: &str, world: &mut World) {
+    reset_all_registries_world(world);
+
+    // Reset mechanics to factory defaults.
+    *world.resource_mut::<TurnStructure>() = crate::game_system::create_default_turn_structure();
+    *world.resource_mut::<CombatResultsTable>() = crate::game_system::create_default_crt();
+    *world.resource_mut::<CombatModifierRegistry>() = CombatModifierRegistry::default();
+    *world.resource_mut::<TurnState>() = TurnState::default();
+    *world.resource_mut::<ActiveCombat>() = ActiveCombat::default();
+
+    {
+        let mut workspace = world.resource_mut::<Workspace>();
+        workspace.name = name.to_string();
+        workspace.file_path = None;
+        workspace.dirty = false;
+        workspace.workspace_preset = String::new();
+        workspace.font_size_base = 15.0;
+    }
+
+    world
+        .resource_mut::<NextState<AppScreen>>()
+        .set(AppScreen::Editor);
+}
+
+/// Reset all state and return to the launcher screen.
+fn close_project(world: &mut World) {
+    *world.resource_mut::<Workspace>() = Workspace::default();
+    reset_all_registries_world(world);
+    world
+        .resource_mut::<NextState<AppScreen>>()
+        .set(AppScreen::Launcher);
+}
+
+/// Spawn an async save dialog configured for the current project.
+/// `then` specifies what to do after the save completes (if anything).
+fn spawn_save_dialog_for_current_project(world: &mut World, then: Option<PendingAction>) {
+    let (file_name, dir_from_workspace) = {
+        let workspace = world.resource::<Workspace>();
+        let sanitized = sanitize_filename(&workspace.name);
+        let file_name = format!("{sanitized}.hexorder");
+        let dir = workspace
+            .file_path
+            .as_ref()
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf());
+        (file_name, dir)
+    };
+
+    let initial_dir = dir_from_workspace.or_else(|| {
+        let storage = world.resource::<Storage>();
+        let base = storage.provider().base_dir().to_path_buf();
+        std::fs::create_dir_all(&base).ok()?;
+        Some(base)
+    });
+
+    let task = super::async_dialog::spawn_save_dialog(initial_dir.as_deref(), &file_name);
+    world.insert_resource(AsyncDialogTask {
+        kind: DialogKind::SaveFile {
+            save_as: true,
+            then,
+        },
+        task,
+    });
 }
 
 /// Result of the unsaved-changes confirmation dialog.
