@@ -74,12 +74,12 @@ Application screen state.
 
 Tool-level session state for the currently open project.
 
-| Field              | Type              | Description                                        |
-| ------------------ | ----------------- | -------------------------------------------------- |
-| `name`             | `String`          | Human-readable project name (display only)         |
-| `file_path`        | `Option<PathBuf>` | Path to last-saved file; `None` if unsaved         |
-| `dirty`            | `bool`            | Whether project has unsaved changes (placeholder)  |
-| `workspace_preset` | `String`          | Active workspace preset ID (synced from editor UI) |
+| Field              | Type              | Description                                                      |
+| ------------------ | ----------------- | ---------------------------------------------------------------- |
+| `name`             | `String`          | Human-readable project name (display only)                       |
+| `file_path`        | `Option<PathBuf>` | Path to last-saved file; `None` if unsaved                       |
+| `dirty`            | `bool`            | Whether project has unsaved changes (tracked by sync_dirty_flag) |
+| `workspace_preset` | `String`          | Active workspace preset ID (synced from editor UI)               |
 
 ### `PendingBoardLoad`
 
