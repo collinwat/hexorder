@@ -37,7 +37,21 @@ dir reuses same `#[cfg(feature)]` pattern as `shortcuts/config.rs`. **Abstractio
 abstraction needed — the `PartialSettings`/merge pattern is simple, direct, and unlikely to be
 reused by other plugins.
 
+### 2026-02-24 — Scope 2: Preference migration
+
+**Context**: Migrate editor_ui restore systems to read from SettingsRegistry instead of Workspace.
+**Decision**: Added `SettingsReady` SystemSet to the settings contract for cross-plugin system
+ordering. `apply_project_layer` runs in `SettingsReady`, editor_ui restore systems run
+`.after(SettingsReady)`. **Abstraction check**: `SettingsReady` is a clean cross-plugin ordering
+mechanism — reusable by any future consumer of SettingsRegistry.
+
 ## Test Results
+
+### 2026-02-24 — Scope 2
+
+- 406 tests pass (full suite, no regressions)
+- `cargo clippy --all-targets`: zero warnings
+- `mise check:boundary`: no violations
 
 ### 2026-02-24 — Scope 1+5
 
@@ -61,3 +75,4 @@ reused by other plugins.
 | ---------- | -------- | ---------------------------------------------- |
 | 2026-02-24 | speccing | Initial spec created                           |
 | 2026-02-24 | building | Scope 1+5 complete — infrastructure + contract |
+| 2026-02-24 | building | Scope 2 complete — preference migration        |
