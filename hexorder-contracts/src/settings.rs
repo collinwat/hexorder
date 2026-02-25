@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub struct EditorSettings {
     /// Base font size in points. Range 10.0–24.0, default 15.0.
     pub font_size: f32,
-    /// Active workspace preset identifier (e.g. "map_editing"). Empty = default.
+    /// Active workspace preset identifier (e.g. "`map_editing`"). Empty = default.
     pub workspace_preset: String,
 }
 
