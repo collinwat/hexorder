@@ -173,7 +173,9 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 4. **No `unwrap()` in production code** (test files exempt) — `mise check:unwrap`
 5. **No cross-plugin internal imports** — `mise check:boundary`
 6. Formatting, typos, TOML, dependency audit — all covered by `mise check`
-7. **Test coverage** — `mise check:coverage` (advisory during build, gate at ship audit)
+7. **Test coverage** — `mise check:coverage` (advisory during build, gate at ship audit).
+   Aspirational target: 95% line coverage. Not a hard gate during builds, but the ship audit should
+   track progress toward this target and flag significant regressions.
 
 **Manual checks** — these require human judgment and cannot be automated:
 
@@ -227,7 +229,8 @@ If a cycle does not finish by its deadline:
 - `mise check:clippy` — lint check (pedantic, configured in Cargo.toml)
 - `mise check:boundary` — cross-plugin import boundary check
 - `mise check:unwrap` — no unwrap() in production code
-- `mise check:coverage` — test coverage measurement (advisory during build, gate at ship audit)
+- `mise check:coverage` — test coverage measurement (advisory during build, gate at ship audit;
+  target: 95%)
 - `mise fix` — run all auto-fixers (fmt, clippy, taplo, prettier, typos)
 - `cargo test --lib <plugin_name>` — plugin-specific tests
 
