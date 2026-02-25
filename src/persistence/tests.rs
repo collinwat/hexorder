@@ -221,6 +221,49 @@ fn game_system_file_workspace_preset_round_trip() {
     assert_eq!(loaded.workspace_preset, "playtesting");
 }
 
+/// `sync_dirty_flag` sets `workspace.dirty` when UndoStack has new records.
+#[test]
+fn sync_dirty_flag_sets_dirty_on_new_records() {
+    use crate::contracts::undo_redo::UndoStack;
+
+    let mut app = test_app();
+    app.init_resource::<UndoStack>();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+
+    // Record a command.
+    app.world_mut().resource_mut::<UndoStack>().record(Box::new(
+        crate::contracts::undo_redo::SetPropertyCommand {
+            entity: Entity::PLACEHOLDER,
+            property_id: TypeId::new(),
+            old_value: crate::contracts::game_system::PropertyValue::Int(0),
+            new_value: crate::contracts::game_system::PropertyValue::Int(1),
+            label: "test".to_string(),
+        },
+    ));
+
+    app.update(); // sync_dirty_flag runs
+
+    let workspace = app
+        .world()
+        .resource::<crate::contracts::persistence::Workspace>();
+    assert!(workspace.dirty, "workspace should be dirty after record");
+
+    // Flag should be acknowledged.
+    let stack = app.world().resource::<UndoStack>();
+    assert!(
+        !stack.has_new_records(),
+        "has_new_records should be cleared after sync"
+    );
+}
+
 /// Format version was bumped to 5 for `font_size_base` field.
 #[test]
 fn format_version_is_5() {

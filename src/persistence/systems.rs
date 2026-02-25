@@ -394,6 +394,22 @@ pub fn handle_close_project(
 // Update Systems
 // ---------------------------------------------------------------------------
 
+/// Propagates the UndoStack's `has_new_records` flag to `Workspace.dirty`.
+/// Runs every frame in `Update`. When new commands have been recorded,
+/// sets dirty to true and acknowledges the records.
+pub fn sync_dirty_flag(
+    undo_stack: Option<ResMut<crate::contracts::undo_redo::UndoStack>>,
+    mut workspace: ResMut<Workspace>,
+) {
+    let Some(mut undo_stack) = undo_stack else {
+        return;
+    };
+    if undo_stack.has_new_records() {
+        workspace.dirty = true;
+        undo_stack.acknowledge_records();
+    }
+}
+
 /// Handles file commands dispatched via the shortcut registry.
 /// Maps `CommandExecutedEvent` command IDs to persistence events.
 pub fn handle_file_command(

@@ -45,8 +45,12 @@ impl Plugin for PersistencePlugin {
         register_shortcuts(&mut registry);
         app.add_systems(
             Update,
-            systems::apply_pending_board_load
-                .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
+            (
+                systems::apply_pending_board_load
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
+                systems::sync_dirty_flag
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
+            ),
         );
         app.add_observer(systems::handle_save_request);
         app.add_observer(systems::handle_load_request);
