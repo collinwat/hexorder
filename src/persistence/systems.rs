@@ -621,6 +621,25 @@ pub fn sync_dirty_flag(
     }
 }
 
+/// Updates the window title to reflect the current workspace name and dirty state.
+/// Format: "Hexorder \u{2014} `ProjectName`" (clean) or "Hexorder \u{2014} `ProjectName`*" (dirty).
+/// When the workspace has no name (launcher), the title is just "Hexorder".
+pub fn sync_window_title(workspace: Res<Workspace>, mut windows: Query<&mut Window>) {
+    let Ok(mut window) = windows.single_mut() else {
+        return;
+    };
+    let title = if workspace.name.is_empty() {
+        "Hexorder".to_string()
+    } else if workspace.dirty {
+        format!("Hexorder \u{2014} {}*", workspace.name)
+    } else {
+        format!("Hexorder \u{2014} {}", workspace.name)
+    };
+    if window.title != title {
+        window.title = title;
+    }
+}
+
 /// Handles file commands dispatched via the shortcut registry.
 /// Maps `CommandExecutedEvent` command IDs to persistence events.
 pub fn handle_file_command(

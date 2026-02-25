@@ -264,6 +264,74 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
     );
 }
 
+/// `sync_window_title` shows "Hexorder" when workspace has no name.
+#[test]
+fn sync_window_title_shows_app_name_when_no_project() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace::default());
+    app.world_mut().spawn(Window {
+        title: "initial".to_string(),
+        ..default()
+    });
+    app.add_systems(Update, super::systems::sync_window_title);
+    app.update();
+
+    let mut q = app.world_mut().query::<&Window>();
+    let window = q.single(app.world()).expect("one window");
+    assert_eq!(window.title, "Hexorder");
+}
+
+/// `sync_window_title` shows project name when clean.
+#[test]
+fn sync_window_title_shows_project_name_when_clean() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace {
+        name: "MyProject".to_string(),
+        dirty: false,
+        ..default()
+    });
+    app.world_mut().spawn(Window {
+        title: "initial".to_string(),
+        ..default()
+    });
+    app.add_systems(Update, super::systems::sync_window_title);
+    app.update();
+
+    let mut q = app.world_mut().query::<&Window>();
+    let window = q.single(app.world()).expect("one window");
+    assert_eq!(window.title, "Hexorder \u{2014} MyProject");
+}
+
+/// `sync_window_title` appends asterisk when dirty.
+#[test]
+fn sync_window_title_shows_asterisk_when_dirty() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace {
+        name: "MyProject".to_string(),
+        dirty: true,
+        ..default()
+    });
+    app.world_mut().spawn(Window {
+        title: "initial".to_string(),
+        ..default()
+    });
+    app.add_systems(Update, super::systems::sync_window_title);
+    app.update();
+
+    let mut q = app.world_mut().query::<&Window>();
+    let window = q.single(app.world()).expect("one window");
+    assert_eq!(window.title, "Hexorder \u{2014} MyProject*");
+}
+
 /// `check_unsaved_changes` returns `Proceed` when workspace is clean.
 #[test]
 fn check_unsaved_changes_proceeds_when_clean() {

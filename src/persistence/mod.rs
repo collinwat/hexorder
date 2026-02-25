@@ -50,6 +50,7 @@ impl Plugin for PersistencePlugin {
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
                 systems::sync_dirty_flag
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
+                systems::sync_window_title,
             ),
         );
         app.add_observer(systems::handle_save_request);
