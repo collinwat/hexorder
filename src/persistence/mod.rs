@@ -15,6 +15,7 @@ use hexorder_contracts::shortcuts::{
 };
 use hexorder_contracts::storage::{Storage, StorageConfig};
 
+pub(crate) mod async_dialog;
 pub(crate) mod storage;
 mod systems;
 
@@ -46,6 +47,7 @@ impl Plugin for PersistencePlugin {
         app.add_systems(
             Update,
             (
+                async_dialog::poll_async_dialog,
                 systems::apply_pending_board_load
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
                 systems::sync_dirty_flag
