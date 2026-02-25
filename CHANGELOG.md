@@ -66,7 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Fixed
 
 - update imports for hexorder-contracts crate (persistence)
-- correct typo — unparseable to unparsable (settings)
+- correct typo in settings config parsing (settings)
 - resolve clippy and boundary violations (persistence)
 - remove unused async dialog variants and field (persistence)
 - trigger CloseProjectEvent on project close (editor_ui)
