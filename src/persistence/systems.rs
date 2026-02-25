@@ -202,6 +202,83 @@ fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
     }
 }
 
+/// Load a project from the given path. Returns `true` on success.
+/// Overwrites all registries, updates workspace, inserts `PendingBoardLoad`,
+/// and transitions to Editor state. No dialog logic.
+fn load_from_path(path: &std::path::Path, world: &mut World) -> bool {
+    // Read file from disk — scope the storage borrow.
+    let file = {
+        let storage = world.resource::<Storage>();
+        storage.provider().load(path)
+    };
+
+    let file = match file {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Failed to load: {e}");
+            world.trigger(ToastEvent {
+                message: format!("Load failed: {e}"),
+                kind: ToastKind::Error,
+            });
+            return false;
+        }
+    };
+
+    // Overwrite registries.
+    *world.resource_mut::<GameSystem>() = file.game_system;
+    *world.resource_mut::<EntityTypeRegistry>() = file.entity_types;
+    *world.resource_mut::<EnumRegistry>() = file.enums;
+    *world.resource_mut::<StructRegistry>() = file.structs;
+    *world.resource_mut::<ConceptRegistry>() = file.concepts;
+    *world.resource_mut::<RelationRegistry>() = file.relations;
+    *world.resource_mut::<ConstraintRegistry>() = file.constraints;
+    *world.resource_mut::<TurnStructure>() = file.turn_structure;
+    *world.resource_mut::<CombatResultsTable>() = file.combat_results_table;
+    *world.resource_mut::<CombatModifierRegistry>() = file.combat_modifiers;
+    *world.resource_mut::<SchemaValidation>() = SchemaValidation::default();
+
+    // Derive workspace name: use file name field if present (v3+),
+    // otherwise derive from filename stem (v2 backward compat).
+    let name = if file.name.is_empty() {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Untitled")
+            .to_string()
+    } else {
+        file.name
+    };
+
+    {
+        let mut workspace = world.resource_mut::<Workspace>();
+        workspace.name = name;
+        workspace.file_path = Some(path.to_path_buf());
+        workspace.dirty = false;
+        workspace.workspace_preset = file.workspace_preset;
+        workspace.font_size_base = file.font_size_base;
+    }
+
+    // Insert pending board load for deferred application.
+    world.insert_resource(PendingBoardLoad {
+        tiles: file.tiles,
+        units: file.units,
+    });
+
+    // Transition to editor (may already be in editor if loading from editor).
+    world
+        .resource_mut::<NextState<AppScreen>>()
+        .set(AppScreen::Editor);
+
+    world.trigger(ToastEvent {
+        message: "Project loaded".to_string(),
+        kind: ToastKind::Success,
+    });
+
+    let gs_id = world.resource::<GameSystem>().id.clone();
+    info!("Loaded game system: {gs_id}");
+
+    true
+}
+
 /// Result of the unsaved-changes confirmation dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ConfirmAction {
