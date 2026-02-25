@@ -39,6 +39,11 @@ pub trait UndoableCommand: Send + Sync + fmt::Debug {
 ///
 /// Commands are recorded after execution. Undoing pops from the undo stack and
 /// pushes onto the redo stack. Recording a new command clears the redo stack.
+///
+/// Tracks a "save point" — the undo stack depth at the last save/load/new. The
+/// workspace is considered dirty when the current depth differs from the save
+/// point, or when the timeline has diverged (undo past save point then record a
+/// new command, making the old save point unreachable).
 #[derive(Resource)]
 pub struct UndoStack {
     undo_stack: Vec<Box<dyn UndoableCommand>>,
@@ -48,9 +53,11 @@ pub struct UndoStack {
     pub pending_undo: bool,
     /// Flag set by observer, consumed by exclusive system.
     pub pending_redo: bool,
-    /// Set by `record()`, cleared by `acknowledge_records()`.
-    /// Used by the persistence sync system to detect new commands.
-    has_new_records: bool,
+    /// Undo stack depth at the last clean point (save/load/new).
+    save_depth: usize,
+    /// Set when a new command is recorded after undoing past the save point,
+    /// making the original save state unreachable.
+    timeline_diverged: bool,
 }
 
 impl fmt::Debug for UndoStack {
@@ -61,7 +68,8 @@ impl fmt::Debug for UndoStack {
             .field("max_depth", &self.max_depth)
             .field("pending_undo", &self.pending_undo)
             .field("pending_redo", &self.pending_redo)
-            .field("has_new_records", &self.has_new_records)
+            .field("save_depth", &self.save_depth)
+            .field("timeline_diverged", &self.timeline_diverged)
             .finish()
     }
 }
@@ -74,7 +82,8 @@ impl Default for UndoStack {
             max_depth: 100,
             pending_undo: false,
             pending_redo: false,
-            has_new_records: false,
+            save_depth: 0,
+            timeline_diverged: false,
         }
     }
 }
@@ -91,13 +100,22 @@ impl UndoStack {
 
     /// Push an already-executed command onto the undo stack. Clears the redo
     /// stack, since the timeline has diverged.
+    ///
+    /// If recording while the undo stack is shorter than the save point, the
+    /// save state becomes unreachable and the timeline is marked as diverged.
     pub fn record(&mut self, cmd: Box<dyn UndoableCommand>) {
+        if self.undo_stack.len() < self.save_depth {
+            self.timeline_diverged = true;
+        }
         self.redo_stack.clear();
         if self.undo_stack.len() >= self.max_depth {
             self.undo_stack.remove(0);
+            // Eviction pushes save depth down with the stack.
+            if self.save_depth > 0 {
+                self.save_depth -= 1;
+            }
         }
         self.undo_stack.push(cmd);
-        self.has_new_records = true;
     }
 
     /// Set the pending undo flag. The exclusive system will consume this.
@@ -158,24 +176,27 @@ impl UndoStack {
         self.undo_stack.push(cmd);
     }
 
-    /// Reset both stacks (e.g., on project load).
+    /// Reset both stacks and the save point (e.g., on project load/new/close).
     pub fn clear(&mut self) {
         self.undo_stack.clear();
         self.redo_stack.clear();
-        self.has_new_records = false;
+        self.save_depth = 0;
+        self.timeline_diverged = false;
     }
 
-    /// Returns `true` if commands have been recorded since the last
-    /// `acknowledge_records()` call.
+    /// Mark the current undo stack depth as the clean point (e.g., after save).
+    /// `is_dirty()` returns `false` until the stack diverges from this depth.
+    pub fn mark_clean(&mut self) {
+        self.save_depth = self.undo_stack.len();
+        self.timeline_diverged = false;
+    }
+
+    /// Returns `true` if the undo history has diverged from the last clean
+    /// point (save/load/new). Compares current undo stack depth to the save
+    /// depth and checks for timeline divergence.
     #[must_use]
-    pub fn has_new_records(&self) -> bool {
-        self.has_new_records
-    }
-
-    /// Clear the `has_new_records` flag. Called by the persistence sync
-    /// system after propagating dirty state.
-    pub fn acknowledge_records(&mut self) {
-        self.has_new_records = false;
+    pub fn is_dirty(&self) -> bool {
+        self.timeline_diverged || self.undo_stack.len() != self.save_depth
     }
 }
 
@@ -641,30 +662,76 @@ mod tests {
     }
 
     #[test]
-    fn record_sets_has_new_records() {
-        let mut stack = UndoStack::default();
-        assert!(!stack.has_new_records());
-
-        stack.record(make_cmd("action"));
-        assert!(stack.has_new_records());
+    fn new_stack_is_not_dirty() {
+        let stack = UndoStack::default();
+        assert!(!stack.is_dirty());
     }
 
     #[test]
-    fn acknowledge_records_clears_flag() {
+    fn record_makes_dirty() {
         let mut stack = UndoStack::default();
         stack.record(make_cmd("action"));
-        assert!(stack.has_new_records());
-
-        stack.acknowledge_records();
-        assert!(!stack.has_new_records());
+        assert!(stack.is_dirty());
     }
 
     #[test]
-    fn clear_resets_has_new_records() {
+    fn undo_back_to_save_point_clears_dirty() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("action"));
+        assert!(stack.is_dirty());
+
+        let cmd = stack.pop_undo().expect("should have command");
+        stack.push_redo(cmd);
+        assert!(!stack.is_dirty());
+    }
+
+    #[test]
+    fn redo_after_undo_restores_dirty() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("action"));
+
+        let cmd = stack.pop_undo().expect("should have command");
+        stack.push_redo(cmd);
+        assert!(!stack.is_dirty());
+
+        let cmd = stack.pop_redo().expect("should have command");
+        stack.push_undo(cmd);
+        assert!(stack.is_dirty());
+    }
+
+    #[test]
+    fn mark_clean_clears_dirty() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("action"));
+        assert!(stack.is_dirty());
+
+        stack.mark_clean();
+        assert!(!stack.is_dirty());
+    }
+
+    #[test]
+    fn undo_past_save_point_then_record_diverges() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("A"));
+        stack.mark_clean(); // save_depth = 1
+
+        // Undo past save point.
+        let cmd = stack.pop_undo().expect("should have command");
+        stack.push_redo(cmd);
+        assert!(stack.is_dirty()); // depth 0 != save_depth 1
+
+        // Record new command from diverged position.
+        stack.record(make_cmd("B"));
+        // depth 1 == save_depth 1, BUT timeline diverged.
+        assert!(stack.is_dirty());
+    }
+
+    #[test]
+    fn clear_resets_dirty_state() {
         let mut stack = UndoStack::default();
         stack.record(make_cmd("action"));
         stack.clear();
-        assert!(!stack.has_new_records());
+        assert!(!stack.is_dirty());
     }
 
     #[test]
