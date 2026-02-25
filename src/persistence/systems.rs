@@ -112,7 +112,7 @@ fn build_game_system_file(
 /// Save the current project to the given path. Returns `true` on success.
 /// Updates workspace path and dirty flag on success.
 /// No dialog logic — pure file I/O and state update.
-fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
+pub(crate) fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
     // Collect board data via queries (releases world borrow after each block).
     let tiles: Vec<(HexPosition, EntityData)> = {
         let mut q = world.query_filtered::<(&HexPosition, &EntityData), With<HexTile>>();
@@ -159,7 +159,7 @@ fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
 /// Load a project from the given path. Returns `true` on success.
 /// Overwrites all registries, updates workspace, inserts `PendingBoardLoad`,
 /// and transitions to Editor state. No dialog logic.
-fn load_from_path(path: &std::path::Path, world: &mut World) -> bool {
+pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool {
     // Read file from disk — scope the storage borrow.
     let file = {
         let storage = world.resource::<Storage>();
@@ -334,7 +334,7 @@ fn execute_pending_action(action: PendingAction, world: &mut World) {
 
 /// Central router for dialog completion results. Handles all dialog kind + result
 /// combinations including dialog chaining (confirm → save → action).
-fn dispatch_dialog_result(kind: DialogKind, result: DialogResult, world: &mut World) {
+pub(crate) fn dispatch_dialog_result(kind: DialogKind, result: DialogResult, world: &mut World) {
     match (kind, result) {
         // --- Confirm Unsaved Changes ---
         (DialogKind::ConfirmUnsavedChanges { then }, DialogResult::Confirmed(choice)) => {

@@ -24,6 +24,7 @@ fn test_app() -> App {
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.add_plugins(crate::game_system::GameSystemPlugin);
+    app.add_plugins(crate::ontology::OntologyPlugin);
     // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
     app.add_plugins(crate::persistence::PersistencePlugin);
@@ -330,6 +331,156 @@ fn sync_window_title_shows_asterisk_when_dirty() {
     let mut q = app.world_mut().query::<&Window>();
     let window = q.single(app.world()).expect("one window");
     assert_eq!(window.title, "Hexorder \u{2014} MyProject*");
+}
+
+/// `save_to_path` writes file to disk and updates workspace.
+#[test]
+fn save_to_path_writes_file_and_updates_workspace() {
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+
+    let tmp = std::env::temp_dir().join("hexorder_test_save_to_path.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+
+    let result = super::systems::save_to_path(&tmp, app.world_mut());
+
+    assert!(result, "save_to_path should succeed");
+    assert!(tmp.exists(), "file should be written to disk");
+
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.file_path.as_deref(), Some(tmp.as_path()));
+    assert!(!workspace.dirty);
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// `load_from_path` overwrites registries and inserts PendingBoardLoad.
+#[test]
+fn load_from_path_overwrites_registries() {
+    use hexorder_contracts::storage::Storage;
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+
+    // Write a test file to disk first.
+    let file = test_game_system_file();
+    let tmp = std::env::temp_dir().join("hexorder_test_load_from_path.hexorder");
+    {
+        let storage = app.world().resource::<Storage>();
+        storage
+            .provider()
+            .save_at(&tmp, &file)
+            .expect("write test file");
+    }
+
+    let result = super::systems::load_from_path(&tmp, app.world_mut());
+
+    assert!(result, "load_from_path should succeed");
+
+    let game_system = app.world().resource::<GameSystem>();
+    assert_eq!(game_system.id, "test-save");
+
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.name, "Test Project");
+    assert_eq!(workspace.file_path.as_deref(), Some(tmp.as_path()));
+    assert!(!workspace.dirty);
+
+    assert!(
+        app.world().get_resource::<PendingBoardLoad>().is_some(),
+        "PendingBoardLoad should be inserted"
+    );
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// `dispatch_dialog_result` executes pending action on confirm No (skip save).
+#[test]
+fn dispatch_confirm_no_executes_pending_action() {
+    use crate::persistence::async_dialog::*;
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+
+    // Dispatch: confirm No with pending NewProject action.
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::NewProject {
+                name: "Test".to_string(),
+            },
+        },
+        DialogResult::Confirmed(ConfirmChoice::No),
+        app.world_mut(),
+    );
+
+    // NewProject should have set workspace name and transitioned to Editor.
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.name, "Test");
+}
+
+/// `dispatch_dialog_result` does nothing on confirm Cancel.
+#[test]
+fn dispatch_confirm_cancel_does_nothing() {
+    use crate::persistence::async_dialog::*;
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+
+    // Set workspace name so we can verify it's unchanged.
+    app.world_mut()
+        .resource_mut::<hexorder_contracts::persistence::Workspace>()
+        .name = "Original".to_string();
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::CloseProject,
+        },
+        DialogResult::Confirmed(ConfirmChoice::Cancel),
+        app.world_mut(),
+    );
+
+    // Workspace should be unchanged.
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.name, "Original");
 }
 
 /// Format version was bumped to 5 for `font_size_base` field.
