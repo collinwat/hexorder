@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 use serde::Deserialize;
 
-use crate::contracts::settings::{EditorSettings, SettingsRegistry, ThemeDefinition, ThemeLibrary};
+use hexorder_contracts::settings::{
+    EditorSettings, SettingsRegistry, ThemeDefinition, ThemeLibrary,
+};
 
 // ---------------------------------------------------------------------------
 // Partial types (for merge semantics — Option<T> fields)

@@ -5,8 +5,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::settings::SettingsReady;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::settings::SettingsReady;
 
 mod config;
 mod systems;

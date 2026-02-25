@@ -2,8 +2,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::Workspace;
-use crate::contracts::settings::{SettingsChanged, SettingsRegistry};
+use hexorder_contracts::persistence::Workspace;
+use hexorder_contracts::settings::{SettingsChanged, SettingsRegistry};
 
 use super::SettingsLayers;
 use super::config::{PartialEditorSettings, PartialSettings, merge};

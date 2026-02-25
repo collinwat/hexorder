@@ -87,6 +87,7 @@ pub struct ThemeLibrary {
 
 impl ThemeLibrary {
     /// Find a theme by name. Returns `None` if not found.
+    #[must_use]
     pub fn find(&self, name: &str) -> Option<&ThemeDefinition> {
         self.themes.iter().find(|t| t.name == name)
     }

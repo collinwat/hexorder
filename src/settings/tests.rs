@@ -1,7 +1,7 @@
-use crate::contracts::settings::{SettingsRegistry, ThemeDefinition};
 use crate::settings::config::{
     PartialEditorSettings, PartialSettings, brand_theme_definition, merge,
 };
+use hexorder_contracts::settings::{SettingsRegistry, ThemeDefinition};
 
 fn empty() -> PartialSettings {
     PartialSettings::default()
