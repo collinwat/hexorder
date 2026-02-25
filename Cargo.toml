@@ -43,7 +43,7 @@ dbg_macro = "deny"
 
 [package]
 name = "hexorder"
-version = "0.13.0-editor-ui"
+version = "0.13.0-settings"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
