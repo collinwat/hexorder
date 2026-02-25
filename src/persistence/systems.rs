@@ -609,7 +609,7 @@ pub fn handle_close_project(
 /// Runs every frame in `Update`. When new commands have been recorded,
 /// sets dirty to true and acknowledges the records.
 pub fn sync_dirty_flag(
-    undo_stack: Option<ResMut<crate::contracts::undo_redo::UndoStack>>,
+    undo_stack: Option<ResMut<hexorder_contracts::undo_redo::UndoStack>>,
     mut workspace: ResMut<Workspace>,
 ) {
     let Some(mut undo_stack) = undo_stack else {

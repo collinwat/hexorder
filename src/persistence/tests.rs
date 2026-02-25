@@ -224,7 +224,7 @@ fn game_system_file_workspace_preset_round_trip() {
 /// `sync_dirty_flag` sets `workspace.dirty` when `UndoStack` has new records.
 #[test]
 fn sync_dirty_flag_sets_dirty_on_new_records() {
-    use crate::contracts::undo_redo::UndoStack;
+    use hexorder_contracts::undo_redo::UndoStack;
 
     let mut app = test_app();
     app.init_resource::<UndoStack>();
@@ -240,11 +240,11 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
 
     // Record a command.
     app.world_mut().resource_mut::<UndoStack>().record(Box::new(
-        crate::contracts::undo_redo::SetPropertyCommand {
+        hexorder_contracts::undo_redo::SetPropertyCommand {
             entity: Entity::PLACEHOLDER,
             property_id: TypeId::new(),
-            old_value: crate::contracts::game_system::PropertyValue::Int(0),
-            new_value: crate::contracts::game_system::PropertyValue::Int(1),
+            old_value: hexorder_contracts::game_system::PropertyValue::Int(0),
+            new_value: hexorder_contracts::game_system::PropertyValue::Int(1),
             label: "test".to_string(),
         },
     ));
@@ -253,7 +253,7 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
 
     let workspace = app
         .world()
-        .resource::<crate::contracts::persistence::Workspace>();
+        .resource::<hexorder_contracts::persistence::Workspace>();
     assert!(workspace.dirty, "workspace should be dirty after record");
 
     // Flag should be acknowledged.
@@ -269,7 +269,7 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
 fn check_unsaved_changes_proceeds_when_clean() {
     use crate::persistence::systems::ConfirmAction;
 
-    let workspace = crate::contracts::persistence::Workspace::default();
+    let workspace = hexorder_contracts::persistence::Workspace::default();
     assert_eq!(
         crate::persistence::systems::check_unsaved_changes(&workspace),
         ConfirmAction::Proceed,
