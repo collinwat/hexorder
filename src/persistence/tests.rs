@@ -221,7 +221,7 @@ fn game_system_file_workspace_preset_round_trip() {
     assert_eq!(loaded.workspace_preset, "playtesting");
 }
 
-/// `sync_dirty_flag` sets `workspace.dirty` when UndoStack has new records.
+/// `sync_dirty_flag` sets `workspace.dirty` when `UndoStack` has new records.
 #[test]
 fn sync_dirty_flag_sets_dirty_on_new_records() {
     use crate::contracts::undo_redo::UndoStack;

@@ -97,37 +97,31 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Observer Systems
-// ---------------------------------------------------------------------------
-
-/// Handles save requests. Builds a `GameSystemFile` from current state
-/// and writes it to disk via RON.
+/// Perform the save operation. Returns `true` if save succeeded, `false` if
+/// cancelled or failed. When `force_dialog` is true, always shows the file
+/// picker (Save As behavior).
 #[allow(clippy::too_many_arguments)]
-pub fn handle_save_request(
-    trigger: On<SaveRequestEvent>,
-    game_system: Res<GameSystem>,
-    entity_types: Res<EntityTypeRegistry>,
-    enum_registry: Res<EnumRegistry>,
-    struct_registry: Res<StructRegistry>,
-    concepts: Res<ConceptRegistry>,
-    relations: Res<RelationRegistry>,
-    constraints: Res<ConstraintRegistry>,
-    turn_structure: Res<TurnStructure>,
-    crt: Res<CombatResultsTable>,
-    combat_modifiers: Res<CombatModifierRegistry>,
-    config: Res<HexGridConfig>,
-    tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
-    units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
-    storage: Res<Storage>,
-    mut workspace: ResMut<Workspace>,
-    mut commands: Commands,
-) {
-    let event = trigger.event();
-
+fn do_save(
+    force_dialog: bool,
+    workspace: &mut Workspace,
+    game_system: &GameSystem,
+    entity_types: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+    concepts: &ConceptRegistry,
+    relations: &RelationRegistry,
+    constraints: &ConstraintRegistry,
+    turn_structure: &TurnStructure,
+    crt: &CombatResultsTable,
+    combat_modifiers: &CombatModifierRegistry,
+    config: &HexGridConfig,
+    tiles: &[(HexPosition, EntityData)],
+    units: &[(HexPosition, EntityData)],
+    storage: &Storage,
+    commands: &mut Commands,
+) -> bool {
     // Determine target path.
-    let path = if event.save_as || workspace.file_path.is_none() {
-        // Pre-fill with sensible defaults.
+    let path = if force_dialog || workspace.file_path.is_none() {
         let sanitized_name = sanitize_filename(&workspace.name);
         let file_name = format!("{sanitized_name}.hexorder");
 
@@ -135,7 +129,6 @@ pub fn handle_save_request(
             .add_filter("Hexorder", &["hexorder"])
             .set_file_name(&file_name);
 
-        // Pre-fill default directory on first save.
         if let Some(ref existing) = workspace.file_path {
             if let Some(parent) = existing.parent() {
                 dialog = dialog.set_directory(parent);
@@ -148,10 +141,10 @@ pub fn handle_save_request(
         }
 
         let result = dialog.save_file();
-        clear_keyboard_after_dialog(&mut commands);
+        clear_keyboard_after_dialog(commands);
         match result {
             Some(p) => p,
-            None => return, // User cancelled.
+            None => return false, // User cancelled.
         }
     } else {
         workspace.file_path.clone().expect("checked is_some above")
@@ -205,6 +198,7 @@ pub fn handle_save_request(
                 message: "Project saved".to_string(),
                 kind: ToastKind::Success,
             });
+            true
         }
         Err(e) => {
             error!("Failed to save: {e}");
@@ -212,8 +206,59 @@ pub fn handle_save_request(
                 message: format!("Save failed: {e}"),
                 kind: ToastKind::Error,
             });
+            false
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Observer Systems
+// ---------------------------------------------------------------------------
+
+/// Handles save requests. Builds a `GameSystemFile` from current state
+/// and writes it to disk via RON.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_save_request(
+    trigger: On<SaveRequestEvent>,
+    game_system: Res<GameSystem>,
+    entity_types: Res<EntityTypeRegistry>,
+    enum_registry: Res<EnumRegistry>,
+    struct_registry: Res<StructRegistry>,
+    concepts: Res<ConceptRegistry>,
+    relations: Res<RelationRegistry>,
+    constraints: Res<ConstraintRegistry>,
+    turn_structure: Res<TurnStructure>,
+    crt: Res<CombatResultsTable>,
+    combat_modifiers: Res<CombatModifierRegistry>,
+    config: Res<HexGridConfig>,
+    tiles: Query<(&HexPosition, &EntityData), With<HexTile>>,
+    units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    storage: Res<Storage>,
+    mut workspace: ResMut<Workspace>,
+    mut commands: Commands,
+) {
+    let tile_vec: Vec<_> = tiles.iter().map(|(p, d)| (*p, d.clone())).collect();
+    let unit_vec: Vec<_> = units.iter().map(|(p, d)| (*p, d.clone())).collect();
+
+    do_save(
+        trigger.event().save_as,
+        &mut workspace,
+        &game_system,
+        &entity_types,
+        &enum_registry,
+        &struct_registry,
+        &concepts,
+        &relations,
+        &constraints,
+        &turn_structure,
+        &crt,
+        &combat_modifiers,
+        &config,
+        &tile_vec,
+        &unit_vec,
+        &storage,
+        &mut commands,
+    );
 }
 
 /// Handles load requests. Opens a file dialog, loads the file, overwrites
@@ -394,7 +439,7 @@ pub fn handle_close_project(
 // Update Systems
 // ---------------------------------------------------------------------------
 
-/// Propagates the UndoStack's `has_new_records` flag to `Workspace.dirty`.
+/// Propagates the `UndoStack`'s `has_new_records` flag to `Workspace.dirty`.
 /// Runs every frame in `Update`. When new commands have been recorded,
 /// sets dirty to true and acknowledges the records.
 pub fn sync_dirty_flag(
