@@ -9,7 +9,6 @@ publish = false
 bevy = { workspace = true, default-features = false, features = [
   "bevy_state",
   "bevy_log",
-  "bevy_window",
   "3d_bevy_render",
 ] }
 bevy_egui = { workspace = true }

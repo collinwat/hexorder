@@ -43,12 +43,12 @@ Do **not** extract when:
 Extracted crates must declare only the Bevy features their types actually use. For
 `hexorder-contracts` (audited 0.14.0):
 
-| Feature          | Status    | Reason                                                |
-| ---------------- | --------- | ----------------------------------------------------- |
-| `bevy_state`     | Required  | `#[derive(States)]` on `AppScreen`                    |
-| `3d_bevy_render` | Required  | `Handle<Mesh>`, `StandardMaterial`, `Transform`, etc. |
-| `bevy_log`       | Removable | Not used by any contract type                         |
-| `bevy_window`    | Removable | Not used by any contract type                         |
+| Feature          | Status   | Reason                                                |
+| ---------------- | -------- | ----------------------------------------------------- |
+| `bevy_state`     | Required | `#[derive(States)]` on `AppScreen`                    |
+| `bevy_log`       | Required | `warn!` macro used in `shortcuts.rs`                  |
+| `3d_bevy_render` | Required | `Handle<Mesh>`, `StandardMaterial`, `Transform`, etc. |
+| `bevy_window`    | Removed  | Not used by any contract type (removed in 0.14.0)     |
 
 ### Reference implementation
 
