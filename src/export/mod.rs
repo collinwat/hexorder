@@ -148,6 +148,7 @@ impl Plugin for ExportPlugin {
         register_shortcuts(&mut registry);
 
         app.add_observer(systems::handle_export_command);
+        app.add_systems(Update, systems::poll_pending_export);
     }
 }
 

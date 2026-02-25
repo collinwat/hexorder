@@ -98,3 +98,24 @@
     - `dispatch_confirm_cancel_does_nothing`
 - Added `OntologyPlugin` to test_app for ontology registry availability
 - All checks pass: `mise check` clean, zero clippy errors, no boundary violations
+
+### Scope 3: Export Plugin Async Migration
+
+- Migrated `src/export/systems.rs` from blocking `rfd::FileDialog::pick_folder()` to async
+  `rfd::AsyncFileDialog`
+- Self-contained pattern: `PendingExport` resource holds `ExportData` + `Task<Option<PathBuf>>`
+  (avoids cross-plugin import of persistence's `AsyncDialogTask`)
+- Converted `handle_export_command` observer to thin dispatcher using `commands.queue()` — collects
+  ECS data, spawns async dialog, inserts `PendingExport` resource
+- Added `poll_pending_export` exclusive system — zero-cost polling via `block_on(poll_once(...))`
+- Extracted `run_export` helper — runs all exporters and triggers toast events
+- Removed keyboard reset workaround (`clear_keyboard_after_dialog` was already dead code after
+  Scope 2)
+- Registered `poll_pending_export` in `ExportPlugin::build`
+- 3 new tests added (392 total), all passing:
+    - `poll_noop_when_no_pending_export`
+    - `poll_removes_resource_and_writes_files_on_completion`
+    - `poll_removes_resource_when_user_cancels`
+- Note: `PickFolder`, `FolderPicked`, `spawn_folder_dialog` in persistence's `async_dialog.rs` are
+  now unused (export uses its own pattern) — dead code warnings remain, cleanup deferred
+- All checks pass: `mise check` clean, 392 tests, no boundary violations

@@ -490,6 +490,87 @@ fn hex_map_auto_scales_oversized_grid() {
 }
 
 // ---------------------------------------------------------------------------
+// Polling System Tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn poll_noop_when_no_pending_export() {
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_systems(bevy::app::Update, systems::poll_pending_export);
+    app.update(); // Should not panic.
+}
+
+#[test]
+fn poll_removes_resource_and_writes_files_on_completion() {
+    use bevy::tasks::IoTaskPool;
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_systems(bevy::app::Update, systems::poll_pending_export);
+
+    let temp_dir =
+        std::env::temp_dir().join(format!("hexorder-export-test-{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+    let dir_for_task = temp_dir.clone();
+    let task = IoTaskPool::get().spawn(async move { Some(dir_for_task) });
+
+    app.insert_resource(systems::PendingExport {
+        data: test_export_data(),
+        task,
+    });
+
+    // First update: polling system completes task, runs export.
+    app.update();
+
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_none(),
+        "PendingExport should be removed after completion"
+    );
+
+    // Verify export files were written.
+    let entries: Vec<_> = std::fs::read_dir(&temp_dir)
+        .expect("read temp dir")
+        .filter_map(Result::ok)
+        .collect();
+    assert!(
+        !entries.is_empty(),
+        "export should have written files to the output directory"
+    );
+
+    // Clean up temp dir.
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn poll_removes_resource_when_user_cancels() {
+    use bevy::tasks::IoTaskPool;
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_systems(bevy::app::Update, systems::poll_pending_export);
+
+    let task = IoTaskPool::get().spawn(async { None });
+
+    app.insert_resource(systems::PendingExport {
+        data: test_export_data(),
+        task,
+    });
+
+    app.update();
+
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_none(),
+        "PendingExport should be removed even when user cancels"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
