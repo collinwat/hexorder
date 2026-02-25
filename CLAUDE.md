@@ -82,8 +82,10 @@ code, and think through the approach. This orientation period is normal and expe
 2. Read `docs/plugins/<name>/spec.md` and the pitch's solution sketch
 3. Read `docs/contracts/` for any shared types your plugin depends on or exposes
 4. Check `docs/plugins/<name>/log.md` for prior decisions and blockers
-5. Explore relevant code paths and contracts
-6. Identify the first piece to build end-to-end (see "Get One Piece Done" below)
+5. **Set task list ID** (multi-pitch cycles): `export CLAUDE_CODE_TASK_LIST_ID=hexorder-<version>`
+   before launching sessions. See `docs/guides/agent-ops.md` for naming conventions.
+6. Explore relevant code paths and contracts
+7. Identify the first piece to build end-to-end (see "Get One Piece Done" below)
 
 ### Get One Piece Done
 
