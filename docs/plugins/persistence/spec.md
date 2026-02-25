@@ -57,6 +57,9 @@ operations, and deferred board reconstruction after load.
 ## Constraints
 
 - Async file dialogs via `AsyncDialogTask` resource — only one dialog at a time, polled each frame
-- Blocking file dialogs (rfd) — acceptable for save/load operations
+- All file dialogs are async (blocking `rfd::FileDialog` removed) — event loop stays live during
+  dialogs
 - MinimalPlugins lacks StatesPlugin — test apps must add it explicitly
 - Unit entities spawned without mesh/material — sync systems handle visuals via change detection
+- Dialog chaining via `then: Option<PendingAction>` on `DialogKind::SaveFile` — enables
+  confirm-then-save-then-action flows

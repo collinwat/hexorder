@@ -67,3 +67,34 @@
 - Uses `IoTaskPool` (not `AsyncComputeTaskPool`) per pitch guidance
 - Uses `bevy::tasks::block_on` / `bevy::tasks::poll_once` re-exports (no direct `futures-lite` dep)
 - 5 unit tests added (386 total), all passing
+
+### Scope 2: Async Dialog Migration
+
+- Migrated all 4 blocking observer functions to async dialog infrastructure:
+    - `handle_save_request` — spawns `SaveFile` dialog via `AsyncDialogTask`
+    - `handle_load_request` — checks unsaved changes, spawns confirm or open dialog
+    - `handle_new_project` — checks unsaved changes, spawns confirm or resets directly
+    - `handle_close_project` — checks unsaved changes, spawns confirm or closes directly
+- Added `then: Option<PendingAction>` to `DialogKind::SaveFile` for dialog chaining
+- Extracted pure helpers that take `&mut World` for flexible resource access:
+    - `build_game_system_file` — assembles `GameSystemFile` from world state
+    - `save_to_path` — writes file and updates workspace
+    - `load_from_path` — reads file, overwrites registries, inserts `PendingBoardLoad`
+    - `reset_to_new_project` — resets all state for new project
+    - `close_project` — returns to launcher screen
+    - `spawn_save_dialog_for_current_project` — opens save dialog with workspace context
+    - `reset_all_registries_world` — resets all registries to defaults
+    - `execute_pending_action` — dispatches deferred actions after dialog completion
+    - `dispatch_dialog_result` — central router for all dialog kind + result combinations
+- Added `handle_dialog_completed` observer to bridge `DialogCompleted` event to dispatch
+- Removed dead code: `clear_keyboard_after_dialog`, `reset_all_registries`, `ConfirmAction` enum,
+  `check_unsaved_changes`, `do_save`, unused `KeyCode` import
+- Net code change: significant reduction — ~332 lines removed from observer functions, ~213 lines of
+  dead code removed; replaced with ~300 lines of cleaner async code
+- 4 new tests added (389 total), all passing:
+    - `save_to_path_writes_file_and_updates_workspace`
+    - `load_from_path_overwrites_registries`
+    - `dispatch_confirm_no_executes_pending_action`
+    - `dispatch_confirm_cancel_does_nothing`
+- Added `OntologyPlugin` to test_app for ontology registry availability
+- All checks pass: `mise check` clean, zero clippy errors, no boundary violations
