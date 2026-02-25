@@ -38,7 +38,7 @@ game system assets.
 ## Architecture Rules
 
 - Every plugin is a Bevy Plugin in its own module under `src/`
-- Shared types live in `src/contracts/` and are mirrored in `docs/contracts/`
+- Shared types live in `hexorder-contracts/src/` and are mirrored in `docs/contracts/`
 - Use Events for cross-plugin communication, never direct coupling
 - Components, Resources, Events must derive standard Bevy traits + Debug
 - Prefer systems over methods; prefer queries over direct world access
@@ -107,7 +107,7 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 14. **Reflect**: Post a scope completion comment on the pitch issue following the Reflection
     Protocol in `docs/guides/agent-ops.md`. Include lines changed and answer the reflection prompts.
 15. **Boundary check**: Run `mise check:boundary` — verifies no cross-plugin internal imports. All
-    shared types must go through `src/contracts/`
+    shared types must go through `hexorder-contracts/`
 16. **Log**: Record decisions, test results, blockers in `docs/plugins/<name>/log.md`
 
 ### Progress Updates
@@ -176,7 +176,7 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 
 7. **No `unsafe` without documented justification**
 8. **All public types derive `Debug`**
-9. **Contracts spec-code parity** — every type in `src/contracts/` has a matching spec in
+9. **Contracts spec-code parity** — every type in `hexorder-contracts/src/` has a matching spec in
    `docs/contracts/`, and vice versa
 10. **Brand palette compliance** — the `editor_ui_colors_match_brand_palette` architecture test
     passes. Any new color literals in `src/editor_ui/` must be added to the approved palette in the
@@ -292,7 +292,7 @@ When you need to ADD or CHANGE a contract:
 
 1. Create a GitHub Issue describing the change with the `area:contracts` label
 2. Update the spec in `docs/contracts/<name>.md`
-3. Implement the Rust types in `src/contracts/<name>.rs`
+3. Implement the Rust types in `hexorder-contracts/src/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
 5. Notify affected plugins (check `docs/architecture.md` for dependency graph)
 
@@ -334,10 +334,13 @@ naming conventions.
 ## File Organization
 
 ```
+hexorder-contracts/    # Shared types crate (mirrors docs/contracts/)
+  Cargo.toml
+  src/
+    lib.rs             # Module declarations
+    <contract>.rs      # Contract type definitions
 src/
   main.rs              # App setup, plugin registration
-  contracts/           # Shared types (mirrors docs/contracts/)
-    mod.rs
   <plugin_name>/
     mod.rs             # Plugin definition
     components.rs      # Plugin-local components

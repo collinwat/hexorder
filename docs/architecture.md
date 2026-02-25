@@ -1,5 +1,16 @@
 # Hexorder Architecture
 
+## Workspace Structure
+
+Hexorder is a Cargo workspace with two members:
+
+- **`hexorder-contracts/`** — library crate containing shared contract types (components, resources,
+  events). All plugins depend on this crate. Mirrors `docs/contracts/`.
+- **`hexorder/`** (root) — binary crate containing the application, all plugins, and `main.rs`.
+  Depends on `hexorder-contracts`.
+
+This split enables parallel compilation and Cargo-enforced contract boundaries.
+
 ## Plugin Load Order
 
 Declared in `main.rs`. Update this when adding a new plugin.
@@ -23,7 +34,7 @@ Declared in `main.rs`. Update this when adding a new plugin.
 
 - **3D rendering**: Application uses Camera3d with orthographic projection, locked top-down
 - **Hex coordinate system**: All plugins using hex positions must use `HexPosition` from
-  `contracts::hex_grid`
+  `hexorder_contracts::hex_grid`
 - **Input separation**: Left-click for selection/painting, middle-click for camera pan, scroll for
   zoom. bevy_egui consumes input when mouse is over UI panels (via `egui_wants_any_pointer_input`
   run condition).

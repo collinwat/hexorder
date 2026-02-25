@@ -11,10 +11,10 @@ independently buildable and testable.
 Every contract has two mirrored locations:
 
 - **Spec**: `docs/contracts/<name>.md` — the authoritative type definitions, written first
-- **Code**: `src/contracts/<name>.rs` — the implementation, must match the spec
+- **Code**: `hexorder-contracts/src/<name>.rs` — the implementation, must match the spec
 
-These must stay in parity. The ship gate verifies this: every type in `src/contracts/` has a
-matching spec in `docs/contracts/`, and vice versa.
+These must stay in parity. The ship gate verifies this: every type in `hexorder-contracts/src/` has
+a matching spec in `docs/contracts/`, and vice versa.
 
 The spec template is in the [Spec Template](#spec-template) section below.
 
@@ -50,8 +50,8 @@ which contracts.
 
 1. Write the spec at `docs/contracts/<name>.md` using the template
 2. Create a GitHub Issue describing the addition with the `area:contracts` label
-3. Implement the Rust types in `src/contracts/<name>.rs`
-4. Register the module in `src/contracts/mod.rs`
+3. Implement the Rust types in `hexorder-contracts/src/<name>.rs`
+4. Register the module in `hexorder-contracts/src/lib.rs`
 5. Run `cargo build` to verify all consumers compile
 6. Update `docs/architecture.md` dependency graph if needed
 
@@ -59,7 +59,7 @@ which contracts.
 
 1. Create a GitHub Issue describing the change with the `area:contracts` label
 2. Update the spec in `docs/contracts/<name>.md`
-3. Update the implementation in `src/contracts/<name>.rs`
+3. Update the implementation in `hexorder-contracts/src/<name>.rs`
 4. Run `cargo build` to verify all consumers still compile
 5. Notify affected plugins (check `docs/architecture.md` for the dependency graph)
 
