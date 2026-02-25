@@ -28,6 +28,7 @@ Manages undo/redo history.
 - `max_depth: usize` — maximum stack size (default: 100)
 - `pending_undo: bool` — flag set by observer, consumed by exclusive system
 - `pending_redo: bool` — flag set by observer, consumed by exclusive system
+- `has_new_records: bool` — set by `record()`, cleared by `acknowledge_records()`
 
 Methods:
 
@@ -39,6 +40,8 @@ Methods:
 - `undo_description() -> Option<String>`
 - `redo_description() -> Option<String>`
 - `clear()` — reset both stacks (e.g., on project load)
+- `has_new_records() -> bool` — whether commands have been recorded since last acknowledge
+- `acknowledge_records()` — clear the flag after syncing dirty state
 
 ### SetPropertyCommand (struct)
 

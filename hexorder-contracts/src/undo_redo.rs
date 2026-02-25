@@ -48,6 +48,9 @@ pub struct UndoStack {
     pub pending_undo: bool,
     /// Flag set by observer, consumed by exclusive system.
     pub pending_redo: bool,
+    /// Set by `record()`, cleared by `acknowledge_records()`.
+    /// Used by the persistence sync system to detect new commands.
+    has_new_records: bool,
 }
 
 impl fmt::Debug for UndoStack {
@@ -58,6 +61,7 @@ impl fmt::Debug for UndoStack {
             .field("max_depth", &self.max_depth)
             .field("pending_undo", &self.pending_undo)
             .field("pending_redo", &self.pending_redo)
+            .field("has_new_records", &self.has_new_records)
             .finish()
     }
 }
@@ -70,6 +74,7 @@ impl Default for UndoStack {
             max_depth: 100,
             pending_undo: false,
             pending_redo: false,
+            has_new_records: false,
         }
     }
 }
@@ -92,6 +97,7 @@ impl UndoStack {
             self.undo_stack.remove(0);
         }
         self.undo_stack.push(cmd);
+        self.has_new_records = true;
     }
 
     /// Set the pending undo flag. The exclusive system will consume this.
@@ -156,6 +162,20 @@ impl UndoStack {
     pub fn clear(&mut self) {
         self.undo_stack.clear();
         self.redo_stack.clear();
+        self.has_new_records = false;
+    }
+
+    /// Returns `true` if commands have been recorded since the last
+    /// `acknowledge_records()` call.
+    #[must_use]
+    pub fn has_new_records(&self) -> bool {
+        self.has_new_records
+    }
+
+    /// Clear the `has_new_records` flag. Called by the persistence sync
+    /// system after propagating dirty state.
+    pub fn acknowledge_records(&mut self) {
+        self.has_new_records = false;
     }
 }
 
@@ -552,6 +572,33 @@ mod tests {
         let debug = format!("{compound:?}");
         assert!(debug.contains("CompoundCommand"));
         assert!(debug.contains("count: 3"));
+    }
+
+    #[test]
+    fn record_sets_has_new_records() {
+        let mut stack = UndoStack::default();
+        assert!(!stack.has_new_records());
+
+        stack.record(make_cmd("action"));
+        assert!(stack.has_new_records());
+    }
+
+    #[test]
+    fn acknowledge_records_clears_flag() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("action"));
+        assert!(stack.has_new_records());
+
+        stack.acknowledge_records();
+        assert!(!stack.has_new_records());
+    }
+
+    #[test]
+    fn clear_resets_has_new_records() {
+        let mut stack = UndoStack::default();
+        stack.record(make_cmd("action"));
+        stack.clear();
+        assert!(!stack.has_new_records());
     }
 
     #[test]
