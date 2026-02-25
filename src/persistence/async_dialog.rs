@@ -20,10 +20,13 @@ pub(crate) enum PendingAction {
 }
 
 /// What kind of dialog is in flight and what to do when it finishes.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum DialogKind {
-    /// File save picker (save or save-as).
-    SaveFile { save_as: bool },
+    /// File save picker (save or save-as), with optional continuation action.
+    SaveFile {
+        save_as: bool,
+        then: Option<PendingAction>,
+    },
     /// File open picker.
     OpenFile,
     /// Folder picker (export).
@@ -33,7 +36,7 @@ pub(crate) enum DialogKind {
 }
 
 /// Unified result from any async dialog.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum DialogResult {
     /// User picked a file path, or `None` if cancelled.
     FilePicked(Option<PathBuf>),
@@ -215,7 +218,10 @@ mod tests {
             .spawn(async { DialogResult::FilePicked(Some(PathBuf::from("/test/file.hexorder"))) });
 
         app.insert_resource(AsyncDialogTask {
-            kind: DialogKind::SaveFile { save_as: false },
+            kind: DialogKind::SaveFile {
+                save_as: false,
+                then: None,
+            },
             task,
         });
 
