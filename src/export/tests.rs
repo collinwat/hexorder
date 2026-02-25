@@ -503,8 +503,6 @@ fn poll_noop_when_no_pending_export() {
 
 #[test]
 fn poll_removes_resource_and_writes_files_on_completion() {
-    use bevy::tasks::IoTaskPool;
-
     let mut app = bevy::app::App::new();
     app.add_plugins(bevy::MinimalPlugins);
     app.add_systems(bevy::app::Update, systems::poll_pending_export);
@@ -514,11 +512,11 @@ fn poll_removes_resource_and_writes_files_on_completion() {
     std::fs::create_dir_all(&temp_dir).expect("create temp dir");
 
     let dir_for_task = temp_dir.clone();
-    let task = IoTaskPool::get().spawn(async move { Some(dir_for_task) });
+    let future = Box::pin(async move { Some(dir_for_task) });
 
     app.insert_resource(systems::PendingExport {
         data: test_export_data(),
-        task,
+        future: std::sync::Mutex::new(future),
     });
 
     // First update: polling system completes task, runs export.
@@ -547,17 +545,15 @@ fn poll_removes_resource_and_writes_files_on_completion() {
 
 #[test]
 fn poll_removes_resource_when_user_cancels() {
-    use bevy::tasks::IoTaskPool;
-
     let mut app = bevy::app::App::new();
     app.add_plugins(bevy::MinimalPlugins);
     app.add_systems(bevy::app::Update, systems::poll_pending_export);
 
-    let task = IoTaskPool::get().spawn(async { None });
+    let future = Box::pin(async { None });
 
     app.insert_resource(systems::PendingExport {
         data: test_export_data(),
-        task,
+        future: std::sync::Mutex::new(future),
     });
 
     app.update();
