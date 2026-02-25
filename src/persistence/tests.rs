@@ -257,11 +257,11 @@ fn sync_dirty_flag_sets_dirty_on_new_records() {
         .resource::<hexorder_contracts::persistence::Workspace>();
     assert!(workspace.dirty, "workspace should be dirty after record");
 
-    // Flag should be acknowledged.
+    // Undo stack should still report dirty (save-point based).
     let stack = app.world().resource::<UndoStack>();
     assert!(
-        !stack.has_new_records(),
-        "has_new_records should be cleared after sync"
+        stack.is_dirty(),
+        "undo stack should be dirty after recording a command"
     );
 }
 

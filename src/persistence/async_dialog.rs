@@ -3,10 +3,13 @@
 //! Wraps `rfd::AsyncFileDialog` and `rfd::AsyncMessageDialog` futures behind
 //! a Bevy resource so the event loop stays live while a native dialog is open.
 
+use std::future::Future;
 use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::Mutex;
+use std::task::{Context, Poll, Waker};
 
 use bevy::prelude::*;
-use bevy::tasks::{IoTaskPool, Task, block_on, poll_once};
 
 /// What action was waiting on the unsaved-changes confirmation dialog.
 #[derive(Debug, Clone)]
@@ -47,24 +50,26 @@ pub(crate) enum ConfirmChoice {
     Cancel,
 }
 
-/// Holds the in-flight async dialog task. Only one dialog at a time.
+/// Holds the in-flight async dialog future. Only one dialog at a time.
 ///
 /// Inserted as a resource when a dialog is spawned; removed when the
-/// polling system detects the task has completed.
+/// polling system detects the future has completed.
 #[derive(Resource)]
 pub(crate) struct AsyncDialogTask {
     /// What kind of dialog is active.
     pub kind: DialogKind,
-    /// The spawned async task handle.
-    pub task: Task<DialogResult>,
+    /// The dialog future, polled each frame on the main thread.
+    /// Wrapped in `Mutex` to satisfy Bevy's `Resource: Sync` requirement;
+    /// only accessed from exclusive `&mut World` systems, so no contention.
+    pub future: Mutex<Pin<Box<dyn Future<Output = DialogResult> + Send>>>,
 }
 
-// Manual Debug impl because Task<T> does not implement Debug.
+// Manual Debug impl because the boxed future does not implement Debug.
 impl std::fmt::Debug for AsyncDialogTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AsyncDialogTask")
             .field("kind", &self.kind)
-            .field("task", &"<Task>")
+            .field("future", &"<Future>")
             .finish()
     }
 }
@@ -79,52 +84,62 @@ pub(crate) struct DialogCompleted {
     pub result: DialogResult,
 }
 
-/// Spawn an async save-file dialog on the I/O thread pool.
+/// Type alias for a boxed dialog future polled on the main thread.
+pub(crate) type DialogFuture = Pin<Box<dyn Future<Output = DialogResult> + Send>>;
+
+/// Create an async save-file dialog future.
+///
+/// **Must be called on the main thread** so that rfd's macOS backend can
+/// present the dialog via `beginSheetModalForWindow` (non-blocking) instead
+/// of falling back to `runModal` (blocking).
 ///
 /// If `initial_dir` is `Some`, the dialog opens in that directory.
 /// `file_name` is the suggested filename.
 pub(crate) fn spawn_save_dialog(
     initial_dir: Option<&std::path::Path>,
     file_name: &str,
-) -> Task<DialogResult> {
-    let file_name = file_name.to_string();
-    let initial_dir = initial_dir.map(std::path::Path::to_path_buf);
+) -> DialogFuture {
+    let mut dialog = rfd::AsyncFileDialog::new()
+        .add_filter("Hexorder", &["hexorder"])
+        .set_file_name(file_name);
 
-    IoTaskPool::get().spawn(async move {
-        let mut dialog = rfd::AsyncFileDialog::new()
-            .add_filter("Hexorder", &["hexorder"])
-            .set_file_name(&file_name);
+    if let Some(dir) = initial_dir {
+        dialog = dialog.set_directory(dir);
+    }
 
-        if let Some(dir) = initial_dir {
-            dialog = dialog.set_directory(&dir);
-        }
-
-        let result = dialog.save_file().await;
+    // Calling save_file() here (on the main thread) creates rfd's
+    // ModalFuture which presents the dialog immediately via AppKit.
+    let future = dialog.save_file();
+    Box::pin(async move {
+        let result = future.await;
         DialogResult::FilePicked(result.map(|h| h.path().to_path_buf()))
     })
 }
 
-/// Spawn an async open-file dialog on the I/O thread pool.
-pub(crate) fn spawn_open_dialog() -> Task<DialogResult> {
-    IoTaskPool::get().spawn(async move {
-        let dialog = rfd::AsyncFileDialog::new().add_filter("Hexorder", &["hexorder"]);
-
-        let result = dialog.pick_file().await;
+/// Create an async open-file dialog future.
+///
+/// **Must be called on the main thread** — see [`spawn_save_dialog`].
+pub(crate) fn spawn_open_dialog() -> DialogFuture {
+    let dialog = rfd::AsyncFileDialog::new().add_filter("Hexorder", &["hexorder"]);
+    let future = dialog.pick_file();
+    Box::pin(async move {
+        let result = future.await;
         DialogResult::FilePicked(result.map(|h| h.path().to_path_buf()))
     })
 }
 
-/// Spawn an async unsaved-changes confirmation dialog on the I/O thread pool.
-pub(crate) fn spawn_confirm_dialog() -> Task<DialogResult> {
-    IoTaskPool::get().spawn(async move {
-        let result = rfd::AsyncMessageDialog::new()
-            .set_title("Unsaved Changes")
-            .set_description("You have unsaved changes. Do you want to save before continuing?")
-            .set_buttons(rfd::MessageButtons::YesNoCancel)
-            .set_level(rfd::MessageLevel::Warning)
-            .show()
-            .await;
-
+/// Create an async unsaved-changes confirmation dialog future.
+///
+/// **Must be called on the main thread** — see [`spawn_save_dialog`].
+pub(crate) fn spawn_confirm_dialog() -> DialogFuture {
+    let future = rfd::AsyncMessageDialog::new()
+        .set_title("Unsaved Changes")
+        .set_description("You have unsaved changes. Do you want to save before continuing?")
+        .set_buttons(rfd::MessageButtons::YesNoCancel)
+        .set_level(rfd::MessageLevel::Warning)
+        .show();
+    Box::pin(async move {
+        let result = future.await;
         let choice = match result {
             rfd::MessageDialogResult::Yes => ConfirmChoice::Yes,
             rfd::MessageDialogResult::No => ConfirmChoice::No,
@@ -136,27 +151,32 @@ pub(crate) fn spawn_confirm_dialog() -> Task<DialogResult> {
 
 /// Polls the in-flight async dialog each frame.
 ///
-/// Uses `block_on(poll_once(...))` which is zero-cost when the future is
-/// not yet ready — it returns `None` immediately without blocking.
+/// Uses `Future::poll()` with a noop waker — zero-cost when the future is
+/// not yet ready. We poll every frame so waker notification is unnecessary.
 ///
-/// When the task completes, removes the `AsyncDialogTask` resource and
+/// When the future completes, removes the `AsyncDialogTask` resource and
 /// triggers a `DialogCompleted` observer event.
 pub(crate) fn poll_async_dialog(world: &mut World) {
-    // Check if there's an active dialog task.
+    // Check if there's an active dialog future.
     let result = {
-        let Some(mut task_res) = world.get_resource_mut::<AsyncDialogTask>() else {
+        let Some(task_res) = world.get_resource_mut::<AsyncDialogTask>() else {
             return;
         };
 
-        // Non-blocking poll: returns Some(result) if done, None if pending.
-        let Some(result) = block_on(poll_once(&mut task_res.task)) else {
-            return; // Task still in progress.
-        };
-
-        result
+        // Non-blocking poll: returns Ready(result) if done, Pending otherwise.
+        let waker = Waker::noop();
+        let mut cx = Context::from_waker(waker);
+        let mut guard = task_res
+            .future
+            .lock()
+            .expect("dialog future mutex not poisoned");
+        match guard.as_mut().poll(&mut cx) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return, // Future still in progress.
+        }
     }; // task_res borrow released here.
 
-    // Task completed — remove resource and trigger event.
+    // Future completed — remove resource and trigger event.
     let Some(task) = world.remove_resource::<AsyncDialogTask>() else {
         return;
     };
@@ -189,18 +209,19 @@ mod tests {
         app.update(); // Should not panic.
     }
 
-    /// Polling system removes resource and triggers event when task is ready.
+    /// Polling system removes resource and triggers event when future is ready.
     #[test]
     fn poll_completes_ready_task() {
         let mut app = test_app();
 
-        // Create an already-completed task using IoTaskPool.
-        let task = IoTaskPool::get()
-            .spawn(async { DialogResult::FilePicked(Some(PathBuf::from("/test/file.hexorder"))) });
+        // Create an already-completed future.
+        let future = Box::pin(async {
+            DialogResult::FilePicked(Some(PathBuf::from("/test/file.hexorder")))
+        });
 
         app.insert_resource(AsyncDialogTask {
             kind: DialogKind::SaveFile { then: None },
-            task,
+            future: Mutex::new(future),
         });
 
         // Track whether DialogCompleted was triggered.
@@ -210,7 +231,7 @@ mod tests {
             triggered_clone.store(true, Ordering::SeqCst);
         });
 
-        // First update: polling system runs, task completes, commands deferred.
+        // First update: polling system runs, future completes, commands deferred.
         app.update();
         // Second update: deferred commands (trigger) apply.
         app.update();
@@ -225,34 +246,25 @@ mod tests {
         );
     }
 
-    /// Polling system leaves resource in place when task is pending.
+    /// Polling system leaves resource in place when future is pending.
     #[test]
     fn poll_leaves_pending_task() {
         let mut app = test_app();
 
-        // Create a task that blocks on a channel — stays pending.
-        let (sender, receiver) = std::sync::mpsc::channel::<()>();
-
-        let task = IoTaskPool::get().spawn(async move {
-            // Block until signal received (will never come in this test).
-            let _ = receiver.recv();
-            DialogResult::FilePicked(None)
-        });
+        // Create a future that stays pending forever.
+        let future: DialogFuture = Box::pin(std::future::pending());
 
         app.insert_resource(AsyncDialogTask {
             kind: DialogKind::OpenFile,
-            task,
+            future: Mutex::new(future),
         });
 
         app.update();
 
         assert!(
             app.world().get_resource::<AsyncDialogTask>().is_some(),
-            "AsyncDialogTask should remain when task is pending"
+            "AsyncDialogTask should remain when future is pending"
         );
-
-        // Clean up: drop sender so the task's receiver unblocks.
-        let _ = sender;
     }
 
     /// `ConfirmChoice` variants are distinct.

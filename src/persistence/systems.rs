@@ -1,6 +1,7 @@
 //! Systems for the persistence plugin.
 
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use bevy::prelude::*;
 
@@ -139,6 +140,11 @@ pub(crate) fn save_to_path(path: &std::path::Path, world: &mut World) -> bool {
                 workspace.file_path = Some(path.to_path_buf());
                 workspace.dirty = false;
             }
+            if let Some(mut undo_stack) =
+                world.get_resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+            {
+                undo_stack.mark_clean();
+            }
 
             world.trigger(ToastEvent {
                 message: "Project saved".to_string(),
@@ -211,6 +217,11 @@ pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool 
         workspace.workspace_preset = file.workspace_preset;
         workspace.font_size_base = file.font_size_base;
     }
+    if let Some(mut undo_stack) =
+        world.get_resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+    {
+        undo_stack.clear();
+    }
 
     // Insert pending board load for deferred application.
     world.insert_resource(PendingBoardLoad {
@@ -266,6 +277,11 @@ fn reset_to_new_project(name: &str, world: &mut World) {
         workspace.workspace_preset = String::new();
         workspace.font_size_base = 15.0;
     }
+    if let Some(mut undo_stack) =
+        world.get_resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+    {
+        undo_stack.clear();
+    }
 
     world
         .resource_mut::<NextState<AppScreen>>()
@@ -275,6 +291,11 @@ fn reset_to_new_project(name: &str, world: &mut World) {
 /// Reset all state and return to the launcher screen.
 fn close_project(world: &mut World) {
     *world.resource_mut::<Workspace>() = Workspace::default();
+    if let Some(mut undo_stack) =
+        world.get_resource_mut::<hexorder_contracts::undo_redo::UndoStack>()
+    {
+        undo_stack.clear();
+    }
     reset_all_registries_world(world);
     world
         .resource_mut::<NextState<AppScreen>>()
@@ -303,10 +324,10 @@ fn spawn_save_dialog_for_current_project(world: &mut World, then: Option<Pending
         Some(base)
     });
 
-    let task = super::async_dialog::spawn_save_dialog(initial_dir.as_deref(), &file_name);
+    let future = super::async_dialog::spawn_save_dialog(initial_dir.as_deref(), &file_name);
     world.insert_resource(AsyncDialogTask {
         kind: DialogKind::SaveFile { then },
-        task,
+        future: Mutex::new(future),
     });
 }
 
@@ -315,10 +336,10 @@ fn execute_pending_action(action: PendingAction, world: &mut World) {
     match action {
         PendingAction::Load => {
             // Spawn async open-file dialog.
-            let task = spawn_open_dialog();
+            let future = spawn_open_dialog();
             world.insert_resource(AsyncDialogTask {
                 kind: DialogKind::OpenFile,
-                task,
+                future: Mutex::new(future),
             });
         }
         PendingAction::NewProject { name } => {
@@ -433,18 +454,18 @@ pub fn handle_load_request(_trigger: On<LoadRequestEvent>, mut commands: Command
 
         let dirty = world.resource::<Workspace>().dirty;
         if dirty {
-            let task = spawn_confirm_dialog();
+            let future = spawn_confirm_dialog();
             world.insert_resource(AsyncDialogTask {
                 kind: DialogKind::ConfirmUnsavedChanges {
                     then: PendingAction::Load,
                 },
-                task,
+                future: Mutex::new(future),
             });
         } else {
-            let task = spawn_open_dialog();
+            let future = spawn_open_dialog();
             world.insert_resource(AsyncDialogTask {
                 kind: DialogKind::OpenFile,
-                task,
+                future: Mutex::new(future),
             });
         }
     });
@@ -461,12 +482,12 @@ pub fn handle_new_project(trigger: On<NewProjectEvent>, mut commands: Commands) 
 
         let dirty = world.resource::<Workspace>().dirty;
         if dirty {
-            let task = spawn_confirm_dialog();
+            let future = spawn_confirm_dialog();
             world.insert_resource(AsyncDialogTask {
                 kind: DialogKind::ConfirmUnsavedChanges {
                     then: PendingAction::NewProject { name },
                 },
-                task,
+                future: Mutex::new(future),
             });
         } else {
             reset_to_new_project(&name, world);
@@ -484,12 +505,12 @@ pub fn handle_close_project(_trigger: On<CloseProjectEvent>, mut commands: Comma
 
         let dirty = world.resource::<Workspace>().dirty;
         if dirty {
-            let task = spawn_confirm_dialog();
+            let future = spawn_confirm_dialog();
             world.insert_resource(AsyncDialogTask {
                 kind: DialogKind::ConfirmUnsavedChanges {
                     then: PendingAction::CloseProject,
                 },
-                task,
+                future: Mutex::new(future),
             });
         } else {
             close_project(world);
@@ -501,20 +522,17 @@ pub fn handle_close_project(_trigger: On<CloseProjectEvent>, mut commands: Comma
 // Update Systems
 // ---------------------------------------------------------------------------
 
-/// Propagates the `UndoStack`'s `has_new_records` flag to `Workspace.dirty`.
-/// Runs every frame in `Update`. When new commands have been recorded,
-/// sets dirty to true and acknowledges the records.
+/// Syncs `Workspace.dirty` with the undo stack's save-point tracker.
+/// Runs every frame in `Update`. The workspace is dirty when the undo
+/// history has diverged from the last clean point (save/load/new).
 pub fn sync_dirty_flag(
-    undo_stack: Option<ResMut<hexorder_contracts::undo_redo::UndoStack>>,
+    undo_stack: Option<Res<hexorder_contracts::undo_redo::UndoStack>>,
     mut workspace: ResMut<Workspace>,
 ) {
-    let Some(mut undo_stack) = undo_stack else {
+    let Some(undo_stack) = undo_stack else {
         return;
     };
-    if undo_stack.has_new_records() {
-        workspace.dirty = true;
-        undo_stack.acknowledge_records();
-    }
+    workspace.dirty = undo_stack.is_dirty();
 }
 
 /// Updates the window title to reflect the current workspace name and dirty state.
