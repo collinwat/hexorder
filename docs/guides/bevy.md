@@ -1216,6 +1216,25 @@ These could be wired to camera zoom/rotate in future releases.
 
 ### Known Issues
 
+**Stale build artifacts across worktrees:** All worktrees under the same repository share a single
+`target/` directory. Incremental compilation artifacts from one worktree can become invalid when
+another worktree builds with different features or dependency versions. Symptoms: unexplained
+crashes, link errors, or runtime panics after switching worktrees.
+
+Workaround:
+
+```bash
+cargo clean -p hexorder -p hexorder-contracts   # clear only hexorder artifacts
+# or
+mise clean:quick                                 # same, via mise task
+# or
+mise clean                                       # full clean (slow rebuild)
+```
+
+Use `cargo clean -p` (or `mise clean:quick`) first — it preserves the dependency cache and only
+takes seconds to rebuild. Full `cargo clean` (or `mise clean`) wipes everything and requires a full
+rebuild. See also `/hex-bisect` for the full triage workflow when crashes occur.
+
 **Window management apps:** Apps like Magnet, Rectangle, or Amethyst can cause window dragging lag
 with Bevy. This is a [winit bug](https://github.com/rust-windowing/winit/issues/1737). Workaround:
 close the window manager if lag occurs.

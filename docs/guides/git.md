@@ -362,7 +362,10 @@ Run these steps after a feature branch has been merged to `main` and the merge t
 5. **Update ownership.** The pitch issue is closed automatically when the merge commit reaches
    `main` (if the commit uses a closing keyword like `fixes #N`). If not, close manually:
    `gh issue close <pitch-number> --reason completed`
-6. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
+6. **Clean stale artifacts.** Run `mise clean:quick` to remove stale incremental compilation
+   artifacts from the shared `target/` directory. This prevents false compilation failures in other
+   worktrees.
+7. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
    any other active plugin worktrees).
 
 ---

@@ -232,6 +232,8 @@ If a cycle does not finish by its deadline:
 - `mise check:coverage` — test coverage measurement (advisory during build, gate at ship audit;
   target: 95%)
 - `mise fix` — run all auto-fixers (fmt, clippy, taplo, prettier, typos)
+- `mise clean` — full clean (cargo clean + stale worktree artifacts)
+- `mise clean:quick` — clean only hexorder crates (keep dependency cache)
 - `cargo test --lib <plugin_name>` — plugin-specific tests
 
 ## GitHub Issues Workflow

@@ -261,6 +261,32 @@ git diff main..HEAD --stat 2>/dev/null || echo "(on main — no diff)"
 
 # --- Issue tasks ---
 
+[tasks.clean]
+description = "Clean build artifacts and stale worktree caches"
+run = """
+echo "=== Cleaning cargo build artifacts ==="
+cargo clean
+echo ""
+echo "=== Cleaning stale worktree artifacts ==="
+# Remove stale incremental compilation artifacts for the main crates.
+# Safe to run from any worktree — targets the shared target directory.
+cargo clean -p hexorder -p hexorder-contracts 2>/dev/null || true
+echo ""
+echo "=== Cleaning sccache stats ==="
+sccache --stop-server 2>/dev/null || true
+echo ""
+echo "=== Done ==="
+echo "Run 'cargo build --features dev' to rebuild."
+"""
+
+[tasks."clean:quick"]
+description = "Clean only hexorder crates (keep dependency cache)"
+run = """
+echo "Cleaning hexorder crate artifacts (keeping dependency cache)..."
+cargo clean -p hexorder -p hexorder-contracts
+echo "Done. Run 'cargo build --features dev' to rebuild."
+"""
+
 [tasks."issue:triage"]
 description = "List issues needing triage"
 run = "gh issue list --label 'status:triage'"
