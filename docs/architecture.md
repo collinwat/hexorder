@@ -28,7 +28,8 @@ Declared in `main.rs`. Update this when adding a new plugin.
 11. PersistencePlugin (NEW 0.6.0 — after GameSystemPlugin, before EditorUiPlugin)
 12. UndoRedoPlugin (NEW 0.10.0 — after ShortcutsPlugin, before EditorUiPlugin)
 13. ExportPlugin (NEW 0.12.0 — after PersistencePlugin, before EditorUiPlugin)
-14. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
+14. SettingsPlugin (NEW 0.13.0 — after ExportPlugin, before EditorUiPlugin)
+15. EditorUiPlugin (must be last — reads all resources, renders launcher + editor)
 
 ## Cross-Cutting Concerns
 
@@ -69,7 +70,7 @@ Declared in `main.rs`. Update this when adding a new plugin.
 - **Move overlays**: Separate lightweight entities above hex tiles, managed by hex_grid. Do not
   modify tile materials or interfere with cell visual sync.
 
-## Plugin Dependency Graph (0.9.0)
+## Plugin Dependency Graph (0.13.0)
 
 ```
 game_system (contract) ──→ cell
@@ -98,6 +99,8 @@ game_system (contract) ──→ undo_redo
 game_system (contract) ──→ export
 hex_grid (contract)    ──→ export
 shortcuts (contract)   ──→ export
+persistence (contract) ──→ settings
+settings (contract)    ──→ editor_ui
 
 shortcuts: independent (provides ShortcutRegistry, CommandExecutedEvent, CommandPaletteState)
 undo_redo: depends on shortcuts + game_system contracts (provides UndoStack, UndoableCommand)
@@ -110,5 +113,6 @@ unit: depends on hex_grid + game_system + editor_ui + validation contracts
 rules_engine: depends on game_system + ontology + hex_grid contracts
 persistence: depends on game_system + ontology + hex_grid + validation + persistence + shortcuts contracts
 export: depends on game_system + hex_grid + shortcuts contracts (NEW 0.12.0)
-editor_ui: depends on hex_grid + game_system + ontology + validation + persistence + shortcuts contracts
+settings: depends on persistence contract (NEW 0.13.0)
+editor_ui: depends on hex_grid + game_system + ontology + validation + persistence + shortcuts + settings contracts
 ```

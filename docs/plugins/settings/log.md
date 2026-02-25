@@ -1,6 +1,6 @@
 # Plugin Log: Settings
 
-## Status: speccing
+## Status: building
 
 ## Decision Log
 
@@ -27,9 +27,23 @@ Documented the following existing patterns to build on:
 - `DockLayoutState` persists to `dock_layout.ron` in config dir **Rationale**: Build on existing
   patterns rather than replacing them.
 
+### 2026-02-24 — Scope 1+5: Settings infrastructure + contract
+
+**Context**: First piece of the settings pitch — build the registry and contract end-to-end.
+**Decision**: Typed struct fields for `SettingsRegistry` (not string-keyed dynamic). Simpler,
+type-safe, aligns with "no plugin registration API" no-go. **Decision**: Three partial layers with
+`Option<T>` fields. Merge is field-by-field `project.or(user).or(defaults)`. **Decision**: Config
+dir reuses same `#[cfg(feature)]` pattern as `shortcuts/config.rs`. **Abstraction check**: No
+abstraction needed — the `PartialSettings`/merge pattern is simple, direct, and unlikely to be
+reused by other plugins.
+
 ## Test Results
 
-(none yet)
+### 2026-02-24 — Scope 1+5
+
+- 10 tests pass: merge priority (5), TOML deserialization (3), edge cases (1), default (1)
+- `cargo clippy --all-targets`: zero warnings
+- `mise check:boundary`: no violations
 
 ## Blockers
 
@@ -43,6 +57,7 @@ Documented the following existing patterns to build on:
 
 ## Status Updates
 
-| Date       | Status   | Notes                |
-| ---------- | -------- | -------------------- |
-| 2026-02-24 | speccing | Initial spec created |
+| Date       | Status   | Notes                                          |
+| ---------- | -------- | ---------------------------------------------- |
+| 2026-02-24 | speccing | Initial spec created                           |
+| 2026-02-24 | building | Scope 1+5 complete — infrastructure + contract |
