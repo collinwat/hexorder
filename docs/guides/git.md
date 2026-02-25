@@ -351,14 +351,18 @@ Run these steps after a feature branch has been merged to `main` and the merge t
     ```bash
     git worktree remove .worktrees/<release>-<feature>
     ```
-3. **Delete branch.**
+3. **Delete local branch.**
     ```bash
     git branch -d <release>-<feature>
     ```
-4. **Update ownership.** The pitch issue is closed automatically when the merge commit reaches
+4. **Delete remote branch.**
+    ```bash
+    git push origin --delete <release>-<feature>
+    ```
+5. **Update ownership.** The pitch issue is closed automatically when the merge commit reaches
    `main` (if the commit uses a closing keyword like `fixes #N`). If not, close manually:
    `gh issue close <pitch-number> --reason completed`
-5. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
+6. **Verify clean state.** Run `git worktree list` and confirm only the main worktree remains (plus
    any other active plugin worktrees).
 
 ---
@@ -583,7 +587,14 @@ once per cycle. All operations use **worktrees** — the main working tree stays
     git branch -d <version> <version>-<feature-1> <version>-<feature-2>
     ```
     Verify with `git worktree list` — only the main working tree should remain.
-17. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
+17. **Delete remote branches.** Remove the integration branch and all feature branches that were
+    merged during this cycle from the remote:
+    ```bash
+    git push origin --delete <version> <version>-<feature-1> <version>-<feature-2>
+    ```
+    Verify with `git branch -r` — no `origin/<version>` or `origin/<version>-<feature>` refs should
+    remain.
+18. **Run cool-down protocol.** Run `/hex-cooldown` to start the retrospective, shaping, and betting
     for the next cycle.
 
 ### Solo-Pitch Merge (feature branch → main directly)
@@ -599,7 +610,7 @@ For cycles with only one pitch, the integration branch is optional. Use this sim
 7. **Generate changelog.** `mise changelog:generate`.
 8. **Verify changelog.** Same as Ship Merge step 9 — confirm no `[Unreleased]` header.
 9. **Version commit + tag + push.** Same as Ship Merge steps 10-14.
-10. **Issue cleanup + cool-down.** Same as Ship Merge steps 15-16.
+10. **Issue cleanup + teardown + cool-down.** Same as Ship Merge steps 15-18.
 
 ### Conflict Resolution
 
