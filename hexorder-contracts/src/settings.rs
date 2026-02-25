@@ -54,6 +54,16 @@ impl Default for SettingsRegistry {
 }
 
 // ---------------------------------------------------------------------------
+// System Sets
+// ---------------------------------------------------------------------------
+
+/// System set indicating the settings registry has been populated for this
+/// state transition. Consumer plugins (e.g. `editor_ui`) should schedule
+/// their restore systems `.after(SettingsReady)` on `OnEnter(AppScreen::Editor)`.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SettingsReady;
+
+// ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
 

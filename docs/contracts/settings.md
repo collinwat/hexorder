@@ -39,6 +39,11 @@ Central settings resource holding the resolved merged view.
 | `editor`       | `EditorSettings` | (defaults) | Resolved editor preferences |
 | `active_theme` | `String`         | `"brand"`  | Name of the active theme    |
 
+### `SettingsReady`
+
+`SystemSet` indicating the settings registry has been populated for a state transition. Consumer
+plugins schedule their restore systems `.after(SettingsReady)` on `OnEnter(AppScreen::Editor)`.
+
 ### `SettingsChanged`
 
 Observer event fired when any settings layer changes. No fields — observers re-read
@@ -71,9 +76,11 @@ Serializable theme with ~14 color fields. Loaded from TOML.
 - `SettingsPlugin` must be registered before `EditorUiPlugin` in `main.rs`
 - `SettingsChanged` is fired via `commands.trigger()` (observer event, not deprecated EventWriter)
 - Missing user config file is not an error — all defaults are used
+- `SettingsReady` runs on `OnEnter(AppScreen::Editor)` — consumers use `.after(SettingsReady)`
 
 ## Changelog
 
-| Date       | Change             | Reason                               |
-| ---------- | ------------------ | ------------------------------------ |
-| 2026-02-24 | Initial definition | Pitch #173 — settings infrastructure |
+| Date       | Change              | Reason                                  |
+| ---------- | ------------------- | --------------------------------------- |
+| 2026-02-24 | Initial definition  | Pitch #173 — settings infrastructure    |
+| 2026-02-24 | Add `SettingsReady` | Scope 2 — system ordering for consumers |

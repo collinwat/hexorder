@@ -24,6 +24,7 @@ use hexorder_contracts::ontology::{
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
+use hexorder_contracts::settings::SettingsRegistry;
 use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 use hexorder_contracts::validation::SchemaValidation;
 
@@ -918,16 +919,16 @@ pub fn sync_workspace_preset(dock_layout: Res<DockLayoutState>, mut workspace: R
     }
 }
 
-/// Restores the workspace preset from `Workspace.workspace_preset` on editor entry.
-/// Runs once via `OnEnter(AppScreen::Editor)`.
+/// Restores the workspace preset from `SettingsRegistry` on editor entry.
+/// Runs once via `OnEnter(AppScreen::Editor)`, after `SettingsReady`.
 pub fn restore_workspace_preset(
-    workspace: Res<Workspace>,
+    settings: Res<SettingsRegistry>,
     mut dock_layout: ResMut<DockLayoutState>,
 ) {
-    if workspace.workspace_preset.is_empty() {
+    if settings.editor.workspace_preset.is_empty() {
         return;
     }
-    let preset = WorkspacePreset::from_id(&workspace.workspace_preset);
+    let preset = WorkspacePreset::from_id(&settings.editor.workspace_preset);
     if dock_layout.active_preset != preset {
         dock_layout.apply_preset(preset);
     }
@@ -941,10 +942,10 @@ pub fn sync_font_size(editor_state: Res<EditorState>, mut workspace: ResMut<Work
     }
 }
 
-/// Restores `Workspace.font_size_base` → `EditorState.font_size_base` on editor entry.
-/// Runs once via `OnEnter(AppScreen::Editor)`.
-pub fn restore_font_size(workspace: Res<Workspace>, mut editor_state: ResMut<EditorState>) {
-    editor_state.font_size_base = workspace.font_size_base;
+/// Restores `SettingsRegistry.editor.font_size` → `EditorState.font_size_base` on editor entry.
+/// Runs once via `OnEnter(AppScreen::Editor)`, after `SettingsReady`.
+pub fn restore_font_size(settings: Res<SettingsRegistry>, mut editor_state: ResMut<EditorState>) {
+    editor_state.font_size_base = settings.editor.font_size;
 }
 
 // ---------------------------------------------------------------------------

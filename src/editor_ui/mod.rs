@@ -15,6 +15,7 @@ use hexorder_contracts::hex_grid::{HexPosition, HexTile};
 use hexorder_contracts::mechanics::{ActiveCombat, TurnState};
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::settings::SettingsReady;
 use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandExecutedEvent, CommandId, KeyBinding, Modifiers,
     ShortcutRegistry,
@@ -110,6 +111,7 @@ impl Plugin for EditorUiPlugin {
                 .run_if(in_state(AppScreen::Editor)),
         );
         // Restore workspace preset, dock layout, and font size on editor entry.
+        // Runs after SettingsReady so SettingsRegistry has the merged project layer.
         // restore_dock_layout runs after restore_workspace_preset to override
         // the preset with the user's saved panel arrangement (if any).
         app.add_systems(
@@ -119,7 +121,8 @@ impl Plugin for EditorUiPlugin {
                 systems::restore_dock_layout,
                 systems::restore_font_size,
             )
-                .chain(),
+                .chain()
+                .after(SettingsReady),
         );
         // Persist dock layout changes to config file.
         app.add_systems(

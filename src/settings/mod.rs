@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 use crate::contracts::persistence::AppScreen;
+use crate::contracts::settings::SettingsReady;
 
 mod config;
 mod systems;
@@ -43,7 +44,10 @@ impl Plugin for SettingsPlugin {
         });
 
         // 3. Project layer lifecycle.
-        app.add_systems(OnEnter(AppScreen::Editor), systems::apply_project_layer);
+        app.add_systems(
+            OnEnter(AppScreen::Editor),
+            systems::apply_project_layer.in_set(SettingsReady),
+        );
         app.add_systems(OnExit(AppScreen::Editor), systems::clear_project_layer);
     }
 }
