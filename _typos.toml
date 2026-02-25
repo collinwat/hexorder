@@ -14,3 +14,5 @@ Thr = "Thr"
 sav = "sav"
 # Direction suffix in edge_ba, dir_ba (hex B→A direction)
 ba = "ba"
+# Historical changelog entry references the old spelling
+unparseable = "unparseable"

@@ -85,7 +85,7 @@ pub fn run_generation(
             let old_properties = entity_data.properties.clone();
 
             entity_data.entity_type_id = entity_type.id;
-            entity_data.properties = new_properties.clone();
+            entity_data.properties.clone_from(&new_properties);
 
             tile_commands.push(Box::new(SetTerrainCommand {
                 entity,
