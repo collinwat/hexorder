@@ -305,10 +305,7 @@ fn spawn_save_dialog_for_current_project(world: &mut World, then: Option<Pending
 
     let task = super::async_dialog::spawn_save_dialog(initial_dir.as_deref(), &file_name);
     world.insert_resource(AsyncDialogTask {
-        kind: DialogKind::SaveFile {
-            save_as: true,
-            then,
-        },
+        kind: DialogKind::SaveFile { then },
         task,
     });
 }

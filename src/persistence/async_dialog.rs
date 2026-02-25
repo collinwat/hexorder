@@ -23,14 +23,9 @@ pub(crate) enum PendingAction {
 #[derive(Debug, Clone)]
 pub(crate) enum DialogKind {
     /// File save picker (save or save-as), with optional continuation action.
-    SaveFile {
-        save_as: bool,
-        then: Option<PendingAction>,
-    },
+    SaveFile { then: Option<PendingAction> },
     /// File open picker.
     OpenFile,
-    /// Folder picker (export).
-    PickFolder,
     /// Unsaved-changes confirmation, with the action to continue after.
     ConfirmUnsavedChanges { then: PendingAction },
 }
@@ -40,8 +35,6 @@ pub(crate) enum DialogKind {
 pub(crate) enum DialogResult {
     /// User picked a file path, or `None` if cancelled.
     FilePicked(Option<PathBuf>),
-    /// User picked a folder path, or `None` if cancelled.
-    FolderPicked(Option<PathBuf>),
     /// User responded to a confirmation dialog.
     Confirmed(ConfirmChoice),
 }
@@ -118,18 +111,6 @@ pub(crate) fn spawn_open_dialog() -> Task<DialogResult> {
 
         let result = dialog.pick_file().await;
         DialogResult::FilePicked(result.map(|h| h.path().to_path_buf()))
-    })
-}
-
-/// Spawn an async folder-picker dialog on the I/O thread pool.
-pub(crate) fn spawn_folder_dialog(title: &str) -> Task<DialogResult> {
-    let title = title.to_string();
-
-    IoTaskPool::get().spawn(async move {
-        let dialog = rfd::AsyncFileDialog::new().set_title(&title);
-
-        let result = dialog.pick_folder().await;
-        DialogResult::FolderPicked(result.map(|h| h.path().to_path_buf()))
     })
 }
 
@@ -218,10 +199,7 @@ mod tests {
             .spawn(async { DialogResult::FilePicked(Some(PathBuf::from("/test/file.hexorder"))) });
 
         app.insert_resource(AsyncDialogTask {
-            kind: DialogKind::SaveFile {
-                save_as: false,
-                then: None,
-            },
+            kind: DialogKind::SaveFile { then: None },
             task,
         });
 
