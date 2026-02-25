@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::TypeId;
+use hexorder_contracts::game_system::TypeId;
 
 /// Pre-created material handles for each Token entity type, keyed by `TypeId`.
 #[derive(Resource, Debug)]

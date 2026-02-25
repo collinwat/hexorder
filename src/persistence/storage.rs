@@ -9,8 +9,8 @@ compile_error!("Features `xdg` and `macos` are mutually exclusive.");
 
 use std::path::{Path, PathBuf};
 
-use crate::contracts::persistence::{FORMAT_VERSION, GameSystemFile, PersistenceError};
-use crate::contracts::storage::{ProjectEntry, StorageConfig, StorageProvider, StorageSource};
+use hexorder_contracts::persistence::{FORMAT_VERSION, GameSystemFile, PersistenceError};
+use hexorder_contracts::storage::{ProjectEntry, StorageConfig, StorageProvider, StorageSource};
 
 // ---------------------------------------------------------------------------
 // Configuration Resolution
@@ -146,14 +146,16 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    use crate::contracts::game_system::{
+    use hexorder_contracts::game_system::{
         EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, StructRegistry,
         TypeId,
     };
-    use crate::contracts::hex_grid::HexPosition;
-    use crate::contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
-    use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-    use crate::contracts::persistence::{GameSystemFile, TileSaveData};
+    use hexorder_contracts::hex_grid::HexPosition;
+    use hexorder_contracts::mechanics::{
+        CombatModifierRegistry, CombatResultsTable, TurnStructure,
+    };
+    use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+    use hexorder_contracts::persistence::{GameSystemFile, TileSaveData};
 
     /// Helper: create a minimal `GameSystemFile` for testing.
     fn test_file() -> GameSystemFile {

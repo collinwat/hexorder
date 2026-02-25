@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPrimaryContextPass;
 
-use crate::contracts::shortcuts::{CommandPaletteState, ShortcutRegistry};
+use hexorder_contracts::shortcuts::{CommandPaletteState, ShortcutRegistry};
 
 mod config;
 mod systems;

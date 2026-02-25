@@ -1145,7 +1145,7 @@ let layout = hexx::HexLayout {
 ### HexPosition (Hexorder contract wrapper)
 
 ```rust
-use crate::contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::HexPosition;
 
 let pos = HexPosition::new(3, -2);
 let hex: hexx::Hex = pos.to_hex();

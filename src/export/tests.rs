@@ -92,7 +92,7 @@ fn export_error_display_formats_correctly() {
 
 #[test]
 fn collect_export_data_captures_all_fields() {
-    use crate::contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
+    use hexorder_contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
 
     let registry = EntityTypeRegistry {
         types: vec![
@@ -113,7 +113,7 @@ fn collect_export_data_captures_all_fields() {
         ],
     };
 
-    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+    let grid_config = hexorder_contracts::hex_grid::HexGridConfig {
         layout: hexx::HexLayout {
             orientation: hexx::HexOrientation::Pointy,
             scale: bevy::math::Vec2::splat(1.0),
@@ -150,7 +150,7 @@ fn collect_export_data_captures_all_fields() {
 #[test]
 fn collect_export_data_handles_empty_state() {
     let registry = EntityTypeRegistry::default();
-    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+    let grid_config = hexorder_contracts::hex_grid::HexGridConfig {
         layout: hexx::HexLayout {
             orientation: hexx::HexOrientation::Pointy,
             scale: bevy::math::Vec2::splat(1.0),
@@ -177,7 +177,7 @@ fn export_target_trait_is_object_safe() {
 
 #[test]
 fn grid_snapshot_captures_flat_top_orientation() {
-    let grid_config = crate::contracts::hex_grid::HexGridConfig {
+    let grid_config = hexorder_contracts::hex_grid::HexGridConfig {
         layout: hexx::HexLayout {
             orientation: hexx::HexOrientation::Flat,
             scale: bevy::math::Vec2::splat(1.0),
@@ -241,10 +241,10 @@ fn counter_sheet_fails_on_empty_game_system() {
 
 #[test]
 fn counter_sheet_generates_from_type_definitions_when_no_instances() {
-    use crate::contracts::game_system::{
+    use counter_sheet::PrintAndPlayExporter;
+    use hexorder_contracts::game_system::{
         EntityRole, EntityType, PropertyDefinition, PropertyType, PropertyValue, TypeId,
     };
-    use counter_sheet::PrintAndPlayExporter;
 
     let exporter = PrintAndPlayExporter::default();
     let data = ExportData {
@@ -310,8 +310,8 @@ fn counter_sheet_all_sizes_produce_valid_pdf() {
 
 #[test]
 fn format_property_value_displays_numeric_types() {
-    use crate::contracts::game_system::PropertyValue;
     use counter_sheet::format_property_value;
+    use hexorder_contracts::game_system::PropertyValue;
 
     assert_eq!(
         format_property_value(&PropertyValue::Int(42)),
@@ -337,8 +337,8 @@ fn format_property_value_displays_numeric_types() {
 
 #[test]
 fn format_property_value_skips_non_displayable() {
-    use crate::contracts::game_system::PropertyValue;
     use counter_sheet::format_property_value;
+    use hexorder_contracts::game_system::PropertyValue;
 
     assert!(format_property_value(&PropertyValue::List(vec![])).is_none());
     assert!(format_property_value(&PropertyValue::String(String::new())).is_none());
@@ -432,8 +432,8 @@ fn hex_map_all_counter_sizes_produce_valid_pdf() {
 
 #[test]
 fn hex_map_colors_board_entities() {
-    use crate::contracts::game_system::{EntityRole, EntityType, TypeId};
     use hex_map::HexMapExporter;
+    use hexorder_contracts::game_system::{EntityRole, EntityType, TypeId};
 
     let board_type_id = TypeId::new();
     let data = ExportData {
@@ -495,7 +495,7 @@ fn hex_map_auto_scales_oversized_grid() {
 
 /// Build a minimal `ExportData` for tests.
 fn test_export_data() -> ExportData {
-    use crate::contracts::game_system::{EntityRole, EntityType, TypeId};
+    use hexorder_contracts::game_system::{EntityRole, EntityType, TypeId};
 
     let board_type_id = TypeId::new();
     let token_type_id = TypeId::new();

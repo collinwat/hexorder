@@ -5,13 +5,13 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use hexx::shapes;
 
-use crate::contracts::editor_ui::{EditorTool, PaintPreview, Selection};
-use crate::contracts::game_system::{SelectedUnit, UnitInstance};
-use crate::contracts::hex_grid::{
+use hexorder_contracts::editor_ui::{EditorTool, PaintPreview, Selection};
+use hexorder_contracts::game_system::{SelectedUnit, UnitInstance};
+use hexorder_contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex, TileBaseMaterial,
 };
-use crate::contracts::validation::ValidMoveSet;
+use hexorder_contracts::validation::ValidMoveSet;
 
 use super::algorithms;
 use super::components::{
@@ -217,7 +217,7 @@ pub fn handle_click(
 
 /// Observer: handles commands dispatched via the shortcut registry.
 pub fn handle_hex_grid_command(
-    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
+    trigger: On<hexorder_contracts::shortcuts::CommandExecutedEvent>,
     selected: Option<ResMut<SelectedHex>>,
 ) {
     if trigger.event().command_id.0 == "edit.deselect"

@@ -5,22 +5,22 @@ use std::collections::HashMap;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::{ToastEvent, ToastKind};
-use crate::contracts::game_system::{
+use hexorder_contracts::editor_ui::{ToastEvent, ToastKind};
+use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, GameSystem, SelectedUnit, StructRegistry,
     UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, MoveOverlay};
-use crate::contracts::mechanics::{
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile, MoveOverlay};
+use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierRegistry, CombatResultsTable, TurnState, TurnStructure,
 };
-use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-use crate::contracts::persistence::{
+use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, FORMAT_VERSION, GameSystemFile, LoadRequestEvent,
     NewProjectEvent, PendingBoardLoad, SaveRequestEvent, TileSaveData, UnitSaveData, Workspace,
 };
-use crate::contracts::storage::Storage;
-use crate::contracts::validation::SchemaValidation;
+use hexorder_contracts::storage::Storage;
+use hexorder_contracts::validation::SchemaValidation;
 
 // ---------------------------------------------------------------------------
 // Shared Helpers
@@ -397,7 +397,7 @@ pub fn handle_close_project(
 /// Handles file commands dispatched via the shortcut registry.
 /// Maps `CommandExecutedEvent` command IDs to persistence events.
 pub fn handle_file_command(
-    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
+    trigger: On<hexorder_contracts::shortcuts::CommandExecutedEvent>,
     mut commands: Commands,
 ) {
     match trigger.event().command_id.0 {

@@ -67,7 +67,7 @@ consistency.
 - [x] [SC-CLIPPY] `cargo clippy --all-targets` passes
 - [x] [SC-TEST] `cargo test` passes
 - [x] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
-      `crate::contracts::`
+      `hexorder_contracts::`
 
 ## Constraints
 

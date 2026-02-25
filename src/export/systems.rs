@@ -3,10 +3,10 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::{ToastEvent, ToastKind};
-use crate::contracts::game_system::{EntityData, EntityTypeRegistry, UnitInstance};
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+use hexorder_contracts::editor_ui::{ToastEvent, ToastKind};
+use hexorder_contracts::game_system::{EntityData, EntityTypeRegistry, UnitInstance};
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 
 use super::counter_sheet::PrintAndPlayExporter;
 use super::hex_map::HexMapExporter;

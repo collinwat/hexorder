@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 
 use super::biome::{apply_biome_table, lookup_biome, validate_biome_table};
-use crate::contracts::map_gen::MapGenParams;
+use hexorder_contracts::map_gen::MapGenParams;
 
 use super::components::{BiomeEntry, BiomeTable};
 use super::heightmap::generate_heightmap;
-use crate::contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::HexPosition;
 
 fn default_layout() -> hexx::HexLayout {
     hexx::HexLayout {

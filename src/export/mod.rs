@@ -8,9 +8,9 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{EntityData, EntityType, EntityTypeRegistry};
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition};
-use crate::contracts::shortcuts::{
+use hexorder_contracts::game_system::{EntityData, EntityType, EntityTypeRegistry};
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition};
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 

@@ -4,17 +4,17 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityData, EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType,
     PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::ontology::{
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
     ModifyOperation, PropertyBinding, Relation, RelationEffect, RelationRegistry, RelationTrigger,
 };
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::validation::ValidMoveSet;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::validation::ValidMoveSet;
 
 /// Creates a minimal headless test app with the `RulesEnginePlugin`.
 fn test_app() -> App {
@@ -666,11 +666,11 @@ fn free_movement_when_no_constraints() {
 // CRT Resolution Tests (0.9.0)
 // =========================================================================
 
-use crate::contracts::mechanics::{
+use hexorder_contracts::mechanics::{
     CombatModifierDefinition, CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow,
     ModifierSource, OutcomeEffect,
 };
-use crate::contracts::mechanics::{
+use hexorder_contracts::mechanics::{
     apply_column_shift, calculate_differential, calculate_odds_ratio,
     evaluate_modifiers_prioritized, find_crt_column, find_crt_row, resolve_crt,
 };
@@ -1263,28 +1263,28 @@ fn apply_shift_zero_columns() {
 // Phase Advancement Tests (0.9.0)
 // =========================================================================
 
-use crate::contracts::mechanics::PlayerOrder;
-use crate::contracts::mechanics::{Phase, PhaseType, TurnState, TurnStructure};
 use crate::rules_engine::systems::advance_phase;
 use crate::rules_engine::systems::start_turn_sequence;
+use hexorder_contracts::mechanics::PlayerOrder;
+use hexorder_contracts::mechanics::{Phase, PhaseType, TurnState, TurnStructure};
 
 fn test_turn_structure() -> TurnStructure {
     TurnStructure {
         phases: vec![
             Phase {
-                id: crate::contracts::game_system::TypeId::new(),
+                id: hexorder_contracts::game_system::TypeId::new(),
                 name: "Movement".to_string(),
                 phase_type: PhaseType::Movement,
                 description: String::new(),
             },
             Phase {
-                id: crate::contracts::game_system::TypeId::new(),
+                id: hexorder_contracts::game_system::TypeId::new(),
                 name: "Combat".to_string(),
                 phase_type: PhaseType::Combat,
                 description: String::new(),
             },
             Phase {
-                id: crate::contracts::game_system::TypeId::new(),
+                id: hexorder_contracts::game_system::TypeId::new(),
                 name: "Supply".to_string(),
                 phase_type: PhaseType::Admin,
                 description: String::new(),
@@ -1404,7 +1404,7 @@ fn advance_phase_empty_structure_returns_none() {
 fn advance_phase_single_phase_wraps_every_advance() {
     let structure = TurnStructure {
         phases: vec![Phase {
-            id: crate::contracts::game_system::TypeId::new(),
+            id: hexorder_contracts::game_system::TypeId::new(),
             name: "Only Phase".to_string(),
             phase_type: PhaseType::Combat,
             description: String::new(),

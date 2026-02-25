@@ -4,14 +4,14 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityData, EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem,
     StructRegistry, TypeId, UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
-use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-use crate::contracts::persistence::{
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
+use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use hexorder_contracts::persistence::{
     AppScreen, FORMAT_VERSION, GameSystemFile, PendingBoardLoad, TileSaveData, UnitSaveData,
 };
 
@@ -25,7 +25,7 @@ fn test_app() -> App {
     app.init_resource::<Assets<StandardMaterial>>();
     app.add_plugins(crate::game_system::GameSystemPlugin);
     // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
-    app.init_resource::<crate::contracts::shortcuts::ShortcutRegistry>();
+    app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
     app.add_plugins(crate::persistence::PersistencePlugin);
     app
 }

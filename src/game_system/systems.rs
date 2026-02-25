@@ -2,11 +2,11 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, EnumDefinition, EnumRegistry, GameSystem,
     PropertyDefinition, PropertyType, PropertyValue, TypeId,
 };
-use crate::contracts::mechanics::{
+use hexorder_contracts::mechanics::{
     CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, OutcomeEffect, Phase,
     PhaseType, PlayerOrder, TurnStructure,
 };

@@ -6,10 +6,10 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit, StructRegistry,
 };
-use crate::contracts::mechanics::{ActiveCombat, CombatModifierRegistry, TurnState};
+use hexorder_contracts::mechanics::{ActiveCombat, CombatModifierRegistry, TurnState};
 
 mod systems;
 

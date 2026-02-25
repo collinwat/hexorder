@@ -2,15 +2,15 @@
 
 use mlua::Lua;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType, PropertyValue,
     TypeId,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr, ConstraintRegistry,
     Relation, RelationEffect, RelationRegistry, RelationTrigger,
 };
-use crate::contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
+use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::lua_api;
 
@@ -85,7 +85,7 @@ fn test_relation_registry() -> RelationRegistry {
             effect: RelationEffect::ModifyProperty {
                 target_property: "budget".to_string(),
                 source_property: "cost".to_string(),
-                operation: crate::contracts::ontology::ModifyOperation::Subtract,
+                operation: hexorder_contracts::ontology::ModifyOperation::Subtract,
             },
         }],
     }
@@ -103,7 +103,7 @@ fn test_constraint_registry() -> ConstraintRegistry {
             expression: ConstraintExpr::PropertyCompare {
                 role_id: TypeId::new(),
                 property_name: "budget".to_string(),
-                operator: crate::contracts::ontology::CompareOp::Ge,
+                operator: hexorder_contracts::ontology::CompareOp::Ge,
                 value: PropertyValue::Int(0),
             },
             auto_generated: false,

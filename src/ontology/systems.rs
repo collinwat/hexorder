@@ -2,12 +2,12 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{EntityTypeRegistry, TypeId};
-use crate::contracts::ontology::{
+use hexorder_contracts::game_system::{EntityTypeRegistry, TypeId};
+use hexorder_contracts::ontology::{
     CompareOp, ConceptRegistry, Constraint, ConstraintExpr, ConstraintRegistry, ModifyOperation,
     RelationEffect, RelationRegistry,
 };
-use crate::contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
+use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 /// Auto-generates companion constraints for `Subtract` relations.
 ///
@@ -83,7 +83,7 @@ pub fn auto_generate_constraints(
             role_id: relation.subject_role_id,
             property_name: target_property.clone(),
             operator: CompareOp::Ge,
-            value: crate::contracts::game_system::PropertyValue::Int(0),
+            value: hexorder_contracts::game_system::PropertyValue::Int(0),
         };
 
         match existing {
@@ -355,8 +355,8 @@ pub fn run_schema_validation(
 /// exist within the concept and all property names are valid concept-local names.
 fn validate_constraint_expr(
     expr: &ConstraintExpr,
-    concept: &crate::contracts::ontology::Concept,
-    bindings: &[crate::contracts::ontology::ConceptBinding],
+    concept: &hexorder_contracts::ontology::Concept,
+    bindings: &[hexorder_contracts::ontology::ConceptBinding],
     source_id: TypeId,
     errors: &mut Vec<SchemaError>,
 ) {
@@ -451,8 +451,8 @@ fn validate_constraint_expr(
 fn validate_role_and_property(
     role_id: TypeId,
     property_name: &str,
-    concept: &crate::contracts::ontology::Concept,
-    bindings: &[crate::contracts::ontology::ConceptBinding],
+    concept: &hexorder_contracts::ontology::Concept,
+    bindings: &[hexorder_contracts::ontology::ConceptBinding],
     source_id: TypeId,
     errors: &mut Vec<SchemaError>,
 ) {

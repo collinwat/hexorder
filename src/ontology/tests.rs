@@ -2,18 +2,18 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use crate::ontology::OntologyPlugin;
+use hexorder_contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType, PropertyValue,
     TypeId,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     CompareOp, Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, PropertyBinding, Relation, RelationEffect,
     RelationRegistry, RelationTrigger,
 };
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::validation::{SchemaErrorCategory, SchemaValidation};
-use crate::ontology::OntologyPlugin;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::validation::{SchemaErrorCategory, SchemaValidation};
 
 // ---------------------------------------------------------------------------
 // Test helpers

@@ -1,6 +1,6 @@
 //! Plugin-local components and resources for `editor_ui`.
 //!
-//! Contract types (`EditorTool`) live in `crate::contracts::editor_ui`.
+//! Contract types (`EditorTool`) live in `hexorder_contracts::editor_ui`.
 //! This module holds types that are internal to the `editor_ui` plugin.
 
 use bevy::ecs::system::SystemParam;
@@ -56,21 +56,21 @@ impl BrandTheme {
     pub const SUCCESS: egui::Color32 = egui::Color32::from_rgb(80, 152, 80);
 }
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumRegistry, GameSystem,
     PropertyType, SelectedUnit, StructRegistry, TypeId,
 };
-use crate::contracts::hex_grid::SelectedHex;
-use crate::contracts::map_gen;
-use crate::contracts::mechanics::{
+use hexorder_contracts::hex_grid::SelectedHex;
+use hexorder_contracts::map_gen;
+use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
     TurnStructure,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
-use crate::contracts::persistence::Workspace;
+use hexorder_contracts::persistence::Workspace;
 
 /// Deferred actions to apply after the egui closure completes.
 /// Avoids side effects inside the closure (multi-pass safe).
@@ -173,7 +173,7 @@ pub(crate) enum EditorAction {
     },
     // -- Mechanics --
     SetPlayerOrder {
-        order: crate::contracts::mechanics::PlayerOrder,
+        order: hexorder_contracts::mechanics::PlayerOrder,
     },
     AddPhase {
         name: String,
@@ -461,18 +461,18 @@ impl Default for EditorState {
 pub(super) struct ProjectParams<'w> {
     pub(super) workspace: Res<'w, Workspace>,
     pub(super) game_system: Res<'w, GameSystem>,
-    pub(super) undo_stack: Res<'w, crate::contracts::undo_redo::UndoStack>,
+    pub(super) undo_stack: Res<'w, hexorder_contracts::undo_redo::UndoStack>,
 }
 
 /// Bundled system parameter for active selection and tool state.
 /// Reduces the system parameter count in `editor_dock_system`.
 #[derive(SystemParam)]
 pub(super) struct SelectionParams<'w> {
-    pub(super) editor_tool: ResMut<'w, crate::contracts::editor_ui::EditorTool>,
+    pub(super) editor_tool: ResMut<'w, hexorder_contracts::editor_ui::EditorTool>,
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,
-    pub(super) multi: Res<'w, crate::contracts::editor_ui::Selection>,
+    pub(super) multi: Res<'w, hexorder_contracts::editor_ui::Selection>,
     pub(super) selected_hex: Res<'w, SelectedHex>,
 }
 
@@ -492,7 +492,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) turn_structure: ResMut<'w, TurnStructure>,
     pub(super) combat_results_table: ResMut<'w, CombatResultsTable>,
     pub(super) combat_modifiers: ResMut<'w, CombatModifierRegistry>,
-    pub(super) mechanic_catalog: Res<'w, crate::contracts::mechanic_reference::MechanicCatalog>,
+    pub(super) mechanic_catalog: Res<'w, hexorder_contracts::mechanic_reference::MechanicCatalog>,
 }
 
 /// Bundled system parameter for ontology-related resources.
@@ -526,7 +526,7 @@ pub(crate) struct ToastState {
 #[derive(Debug, Clone)]
 pub(crate) struct ActiveToast {
     pub(crate) message: String,
-    pub(crate) kind: crate::contracts::editor_ui::ToastKind,
+    pub(crate) kind: hexorder_contracts::editor_ui::ToastKind,
     /// Remaining time in seconds before the toast disappears.
     pub(crate) remaining: f32,
 }

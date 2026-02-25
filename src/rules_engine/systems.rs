@@ -4,15 +4,15 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::ontology::{
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::ontology::{
     ConceptBinding, ConceptRegistry, ConstraintExpr, ConstraintRegistry, ModifyOperation,
     RelationEffect, RelationRegistry, RelationTrigger,
 };
-use crate::contracts::validation::{ValidMoveSet, ValidationResult};
+use hexorder_contracts::validation::{ValidMoveSet, ValidationResult};
 
 /// Computes the set of valid moves for the currently selected unit.
 ///
@@ -162,7 +162,7 @@ pub fn compute_valid_moves(
 struct StepContext<'a> {
     unit_data: &'a EntityData,
     unit_bindings: &'a [&'a ConceptBinding],
-    on_enter_relations: &'a [&'a crate::contracts::ontology::Relation],
+    on_enter_relations: &'a [&'a hexorder_contracts::ontology::Relation],
     concepts: &'a ConceptRegistry,
     entity_types: &'a EntityTypeRegistry,
 }
@@ -219,7 +219,7 @@ fn is_within_bounds(pos: HexPosition, map_radius: u32) -> bool {
 /// 4. Fall back to a generous default if no budget property is found.
 fn determine_budget(
     unit_bindings: &[&ConceptBinding],
-    on_enter_relations: &[&crate::contracts::ontology::Relation],
+    on_enter_relations: &[&hexorder_contracts::ontology::Relation],
     unit_data: &EntityData,
     concepts: &ConceptRegistry,
 ) -> i64 {
@@ -436,7 +436,7 @@ fn evaluate_block_condition(
     expr: &ConstraintExpr,
     unit_data: &EntityData,
     tile_data: Option<&EntityData>,
-    relation: &crate::contracts::ontology::Relation,
+    relation: &hexorder_contracts::ontology::Relation,
 ) -> bool {
     match expr {
         ConstraintExpr::IsType {
@@ -490,14 +490,14 @@ fn property_value_as_i64(value: &PropertyValue) -> Option<i64> {
 
 // Combat resolution functions (calculate_odds_ratio, find_crt_column, resolve_crt,
 // evaluate_modifiers_prioritized, apply_column_shift, etc.) live in
-// `contracts::mechanics` — they are pure functions on contract types, usable
+// `hexorder_contracts::mechanics` — they are pure functions on contract types, usable
 // by any plugin without a boundary violation.
 
 // ---------------------------------------------------------------------------
 // Phase Advancement (0.9.0)
 // ---------------------------------------------------------------------------
 
-use crate::contracts::mechanics::{PhaseAdvancedEvent, TurnState, TurnStructure};
+use hexorder_contracts::mechanics::{PhaseAdvancedEvent, TurnState, TurnStructure};
 
 /// Advances the turn to the next phase, wrapping to the next turn if needed.
 ///

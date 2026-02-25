@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use noise::{NoiseFn, Perlin};
 
-use crate::contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::HexPosition;
 
-use crate::contracts::map_gen::MapGenParams;
+use hexorder_contracts::map_gen::MapGenParams;
 
 /// Generate a heightmap for the given hex positions.
 ///

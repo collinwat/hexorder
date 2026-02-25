@@ -2,11 +2,11 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::{EditorTool, Selection, ToastEvent, ToastKind};
-use crate::contracts::game_system::SelectedUnit;
-use crate::contracts::hex_grid::HexTile;
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+use hexorder_contracts::editor_ui::{EditorTool, Selection, ToastEvent, ToastKind};
+use hexorder_contracts::game_system::SelectedUnit;
+use hexorder_contracts::hex_grid::HexTile;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 
 use super::components::{EditorState, GridOverlayVisible, OntologyTab, ToastState};
 
@@ -614,7 +614,7 @@ fn workspace_preset_as_id_values_are_stable() {
 
 #[test]
 fn workspace_default_has_empty_preset() {
-    let ws = crate::contracts::persistence::Workspace::default();
+    let ws = hexorder_contracts::persistence::Workspace::default();
     assert!(ws.workspace_preset.is_empty());
 }
 
@@ -668,9 +668,11 @@ fn dock_layout_file_preserves_preset_variants() {
 // Scope 5: Template application (mechanic_reference)
 // ---------------------------------------------------------------------------
 
-use crate::contracts::game_system::{EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry};
-use crate::contracts::mechanic_reference::{ScaffoldAction, ScaffoldRecipe};
-use crate::contracts::mechanics::{
+use hexorder_contracts::game_system::{
+    EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry,
+};
+use hexorder_contracts::mechanic_reference::{ScaffoldAction, ScaffoldRecipe};
+use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
     TurnStructure,
 };
@@ -867,7 +869,7 @@ fn apply_scaffold_adds_phases_and_modifiers() {
 
 #[test]
 fn parse_scaffold_prop_type_basic_types() {
-    use crate::contracts::game_system::PropertyType;
+    use hexorder_contracts::game_system::PropertyType;
 
     let empty = EnumRegistry::default();
     assert_eq!(
@@ -894,7 +896,7 @@ fn parse_scaffold_prop_type_basic_types() {
 
 #[test]
 fn parse_scaffold_prop_type_int_range() {
-    use crate::contracts::game_system::PropertyType;
+    use hexorder_contracts::game_system::PropertyType;
 
     let empty = EnumRegistry::default();
     let result = super::systems::parse_scaffold_prop_type("IntRange(0,20)", &empty);
@@ -903,7 +905,7 @@ fn parse_scaffold_prop_type_int_range() {
 
 #[test]
 fn parse_scaffold_prop_type_float_range() {
-    use crate::contracts::game_system::PropertyType;
+    use hexorder_contracts::game_system::PropertyType;
 
     let empty = EnumRegistry::default();
     let result = super::systems::parse_scaffold_prop_type("FloatRange(0.0,1.0)", &empty);
@@ -912,7 +914,7 @@ fn parse_scaffold_prop_type_float_range() {
 
 #[test]
 fn parse_scaffold_prop_type_enum_lookup() {
-    use crate::contracts::game_system::{PropertyType, TypeId};
+    use hexorder_contracts::game_system::{PropertyType, TypeId};
 
     let mut enum_registry = EnumRegistry::default();
     let enum_id = TypeId::new();
@@ -941,7 +943,7 @@ fn apply_crt_combat_template_populates_registries() {
 
     let catalog = app
         .world()
-        .resource::<crate::contracts::mechanic_reference::MechanicCatalog>();
+        .resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
     let recipe = catalog
         .get_template("crt_combat")
         .expect("crt_combat template exists");

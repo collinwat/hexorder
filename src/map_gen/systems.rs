@@ -4,10 +4,10 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{EntityData, EntityRole, EntityTypeRegistry, PropertyValue};
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::game_system::{EntityData, EntityRole, EntityTypeRegistry, PropertyValue};
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
 
-use crate::contracts::map_gen::{GenerateMap, MapGenParams};
+use hexorder_contracts::map_gen::{GenerateMap, MapGenParams};
 
 use super::biome::{apply_biome_table_indexed, validate_biome_table};
 use super::components::BiomeTable;

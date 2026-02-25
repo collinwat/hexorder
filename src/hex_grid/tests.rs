@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::Selection;
-use crate::contracts::hex_grid::{
+use hexorder_contracts::editor_ui::Selection;
+use hexorder_contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex,
 };
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::validation::{ValidMoveSet, ValidationResult};
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::validation::{ValidMoveSet, ValidationResult};
 
 use super::components::{HexMaterials, HoveredHex};
 use super::systems;
@@ -390,7 +390,7 @@ fn blocked_positions_get_red_overlay() {
     blocked.insert(
         blocked_pos,
         vec![ValidationResult {
-            constraint_id: crate::contracts::game_system::TypeId::new(),
+            constraint_id: hexorder_contracts::game_system::TypeId::new(),
             constraint_name: "Test".to_string(),
             satisfied: false,
             explanation: "Blocked".to_string(),
@@ -631,7 +631,7 @@ fn find_path_no_route() {
 // LOS system tests (0.7.0)
 // ---------------------------------------------------------------------------
 
-use crate::contracts::game_system::SelectedUnit;
+use hexorder_contracts::game_system::SelectedUnit;
 
 #[test]
 fn los_ray_not_drawn_without_unit() {
@@ -659,7 +659,7 @@ fn los_ray_not_drawn_without_unit() {
 /// hex grid is initialized). The observer wraps `SelectedHex` in `Option`.
 #[test]
 fn deselect_command_without_selected_hex_resource_does_not_panic() {
-    use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

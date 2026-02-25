@@ -3,12 +3,12 @@
 //! Spawns a hexagonal grid on the XZ ground plane, handles tile selection
 //! via mouse click, and provides hover feedback.
 
-use crate::contracts::editor_ui::pointer_over_ui_panel;
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::shortcuts::{
+use bevy::prelude::*;
+use hexorder_contracts::editor_ui::pointer_over_ui_panel;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
-use bevy::prelude::*;
 
 #[allow(dead_code)]
 mod algorithms;
@@ -26,7 +26,7 @@ impl Plugin for HexGridPlugin {
     fn build(&self, app: &mut App) {
         register_shortcuts(&mut app.world_mut().resource_mut::<ShortcutRegistry>());
 
-        app.init_resource::<crate::contracts::hex_grid::HexEdgeRegistry>()
+        app.init_resource::<hexorder_contracts::hex_grid::HexEdgeRegistry>()
             .add_systems(
                 OnEnter(AppScreen::Editor),
                 (

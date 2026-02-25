@@ -2,8 +2,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::ViewportMargins;
-use crate::contracts::persistence::AppScreen;
+use hexorder_contracts::editor_ui::ViewportMargins;
+use hexorder_contracts::persistence::AppScreen;
 
 use super::components::{CameraState, TopDownCamera};
 use super::systems;
@@ -159,7 +159,7 @@ fn configure_bounds_uses_defaults_without_grid() {
 
 #[test]
 fn configure_bounds_adjusts_with_grid_config() {
-    use crate::contracts::hex_grid::HexGridConfig;
+    use hexorder_contracts::hex_grid::HexGridConfig;
 
     let mut app = test_app();
     app.insert_resource(HexGridConfig {
@@ -282,8 +282,8 @@ fn smooth_camera_enforces_rotation_lock() {
 // Keyboard pan direction regression tests
 // ---------------------------------------------------------------------------
 
-use crate::contracts::shortcuts::ShortcutRegistry;
 use bevy::input::keyboard::KeyCode;
+use hexorder_contracts::shortcuts::ShortcutRegistry;
 
 /// Build a minimal app with the `keyboard_pan` system and shortcut bindings.
 fn pan_test_app() -> App {
@@ -389,7 +389,7 @@ fn keyboard_pan_wasd_matches_arrow_directions() {
 /// state). The observer wraps `SelectedHex` in `Option`.
 #[test]
 fn camera_command_without_selected_hex_resource_does_not_panic() {
-    use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
 
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

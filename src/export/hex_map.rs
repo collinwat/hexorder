@@ -9,7 +9,7 @@ use printpdf::{
     PdfSaveOptions, Point, Polygon, PolygonRing, Pt, Rgb, TextItem, WindingOrder,
 };
 
-use crate::contracts::game_system::{EntityRole, EntityType};
+use hexorder_contracts::game_system::{EntityRole, EntityType};
 
 use super::counter_sheet::CounterSize;
 use super::{ExportData, ExportError, ExportFile, ExportOutput, ExportTarget};

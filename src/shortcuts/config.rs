@@ -7,7 +7,7 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use serde::Deserialize;
 
-use crate::contracts::shortcuts::{KeyBinding, Modifiers, ShortcutRegistry};
+use hexorder_contracts::shortcuts::{KeyBinding, Modifiers, ShortcutRegistry};
 
 /// TOML file structure for shortcut overrides.
 #[derive(Deserialize, Debug)]
@@ -273,12 +273,12 @@ mod tests {
     #[test]
     fn override_replaces_bindings() {
         let mut registry = ShortcutRegistry::default();
-        registry.register(crate::contracts::shortcuts::CommandEntry {
-            id: crate::contracts::shortcuts::CommandId("test.cmd"),
+        registry.register(hexorder_contracts::shortcuts::CommandEntry {
+            id: hexorder_contracts::shortcuts::CommandId("test.cmd"),
             name: "Test".to_string(),
             description: String::new(),
             bindings: vec![KeyBinding::new(KeyCode::KeyA, Modifiers::NONE)],
-            category: crate::contracts::shortcuts::CommandCategory::Edit,
+            category: hexorder_contracts::shortcuts::CommandCategory::Edit,
             continuous: false,
         });
 
@@ -320,12 +320,12 @@ mod tests {
     #[test]
     fn override_with_empty_unbinds() {
         let mut registry = ShortcutRegistry::default();
-        registry.register(crate::contracts::shortcuts::CommandEntry {
-            id: crate::contracts::shortcuts::CommandId("test.cmd"),
+        registry.register(hexorder_contracts::shortcuts::CommandEntry {
+            id: hexorder_contracts::shortcuts::CommandId("test.cmd"),
             name: "Test".to_string(),
             description: String::new(),
             bindings: vec![KeyBinding::new(KeyCode::KeyA, Modifiers::NONE)],
-            category: crate::contracts::shortcuts::CommandCategory::Edit,
+            category: hexorder_contracts::shortcuts::CommandCategory::Edit,
             continuous: false,
         });
 

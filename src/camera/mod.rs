@@ -7,9 +7,9 @@
 use bevy::prelude::*;
 use bevy_egui::input::egui_wants_any_keyboard_input;
 
-use crate::contracts::editor_ui::{ViewportMargins, pointer_over_ui_panel};
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::shortcuts::{
+use hexorder_contracts::editor_ui::{ViewportMargins, pointer_over_ui_panel};
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 

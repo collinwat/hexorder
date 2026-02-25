@@ -5,7 +5,6 @@ mod macros;
 
 mod camera;
 mod cell;
-mod contracts;
 mod editor_ui;
 mod export;
 mod game_system;
@@ -20,7 +19,7 @@ mod shortcuts;
 mod undo_redo;
 mod unit;
 
-use contracts::persistence::AppScreen;
+use hexorder_contracts::persistence::AppScreen;
 
 fn main() {
     App::new()
@@ -88,7 +87,7 @@ mod architecture_tests {
 
     /// Scans all plugin mod.rs files and fails if any sub-module is declared
     /// `pub mod` (except for re-exports). Plugin internals must be private;
-    /// shared types go through `src/contracts/`.
+    /// shared types go through `hexorder-contracts/`.
     #[test]
     fn plugin_modules_are_private() {
         let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -125,7 +124,7 @@ mod architecture_tests {
                 if trimmed.starts_with("pub mod ") && trimmed.ends_with(';') {
                     violations.push(format!(
                         "{}:{}: `{}` — plugin sub-modules must be private (use `mod` not `pub mod`). \
-                         Shared types belong in src/contracts/.",
+                         Shared types belong in hexorder-contracts/.",
                         mod_file.display(),
                         line_num + 1,
                         trimmed,
@@ -403,12 +402,12 @@ mod architecture_tests {
 mod integration_tests {
     use bevy::prelude::*;
 
-    use crate::contracts::editor_ui::EditorTool;
-    use crate::contracts::game_system::{
+    use hexorder_contracts::editor_ui::EditorTool;
+    use hexorder_contracts::game_system::{
         ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityTypeRegistry, GameSystem,
         SelectedUnit, UnitInstance,
     };
-    use crate::contracts::hex_grid::{
+    use hexorder_contracts::hex_grid::{
         HexGridConfig, HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial,
     };
 
@@ -417,7 +416,7 @@ mod integration_tests {
     /// and asset stores (normally from `DefaultPlugins`).
     /// Starts in `AppScreen::Editor` so gated systems run immediately.
     fn headless_app() -> App {
-        use crate::contracts::persistence::AppScreen;
+        use hexorder_contracts::persistence::AppScreen;
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -435,7 +434,7 @@ mod integration_tests {
             map_radius: 5,
         });
         app.add_plugins(crate::game_system::GameSystemPlugin);
-        app.init_resource::<crate::contracts::undo_redo::UndoStack>();
+        app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
         app.add_plugins(crate::cell::CellPlugin);
         app.add_plugins(crate::unit::UnitPlugin);
         app

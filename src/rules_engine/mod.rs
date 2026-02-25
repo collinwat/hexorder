@@ -5,8 +5,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::validation::ValidMoveSet;
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::validation::ValidMoveSet;
 
 mod systems;
 

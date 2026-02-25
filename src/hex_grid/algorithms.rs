@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use crate::contracts::hex_grid::{HexPosition, LineOfSightResult};
+use hexorder_contracts::hex_grid::{HexPosition, LineOfSightResult};
 
 /// Returns the 6 adjacent hex positions around `pos`.
 pub fn neighbors(pos: HexPosition) -> [HexPosition; 6] {

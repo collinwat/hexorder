@@ -1,12 +1,12 @@
 //! Plugin-local components and resources for `hex_grid`.
 //!
 //! Contract types (`HexPosition`, `HexGridConfig`, `HexTile`, `SelectedHex`, etc.)
-//! live in `crate::contracts::hex_grid`.
+//! live in `hexorder_contracts::hex_grid`.
 //! This module holds types that are internal to the `hex_grid` plugin.
 
 use bevy::prelude::*;
 
-use crate::contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::HexPosition;
 
 /// Tracks the hex tile currently under the mouse cursor, if any.
 #[derive(Resource, Debug, Default)]

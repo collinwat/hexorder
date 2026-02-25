@@ -5,13 +5,13 @@
 
 use mlua::{Lua, Result as LuaResult, Table, Value};
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType, PropertyValue,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     Concept, ConceptRegistry, Constraint, ConstraintRegistry, Relation, RelationRegistry,
 };
-use crate::contracts::validation::SchemaValidation;
+use hexorder_contracts::validation::SchemaValidation;
 
 /// Create the top-level `hexorder` module table with query functions.
 ///

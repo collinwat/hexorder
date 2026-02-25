@@ -3,7 +3,7 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::AppScreen;
+use hexorder_contracts::persistence::AppScreen;
 
 #[allow(dead_code)]
 mod lua_api;

@@ -7,9 +7,9 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::validation::SchemaValidation;
+use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::validation::SchemaValidation;
 
 mod systems;
 

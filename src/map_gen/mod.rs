@@ -5,8 +5,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::map_gen::MapGenParams;
-use crate::contracts::persistence::AppScreen;
+use hexorder_contracts::map_gen::MapGenParams;
+use hexorder_contracts::persistence::AppScreen;
 
 mod biome;
 mod components;

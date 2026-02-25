@@ -3,31 +3,31 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use crate::contracts::editor_ui::{EditorTool, ToastKind, ViewportMargins, ViewportRect};
-use crate::contracts::game_system::{
+use hexorder_contracts::editor_ui::{EditorTool, ToastKind, ViewportMargins, ViewportRect};
+use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
     SelectedUnit, StructDefinition, StructRegistry, TypeId, UnitInstance,
 };
 #[cfg(feature = "inspector")]
-use crate::contracts::hex_grid::SelectedHex;
-use crate::contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
-use crate::contracts::map_gen::{GenerateMap, MapGenParams};
-use crate::contracts::mechanic_reference::{
+use hexorder_contracts::hex_grid::SelectedHex;
+use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::map_gen::{GenerateMap, MapGenParams};
+use hexorder_contracts::mechanic_reference::{
     MechanicCatalog, MechanicCategory, ScaffoldAction, TemplateAvailability,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
-use crate::contracts::persistence::{
+use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, NewProjectEvent, SaveRequestEvent, Workspace,
 };
-use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId};
-use crate::contracts::validation::SchemaValidation;
+use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+use hexorder_contracts::validation::SchemaValidation;
 
-use crate::contracts::mechanics::{
+use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierDefinition, CombatModifierRegistry, CombatOutcome,
     CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType,
     PlayerOrder, TurnState, TurnStructure,
@@ -107,16 +107,16 @@ struct DesignData<'a> {
     registry: &'a mut EntityTypeRegistry,
     enum_registry: &'a mut EnumRegistry,
     struct_registry: &'a mut StructRegistry,
-    concept_registry: &'a mut crate::contracts::ontology::ConceptRegistry,
-    relation_registry: &'a mut crate::contracts::ontology::RelationRegistry,
+    concept_registry: &'a mut hexorder_contracts::ontology::ConceptRegistry,
+    relation_registry: &'a mut hexorder_contracts::ontology::RelationRegistry,
 }
 
 /// Data for the Rules tab (constraints, validation, mechanics sub-tabs).
 struct RulesData<'a> {
-    constraint_registry: &'a mut crate::contracts::ontology::ConstraintRegistry,
-    turn_structure: &'a mut crate::contracts::mechanics::TurnStructure,
+    constraint_registry: &'a mut hexorder_contracts::ontology::ConstraintRegistry,
+    turn_structure: &'a mut hexorder_contracts::mechanics::TurnStructure,
     combat_results_table: &'a mut CombatResultsTable,
-    combat_modifiers: &'a mut crate::contracts::mechanics::CombatModifierRegistry,
+    combat_modifiers: &'a mut hexorder_contracts::mechanics::CombatModifierRegistry,
 }
 
 /// Data for the Inspector tab (selected tile/unit property editors).
@@ -138,7 +138,7 @@ struct EditorDockViewer<'a> {
     schema_validation: &'a SchemaValidation,
     // Single-tab fields
     viewport_rect: &'a mut ViewportRect,
-    multi: &'a crate::contracts::editor_ui::Selection,
+    multi: &'a hexorder_contracts::editor_ui::Selection,
     mechanic_catalog: &'a MechanicCatalog,
     // Tab-specific groups
     palette: PaletteData<'a>,
@@ -1038,7 +1038,7 @@ pub fn restore_dock_layout(mut dock_layout: ResMut<DockLayoutState>) {
 pub fn debug_inspector_panel(
     mut contexts: EguiContexts,
     margins: Res<ViewportMargins>,
-    grid_config: Option<Res<crate::contracts::hex_grid::HexGridConfig>>,
+    grid_config: Option<Res<hexorder_contracts::hex_grid::HexGridConfig>>,
     selected_hex: Res<SelectedHex>,
     camera_q: Query<(&Transform, &Projection), With<Camera3d>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
@@ -1539,7 +1539,7 @@ fn render_combat_panel(
     editor_state: &mut EditorState,
     unit_query: &Query<&EntityData, With<UnitInstance>>,
 ) {
-    use crate::contracts::mechanics::{
+    use hexorder_contracts::mechanics::{
         apply_column_shift, evaluate_modifiers_prioritized, find_crt_column, resolve_crt,
     };
 
@@ -1757,24 +1757,24 @@ fn render_combat_panel(
 
         if let Some(effect) = &outcome.effect {
             let effect_text = match effect {
-                crate::contracts::mechanics::OutcomeEffect::NoEffect => "No effect".to_string(),
-                crate::contracts::mechanics::OutcomeEffect::Retreat { hexes } => {
+                hexorder_contracts::mechanics::OutcomeEffect::NoEffect => "No effect".to_string(),
+                hexorder_contracts::mechanics::OutcomeEffect::Retreat { hexes } => {
                     format!("Defender retreats {hexes} hex(es)")
                 }
-                crate::contracts::mechanics::OutcomeEffect::StepLoss { steps } => {
+                hexorder_contracts::mechanics::OutcomeEffect::StepLoss { steps } => {
                     format!("Defender loses {steps} step(s)")
                 }
-                crate::contracts::mechanics::OutcomeEffect::AttackerStepLoss { steps } => {
+                hexorder_contracts::mechanics::OutcomeEffect::AttackerStepLoss { steps } => {
                     format!("Attacker loses {steps} step(s)")
                 }
-                crate::contracts::mechanics::OutcomeEffect::Exchange {
+                hexorder_contracts::mechanics::OutcomeEffect::Exchange {
                     attacker_steps,
                     defender_steps,
                 } => format!("Exchange: ATK -{attacker_steps}, DEF -{defender_steps}"),
-                crate::contracts::mechanics::OutcomeEffect::AttackerEliminated => {
+                hexorder_contracts::mechanics::OutcomeEffect::AttackerEliminated => {
                     "Attacker eliminated".to_string()
                 }
-                crate::contracts::mechanics::OutcomeEffect::DefenderEliminated => {
+                hexorder_contracts::mechanics::OutcomeEffect::DefenderEliminated => {
                     "Defender eliminated".to_string()
                 }
             };
@@ -3466,19 +3466,19 @@ pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValida
         for error in &validation.errors {
             ui.group(|ui| {
                 let category_str = match error.category {
-                    crate::contracts::validation::SchemaErrorCategory::DanglingReference => {
+                    hexorder_contracts::validation::SchemaErrorCategory::DanglingReference => {
                         "Dangling Ref"
                     }
-                    crate::contracts::validation::SchemaErrorCategory::RoleMismatch => {
+                    hexorder_contracts::validation::SchemaErrorCategory::RoleMismatch => {
                         "Role Mismatch"
                     }
-                    crate::contracts::validation::SchemaErrorCategory::PropertyMismatch => {
+                    hexorder_contracts::validation::SchemaErrorCategory::PropertyMismatch => {
                         "Prop Mismatch"
                     }
-                    crate::contracts::validation::SchemaErrorCategory::MissingBinding => {
+                    hexorder_contracts::validation::SchemaErrorCategory::MissingBinding => {
                         "Missing Binding"
                     }
-                    crate::contracts::validation::SchemaErrorCategory::InvalidExpression => {
+                    hexorder_contracts::validation::SchemaErrorCategory::InvalidExpression => {
                         "Invalid Expr"
                     }
                 };
@@ -4498,7 +4498,7 @@ fn apply_actions(
             EditorAction::CreateConcept { name, description } => {
                 concept_registry
                     .concepts
-                    .push(crate::contracts::ontology::Concept {
+                    .push(hexorder_contracts::ontology::Concept {
                         id: TypeId::new(),
                         name,
                         description,
@@ -4801,7 +4801,7 @@ fn apply_actions(
 /// String-based scaffold actions are resolved to typed values here so that
 /// the `mechanic_reference` contract stays decoupled from `game_system` types.
 pub(super) fn apply_scaffold_recipe(
-    recipe: &crate::contracts::mechanic_reference::ScaffoldRecipe,
+    recipe: &hexorder_contracts::mechanic_reference::ScaffoldRecipe,
     registry: &mut EntityTypeRegistry,
     enum_registry: &mut EnumRegistry,
     turn_structure: &mut TurnStructure,

@@ -6,8 +6,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::PaintPreview;
-use crate::contracts::persistence::AppScreen;
+use hexorder_contracts::editor_ui::PaintPreview;
+use hexorder_contracts::persistence::AppScreen;
 
 mod components;
 mod systems;

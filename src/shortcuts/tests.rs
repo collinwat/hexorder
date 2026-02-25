@@ -2,7 +2,7 @@
 
 use bevy::input::keyboard::KeyCode;
 
-use crate::contracts::shortcuts::{
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 
@@ -245,7 +245,7 @@ fn filtered_commands_no_match() {
 
 #[test]
 fn palette_state_defaults() {
-    use crate::contracts::shortcuts::CommandPaletteState;
+    use hexorder_contracts::shortcuts::CommandPaletteState;
     let state = CommandPaletteState::default();
     assert!(!state.open);
     assert!(state.query.is_empty());

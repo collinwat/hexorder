@@ -9,7 +9,7 @@ use printpdf::{
     Point, Pt, Rect, Rgb, TextItem, WindingOrder,
 };
 
-use crate::contracts::game_system::{EntityRole, EntityType, PropertyValue, TypeId};
+use hexorder_contracts::game_system::{EntityRole, EntityType, PropertyValue, TypeId};
 
 use super::{ExportData, ExportError, ExportFile, ExportOutput, ExportTarget};
 

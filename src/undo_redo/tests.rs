@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{EntityData, PropertyValue, TypeId};
-use crate::contracts::shortcuts::{CommandExecutedEvent, CommandId, ShortcutRegistry};
-use crate::contracts::undo_redo::{SetPropertyCommand, UndoStack};
+use hexorder_contracts::game_system::{EntityData, PropertyValue, TypeId};
+use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId, ShortcutRegistry};
+use hexorder_contracts::undo_redo::{SetPropertyCommand, UndoStack};
 
 /// Build a minimal app with the `UndoRedoPlugin` for testing.
 /// Inserts `ShortcutRegistry` manually (normally provided by `ShortcutsPlugin`).

@@ -4,7 +4,7 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use crate::contracts::shortcuts::{
+use hexorder_contracts::shortcuts::{
     CommandEntry, CommandExecutedEvent, CommandId, CommandPaletteState, KeyBinding, Modifiers,
     ShortcutRegistry,
 };

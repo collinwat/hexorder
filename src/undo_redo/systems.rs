@@ -2,8 +2,8 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::shortcuts::CommandExecutedEvent;
-use crate::contracts::undo_redo::UndoStack;
+use hexorder_contracts::shortcuts::CommandExecutedEvent;
+use hexorder_contracts::undo_redo::UndoStack;
 
 /// Observer: handles edit.undo and edit.redo commands from the shortcut registry.
 pub fn handle_undo_redo_command(trigger: On<CommandExecutedEvent>, mut stack: ResMut<UndoStack>) {

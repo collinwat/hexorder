@@ -5,8 +5,8 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use super::components::{CameraState, TopDownCamera};
-use crate::contracts::editor_ui::ViewportMargins;
-use crate::contracts::hex_grid::{HexGridConfig, SelectedHex};
+use hexorder_contracts::editor_ui::ViewportMargins;
+use hexorder_contracts::hex_grid::{HexGridConfig, SelectedHex};
 
 /// Fixed camera height above the ground plane.
 const CAMERA_Y: f32 = 100.0;
@@ -142,7 +142,7 @@ pub fn apply_pending_reset(
 pub fn keyboard_pan(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    registry: Res<crate::contracts::shortcuts::ShortcutRegistry>,
+    registry: Res<hexorder_contracts::shortcuts::ShortcutRegistry>,
     mut camera_state: ResMut<CameraState>,
 ) {
     let mut direction = Vec2::ZERO;
@@ -297,7 +297,7 @@ fn ui_center_offset(scale: f32, margins: &ViewportMargins) -> Vec2 {
 
 /// Observer: handles discrete camera commands dispatched via the shortcut registry.
 pub fn handle_camera_command(
-    trigger: On<crate::contracts::shortcuts::CommandExecutedEvent>,
+    trigger: On<hexorder_contracts::shortcuts::CommandExecutedEvent>,
     grid_config: Option<Res<HexGridConfig>>,
     selected_hex: Option<Res<SelectedHex>>,
     windows: Query<&Window, With<PrimaryWindow>>,

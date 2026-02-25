@@ -316,8 +316,8 @@ fn catalog_entries_have_example_games() {
 #[test]
 fn catalog_accessible_through_contract_boundary() {
     // Verify the contract re-export path works (editor_ui uses this path).
-    use crate::contracts::mechanic_reference::MechanicCatalog as ContractCatalog;
-    use crate::contracts::mechanic_reference::MechanicCategory as ContractCategory;
+    use hexorder_contracts::mechanic_reference::MechanicCatalog as ContractCatalog;
+    use hexorder_contracts::mechanic_reference::MechanicCategory as ContractCategory;
 
     let app = test_app();
     let catalog = app

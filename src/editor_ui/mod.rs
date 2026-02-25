@@ -7,19 +7,19 @@ use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
 use bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 
-use crate::contracts::editor_ui::{
+use hexorder_contracts::editor_ui::{
     EditorTool, Selection, ToastEvent, ViewportMargins, ViewportRect,
 };
-use crate::contracts::game_system::SelectedUnit;
-use crate::contracts::hex_grid::HexTile;
-use crate::contracts::mechanics::{ActiveCombat, TurnState};
-use crate::contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-use crate::contracts::persistence::AppScreen;
-use crate::contracts::shortcuts::{
+use hexorder_contracts::game_system::SelectedUnit;
+use hexorder_contracts::hex_grid::HexTile;
+use hexorder_contracts::mechanics::{ActiveCombat, TurnState};
+use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandExecutedEvent, CommandId, KeyBinding, Modifiers,
     ShortcutRegistry,
 };
-use crate::contracts::validation::SchemaValidation;
+use hexorder_contracts::validation::SchemaValidation;
 
 mod components;
 mod systems;

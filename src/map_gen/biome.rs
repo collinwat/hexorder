@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::HexPosition;
 
 use super::components::{BiomeEntry, BiomeTable};
 

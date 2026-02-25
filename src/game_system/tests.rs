@@ -4,14 +4,14 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-use crate::contracts::game_system::{
+use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, EnumDefinition, EnumRegistry,
     GameSystem, PropertyType, PropertyValue, SelectedUnit, StructRegistry, TypeId,
 };
-use crate::contracts::mechanics::{
+use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseType, TurnState, TurnStructure,
 };
-use crate::contracts::persistence::AppScreen;
+use hexorder_contracts::persistence::AppScreen;
 
 /// Helper: create a minimal App with the `GameSystemPlugin`.
 fn test_app() -> App {

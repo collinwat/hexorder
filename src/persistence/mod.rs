@@ -9,11 +9,11 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::persistence::{AppScreen, Workspace};
-use crate::contracts::shortcuts::{
+use hexorder_contracts::persistence::{AppScreen, Workspace};
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
-use crate::contracts::storage::{Storage, StorageConfig};
+use hexorder_contracts::storage::{Storage, StorageConfig};
 
 pub(crate) mod storage;
 mod systems;

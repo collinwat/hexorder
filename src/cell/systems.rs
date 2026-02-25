@@ -4,12 +4,12 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::contracts::editor_ui::{EditorTool, PaintPreview};
-use crate::contracts::game_system::{
+use hexorder_contracts::editor_ui::{EditorTool, PaintPreview};
+use hexorder_contracts::game_system::{
     ActiveBoardType, EntityData, EntityRole, EntityTypeRegistry, PropertyValue,
 };
-use crate::contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
-use crate::contracts::undo_redo::{SetTerrainCommand, UndoStack};
+use hexorder_contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
+use hexorder_contracts::undo_redo::{SetTerrainCommand, UndoStack};
 
 use super::components::CellMaterials;
 

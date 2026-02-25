@@ -52,7 +52,7 @@ Cmd+Shift+Z to reverse and replay editing actions.
 - [x] [SC-CLIPPY] `cargo clippy -- -D warnings` passes
 - [x] [SC-TEST] `cargo test` passes (all tests, not just this plugin's)
 - [x] [SC-BOUNDARY] No imports from other plugins' internals — all cross-plugin types come from
-      `crate::contracts::`
+      `hexorder_contracts::`
 
 ## UAT Checklist
 

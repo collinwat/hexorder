@@ -10,18 +10,18 @@ use bevy::prelude::*;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
-use crate::contracts::editor_ui::EditorTool;
-use crate::contracts::game_system::{
+use hexorder_contracts::editor_ui::EditorTool;
+use hexorder_contracts::game_system::{
     EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, PropertyDefinition,
     PropertyType, PropertyValue, StructRegistry, TypeId,
 };
-use crate::contracts::ontology::{
+use hexorder_contracts::ontology::{
     CompareOp, Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
-use crate::contracts::persistence::Workspace;
-use crate::contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
+use hexorder_contracts::persistence::Workspace;
+use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::components::{EditorAction, EditorState};
 use super::systems;

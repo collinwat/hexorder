@@ -6,10 +6,10 @@
 
 use bevy::prelude::*;
 
-use crate::contracts::shortcuts::{
+use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
-use crate::contracts::undo_redo::UndoStack;
+use hexorder_contracts::undo_redo::UndoStack;
 
 mod systems;
 
