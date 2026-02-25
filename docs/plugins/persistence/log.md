@@ -49,3 +49,21 @@
 - Created feature spec and log files
 - Updated coordination.md
 - 139 tests pass, clippy clean
+
+## 2026-02-24 — Cycle 8: Async File Dialogs (#175)
+
+### Scope 1: Async Dialog Wrapper
+
+- Created `src/persistence/async_dialog.rs` with infrastructure types:
+    - `AsyncDialogTask` resource — holds in-flight `Task<DialogResult>`
+    - `DialogKind` enum — SaveFile, OpenFile, PickFolder, ConfirmUnsavedChanges
+    - `DialogResult` enum — FilePicked, FolderPicked, Confirmed
+    - `ConfirmChoice` enum — Yes, No, Cancel
+    - `PendingAction` enum — Load, NewProject, CloseProject
+    - `DialogCompleted` observer event
+- Spawn helpers: `spawn_save_dialog`, `spawn_open_dialog`, `spawn_folder_dialog`,
+  `spawn_confirm_dialog`
+- `poll_async_dialog` exclusive system — polls via `block_on(poll_once(...))`, zero-cost when idle
+- Uses `IoTaskPool` (not `AsyncComputeTaskPool`) per pitch guidance
+- Uses `bevy::tasks::block_on` / `bevy::tasks::poll_once` re-exports (no direct `futures-lite` dep)
+- 5 unit tests added (386 total), all passing
