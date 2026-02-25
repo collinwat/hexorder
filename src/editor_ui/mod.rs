@@ -14,7 +14,7 @@ use hexorder_contracts::game_system::{EntityData, SelectedUnit, UnitInstance};
 use hexorder_contracts::hex_grid::{HexPosition, HexTile};
 use hexorder_contracts::mechanics::{ActiveCombat, TurnState};
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
-use hexorder_contracts::persistence::AppScreen;
+use hexorder_contracts::persistence::{AppScreen, CloseProjectEvent};
 use hexorder_contracts::settings::SettingsReady;
 use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandExecutedEvent, CommandId, KeyBinding, Modifiers,
@@ -183,7 +183,7 @@ fn handle_editor_ui_command(
         "tool.paint" => *tool = EditorTool::Paint,
         "tool.place" => *tool = EditorTool::Place,
         "mode.editor" => next_state.set(AppScreen::Editor),
-        "mode.close" => next_state.set(AppScreen::Launcher),
+        "mode.close" => commands.trigger(CloseProjectEvent),
         "edit.delete" => {
             // Bulk delete multi-selected entities first.
             if !selection.entities.is_empty() {
