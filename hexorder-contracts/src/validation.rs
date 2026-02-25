@@ -8,8 +8,8 @@ use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 
-use super::game_system::TypeId;
-use super::hex_grid::HexPosition;
+use crate::game_system::TypeId;
+use crate::hex_grid::HexPosition;
 
 // ---------------------------------------------------------------------------
 // Schema Validation

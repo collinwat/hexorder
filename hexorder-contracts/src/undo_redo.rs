@@ -9,8 +9,8 @@ use std::fmt;
 
 use bevy::prelude::*;
 
-use super::game_system::{EntityData, PropertyValue, TypeId, UnitInstance};
-use super::hex_grid::HexPosition;
+use crate::game_system::{EntityData, PropertyValue, TypeId, UnitInstance};
+use crate::hex_grid::HexPosition;
 
 // ---------------------------------------------------------------------------
 // Trait
@@ -45,9 +45,9 @@ pub struct UndoStack {
     redo_stack: Vec<Box<dyn UndoableCommand>>,
     max_depth: usize,
     /// Flag set by observer, consumed by exclusive system.
-    pub(crate) pending_undo: bool,
+    pub pending_undo: bool,
     /// Flag set by observer, consumed by exclusive system.
-    pub(crate) pending_redo: bool,
+    pub pending_redo: bool,
 }
 
 impl fmt::Debug for UndoStack {
@@ -130,22 +130,22 @@ impl UndoStack {
 
     /// Pop the top command from the undo stack, call its `undo` method, and
     /// push it onto the redo stack. Called by the exclusive system.
-    pub(crate) fn pop_undo(&mut self) -> Option<Box<dyn UndoableCommand>> {
+    pub fn pop_undo(&mut self) -> Option<Box<dyn UndoableCommand>> {
         self.undo_stack.pop()
     }
 
     /// After undoing, push the command onto the redo stack.
-    pub(crate) fn push_redo(&mut self, cmd: Box<dyn UndoableCommand>) {
+    pub fn push_redo(&mut self, cmd: Box<dyn UndoableCommand>) {
         self.redo_stack.push(cmd);
     }
 
     /// Pop the top command from the redo stack. Called by the exclusive system.
-    pub(crate) fn pop_redo(&mut self) -> Option<Box<dyn UndoableCommand>> {
+    pub fn pop_redo(&mut self) -> Option<Box<dyn UndoableCommand>> {
         self.redo_stack.pop()
     }
 
     /// After redoing, push the command back onto the undo stack.
-    pub(crate) fn push_undo(&mut self, cmd: Box<dyn UndoableCommand>) {
+    pub fn push_undo(&mut self, cmd: Box<dyn UndoableCommand>) {
         if self.undo_stack.len() >= self.max_depth {
             self.undo_stack.remove(0);
         }

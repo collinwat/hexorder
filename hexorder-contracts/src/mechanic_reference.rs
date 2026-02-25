@@ -29,6 +29,7 @@ pub enum MechanicCategory {
 
 impl MechanicCategory {
     /// Returns all six categories in survey order.
+    #[must_use]
     pub fn all() -> &'static [Self] {
         &[
             Self::CoreUniversal,
@@ -41,6 +42,7 @@ impl MechanicCategory {
     }
 
     /// Human-readable display name for the category.
+    #[must_use]
     pub fn display_name(self) -> &'static str {
         match self {
             Self::CoreUniversal => "Core Universal Mechanics",
@@ -53,6 +55,7 @@ impl MechanicCategory {
     }
 
     /// Short description of what the category covers.
+    #[must_use]
     pub fn description(self) -> &'static str {
         match self {
             Self::CoreUniversal => {
@@ -187,6 +190,7 @@ pub struct MechanicCatalog {
 
 impl MechanicCatalog {
     /// Returns all entries in the given category.
+    #[must_use]
     pub fn entries_by_category(&self, category: MechanicCategory) -> Vec<&MechanicEntry> {
         self.entries
             .iter()
@@ -195,6 +199,7 @@ impl MechanicCatalog {
     }
 
     /// Returns all entries that have a scaffolding template available.
+    #[must_use]
     pub fn entries_with_templates(&self) -> Vec<&MechanicEntry> {
         self.entries
             .iter()
@@ -203,6 +208,7 @@ impl MechanicCatalog {
     }
 
     /// Looks up a scaffolding recipe by template ID.
+    #[must_use]
     pub fn get_template(&self, template_id: &str) -> Option<ScaffoldRecipe> {
         self.templates
             .iter()

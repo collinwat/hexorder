@@ -16,16 +16,19 @@ pub struct HexPosition {
 }
 
 impl HexPosition {
+    #[must_use]
     pub fn new(q: i32, r: i32) -> Self {
         Self { q, r }
     }
 
     /// Convert to `hexx::Hex` for math operations.
+    #[must_use]
     pub fn to_hex(self) -> Hex {
         Hex::new(self.q, self.r)
     }
 
     /// Convert from `hexx::Hex`.
+    #[must_use]
     pub fn from_hex(hex: Hex) -> Self {
         Self {
             q: hex.x(),
@@ -169,6 +172,7 @@ impl HexEdge {
     /// Create a canonical edge between two adjacent hex positions.
     /// Returns `None` if the positions are not adjacent.
     /// The "lower" hex (by q, then r) becomes the origin.
+    #[must_use]
     pub fn between(a: HexPosition, b: HexPosition) -> Option<Self> {
         let hex_a = a.to_hex();
         let hex_b = b.to_hex();
@@ -191,6 +195,7 @@ impl HexEdge {
     }
 
     /// Returns the two hex positions connected by this edge.
+    #[must_use]
     pub fn neighbor_pair(&self) -> (HexPosition, HexPosition) {
         let origin_hex = self.origin.to_hex();
         let all_dirs = hexx::EdgeDirection::ALL_DIRECTIONS;
@@ -222,6 +227,7 @@ impl HexEdgeRegistry {
     }
 
     /// Look up the feature on an edge.
+    #[must_use]
     pub fn get(&self, edge: &HexEdge) -> Option<&EdgeFeature> {
         self.edges.get(edge)
     }
@@ -248,11 +254,13 @@ impl HexEdgeRegistry {
     }
 
     /// Returns true if the registry has no edge features.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.edges.is_empty()
     }
 
     /// Returns the number of edge features in the registry.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.edges.len()
     }
@@ -414,7 +422,7 @@ mod tests {
 
     #[test]
     fn edge_feature_type_name_resolves_against_entity_registry() {
-        use crate::contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
+        use crate::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
 
         let mut registry = EntityTypeRegistry::default();
         registry.types.push(EntityType {

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 
-use super::persistence::{GameSystemFile, PersistenceError};
+use crate::persistence::{GameSystemFile, PersistenceError};
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -86,11 +86,13 @@ pub struct Storage {
 
 impl Storage {
     /// Create a new `Storage` resource from a provider.
+    #[must_use]
     pub fn new(provider: Box<dyn StorageProvider>) -> Self {
         Self { provider }
     }
 
     /// Access the underlying storage provider.
+    #[must_use]
     pub fn provider(&self) -> &dyn StorageProvider {
         &*self.provider
     }

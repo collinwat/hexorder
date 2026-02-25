@@ -9,12 +9,12 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::game_system::{
+use crate::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
-use super::hex_grid::HexPosition;
-use super::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
-use super::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+use crate::hex_grid::HexPosition;
+use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
+use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
 pub const FORMAT_VERSION: u32 = 5;

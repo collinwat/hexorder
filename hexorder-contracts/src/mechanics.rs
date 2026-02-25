@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::game_system::TypeId;
+use crate::game_system::TypeId;
 
 // ---------------------------------------------------------------------------
 // Turn Structure
@@ -291,6 +291,7 @@ pub struct CrtResolution {
 /// Calculates the odds ratio of attacker to defender strength.
 /// Returns the ratio as a float (e.g., 3.0 for a 3:1 advantage).
 /// Returns `f64::INFINITY` if defender strength is zero.
+#[must_use]
 pub fn calculate_odds_ratio(attacker_strength: f64, defender_strength: f64) -> f64 {
     if defender_strength <= 0.0 {
         return f64::INFINITY;
@@ -299,6 +300,7 @@ pub fn calculate_odds_ratio(attacker_strength: f64, defender_strength: f64) -> f
 }
 
 /// Calculates the differential of attacker minus defender strength.
+#[must_use]
 pub fn calculate_differential(attacker_strength: f64, defender_strength: f64) -> f64 {
     attacker_strength - defender_strength
 }
@@ -312,6 +314,7 @@ pub fn calculate_differential(attacker_strength: f64, defender_strength: f64) ->
 ///
 /// Returns `None` if the CRT has no columns or the calculated value is below
 /// all thresholds.
+#[must_use]
 pub fn find_crt_column(
     attacker_strength: f64,
     defender_strength: f64,
@@ -339,6 +342,7 @@ pub fn find_crt_column(
 ///
 /// Searches rows for one whose `[die_value_min, die_value_max]` range
 /// includes the given roll. Returns `None` if no row matches.
+#[must_use]
 pub fn find_crt_row(die_roll: u32, rows: &[CrtRow]) -> Option<usize> {
     rows.iter()
         .position(|row| die_roll >= row.die_value_min && die_roll <= row.die_value_max)
@@ -349,6 +353,7 @@ pub fn find_crt_row(die_roll: u32, rows: &[CrtRow]) -> Option<usize> {
 ///
 /// Returns `None` if the column or row cannot be resolved, or if the outcome
 /// grid doesn't have the expected dimensions.
+#[must_use]
 pub fn resolve_crt(
     crt: &CombatResultsTable,
     attacker_strength: f64,
@@ -377,6 +382,7 @@ pub fn resolve_crt(
 ///
 /// Returns the final column shift and a display list of `(name, shift)` pairs
 /// in evaluation order (highest priority first).
+#[must_use]
 pub fn evaluate_modifiers_prioritized(
     modifiers: &[CombatModifierDefinition],
     column_count: usize,
@@ -407,6 +413,7 @@ pub fn evaluate_modifiers_prioritized(
 }
 
 /// Applies a column shift to a base column index, clamping to bounds.
+#[must_use]
 pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -> usize {
     if column_count == 0 {
         return 0;

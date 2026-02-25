@@ -3566,13 +3566,14 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hexorder"
-version = "0.12.0"
+version = "0.13.0-contracts"
 dependencies = [
  "bevy",
  "bevy_egui",
  "dirs",
  "egui_dock",
  "egui_kittest",
+ "hexorder-contracts",
  "hexx",
  "mlua",
  "noise",
@@ -3582,6 +3583,18 @@ dependencies = [
  "serde",
  "sublime_fuzzy",
  "toml",
+ "uuid",
+]
+
+[[package]]
+name = "hexorder-contracts"
+version = "0.13.0-contracts"
+dependencies = [
+ "bevy",
+ "bevy_egui",
+ "hexx",
+ "ron",
+ "serde",
  "uuid",
 ]
 

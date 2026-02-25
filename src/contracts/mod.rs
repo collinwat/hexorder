@@ -1,30 +1,5 @@
-//! Shared types between plugins.
-//! Each module here corresponds to a contract in docs/contracts/.
-//!
-//! Contract types are defined ahead of their consumers. Allow `dead_code`
-//! since not all types are used by all plugins at every point in development.
+//! Re-export shim: all contract types now live in the `hexorder-contracts` crate.
+//! Plugin code can continue using `crate::contracts::*` until imports are updated
+//! to `hexorder_contracts::*` (Scope 2).
 
-#[allow(dead_code)]
-pub mod editor_ui;
-#[allow(dead_code)]
-pub mod game_system;
-#[allow(dead_code)]
-pub mod hex_grid;
-#[allow(dead_code)]
-pub mod map_gen;
-#[allow(dead_code)]
-pub mod mechanic_reference;
-#[allow(dead_code)]
-pub mod mechanics;
-#[allow(dead_code)]
-pub mod ontology;
-#[allow(dead_code)]
-pub mod persistence;
-#[allow(dead_code)]
-pub mod shortcuts;
-#[allow(dead_code)]
-pub mod storage;
-#[allow(dead_code)]
-pub mod undo_redo;
-#[allow(dead_code)]
-pub mod validation;
+pub use hexorder_contracts::*;

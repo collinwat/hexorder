@@ -23,6 +23,7 @@ pub struct TypeId(pub Uuid);
 
 impl TypeId {
     /// Generate a new random `TypeId`.
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -111,6 +112,7 @@ pub enum PropertyValue {
 
 impl PropertyValue {
     /// Returns a default value for the given property type.
+    #[must_use]
     pub fn default_for(property_type: &PropertyType) -> Self {
         match property_type {
             PropertyType::Bool => PropertyValue::Bool(false),
@@ -157,6 +159,7 @@ pub struct EnumRegistry {
 
 impl EnumRegistry {
     /// Look up an enum definition by its ID.
+    #[must_use]
     pub fn get(&self, id: TypeId) -> Option<&EnumDefinition> {
         self.definitions.get(&id)
     }
@@ -194,6 +197,7 @@ pub struct StructRegistry {
 
 impl StructRegistry {
     /// Look up a struct definition by its ID.
+    #[must_use]
     pub fn get(&self, id: TypeId) -> Option<&StructDefinition> {
         self.definitions.get(&id)
     }
@@ -250,16 +254,19 @@ pub struct EntityTypeRegistry {
 
 impl EntityTypeRegistry {
     /// Look up an entity type by its ID.
+    #[must_use]
     pub fn get(&self, id: TypeId) -> Option<&EntityType> {
         self.types.iter().find(|t| t.id == id)
     }
 
     /// Returns all entity types with the given role.
+    #[must_use]
     pub fn types_by_role(&self, role: EntityRole) -> Vec<&EntityType> {
         self.types.iter().filter(|t| t.role == role).collect()
     }
 
     /// Returns the first entity type with the given role, if any.
+    #[must_use]
     pub fn first_by_role(&self, role: EntityRole) -> Option<&EntityType> {
         self.types.iter().find(|t| t.role == role)
     }

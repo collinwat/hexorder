@@ -10,7 +10,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::game_system::{EntityRole, PropertyValue, TypeId};
+use crate::game_system::{EntityRole, PropertyValue, TypeId};
 
 // ---------------------------------------------------------------------------
 // Concepts
@@ -240,7 +240,7 @@ pub struct ConstraintRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::game_system::{EntityRole, PropertyValue, TypeId};
+    use crate::game_system::{EntityRole, PropertyValue, TypeId};
 
     /// Round-trip: serialize `ConceptRegistry` with bindings.
     #[test]

@@ -82,6 +82,7 @@ pub struct ViewportRect(pub Option<bevy_egui::egui::Rect>);
 /// Replacement for `egui_wants_any_pointer_input` which always returns `true`
 /// when `DockArea` covers the full window. Uses Bevy's window cursor position
 /// to avoid borrowing `EguiContexts` (which would conflict in run conditions).
+#[must_use]
 pub fn pointer_over_ui_panel(
     viewport_rect: Res<ViewportRect>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
