@@ -22,6 +22,8 @@ pub mod ontology;
 #[allow(dead_code)]
 pub mod persistence;
 #[allow(dead_code)]
+pub mod settings;
+#[allow(dead_code)]
 pub mod shortcuts;
 #[allow(dead_code)]
 pub mod storage;
