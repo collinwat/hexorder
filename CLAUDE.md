@@ -37,12 +37,15 @@ game system assets.
 
 ## Architecture Rules
 
+> Formal decision records: `docs/decisions/` — ADRs document the rationale behind these rules.
+
 - Every plugin is a Bevy Plugin in its own module under `src/`
 - Shared types live in `crates/hexorder-contracts/src/` and are mirrored in `docs/contracts/`
-- Use Events for cross-plugin communication, never direct coupling
+- Use Events for cross-plugin communication, never direct coupling (ADR-001)
 - Components, Resources, Events must derive standard Bevy traits + Debug
-- Prefer systems over methods; prefer queries over direct world access
-- All public API types go through contracts first (spec before code)
+- Prefer systems over methods; prefer queries over direct world access (ADR-002)
+- All public API types go through contracts first (spec before code) (ADR-003)
+- Crate extraction follows the hexorder-contracts reference pattern (ADR-004)
 
 ## Bevy 0.18 Conventions
 
@@ -189,6 +192,9 @@ work does not ship, and the problem must be re-shaped and re-pitched.
 11. **No stray ideas** — all deferred scope, future work notes, TODOs, and "coming soon"
     placeholders in specs, plugin logs, and source code have corresponding GitHub Issues. Search
     with `gh issue list --search "<keywords>"` to verify.
+12. **No ADR violations** — new architectural patterns comply with accepted ADRs in
+    `docs/decisions/`. If a new pattern conflicts with an existing ADR, the ADR must be superseded
+    or deprecated with a replacement before the conflicting code ships.
 
 This gate applies even if all individual plugins pass their own success criteria. Constitution
 violations that only emerge at the cross-plugin level (like import boundary violations) are caught

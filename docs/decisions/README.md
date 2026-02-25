@@ -27,5 +27,9 @@ lowercase-hyphenated summary. Example: `001-event-driven-communication.md`.
 
 ## Index
 
-| ADR | Title | Status |
-| --- | ----- | ------ |
+| ADR | Title                                   | Status   |
+| --- | --------------------------------------- | -------- |
+| 001 | Event-driven cross-plugin communication | accepted |
+| 002 | Command system pattern                  | accepted |
+| 003 | Contracts protocol                      | accepted |
+| 004 | Crate extraction pattern                | accepted |
