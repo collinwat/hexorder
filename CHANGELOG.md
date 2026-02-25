@@ -5,6 +5,73 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] — 2026-02-25
+
+### Added
+
+- update docs for workspace structure (contracts)
+- add has_new_records flag to UndoStack (ref #172) (undo_redo)
+- add sync_dirty_flag system (ref #172) (persistence)
+- add unsaved-changes confirmation dialog (ref #172) (persistence)
+- update dirty flag documentation (ref #172) (persistence)
+- add dirty flag tracking implementation plan (persistence)
+- add undoable unit deletion (ref #127) (editor_ui)
+- show dirty indicator in window title (ref #172) (persistence)
+- add Scope 1+5 design document (settings)
+- add Scope 1+5 implementation plan (settings)
+- add settings contract types (contracts)
+- add settings contract spec (contracts)
+- add SettingsPlugin with three-layer merge (settings)
+- update architecture and plugin log for Scope 1+5 (settings)
+- migrate preferences to read from SettingsRegistry (settings)
+- update plugin log for Scope 2 (settings)
+- add custom theme loading and selection (settings)
+- add keyboard shortcuts reference panel (settings)
+- move reflection before ready for integration (project)
+- add async dialog design and implementation plan (persistence)
+- add async dialog infrastructure (persistence)
+- log Scope 1 async dialog wrapper (persistence)
+- add Scope 2 async dialog migration design (persistence)
+- add dialog completion observer and dispatch (persistence)
+- convert all trigger observers to async dialog (persistence)
+- add save/load/dispatch tests (persistence)
+- log Scope 2 async dialog migration (persistence)
+- add Scope 2 async dialog migration plan (persistence)
+- migrate export dialog to async folder picker (export)
+- add save-point dirty tracking to UndoStack (undo_redo)
+- integrate save-point API and migrate async dialogs (persistence)
+- record undo commands for map generation (map_gen)
+
+### Changed
+
+- set up feature branch (contracts)
+- extract hexorder-contracts workspace crate (contracts)
+- replace crate::contracts with hexorder_contracts (contracts)
+- update tooling for workspace structure (contracts)
+- set up feature branch (editor_ui)
+- extract do_save helper for reuse (ref #172) (persistence)
+- set up feature branch (settings)
+- update imports for contracts workspace split (settings)
+- set up feature branch (persistence)
+- add Clone derives and then field to dialog types (persistence)
+- extract save_to_path and build helpers (persistence)
+- extract load_from_path helper (persistence)
+- extract reset, close, and save-dialog helpers (persistence)
+- remove blocking dialog code and dead helpers (persistence)
+- migrate export dialog from IoTaskPool to direct future (export)
+- move hexorder-contracts into crates/ directory (project)
+- remove transient plan documents (project)
+- bump version to 0.13.0 (project)
+
+### Fixed
+
+- update imports for hexorder-contracts crate (persistence)
+- correct typo — unparseable to unparsable (settings)
+- resolve clippy and boundary violations (persistence)
+- remove unused async dialog variants and field (persistence)
+- trigger CloseProjectEvent on project close (editor_ui)
+- collapse nested if per clippy collapsible_if (map_gen)
+
 ## [0.12.0] — 2026-02-23
 
 ### Added
@@ -69,6 +136,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - fix taplo formatting in Cargo.toml (project)
 - remove transient plan documents (project)
 - bump version to 0.12.0 (project)
+- generate changelog for v0.12.0 (project)
 
 ### Fixed
 

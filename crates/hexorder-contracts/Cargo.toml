@@ -1,6 +1,6 @@
 [package]
 name = "hexorder-contracts"
-version = "0.13.0-contracts"
+version = "0.13.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
