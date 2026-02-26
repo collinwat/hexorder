@@ -308,3 +308,400 @@ pub fn keycode_display_name(key: KeyCode) -> &'static str {
         _ => "?",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_command(id: &'static str, key: KeyCode, modifiers: Modifiers) -> CommandEntry {
+        CommandEntry {
+            id: CommandId(id),
+            name: id.to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(key, modifiers)],
+            category: CommandCategory::File,
+            continuous: false,
+        }
+    }
+
+    #[test]
+    fn command_id_display() {
+        let id = CommandId("file.save");
+        assert_eq!(format!("{id}"), "file.save");
+    }
+
+    #[test]
+    fn key_binding_display_string_cmd_s() {
+        let binding = KeyBinding::new(KeyCode::KeyS, Modifiers::CMD);
+        let display = binding.display_string();
+        assert!(display.contains('\u{2318}')); // ⌘
+        assert!(display.contains('S'));
+    }
+
+    #[test]
+    fn key_binding_display_string_cmd_shift() {
+        let binding = KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD_SHIFT);
+        let display = binding.display_string();
+        assert!(display.contains('\u{2318}')); // ⌘
+        assert!(display.contains('\u{21e7}')); // ⇧
+        assert!(display.contains('Z'));
+    }
+
+    #[test]
+    fn key_binding_display_string_no_modifiers() {
+        let binding = KeyBinding::new(KeyCode::Escape, Modifiers::NONE);
+        let display = binding.display_string();
+        assert_eq!(display, "Esc");
+    }
+
+    #[test]
+    fn key_binding_display_string_ctrl_alt() {
+        let binding = KeyBinding::new(
+            KeyCode::KeyA,
+            Modifiers {
+                cmd: false,
+                shift: false,
+                alt: true,
+                ctrl: true,
+            },
+        );
+        let display = binding.display_string();
+        assert!(display.contains("Ctrl"));
+        assert!(display.contains("Alt"));
+        assert!(display.contains('A'));
+    }
+
+    #[test]
+    fn shortcut_registry_register_and_lookup() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("file.save", KeyCode::KeyS, Modifiers::CMD));
+
+        let binding = KeyBinding::new(KeyCode::KeyS, Modifiers::CMD);
+        let found = registry.lookup(&binding);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, CommandId("file.save"));
+    }
+
+    #[test]
+    fn shortcut_registry_lookup_miss() {
+        let registry = ShortcutRegistry::default();
+        let binding = KeyBinding::new(KeyCode::KeyX, Modifiers::NONE);
+        assert!(registry.lookup(&binding).is_none());
+    }
+
+    #[test]
+    fn shortcut_registry_commands_returns_all() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("file.save", KeyCode::KeyS, Modifiers::CMD));
+        registry.register(test_command("file.open", KeyCode::KeyO, Modifiers::CMD));
+        assert_eq!(registry.commands().len(), 2);
+    }
+
+    #[test]
+    fn shortcut_registry_bindings_for() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("file.save", KeyCode::KeyS, Modifiers::CMD));
+        let bindings = registry.bindings_for("file.save");
+        assert_eq!(bindings.len(), 1);
+        assert_eq!(bindings[0], KeyCode::KeyS);
+    }
+
+    #[test]
+    fn shortcut_registry_bindings_for_missing_command() {
+        let registry = ShortcutRegistry::default();
+        let bindings = registry.bindings_for("nonexistent");
+        assert!(bindings.is_empty());
+    }
+
+    #[test]
+    fn shortcut_registry_discrete_commands() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("file.save", KeyCode::KeyS, Modifiers::CMD));
+        registry.register(CommandEntry {
+            id: CommandId("camera.pan"),
+            name: "Pan".to_string(),
+            description: String::new(),
+            bindings: vec![],
+            category: CommandCategory::Camera,
+            continuous: true,
+        });
+        let discrete = registry.discrete_commands();
+        assert_eq!(discrete.len(), 1);
+        assert_eq!(discrete[0].id, CommandId("file.save"));
+    }
+
+    #[test]
+    fn shortcut_registry_override_bindings() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("file.save", KeyCode::KeyS, Modifiers::CMD));
+
+        let new_binding = KeyBinding::new(KeyCode::KeyP, Modifiers::CMD);
+        let result = registry.override_bindings("file.save", vec![new_binding.clone()]);
+        assert!(result);
+
+        // Old binding should no longer work.
+        let old = KeyBinding::new(KeyCode::KeyS, Modifiers::CMD);
+        assert!(registry.lookup(&old).is_none());
+
+        // New binding should work.
+        assert!(registry.lookup(&new_binding).is_some());
+
+        // Bindings_for should reflect the change.
+        let bindings = registry.bindings_for("file.save");
+        assert_eq!(bindings, vec![KeyCode::KeyP]);
+    }
+
+    #[test]
+    fn shortcut_registry_override_bindings_missing_command() {
+        let mut registry = ShortcutRegistry::default();
+        let result = registry.override_bindings("nonexistent", vec![]);
+        assert!(!result);
+    }
+
+    #[test]
+    fn command_palette_state_default() {
+        let state = CommandPaletteState::default();
+        assert!(!state.open);
+        assert!(state.query.is_empty());
+        assert_eq!(state.selected_index, 0);
+    }
+
+    #[test]
+    fn keycode_display_name_letters() {
+        assert_eq!(keycode_display_name(KeyCode::KeyA), "A");
+        assert_eq!(keycode_display_name(KeyCode::KeyZ), "Z");
+    }
+
+    #[test]
+    fn keycode_display_name_digits() {
+        assert_eq!(keycode_display_name(KeyCode::Digit0), "0");
+        assert_eq!(keycode_display_name(KeyCode::Digit9), "9");
+    }
+
+    #[test]
+    fn keycode_display_name_special() {
+        assert_eq!(keycode_display_name(KeyCode::Space), "Space");
+        assert_eq!(keycode_display_name(KeyCode::Enter), "Enter");
+        assert_eq!(keycode_display_name(KeyCode::Tab), "Tab");
+        assert_eq!(keycode_display_name(KeyCode::Equal), "=");
+        assert_eq!(keycode_display_name(KeyCode::Minus), "-");
+    }
+
+    #[test]
+    fn keycode_display_name_arrows() {
+        assert_eq!(keycode_display_name(KeyCode::ArrowUp), "\u{2191}");
+        assert_eq!(keycode_display_name(KeyCode::ArrowDown), "\u{2193}");
+        assert_eq!(keycode_display_name(KeyCode::ArrowLeft), "\u{2190}");
+        assert_eq!(keycode_display_name(KeyCode::ArrowRight), "\u{2192}");
+    }
+
+    #[test]
+    fn keycode_display_name_unknown_returns_question_mark() {
+        assert_eq!(keycode_display_name(KeyCode::F24), "?");
+    }
+
+    #[test]
+    fn command_executed_event_construction() {
+        let evt = CommandExecutedEvent {
+            command_id: CommandId("test.cmd"),
+        };
+        assert_eq!(evt.command_id, CommandId("test.cmd"));
+    }
+
+    #[test]
+    fn shortcut_registry_is_pressed_matching() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(CommandEntry {
+            id: CommandId("camera.pan"),
+            name: "Pan".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyW, Modifiers::NONE)],
+            category: CommandCategory::Camera,
+            continuous: true,
+        });
+
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyW);
+        assert!(registry.is_pressed("camera.pan", &keys));
+    }
+
+    #[test]
+    fn shortcut_registry_is_pressed_wrong_key() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(CommandEntry {
+            id: CommandId("camera.pan"),
+            name: "Pan".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyW, Modifiers::NONE)],
+            category: CommandCategory::Camera,
+            continuous: true,
+        });
+
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyA);
+        assert!(!registry.is_pressed("camera.pan", &keys));
+    }
+
+    #[test]
+    fn shortcut_registry_is_pressed_missing_command() {
+        let registry = ShortcutRegistry::default();
+        let keys = ButtonInput::<KeyCode>::default();
+        assert!(!registry.is_pressed("nonexistent", &keys));
+    }
+
+    #[test]
+    fn shortcut_registry_is_pressed_with_modifiers() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(CommandEntry {
+            id: CommandId("file.save"),
+            name: "Save".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyS, Modifiers::CMD)],
+            category: CommandCategory::File,
+            continuous: false,
+        });
+
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyS);
+        keys.press(KeyCode::SuperLeft);
+        assert!(registry.is_pressed("file.save", &keys));
+    }
+
+    #[test]
+    fn shortcut_registry_is_pressed_modifier_mismatch() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(CommandEntry {
+            id: CommandId("file.save"),
+            name: "Save".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyS, Modifiers::CMD)],
+            category: CommandCategory::File,
+            continuous: false,
+        });
+
+        // Press S without Cmd — should not match.
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyS);
+        assert!(!registry.is_pressed("file.save", &keys));
+    }
+
+    #[test]
+    fn shortcut_registry_register_conflict_overwrites() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("cmd.a", KeyCode::KeyS, Modifiers::CMD));
+        // Register another command with the same binding — last wins.
+        registry.register(test_command("cmd.b", KeyCode::KeyS, Modifiers::CMD));
+
+        let binding = KeyBinding::new(KeyCode::KeyS, Modifiers::CMD);
+        let found = registry.lookup(&binding).unwrap();
+        assert_eq!(found.id, CommandId("cmd.b"));
+    }
+
+    #[test]
+    fn shortcut_registry_override_conflict_warns() {
+        let mut registry = ShortcutRegistry::default();
+        registry.register(test_command("cmd.a", KeyCode::KeyS, Modifiers::CMD));
+        registry.register(test_command("cmd.b", KeyCode::KeyP, Modifiers::CMD));
+
+        // Override cmd.b to use same binding as cmd.a — should overwrite.
+        let new_binding = KeyBinding::new(KeyCode::KeyS, Modifiers::CMD);
+        let result = registry.override_bindings("cmd.b", vec![new_binding.clone()]);
+        assert!(result);
+        // Now cmd.b should own the binding.
+        let found = registry.lookup(&new_binding).unwrap();
+        assert_eq!(found.id, CommandId("cmd.b"));
+    }
+
+    #[test]
+    fn modifiers_constants() {
+        let none = Modifiers::NONE;
+        assert!(!none.cmd);
+        assert!(!none.shift);
+        assert!(!none.alt);
+        assert!(!none.ctrl);
+
+        let cmd = Modifiers::CMD;
+        assert!(cmd.cmd);
+        assert!(!cmd.shift);
+
+        let cmd_shift = Modifiers::CMD_SHIFT;
+        assert!(cmd_shift.cmd);
+        assert!(cmd_shift.shift);
+        assert!(!cmd_shift.alt);
+    }
+
+    #[test]
+    fn command_category_all_variants() {
+        let cats = [
+            CommandCategory::Camera,
+            CommandCategory::File,
+            CommandCategory::Edit,
+            CommandCategory::View,
+            CommandCategory::Tool,
+            CommandCategory::Mode,
+        ];
+        for cat in cats {
+            assert!(!format!("{cat:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn keycode_display_name_all_letters() {
+        let pairs = [
+            (KeyCode::KeyA, "A"),
+            (KeyCode::KeyB, "B"),
+            (KeyCode::KeyC, "C"),
+            (KeyCode::KeyD, "D"),
+            (KeyCode::KeyE, "E"),
+            (KeyCode::KeyF, "F"),
+            (KeyCode::KeyG, "G"),
+            (KeyCode::KeyH, "H"),
+            (KeyCode::KeyI, "I"),
+            (KeyCode::KeyJ, "J"),
+            (KeyCode::KeyK, "K"),
+            (KeyCode::KeyL, "L"),
+            (KeyCode::KeyM, "M"),
+            (KeyCode::KeyN, "N"),
+            (KeyCode::KeyO, "O"),
+            (KeyCode::KeyP, "P"),
+            (KeyCode::KeyQ, "Q"),
+            (KeyCode::KeyR, "R"),
+            (KeyCode::KeyS, "S"),
+            (KeyCode::KeyT, "T"),
+            (KeyCode::KeyU, "U"),
+            (KeyCode::KeyV, "V"),
+            (KeyCode::KeyW, "W"),
+            (KeyCode::KeyX, "X"),
+            (KeyCode::KeyY, "Y"),
+            (KeyCode::KeyZ, "Z"),
+        ];
+        for (key, expected) in pairs {
+            assert_eq!(keycode_display_name(key), expected);
+        }
+    }
+
+    #[test]
+    fn keycode_display_name_all_digits() {
+        let pairs = [
+            (KeyCode::Digit0, "0"),
+            (KeyCode::Digit1, "1"),
+            (KeyCode::Digit2, "2"),
+            (KeyCode::Digit3, "3"),
+            (KeyCode::Digit4, "4"),
+            (KeyCode::Digit5, "5"),
+            (KeyCode::Digit6, "6"),
+            (KeyCode::Digit7, "7"),
+            (KeyCode::Digit8, "8"),
+            (KeyCode::Digit9, "9"),
+        ];
+        for (key, expected) in pairs {
+            assert_eq!(keycode_display_name(key), expected);
+        }
+    }
+
+    #[test]
+    fn keycode_display_name_backspace_delete() {
+        assert_eq!(keycode_display_name(KeyCode::Backspace), "\u{232b}");
+        assert_eq!(keycode_display_name(KeyCode::Delete), "\u{2326}");
+    }
+}

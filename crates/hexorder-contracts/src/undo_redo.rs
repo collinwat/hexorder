@@ -794,4 +794,78 @@ mod tests {
             Some("Multi-step action".to_string())
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Additional coverage tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn with_max_depth_sets_custom_limit() {
+        let stack = UndoStack::with_max_depth(50);
+        let debug = format!("{stack:?}");
+        assert!(debug.contains("max_depth: 50"));
+    }
+
+    #[test]
+    fn eviction_adjusts_save_depth() {
+        let mut stack = UndoStack::with_max_depth(2);
+        stack.record(make_cmd("A"));
+        stack.mark_clean(); // save_depth = 1
+        stack.record(make_cmd("B")); // depth = 2 = max
+        stack.record(make_cmd("C")); // evicts A, save_depth decrements 1->0
+        // After eviction, save_depth should have decremented
+        // Stack now has [B, C], save_depth = 0, depth = 2 => dirty
+        assert!(stack.is_dirty());
+    }
+
+    #[test]
+    fn set_terrain_command_description() {
+        let cmd = SetTerrainCommand {
+            entity: Entity::PLACEHOLDER,
+            old_type_id: TypeId::new(),
+            old_properties: HashMap::new(),
+            new_type_id: TypeId::new(),
+            new_properties: HashMap::new(),
+            label: "Paint (0, 1) to Plains".to_string(),
+        };
+        assert_eq!(cmd.description(), "Paint (0, 1) to Plains");
+    }
+
+    #[test]
+    fn place_unit_command_debug_impl() {
+        let cmd = PlaceUnitCommand {
+            entity: None,
+            position: HexPosition::new(1, -1),
+            entity_data: EntityData {
+                entity_type_id: TypeId::new(),
+                properties: HashMap::new(),
+            },
+            mesh: Handle::default(),
+            material: Handle::default(),
+            transform: Transform::IDENTITY,
+            label: "Place Infantry".to_string(),
+        };
+        let debug = format!("{cmd:?}");
+        assert!(debug.contains("PlaceUnitCommand"));
+        assert!(debug.contains("Place Infantry"));
+    }
+
+    #[test]
+    fn compound_command_undo_in_world() {
+        let mut compound = CompoundCommand {
+            commands: vec![make_cmd("X"), make_cmd("Y")],
+            label: "XY".to_string(),
+        };
+        let mut world = World::new();
+        compound.execute(&mut world);
+        compound.undo(&mut world);
+        // No panic means success for no-op test commands.
+    }
+
+    #[test]
+    fn pop_from_empty_stacks_returns_none() {
+        let mut stack = UndoStack::default();
+        assert!(stack.pop_undo().is_none());
+        assert!(stack.pop_redo().is_none());
+    }
 }

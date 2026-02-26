@@ -220,4 +220,140 @@ mod tests {
         assert!(ws.file_path.is_none());
         assert!(!ws.dirty);
     }
+
+    #[test]
+    fn workspace_default_font_size() {
+        let ws = Workspace::default();
+        assert!((ws.font_size_base - 15.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn workspace_default_preset_is_empty() {
+        let ws = Workspace::default();
+        assert!(ws.workspace_preset.is_empty());
+    }
+
+    #[test]
+    fn format_version_constant() {
+        assert_eq!(FORMAT_VERSION, 5);
+    }
+
+    #[test]
+    fn app_screen_default_is_launcher() {
+        let screen = AppScreen::default();
+        assert_eq!(screen, AppScreen::Launcher);
+    }
+
+    #[test]
+    fn app_screen_variants_are_distinct() {
+        assert_ne!(AppScreen::Launcher, AppScreen::Editor);
+        assert_ne!(AppScreen::Editor, AppScreen::Play);
+        assert_ne!(AppScreen::Launcher, AppScreen::Play);
+    }
+
+    #[test]
+    fn save_request_event_construction() {
+        let evt = SaveRequestEvent { save_as: true };
+        assert!(evt.save_as);
+        let evt2 = SaveRequestEvent { save_as: false };
+        assert!(!evt2.save_as);
+    }
+
+    #[test]
+    fn new_project_event_construction() {
+        let evt = NewProjectEvent {
+            name: "Test".to_string(),
+        };
+        assert_eq!(evt.name, "Test");
+    }
+
+    #[test]
+    fn persistence_error_display_io() {
+        let err = PersistenceError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "gone"));
+        let msg = format!("{err}");
+        assert!(msg.contains("I/O error"));
+    }
+
+    #[test]
+    fn persistence_error_display_unsupported_version() {
+        let err = PersistenceError::UnsupportedVersion { found: 99, max: 5 };
+        let msg = format!("{err}");
+        assert!(msg.contains("99"));
+        assert!(msg.contains('5'));
+    }
+
+    #[test]
+    fn persistence_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let pe: PersistenceError = io_err.into();
+        assert!(matches!(pe, PersistenceError::Io(_)));
+    }
+
+    #[test]
+    fn default_font_size_helper_returns_fifteen() {
+        assert!((default_font_size() - 15.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn persistence_error_display_serialize() {
+        // ron::Error::Message is the simplest public variant to construct.
+        let err = ron::Error::Message("bad data".to_string());
+        let pe = PersistenceError::Serialize(err);
+        let msg = format!("{pe}");
+        assert!(msg.contains("serialization error"));
+        assert!(msg.contains("bad data"));
+    }
+
+    #[test]
+    fn persistence_error_display_deserialize() {
+        let err = ron::from_str::<i32>("not_valid_ron").unwrap_err();
+        let pe = PersistenceError::Deserialize(err);
+        let msg = format!("{pe}");
+        assert!(msg.contains("deserialization error"));
+    }
+
+    #[test]
+    fn workspace_with_custom_fields() {
+        let ws = Workspace {
+            name: "My Project".to_string(),
+            file_path: Some(std::path::PathBuf::from("/tmp/test.ron")),
+            dirty: true,
+            workspace_preset: "playtesting".to_string(),
+            font_size_base: 18.0,
+        };
+        assert!(ws.dirty);
+        assert_eq!(ws.name, "My Project");
+        assert_eq!(ws.file_path.unwrap().to_str().unwrap(), "/tmp/test.ron");
+        assert_eq!(ws.workspace_preset, "playtesting");
+    }
+
+    #[test]
+    fn tile_save_data_construction() {
+        let data = TileSaveData {
+            position: HexPosition { q: 1, r: -1 },
+            entity_type_id: TypeId::new(),
+            properties: HashMap::new(),
+        };
+        assert_eq!(data.position.q, 1);
+    }
+
+    #[test]
+    fn unit_save_data_construction() {
+        let data = UnitSaveData {
+            position: HexPosition { q: 0, r: 0 },
+            entity_type_id: TypeId::new(),
+            properties: HashMap::new(),
+        };
+        assert_eq!(data.position.r, 0);
+    }
+
+    #[test]
+    fn pending_board_load_construction() {
+        let load = PendingBoardLoad {
+            tiles: vec![],
+            units: vec![],
+        };
+        assert!(load.tiles.is_empty());
+        assert!(load.units.is_empty());
+    }
 }

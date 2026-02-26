@@ -510,4 +510,182 @@ mod tests {
             }
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Additional coverage tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn type_id_uniqueness() {
+        let a = TypeId::new();
+        let b = TypeId::new();
+        assert_ne!(a, b, "Two new TypeIds should differ");
+    }
+
+    #[test]
+    fn type_id_default_generates_unique() {
+        let a = TypeId::default();
+        let b = TypeId::default();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn entity_type_registry_get() {
+        let id = TypeId::new();
+        let registry = EntityTypeRegistry {
+            types: vec![EntityType {
+                id,
+                name: "Forest".to_string(),
+                role: EntityRole::BoardPosition,
+                color: bevy::color::Color::srgb(0.0, 0.5, 0.0),
+                properties: vec![],
+            }],
+        };
+        assert!(registry.get(id).is_some());
+        assert_eq!(registry.get(id).expect("present").name, "Forest");
+        assert!(registry.get(TypeId::new()).is_none());
+    }
+
+    #[test]
+    fn entity_type_registry_types_by_role() {
+        let registry = EntityTypeRegistry {
+            types: vec![
+                EntityType {
+                    id: TypeId::new(),
+                    name: "Plains".to_string(),
+                    role: EntityRole::BoardPosition,
+                    color: bevy::color::Color::WHITE,
+                    properties: vec![],
+                },
+                EntityType {
+                    id: TypeId::new(),
+                    name: "Infantry".to_string(),
+                    role: EntityRole::Token,
+                    color: bevy::color::Color::WHITE,
+                    properties: vec![],
+                },
+                EntityType {
+                    id: TypeId::new(),
+                    name: "Mountain".to_string(),
+                    role: EntityRole::BoardPosition,
+                    color: bevy::color::Color::WHITE,
+                    properties: vec![],
+                },
+            ],
+        };
+        let board = registry.types_by_role(EntityRole::BoardPosition);
+        assert_eq!(board.len(), 2);
+        let tokens = registry.types_by_role(EntityRole::Token);
+        assert_eq!(tokens.len(), 1);
+    }
+
+    #[test]
+    fn entity_type_registry_first_by_role() {
+        let registry = EntityTypeRegistry {
+            types: vec![EntityType {
+                id: TypeId::new(),
+                name: "Infantry".to_string(),
+                role: EntityRole::Token,
+                color: bevy::color::Color::WHITE,
+                properties: vec![],
+            }],
+        };
+        assert!(registry.first_by_role(EntityRole::Token).is_some());
+        assert!(registry.first_by_role(EntityRole::BoardPosition).is_none());
+    }
+
+    #[test]
+    fn entity_type_registry_default_is_empty() {
+        let registry = EntityTypeRegistry::default();
+        assert!(registry.types.is_empty());
+    }
+
+    #[test]
+    fn property_value_default_for_all_types() {
+        type Cases = Vec<(PropertyType, fn(&PropertyValue) -> bool)>;
+        let cases: Cases = vec![
+            (PropertyType::Bool, |v| {
+                matches!(v, PropertyValue::Bool(false))
+            }),
+            (PropertyType::Int, |v| matches!(v, PropertyValue::Int(0))),
+            (
+                PropertyType::Float,
+                |v| matches!(v, PropertyValue::Float(f) if *f == 0.0),
+            ),
+            (
+                PropertyType::String,
+                |v| matches!(v, PropertyValue::String(s) if s.is_empty()),
+            ),
+            (PropertyType::Color, |v| {
+                matches!(v, PropertyValue::Color(_))
+            }),
+            (
+                PropertyType::Enum(TypeId::default()),
+                |v| matches!(v, PropertyValue::Enum(s) if s.is_empty()),
+            ),
+            (PropertyType::EntityRef(None), |v| {
+                matches!(v, PropertyValue::EntityRef(None))
+            }),
+            (
+                PropertyType::List(Box::new(PropertyType::Int)),
+                |v| matches!(v, PropertyValue::List(l) if l.is_empty()),
+            ),
+            (
+                PropertyType::Map(TypeId::default(), Box::new(PropertyType::Int)),
+                |v| matches!(v, PropertyValue::Map(m) if m.is_empty()),
+            ),
+            (
+                PropertyType::Struct(TypeId::default()),
+                |v| matches!(v, PropertyValue::Struct(m) if m.is_empty()),
+            ),
+            (PropertyType::IntRange { min: 5, max: 10 }, |v| {
+                matches!(v, PropertyValue::IntRange(5))
+            }),
+            (
+                PropertyType::FloatRange { min: 1.5, max: 3.0 },
+                |v| matches!(v, PropertyValue::FloatRange(f) if (*f - 1.5).abs() < f64::EPSILON),
+            ),
+        ];
+        for (pt, check) in &cases {
+            let val = PropertyValue::default_for(pt);
+            assert!(
+                check(&val),
+                "default_for({pt:?}) produced unexpected {val:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn enum_registry_insert_and_remove() {
+        let mut reg = EnumRegistry::default();
+        let def = EnumDefinition {
+            id: TypeId::new(),
+            name: "Side".to_string(),
+            options: vec!["A".to_string(), "B".to_string()],
+        };
+        let id = def.id;
+        reg.insert(def);
+        assert!(reg.get(id).is_some());
+        assert!(reg.get_mut(id).is_some());
+        let removed = reg.remove(id);
+        assert!(removed.is_some());
+        assert!(reg.get(id).is_none());
+    }
+
+    #[test]
+    fn struct_registry_insert_and_remove() {
+        let mut reg = StructRegistry::default();
+        let def = StructDefinition {
+            id: TypeId::new(),
+            name: "Stats".to_string(),
+            fields: vec![],
+        };
+        let id = def.id;
+        reg.insert(def);
+        assert!(reg.get(id).is_some());
+        assert!(reg.get_mut(id).is_some());
+        let removed = reg.remove(id);
+        assert!(removed.is_some());
+        assert!(reg.get(id).is_none());
+    }
 }

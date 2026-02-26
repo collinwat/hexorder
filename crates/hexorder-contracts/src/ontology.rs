@@ -319,4 +319,264 @@ mod tests {
             other => panic!("expected All, got {other:?}"),
         }
     }
+
+    /// Exercise remaining `ConstraintExpr` variants: `CrossCompare`, `IsNotType`, `PathBudget`, Any.
+    #[test]
+    fn constraint_expr_cross_compare_ron_round_trip() {
+        let expr = ConstraintExpr::CrossCompare {
+            left_role_id: TypeId::new(),
+            left_property: "budget".to_string(),
+            operator: CompareOp::Gt,
+            right_role_id: TypeId::new(),
+            right_property: "cost".to_string(),
+        };
+        let ron_str = ron::to_string(&expr).expect("serialize");
+        let deserialized: ConstraintExpr = ron::from_str(&ron_str).expect("deserialize");
+        assert!(matches!(deserialized, ConstraintExpr::CrossCompare { .. }));
+    }
+
+    #[test]
+    fn constraint_expr_is_not_type_ron_round_trip() {
+        let expr = ConstraintExpr::IsNotType {
+            role_id: TypeId::new(),
+            entity_type_id: TypeId::new(),
+        };
+        let ron_str = ron::to_string(&expr).expect("serialize");
+        let deserialized: ConstraintExpr = ron::from_str(&ron_str).expect("deserialize");
+        assert!(matches!(deserialized, ConstraintExpr::IsNotType { .. }));
+    }
+
+    #[test]
+    fn constraint_expr_path_budget_ron_round_trip() {
+        let expr = ConstraintExpr::PathBudget {
+            concept_id: TypeId::new(),
+            cost_property: "cost".to_string(),
+            cost_role_id: TypeId::new(),
+            budget_property: "budget".to_string(),
+            budget_role_id: TypeId::new(),
+        };
+        let ron_str = ron::to_string(&expr).expect("serialize");
+        let deserialized: ConstraintExpr = ron::from_str(&ron_str).expect("deserialize");
+        assert!(matches!(deserialized, ConstraintExpr::PathBudget { .. }));
+    }
+
+    #[test]
+    fn constraint_expr_any_ron_round_trip() {
+        let expr = ConstraintExpr::Any(vec![ConstraintExpr::PropertyCompare {
+            role_id: TypeId::new(),
+            property_name: "x".to_string(),
+            operator: CompareOp::Eq,
+            value: PropertyValue::Int(1),
+        }]);
+        let ron_str = ron::to_string(&expr).expect("serialize");
+        let deserialized: ConstraintExpr = ron::from_str(&ron_str).expect("deserialize");
+        match deserialized {
+            ConstraintExpr::Any(children) => assert_eq!(children.len(), 1),
+            other => panic!("expected Any, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn relation_registry_ron_round_trip() {
+        let reg = RelationRegistry {
+            relations: vec![Relation {
+                id: TypeId::new(),
+                name: "Cost".to_string(),
+                concept_id: TypeId::new(),
+                subject_role_id: TypeId::new(),
+                object_role_id: TypeId::new(),
+                trigger: RelationTrigger::OnEnter,
+                effect: RelationEffect::ModifyProperty {
+                    target_property: "budget".to_string(),
+                    source_property: "cost".to_string(),
+                    operation: ModifyOperation::Subtract,
+                },
+            }],
+        };
+        let ron_str = ron::to_string(&reg).expect("serialize");
+        let deserialized: RelationRegistry = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.relations.len(), 1);
+        assert_eq!(deserialized.relations[0].trigger, RelationTrigger::OnEnter);
+    }
+
+    #[test]
+    fn relation_effect_block_allow_ron_round_trip() {
+        let block = RelationEffect::Block { condition: None };
+        let allow = RelationEffect::Allow {
+            condition: Some(ConstraintExpr::All(vec![])),
+        };
+        let ron_block = ron::to_string(&block).expect("serialize block");
+        let ron_allow = ron::to_string(&allow).expect("serialize allow");
+        let _: RelationEffect = ron::from_str(&ron_block).expect("deserialize block");
+        let _: RelationEffect = ron::from_str(&ron_allow).expect("deserialize allow");
+    }
+
+    #[test]
+    fn constraint_registry_ron_round_trip() {
+        let reg = ConstraintRegistry {
+            constraints: vec![Constraint {
+                id: TypeId::new(),
+                name: "Budget >= 0".to_string(),
+                description: "Must have budget".to_string(),
+                concept_id: TypeId::new(),
+                relation_id: None,
+                expression: ConstraintExpr::All(Vec::new()),
+                auto_generated: false,
+            }],
+        };
+        let ron_str = ron::to_string(&reg).expect("serialize");
+        let deserialized: ConstraintRegistry = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.constraints.len(), 1);
+        assert!(!deserialized.constraints[0].auto_generated);
+    }
+
+    #[test]
+    fn relation_trigger_variants() {
+        assert_ne!(RelationTrigger::OnEnter, RelationTrigger::OnExit);
+        assert_ne!(RelationTrigger::OnExit, RelationTrigger::WhilePresent);
+    }
+
+    #[test]
+    fn compare_op_all_variants() {
+        let ops = [
+            CompareOp::Eq,
+            CompareOp::Ne,
+            CompareOp::Lt,
+            CompareOp::Le,
+            CompareOp::Gt,
+            CompareOp::Ge,
+        ];
+        for op in ops {
+            assert!(!format!("{op:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn modify_operation_all_variants() {
+        let ops = [
+            ModifyOperation::Add,
+            ModifyOperation::Subtract,
+            ModifyOperation::Multiply,
+            ModifyOperation::Min,
+            ModifyOperation::Max,
+        ];
+        for op in ops {
+            assert!(!format!("{op:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn concept_role_construction() {
+        let role = ConceptRole {
+            id: TypeId::new(),
+            name: "terrain".to_string(),
+            allowed_entity_roles: vec![EntityRole::BoardPosition],
+        };
+        assert_eq!(role.name, "terrain");
+        assert_eq!(role.allowed_entity_roles.len(), 1);
+        assert_eq!(role.allowed_entity_roles[0], EntityRole::BoardPosition);
+    }
+
+    #[test]
+    fn concept_description_field() {
+        let concept = Concept {
+            id: TypeId::new(),
+            name: "Defense".to_string(),
+            description: "Defensive capabilities".to_string(),
+            role_labels: vec![],
+        };
+        assert_eq!(concept.description, "Defensive capabilities");
+        assert!(concept.role_labels.is_empty());
+    }
+
+    #[test]
+    fn property_binding_construction() {
+        let pb = PropertyBinding {
+            property_id: TypeId::new(),
+            concept_local_name: "cost".to_string(),
+        };
+        assert_eq!(pb.concept_local_name, "cost");
+    }
+
+    #[test]
+    fn concept_binding_fields() {
+        let concept_id = TypeId::new();
+        let role_id = TypeId::new();
+        let entity_type_id = TypeId::new();
+        let binding = ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id,
+            concept_id,
+            concept_role_id: role_id,
+            property_bindings: vec![],
+        };
+        assert_eq!(binding.concept_id, concept_id);
+        assert_eq!(binding.concept_role_id, role_id);
+        assert_eq!(binding.entity_type_id, entity_type_id);
+        assert!(binding.property_bindings.is_empty());
+    }
+
+    #[test]
+    fn relation_fields() {
+        let r = Relation {
+            id: TypeId::new(),
+            name: "Terrain Cost".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::WhilePresent,
+            effect: RelationEffect::Block { condition: None },
+        };
+        assert_eq!(r.name, "Terrain Cost");
+        assert_eq!(r.trigger, RelationTrigger::WhilePresent);
+    }
+
+    #[test]
+    fn constraint_auto_generated_field() {
+        let c = Constraint {
+            id: TypeId::new(),
+            name: "auto".to_string(),
+            description: "Auto-generated".to_string(),
+            concept_id: TypeId::new(),
+            relation_id: Some(TypeId::new()),
+            expression: ConstraintExpr::All(vec![]),
+            auto_generated: true,
+        };
+        assert!(c.auto_generated);
+        assert!(c.relation_id.is_some());
+    }
+
+    #[test]
+    fn concept_registry_default_is_empty() {
+        let reg = ConceptRegistry::default();
+        assert!(reg.concepts.is_empty());
+        assert!(reg.bindings.is_empty());
+    }
+
+    #[test]
+    fn relation_registry_default_is_empty() {
+        let reg = RelationRegistry::default();
+        assert!(reg.relations.is_empty());
+    }
+
+    #[test]
+    fn constraint_registry_default_is_empty() {
+        let reg = ConstraintRegistry::default();
+        assert!(reg.constraints.is_empty());
+    }
+
+    #[test]
+    fn relation_effect_modify_property_ron_round_trip() {
+        let effect = RelationEffect::ModifyProperty {
+            target_property: "budget".to_string(),
+            source_property: "cost".to_string(),
+            operation: ModifyOperation::Add,
+        };
+        let ron_str = ron::to_string(&effect).expect("serialize");
+        let deserialized: RelationEffect = ron::from_str(&ron_str).expect("deserialize");
+        assert!(matches!(
+            deserialized,
+            RelationEffect::ModifyProperty { .. }
+        ));
+    }
 }

@@ -469,4 +469,84 @@ mod tests {
         let edges: Vec<_> = registry.edges_for_hex(center).collect();
         assert_eq!(edges.len(), 2);
     }
+
+    // -----------------------------------------------------------------------
+    // Additional coverage tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hex_position_new_stores_coordinates() {
+        let pos = HexPosition::new(7, -3);
+        assert_eq!(pos.q, 7);
+        assert_eq!(pos.r, -3);
+    }
+
+    #[test]
+    fn hex_position_to_hex_and_back() {
+        let pos = HexPosition::new(-4, 2);
+        let hex = pos.to_hex();
+        let back = HexPosition::from_hex(hex);
+        assert_eq!(pos, back);
+    }
+
+    #[test]
+    fn hex_position_debug_impl() {
+        let pos = HexPosition::new(1, 2);
+        let debug = format!("{pos:?}");
+        assert!(debug.contains("HexPosition"));
+        assert!(debug.contains('1'));
+        assert!(debug.contains('2'));
+    }
+
+    #[test]
+    fn move_overlay_state_valid_and_blocked_are_distinct() {
+        assert_ne!(MoveOverlayState::Valid, MoveOverlayState::Blocked);
+    }
+
+    #[test]
+    fn move_overlay_construction() {
+        let overlay = MoveOverlay {
+            state: MoveOverlayState::Valid,
+            position: HexPosition::new(3, -1),
+        };
+        assert_eq!(overlay.state, MoveOverlayState::Valid);
+        assert_eq!(overlay.position, HexPosition::new(3, -1));
+    }
+
+    #[test]
+    fn selected_hex_default_is_none() {
+        let sh = SelectedHex::default();
+        assert!(sh.position.is_none());
+    }
+
+    #[test]
+    fn line_of_sight_result_construction() {
+        let los = LineOfSightResult {
+            origin: HexPosition::new(0, 0),
+            target: HexPosition::new(2, 0),
+            clear: true,
+            path: vec![
+                HexPosition::new(0, 0),
+                HexPosition::new(1, 0),
+                HexPosition::new(2, 0),
+            ],
+            blocked_by: None,
+        };
+        assert!(los.clear);
+        assert_eq!(los.path.len(), 3);
+        assert!(los.blocked_by.is_none());
+    }
+
+    #[test]
+    fn visibility_range_construction() {
+        let vr = VisibilityRange { range: 5 };
+        assert_eq!(vr.range, 5);
+    }
+
+    #[test]
+    fn hex_edge_registry_default_is_empty() {
+        let reg = HexEdgeRegistry::default();
+        assert!(reg.is_empty());
+        assert_eq!(reg.len(), 0);
+    }
 }

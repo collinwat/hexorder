@@ -100,3 +100,65 @@ pub fn pointer_over_ui_panel(
     let pos = bevy_egui::egui::Pos2::new(cursor.x, cursor.y);
     !vp_rect.contains(pos)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn editor_tool_default_is_select() {
+        assert_eq!(EditorTool::default(), EditorTool::Select);
+    }
+
+    #[test]
+    fn editor_tool_variants_are_distinct() {
+        assert_ne!(EditorTool::Select, EditorTool::Paint);
+        assert_ne!(EditorTool::Paint, EditorTool::Place);
+        assert_ne!(EditorTool::Select, EditorTool::Place);
+    }
+
+    #[test]
+    fn viewport_margins_default_is_zero() {
+        let m = ViewportMargins::default();
+        assert!((m.left).abs() < f32::EPSILON);
+        assert!((m.top).abs() < f32::EPSILON);
+        assert!((m.right).abs() < f32::EPSILON);
+        assert!((m.bottom).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn selection_default_is_empty() {
+        let s = Selection::default();
+        assert!(s.entities.is_empty());
+    }
+
+    #[test]
+    fn toast_kind_debug() {
+        let kinds = [ToastKind::Success, ToastKind::Error, ToastKind::Info];
+        for kind in kinds {
+            assert!(!format!("{kind:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn toast_event_construction() {
+        let evt = ToastEvent {
+            message: "Saved!".to_string(),
+            kind: ToastKind::Success,
+        };
+        assert_eq!(evt.message, "Saved!");
+        assert_eq!(evt.kind, ToastKind::Success);
+    }
+
+    #[test]
+    fn viewport_rect_default_is_none() {
+        let vr = ViewportRect::default();
+        assert!(vr.0.is_none());
+    }
+
+    #[test]
+    fn paint_preview_default_is_none() {
+        let pp = PaintPreview::default();
+        assert!(pp.material.is_none());
+    }
+}

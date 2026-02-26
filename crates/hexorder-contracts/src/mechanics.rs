@@ -421,3 +421,334 @@ pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -
     let shifted = base_column as i32 + shift;
     shifted.clamp(0, (column_count - 1) as i32) as usize
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_crt() -> CombatResultsTable {
+        CombatResultsTable {
+            id: TypeId::new(),
+            name: "Test CRT".to_string(),
+            columns: vec![
+                CrtColumn {
+                    label: "1:2".to_string(),
+                    column_type: CrtColumnType::OddsRatio,
+                    threshold: 0.5,
+                },
+                CrtColumn {
+                    label: "1:1".to_string(),
+                    column_type: CrtColumnType::OddsRatio,
+                    threshold: 1.0,
+                },
+                CrtColumn {
+                    label: "2:1".to_string(),
+                    column_type: CrtColumnType::OddsRatio,
+                    threshold: 2.0,
+                },
+            ],
+            rows: vec![
+                CrtRow {
+                    label: "1-2".to_string(),
+                    die_value_min: 1,
+                    die_value_max: 2,
+                },
+                CrtRow {
+                    label: "3-4".to_string(),
+                    die_value_min: 3,
+                    die_value_max: 4,
+                },
+                CrtRow {
+                    label: "5-6".to_string(),
+                    die_value_min: 5,
+                    die_value_max: 6,
+                },
+            ],
+            outcomes: vec![
+                vec![
+                    CombatOutcome {
+                        label: "AE".to_string(),
+                        effect: Some(OutcomeEffect::AttackerEliminated),
+                    },
+                    CombatOutcome {
+                        label: "NE".to_string(),
+                        effect: Some(OutcomeEffect::NoEffect),
+                    },
+                    CombatOutcome {
+                        label: "DR".to_string(),
+                        effect: Some(OutcomeEffect::Retreat { hexes: 1 }),
+                    },
+                ],
+                vec![
+                    CombatOutcome {
+                        label: "NE".to_string(),
+                        effect: None,
+                    },
+                    CombatOutcome {
+                        label: "DR".to_string(),
+                        effect: Some(OutcomeEffect::Retreat { hexes: 2 }),
+                    },
+                    CombatOutcome {
+                        label: "DE".to_string(),
+                        effect: Some(OutcomeEffect::DefenderEliminated),
+                    },
+                ],
+                vec![
+                    CombatOutcome {
+                        label: "EX".to_string(),
+                        effect: Some(OutcomeEffect::Exchange {
+                            attacker_steps: 1,
+                            defender_steps: 1,
+                        }),
+                    },
+                    CombatOutcome {
+                        label: "SL".to_string(),
+                        effect: Some(OutcomeEffect::StepLoss { steps: 1 }),
+                    },
+                    CombatOutcome {
+                        label: "ASL".to_string(),
+                        effect: Some(OutcomeEffect::AttackerStepLoss { steps: 1 }),
+                    },
+                ],
+            ],
+            combat_concept_id: None,
+        }
+    }
+
+    #[test]
+    fn calculate_odds_ratio_normal() {
+        let ratio = calculate_odds_ratio(6.0, 2.0);
+        assert!((ratio - 3.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn calculate_odds_ratio_zero_defender() {
+        let ratio = calculate_odds_ratio(5.0, 0.0);
+        assert!(ratio.is_infinite());
+    }
+
+    #[test]
+    fn calculate_differential_normal() {
+        let diff = calculate_differential(8.0, 3.0);
+        assert!((diff - 5.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn find_crt_column_matching() {
+        let crt = test_crt();
+        // 6 vs 2 = 3:1 ratio → should match column 2 (threshold 2.0).
+        let col = find_crt_column(6.0, 2.0, &crt.columns);
+        assert_eq!(col, Some(2));
+    }
+
+    #[test]
+    fn find_crt_column_below_all_thresholds() {
+        let crt = test_crt();
+        // 1 vs 10 = 0.1:1 ratio → below minimum 0.5 threshold.
+        let col = find_crt_column(1.0, 10.0, &crt.columns);
+        assert!(col.is_none());
+    }
+
+    #[test]
+    fn find_crt_column_empty_columns() {
+        let col = find_crt_column(5.0, 1.0, &[]);
+        assert!(col.is_none());
+    }
+
+    #[test]
+    fn find_crt_column_differential() {
+        let columns = vec![CrtColumn {
+            label: "+2".to_string(),
+            column_type: CrtColumnType::Differential,
+            threshold: 2.0,
+        }];
+        let col = find_crt_column(5.0, 2.0, &columns);
+        assert_eq!(col, Some(0)); // 5-2=3 >= 2
+    }
+
+    #[test]
+    fn find_crt_row_matching() {
+        let crt = test_crt();
+        assert_eq!(find_crt_row(1, &crt.rows), Some(0));
+        assert_eq!(find_crt_row(4, &crt.rows), Some(1));
+        assert_eq!(find_crt_row(6, &crt.rows), Some(2));
+    }
+
+    #[test]
+    fn find_crt_row_no_match() {
+        let crt = test_crt();
+        assert!(find_crt_row(7, &crt.rows).is_none());
+    }
+
+    #[test]
+    fn resolve_crt_full() {
+        let crt = test_crt();
+        // 6 vs 2 = 3:1 → column 2; die roll 3 → row 1 → "DE"
+        let result = resolve_crt(&crt, 6.0, 2.0, 3);
+        assert!(result.is_some());
+        let r = result.unwrap();
+        assert_eq!(r.column_index, 2);
+        assert_eq!(r.row_index, 1);
+        assert_eq!(r.outcome.label, "DE");
+    }
+
+    #[test]
+    fn resolve_crt_no_column() {
+        let crt = test_crt();
+        let result = resolve_crt(&crt, 1.0, 10.0, 3);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_crt_no_row() {
+        let crt = test_crt();
+        let result = resolve_crt(&crt, 6.0, 2.0, 99);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn evaluate_modifiers_empty() {
+        let (total, display) = evaluate_modifiers_prioritized(&[], 3);
+        assert_eq!(total, 0);
+        assert!(display.is_empty());
+    }
+
+    #[test]
+    fn evaluate_modifiers_with_cap() {
+        let mods = vec![CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Terrain".to_string(),
+            source: ModifierSource::DefenderTerrain,
+            column_shift: -3,
+            priority: 10,
+            cap: Some(2),
+            terrain_type_filter: None,
+        }];
+        let (total, display) = evaluate_modifiers_prioritized(&mods, 5);
+        assert_eq!(total, -2); // -3 clamped to [-2, 2]
+        assert_eq!(display.len(), 1);
+    }
+
+    #[test]
+    fn evaluate_modifiers_priority_order() {
+        let mods = vec![
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "Low".to_string(),
+                source: ModifierSource::Custom("low".to_string()),
+                column_shift: 1,
+                priority: 1,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "High".to_string(),
+                source: ModifierSource::Custom("high".to_string()),
+                column_shift: 2,
+                priority: 10,
+                cap: None,
+                terrain_type_filter: None,
+            },
+        ];
+        let (total, display) = evaluate_modifiers_prioritized(&mods, 10);
+        assert_eq!(total, 3);
+        // High priority should be displayed first.
+        assert_eq!(display[0].0, "High");
+        assert_eq!(display[1].0, "Low");
+    }
+
+    #[test]
+    fn apply_column_shift_positive() {
+        assert_eq!(apply_column_shift(1, 2, 5), 3);
+    }
+
+    #[test]
+    fn apply_column_shift_clamp_right() {
+        assert_eq!(apply_column_shift(3, 5, 5), 4);
+    }
+
+    #[test]
+    fn apply_column_shift_clamp_left() {
+        assert_eq!(apply_column_shift(1, -5, 5), 0);
+    }
+
+    #[test]
+    fn apply_column_shift_zero_columns() {
+        assert_eq!(apply_column_shift(0, 3, 0), 0);
+    }
+
+    #[test]
+    fn turn_structure_default() {
+        let ts = TurnStructure::default();
+        assert!(ts.phases.is_empty());
+        assert_eq!(ts.player_order, PlayerOrder::Alternating);
+    }
+
+    #[test]
+    fn combat_results_table_default() {
+        let crt = CombatResultsTable::default();
+        assert_eq!(crt.name, "Combat Results Table");
+        assert!(crt.columns.is_empty());
+        assert!(crt.rows.is_empty());
+        assert!(crt.outcomes.is_empty());
+    }
+
+    #[test]
+    fn modifier_source_variants() {
+        let sources = [
+            ModifierSource::DefenderTerrain,
+            ModifierSource::AttackerTerrain,
+            ModifierSource::AttackerProperty("str".to_string()),
+            ModifierSource::DefenderProperty("def".to_string()),
+            ModifierSource::Custom("rule".to_string()),
+        ];
+        for s in &sources {
+            assert!(!format!("{s:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn outcome_effect_all_variants_debug() {
+        let effects = [
+            OutcomeEffect::NoEffect,
+            OutcomeEffect::Retreat { hexes: 2 },
+            OutcomeEffect::StepLoss { steps: 1 },
+            OutcomeEffect::AttackerStepLoss { steps: 1 },
+            OutcomeEffect::Exchange {
+                attacker_steps: 1,
+                defender_steps: 2,
+            },
+            OutcomeEffect::AttackerEliminated,
+            OutcomeEffect::DefenderEliminated,
+        ];
+        for e in &effects {
+            assert!(!format!("{e:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn crt_ron_round_trip() {
+        let crt = test_crt();
+        let ron_str = ron::to_string(&crt).expect("serialize");
+        let deserialized: CombatResultsTable = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.columns.len(), 3);
+        assert_eq!(deserialized.rows.len(), 3);
+        assert_eq!(deserialized.outcomes.len(), 3);
+    }
+
+    #[test]
+    fn evaluate_modifiers_clamps_to_column_bounds() {
+        let mods = vec![CombatModifierDefinition {
+            id: TypeId::new(),
+            name: "Huge".to_string(),
+            source: ModifierSource::Custom("big".to_string()),
+            column_shift: 100,
+            priority: 1,
+            cap: None,
+            terrain_type_filter: None,
+        }];
+        let (total, _) = evaluate_modifiers_prioritized(&mods, 5);
+        assert_eq!(total, 4); // clamped to max_shift = column_count - 1
+    }
+}

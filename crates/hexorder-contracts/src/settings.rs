@@ -130,3 +130,70 @@ pub struct ThemeDefinition {
     /// Success/confirmation color. RGB.
     pub success: [u8; 3],
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn editor_settings_default() {
+        let s = EditorSettings::default();
+        assert!((s.font_size - 15.0).abs() < f32::EPSILON);
+        assert!(s.workspace_preset.is_empty());
+    }
+
+    #[test]
+    fn editor_settings_custom_values() {
+        let s = EditorSettings {
+            font_size: 18.0,
+            workspace_preset: "wargame".to_string(),
+        };
+        assert!((s.font_size - 18.0).abs() < f32::EPSILON);
+        assert_eq!(s.workspace_preset, "wargame");
+    }
+
+    #[test]
+    fn settings_registry_default() {
+        let sr = SettingsRegistry::default();
+        assert!((sr.editor.font_size - 15.0).abs() < f32::EPSILON);
+        assert_eq!(sr.active_theme, "brand");
+    }
+
+    #[test]
+    fn theme_library_find_returns_matching_theme() {
+        let lib = ThemeLibrary {
+            themes: vec![ThemeDefinition {
+                name: "Dark".to_string(),
+                bg_deep: [0, 0, 0],
+                bg_panel: [20, 20, 20],
+                bg_surface: [30, 30, 30],
+                widget_inactive: [40, 40, 40],
+                widget_hovered: [50, 50, 50],
+                widget_active: [60, 60, 60],
+                accent_primary: [0, 128, 255],
+                accent_secondary: [255, 180, 0],
+                text_primary: [230, 230, 230],
+                text_secondary: [160, 160, 160],
+                border: [60, 60, 60],
+                danger: [220, 50, 50],
+                success: [50, 180, 50],
+            }],
+        };
+        assert!(lib.find("Dark").is_some());
+        assert!(lib.find("Light").is_none());
+    }
+
+    #[test]
+    fn theme_library_default_is_empty() {
+        let lib = ThemeLibrary::default();
+        assert!(lib.themes.is_empty());
+        assert!(lib.find("anything").is_none());
+    }
+
+    #[test]
+    fn settings_changed_event_debug() {
+        let evt = SettingsChanged;
+        let debug = format!("{evt:?}");
+        assert!(debug.contains("SettingsChanged"));
+    }
+}
