@@ -135,7 +135,7 @@ pub(crate) fn poll_pending_export(world: &mut World) {
 }
 
 /// Run all exporters and write output files to the given directory.
-fn run_export(data: &ExportData, output_dir: &Path, world: &mut World) {
+pub(crate) fn run_export(data: &ExportData, output_dir: &Path, world: &mut World) {
     let exporters: Vec<Box<dyn ExportTarget>> = vec![
         Box::new(PrintAndPlayExporter::default()),
         Box::new(HexMapExporter::default()),
