@@ -391,6 +391,76 @@ mod architecture_tests {
     }
 }
 
+/// Tests for the `reveal_window` system.
+#[cfg(test)]
+mod reveal_window_tests {
+    use bevy::prelude::*;
+    use bevy::window::PrimaryWindow;
+
+    /// Build a headless app with the `reveal_window` system and a mock window.
+    fn app_with_reveal() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.world_mut().spawn((
+            Window {
+                visible: false,
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+        app.add_systems(Update, super::reveal_window);
+        app
+    }
+
+    #[test]
+    fn window_stays_hidden_before_three_frames() {
+        let mut app = app_with_reveal();
+        app.update(); // frame 1
+        app.update(); // frame 2
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>();
+        let window = query.single(app.world()).expect("window should exist");
+        assert!(
+            !window.visible,
+            "Window should still be hidden after 2 frames"
+        );
+    }
+
+    #[test]
+    fn window_becomes_visible_after_three_frames() {
+        let mut app = app_with_reveal();
+        app.update(); // frame 1
+        app.update(); // frame 2
+        app.update(); // frame 3
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>();
+        let window = query.single(app.world()).expect("window should exist");
+        assert!(window.visible, "Window should be visible after 3 frames");
+    }
+
+    #[test]
+    fn reveal_window_is_idempotent_after_done() {
+        let mut app = app_with_reveal();
+        app.update(); // frame 1
+        app.update(); // frame 2
+        app.update(); // frame 3 — reveals
+        app.update(); // frame 4 — should be a no-op
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>();
+        let window = query.single(app.world()).expect("window should exist");
+        assert!(
+            window.visible,
+            "Window should still be visible after extra frame"
+        );
+    }
+}
+
 /// Cross-plugin integration tests.
 ///
 /// Unit tests manually insert resources, so they never catch cross-plugin
