@@ -440,6 +440,56 @@ fn load_themes_from_dir_mixed_files() {
 }
 
 #[test]
+fn load_themes_from_dir_file_not_directory_returns_brand_only() {
+    // Pointing read_dir at a file (not a directory) triggers the non-NotFound Err branch.
+    let dir = std::env::temp_dir().join("hexorder_test_themes_notadir");
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let file_path = dir.join("some_file");
+    std::fs::write(&file_path, "not a directory").expect("write file");
+
+    let result = load_themes_from_dir(&file_path);
+    // read_dir on a file is an error (not NotFound) → returns brand theme only.
+    assert_eq!(result.themes.len(), 1);
+    assert_eq!(result.themes[0].name, "Brand");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn load_themes_from_dir_unreadable_toml_file() {
+    // A .toml file that can't be read (permissions) triggers the read_to_string Err branch.
+    let dir = std::env::temp_dir().join("hexorder_test_themes_unreadable");
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+
+    let toml_path = dir.join("locked.toml");
+    std::fs::write(&toml_path, "name = \"Locked\"").expect("write toml");
+
+    // Remove read permission.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o000);
+        std::fs::set_permissions(&toml_path, perms).expect("set permissions");
+    }
+
+    let result = load_themes_from_dir(&dir);
+
+    // Restore permissions before cleanup.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o644);
+        let _ = std::fs::set_permissions(&toml_path, perms);
+    }
+
+    // The unreadable file is skipped; only brand theme remains.
+    assert_eq!(result.themes.len(), 1);
+    assert_eq!(result.themes[0].name, "Brand");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn load_themes_returns_at_least_brand() {
     // Exercises the thin wrapper.
     let result = load_themes();
