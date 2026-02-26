@@ -10,7 +10,7 @@ use hexorder_contracts::shortcuts::{
 };
 
 /// Reads the current modifier key state from `ButtonInput<KeyCode>`.
-fn current_modifiers(keys: &ButtonInput<KeyCode>) -> Modifiers {
+pub(crate) fn current_modifiers(keys: &ButtonInput<KeyCode>) -> Modifiers {
     Modifiers {
         cmd: keys.any_pressed([KeyCode::SuperLeft, KeyCode::SuperRight]),
         shift: keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
@@ -84,7 +84,7 @@ pub fn match_shortcuts(
 }
 
 /// Returns true if the key is a modifier (should not be treated as a shortcut trigger).
-const fn is_modifier_key(key: KeyCode) -> bool {
+pub(crate) const fn is_modifier_key(key: KeyCode) -> bool {
     matches!(
         key,
         KeyCode::SuperLeft
@@ -133,12 +133,26 @@ pub fn command_palette_system(
         return;
     };
 
+    if let Some(command_id) = render_palette(ctx, &mut palette, &registry, &mut focus_requested) {
+        commands.trigger(CommandExecutedEvent { command_id });
+    }
+}
+
+/// Renders the command palette UI and returns the executed command (if any).
+/// Extracted from `command_palette_system` for testability with
+/// `egui_kittest::Harness`.
+pub(crate) fn render_palette(
+    ctx: &egui::Context,
+    palette: &mut CommandPaletteState,
+    registry: &ShortcutRegistry,
+    focus_requested: &mut bool,
+) -> Option<CommandId> {
     let screen = ctx.content_rect();
     let top_offset = screen.height() * PALETTE_TOP_FRACTION;
 
     // Build filtered results before the closure (avoids borrowing palette inside).
     let query = palette.query.clone();
-    let results = filtered_commands(&registry, &query);
+    let results = filtered_commands(registry, &query);
 
     // Clamp selected index to valid range.
     if results.is_empty() {
@@ -178,7 +192,7 @@ pub fn command_palette_system(
             }
 
             // Re-filter after query may have changed.
-            let results = filtered_commands(&registry, &palette.query);
+            let results = filtered_commands(registry, &palette.query);
             if results.is_empty() {
                 palette.selected_index = 0;
             } else {
@@ -221,16 +235,17 @@ pub fn command_palette_system(
         });
 
     // Fire command event OUTSIDE the egui closure (multi-pass safe).
-    if let Some(command_id) = executed_command {
+    if executed_command.is_some() {
         palette.open = false;
         palette.query.clear();
         palette.selected_index = 0;
-        commands.trigger(CommandExecutedEvent { command_id });
     }
+
+    executed_command
 }
 
 /// Renders one palette result row. Returns true if the row was clicked.
-fn render_palette_row(ui: &mut egui::Ui, entry: &CommandEntry, selected: bool) -> bool {
+pub(crate) fn render_palette_row(ui: &mut egui::Ui, entry: &CommandEntry, selected: bool) -> bool {
     let fill = if selected {
         PALETTE_ROW_SELECTED
     } else {
