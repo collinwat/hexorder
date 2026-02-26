@@ -532,6 +532,414 @@ fn place_undo_redo_restores_unit() {
     assert_eq!(units[0].1.entity_type_id, first_id);
 }
 
+/// Placement does nothing when `ActiveTokenType.entity_type_id` is `None`.
+#[test]
+fn place_unit_noop_when_no_active_type() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: None,
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "No unit should be placed when active type is None"
+    );
+}
+
+/// Placement does nothing when the active type ID is not in the registry.
+#[test]
+fn place_unit_noop_when_type_not_in_registry() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let unknown_id = TypeId::new(); // Not registered
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(unknown_id),
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "No unit should be placed when type is not in registry"
+    );
+}
+
+/// Placement does nothing when the position is outside grid bounds.
+#[test]
+fn place_unit_noop_when_out_of_bounds() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    app.world_mut().insert_resource(EditorTool::Place);
+    app.world_mut().insert_resource(ActiveTokenType {
+        entity_type_id: Some(first_id),
+    });
+
+    app.add_observer(systems::handle_unit_placement);
+
+    // Grid radius is 5, so (10, 10) is out of bounds.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(10, 10),
+    });
+    app.update();
+
+    let mut query = app
+        .world_mut()
+        .query_filtered::<Entity, With<UnitInstance>>();
+    assert_eq!(
+        query.iter(app.world()).count(),
+        0,
+        "No unit should be placed outside grid bounds"
+    );
+}
+
+/// `delete_selected_unit` clears selection when the selected entity no longer exists.
+#[test]
+fn delete_selected_unit_clears_when_entity_gone() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    // Spawn a unit and select it.
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    // Despawn the entity.
+    app.world_mut().despawn(unit_entity);
+
+    // Run the system.
+    app.add_systems(Update, systems::delete_selected_unit);
+    app.update();
+
+    let selected = app.world().resource::<SelectedUnit>();
+    assert!(
+        selected.entity.is_none(),
+        "Selection should be cleared when entity is despawned"
+    );
+}
+
+/// `delete_selected_unit` does nothing when selected entity still exists.
+#[test]
+fn delete_selected_unit_noop_when_entity_exists() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    app.add_systems(Update, systems::delete_selected_unit);
+    app.update();
+
+    let selected = app.world().resource::<SelectedUnit>();
+    assert_eq!(
+        selected.entity,
+        Some(unit_entity),
+        "Selection should remain when entity exists"
+    );
+}
+
+/// Clicking the same selected unit deselects it.
+#[test]
+fn click_selected_unit_deselects() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::Select);
+    app.init_resource::<ValidMoveSet>();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(1, 1),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    app.add_observer(systems::handle_unit_interaction);
+
+    // Click the same hex where the selected unit stands.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 1),
+    });
+    app.update();
+
+    let selected = app.world().resource::<SelectedUnit>();
+    assert!(
+        selected.entity.is_none(),
+        "Clicking selected unit should deselect it"
+    );
+}
+
+/// Movement is blocked when the destination is not in `ValidMoveSet.valid_positions`.
+#[test]
+fn move_unit_blocked_by_valid_move_set() {
+    use std::collections::HashSet;
+
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::Select);
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    // Only allow movement to (1, 0).
+    app.world_mut().insert_resource(ValidMoveSet {
+        valid_positions: HashSet::from([HexPosition::new(1, 0)]),
+        blocked_explanations: HashMap::new(),
+        for_entity: Some(unit_entity),
+    });
+
+    app.add_observer(systems::handle_unit_interaction);
+
+    // Try to move to (2, 1) which is NOT in valid positions.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(2, 1),
+    });
+    app.update();
+
+    let pos = app
+        .world()
+        .entity(unit_entity)
+        .get::<HexPosition>()
+        .expect("Unit should have HexPosition");
+    assert_eq!(
+        *pos,
+        HexPosition::new(0, 0),
+        "Unit should not move to position outside valid move set"
+    );
+}
+
+/// Movement succeeds when the destination IS in `ValidMoveSet.valid_positions`.
+#[test]
+fn move_unit_allowed_by_valid_move_set() {
+    use std::collections::HashSet;
+
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::Select);
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    // Allow movement to (1, 0).
+    app.world_mut().insert_resource(ValidMoveSet {
+        valid_positions: HashSet::from([HexPosition::new(1, 0)]),
+        blocked_explanations: HashMap::new(),
+        for_entity: Some(unit_entity),
+    });
+
+    app.add_observer(systems::handle_unit_interaction);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 0),
+    });
+    app.update();
+
+    let pos = app
+        .world()
+        .entity(unit_entity)
+        .get::<HexPosition>()
+        .expect("Unit should have HexPosition");
+    assert_eq!(
+        *pos,
+        HexPosition::new(1, 0),
+        "Unit should move to valid position"
+    );
+}
+
+/// Interaction clears selection when the selected entity has been despawned.
+#[test]
+fn interaction_clears_selection_when_entity_despawned() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::Select);
+    app.init_resource::<ValidMoveSet>();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let unit_entity = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: first_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    app.world_mut().insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    // Despawn the unit entity before the interaction.
+    app.world_mut().despawn(unit_entity);
+
+    app.add_observer(systems::handle_unit_interaction);
+
+    // Click an empty tile — should hit the `units.get_mut(selected_entity)` Err path.
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 0),
+    });
+    app.update();
+
+    let selected = app.world().resource::<SelectedUnit>();
+    assert!(
+        selected.entity.is_none(),
+        "Selection should be cleared when entity is despawned"
+    );
+}
+
+/// `sync_unit_materials` removes materials for deleted entity types.
+#[test]
+fn sync_unit_materials_removes_deleted_type() {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    let initial_count = app.world().resource::<UnitMaterials>().materials.len();
+    assert_eq!(initial_count, 2);
+
+    // Remove one Token type from the registry.
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .retain(|et| et.name != "Cavalry");
+
+    app.add_systems(Update, systems::sync_unit_materials);
+    app.update();
+
+    let unit_mats = app.world().resource::<UnitMaterials>();
+    assert_eq!(
+        unit_mats.materials.len(),
+        1,
+        "Should have 1 material after removing a type"
+    );
+}
+
 /// `assign_unit_visuals` adds mesh and material to bare unit entities.
 #[test]
 fn assign_unit_visuals_adds_mesh_to_bare_units() {
