@@ -342,4 +342,185 @@ mod tests {
         // Command still exists but with no bindings.
         assert_eq!(registry.commands()[0].bindings.len(), 0);
     }
+
+    // -----------------------------------------------------------------------
+    // parse_binding: modifier coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn parse_alt_modifier() {
+        let b = parse_binding("alt+key_a").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyA);
+        assert!(b.modifiers.alt);
+        assert!(!b.modifiers.cmd);
+    }
+
+    #[test]
+    fn parse_option_modifier_alias() {
+        let b = parse_binding("option+key_b").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyB);
+        assert!(b.modifiers.alt);
+    }
+
+    #[test]
+    fn parse_ctrl_modifier() {
+        let b = parse_binding("ctrl+key_c").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyC);
+        assert!(b.modifiers.ctrl);
+        assert!(!b.modifiers.cmd);
+    }
+
+    #[test]
+    fn parse_control_modifier_alias() {
+        let b = parse_binding("control+key_d").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyD);
+        assert!(b.modifiers.ctrl);
+    }
+
+    #[test]
+    fn parse_super_modifier_alias() {
+        let b = parse_binding("super+key_e").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyE);
+        assert!(b.modifiers.cmd);
+    }
+
+    #[test]
+    fn parse_all_modifiers() {
+        let b = parse_binding("cmd+shift+alt+ctrl+key_f").expect("should parse");
+        assert_eq!(b.key, KeyCode::KeyF);
+        assert!(b.modifiers.cmd);
+        assert!(b.modifiers.shift);
+        assert!(b.modifiers.alt);
+        assert!(b.modifiers.ctrl);
+    }
+
+    #[test]
+    fn parse_multiple_non_modifier_parts_returns_none() {
+        // Two non-modifier parts should fail.
+        assert!(parse_binding("key_a+key_b").is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // key_name_to_keycode: extended key coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn key_name_all_letters() {
+        for (name, expected) in [
+            ("a", KeyCode::KeyA),
+            ("b", KeyCode::KeyB),
+            ("c", KeyCode::KeyC),
+            ("d", KeyCode::KeyD),
+            ("e", KeyCode::KeyE),
+            ("f", KeyCode::KeyF),
+            ("g", KeyCode::KeyG),
+            ("h", KeyCode::KeyH),
+            ("i", KeyCode::KeyI),
+            ("j", KeyCode::KeyJ),
+            ("k", KeyCode::KeyK),
+            ("l", KeyCode::KeyL),
+            ("m", KeyCode::KeyM),
+            ("n", KeyCode::KeyN),
+            ("o", KeyCode::KeyO),
+            ("p", KeyCode::KeyP),
+            ("q", KeyCode::KeyQ),
+            ("r", KeyCode::KeyR),
+            ("s", KeyCode::KeyS),
+            ("t", KeyCode::KeyT),
+            ("u", KeyCode::KeyU),
+            ("v", KeyCode::KeyV),
+            ("w", KeyCode::KeyW),
+            ("x", KeyCode::KeyX),
+            ("y", KeyCode::KeyY),
+            ("z", KeyCode::KeyZ),
+        ] {
+            let b = parse_binding(name).unwrap_or_else(|| panic!("should parse '{name}'"));
+            assert_eq!(b.key, expected, "key for '{name}'");
+        }
+    }
+
+    #[test]
+    fn key_name_all_digits() {
+        for (name, expected) in [
+            ("0", KeyCode::Digit0),
+            ("1", KeyCode::Digit1),
+            ("2", KeyCode::Digit2),
+            ("3", KeyCode::Digit3),
+            ("4", KeyCode::Digit4),
+            ("5", KeyCode::Digit5),
+            ("6", KeyCode::Digit6),
+            ("7", KeyCode::Digit7),
+            ("8", KeyCode::Digit8),
+            ("9", KeyCode::Digit9),
+        ] {
+            let b = parse_binding(name).unwrap_or_else(|| panic!("should parse '{name}'"));
+            assert_eq!(b.key, expected, "key for '{name}'");
+        }
+    }
+
+    #[test]
+    fn key_name_symbols_and_navigation() {
+        for (name, expected) in [
+            ("equal", KeyCode::Equal),
+            ("=", KeyCode::Equal),
+            ("-", KeyCode::Minus),
+            ("minus", KeyCode::Minus),
+            ("esc", KeyCode::Escape),
+            ("up", KeyCode::ArrowUp),
+            ("down", KeyCode::ArrowDown),
+            ("left", KeyCode::ArrowLeft),
+            ("right", KeyCode::ArrowRight),
+            ("space", KeyCode::Space),
+            ("enter", KeyCode::Enter),
+            ("return", KeyCode::Enter),
+            ("backspace", KeyCode::Backspace),
+            ("delete", KeyCode::Delete),
+            ("tab", KeyCode::Tab),
+        ] {
+            let b = parse_binding(name).unwrap_or_else(|| panic!("should parse '{name}'"));
+            assert_eq!(b.key, expected, "key for '{name}'");
+        }
+    }
+
+    #[test]
+    fn key_name_unknown_returns_none() {
+        assert!(key_name_to_keycode("potato").is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // apply_config_overrides: integration tests with temp config
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn config_dir_returns_path() {
+        let dir = config_dir();
+        // Just verify it returns something (exact value depends on feature flags).
+        assert!(!dir.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn config_path_includes_shortcuts_toml() {
+        let path = config_path();
+        assert!(
+            path.to_str().unwrap_or_default().contains("shortcuts.toml"),
+            "config path should contain shortcuts.toml"
+        );
+    }
+
+    #[test]
+    fn apply_config_overrides_noop_when_no_file() {
+        // Without a config file at the expected path, apply should be a no-op.
+        // This exercises the NotFound branch.
+        use bevy::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ShortcutRegistry>();
+        app.add_systems(Startup, apply_config_overrides);
+        app.update();
+
+        // Registry should still be empty (default).
+        let registry = app.world().resource::<ShortcutRegistry>();
+        assert!(registry.commands().is_empty());
+    }
 }

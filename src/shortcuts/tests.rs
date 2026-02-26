@@ -251,3 +251,203 @@ fn palette_state_defaults() {
     assert!(state.query.is_empty());
     assert_eq!(state.selected_index, 0);
 }
+
+// ---------------------------------------------------------------------------
+// match_shortcuts system tests
+// ---------------------------------------------------------------------------
+
+use bevy::prelude::*;
+use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandPaletteState};
+
+#[derive(Resource)]
+struct LastFiredCommand(CommandId);
+
+fn capture_command(trigger: On<CommandExecutedEvent>, mut cmds: Commands) {
+    cmds.insert_resource(LastFiredCommand(trigger.event().command_id.clone()));
+}
+
+/// Build a minimal app with match_shortcuts system.
+fn shortcut_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<CommandPaletteState>();
+    let mut registry = ShortcutRegistry::default();
+    registry.register(test_entry(
+        "file.save",
+        vec![KeyBinding::new(KeyCode::KeyS, Modifiers::CMD)],
+    ));
+    registry.register(CommandEntry {
+        id: CommandId("camera.pan_up"),
+        name: "Pan Up".to_string(),
+        description: String::new(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyW, Modifiers::NONE)],
+        category: CommandCategory::Camera,
+        continuous: true,
+    });
+    app.insert_resource(registry);
+    app.add_systems(Update, super::systems::match_shortcuts);
+    app.add_observer(capture_command);
+    app.update();
+    app
+}
+
+#[test]
+fn match_shortcuts_fires_event_on_discrete_match() {
+    let mut app = shortcut_app();
+
+    // Press Cmd+S.
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::SuperLeft);
+        keys.press(KeyCode::KeyS);
+    }
+    app.update();
+
+    let cmd = app.world().get_resource::<LastFiredCommand>();
+    assert!(cmd.is_some(), "should fire command event");
+    assert_eq!(cmd.expect("exists").0.0, "file.save");
+}
+
+#[test]
+fn match_shortcuts_skips_continuous_commands() {
+    let mut app = shortcut_app();
+
+    // Press W (pan_up is continuous).
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::KeyW);
+    }
+    app.update();
+
+    let cmd = app.world().get_resource::<LastFiredCommand>();
+    assert!(
+        cmd.is_none(),
+        "should not fire event for continuous commands"
+    );
+}
+
+#[test]
+fn match_shortcuts_skips_when_palette_open() {
+    let mut app = shortcut_app();
+
+    // Open palette.
+    app.world_mut().resource_mut::<CommandPaletteState>().open = true;
+
+    // Press Cmd+S.
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::SuperLeft);
+        keys.press(KeyCode::KeyS);
+    }
+    app.update();
+
+    let cmd = app.world().get_resource::<LastFiredCommand>();
+    assert!(cmd.is_none(), "should not fire when palette is open");
+}
+
+#[test]
+fn match_shortcuts_ignores_modifier_keys_alone() {
+    let mut app = shortcut_app();
+
+    // Press only a modifier key.
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::SuperLeft);
+    }
+    app.update();
+
+    let cmd = app.world().get_resource::<LastFiredCommand>();
+    assert!(
+        cmd.is_none(),
+        "pressing only a modifier should not fire any command"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// intercept_palette_toggle system tests
+// ---------------------------------------------------------------------------
+
+fn palette_toggle_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<CommandPaletteState>();
+    app.add_systems(Update, super::systems::intercept_palette_toggle);
+    app.update();
+    app
+}
+
+#[test]
+fn cmd_k_toggles_palette_open() {
+    let mut app = palette_toggle_app();
+
+    // Press Cmd+K.
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::SuperLeft);
+        keys.press(KeyCode::KeyK);
+    }
+    app.update();
+
+    assert!(
+        app.world().resource::<CommandPaletteState>().open,
+        "Cmd+K should open palette"
+    );
+}
+
+#[test]
+fn cmd_k_closes_open_palette() {
+    let mut app = palette_toggle_app();
+
+    app.world_mut().resource_mut::<CommandPaletteState>().open = true;
+    app.world_mut().resource_mut::<CommandPaletteState>().query = "search".to_string();
+
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::SuperLeft);
+        keys.press(KeyCode::KeyK);
+    }
+    app.update();
+
+    let palette = app.world().resource::<CommandPaletteState>();
+    assert!(!palette.open, "Cmd+K should close palette");
+    assert!(palette.query.is_empty(), "query should be cleared");
+}
+
+#[test]
+fn escape_closes_palette() {
+    let mut app = palette_toggle_app();
+
+    app.world_mut().resource_mut::<CommandPaletteState>().open = true;
+
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::Escape);
+    }
+    app.update();
+
+    assert!(
+        !app.world().resource::<CommandPaletteState>().open,
+        "Escape should close palette"
+    );
+}
+
+#[test]
+fn escape_noop_when_palette_closed() {
+    let mut app = palette_toggle_app();
+
+    // Palette already closed.
+    assert!(!app.world().resource::<CommandPaletteState>().open);
+
+    {
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::Escape);
+    }
+    app.update();
+
+    assert!(
+        !app.world().resource::<CommandPaletteState>().open,
+        "should stay closed"
+    );
+}
