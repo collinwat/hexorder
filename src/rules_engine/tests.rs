@@ -1426,3 +1426,1818 @@ fn advance_phase_single_phase_wraps_every_advance() {
     let event = event.expect("should have event");
     assert_eq!(event.turn_number, 3, "Should wrap to turn 3");
 }
+
+// =========================================================================
+// Additional coverage tests
+// =========================================================================
+
+// ---------------------------------------------------------------------------
+// Selected unit entity no longer valid (e.g., despawned)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn valid_moves_cleared_when_selected_entity_invalid() {
+    let mut app = test_app();
+
+    // Spawn a unit, select it, then despawn it.
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: TypeId::new(),
+            properties: HashMap::new(),
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    // Despawn the unit.
+    app.world_mut().despawn(unit_entity);
+
+    // Trigger change detection on SelectedUnit.
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "Valid positions should be cleared when selected entity is invalid"
+    );
+    assert!(
+        valid_moves.for_entity.is_none(),
+        "for_entity should be None when selected entity is invalid"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Budget determination: fallback to named "budget" property
+// ---------------------------------------------------------------------------
+
+#[test]
+fn budget_fallback_to_named_budget_property() {
+    let mut app = test_app();
+
+    let concept_id = TypeId::new();
+    let traveler_role_id = TypeId::new();
+    let terrain_role_id = TypeId::new();
+    let unit_type_id = TypeId::new();
+    let tile_type_id = TypeId::new();
+    let budget_prop_id = TypeId::new();
+    let cost_prop_id = TypeId::new();
+
+    // Register entity types.
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: unit_type_id,
+        name: "Scout".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::WHITE,
+        properties: vec![PropertyDefinition {
+            id: budget_prop_id,
+            name: "movement_points".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(2),
+        }],
+    });
+    registry.types.push(EntityType {
+        id: tile_type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.3, 0.6, 0.2),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(1),
+        }],
+    });
+    app.insert_resource(registry);
+
+    // Set up concept with bindings.
+    // The subject binding uses concept-local name "budget" but the subject
+    // role does NOT match any Subtract relation's subject_role_id below.
+    // So strategy 1 will fail and strategy 2 (named "budget" fallback) activates.
+    let concept = Concept {
+        id: concept_id,
+        name: "Motion".to_string(),
+        description: "Movement".to_string(),
+        role_labels: vec![
+            ConceptRole {
+                id: traveler_role_id,
+                name: "traveler".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            },
+            ConceptRole {
+                id: terrain_role_id,
+                name: "terrain".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            },
+        ],
+    };
+
+    let unit_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: unit_type_id,
+        concept_id,
+        concept_role_id: traveler_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: budget_prop_id,
+            concept_local_name: "budget".to_string(),
+        }],
+    };
+
+    let tile_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: tile_type_id,
+        concept_id,
+        concept_role_id: terrain_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: cost_prop_id,
+            concept_local_name: "cost".to_string(),
+        }],
+    };
+
+    app.insert_resource(ConceptRegistry {
+        concepts: vec![concept],
+        bindings: vec![unit_binding, tile_binding],
+    });
+
+    // Add an OnEnter Subtract relation where the subject_role_id is the
+    // TERRAIN role, not the traveler role. This means strategy 1 won't match
+    // for the unit, but the relation still exists so we get a non-empty
+    // on_enter_relations set and don't hit free movement.
+    let relation = Relation {
+        id: TypeId::new(),
+        name: "Terrain Subtract".to_string(),
+        concept_id,
+        subject_role_id: terrain_role_id,
+        object_role_id: traveler_role_id,
+        trigger: RelationTrigger::OnEnter,
+        effect: RelationEffect::ModifyProperty {
+            target_property: "cost".to_string(),
+            source_property: "budget".to_string(),
+            operation: ModifyOperation::Subtract,
+        },
+    };
+    app.insert_resource(RelationRegistry {
+        relations: vec![relation],
+    });
+
+    // Spawn tiles with cost.
+    spawn_hex_grid_with_properties(&mut app, 3, tile_type_id, cost_prop_id, 1);
+
+    // Spawn a unit at origin with budget = 2.
+    let mut unit_props = HashMap::new();
+    unit_props.insert(budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Strategy 2 found "budget" = 2 as the initial budget.
+    // The relation doesn't match the unit as subject, so no cost deducted.
+    // Unit should be able to reach neighbors.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Should have valid moves when budget fallback to named 'budget' property works"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Budget determination: generous fallback when no budget property
+// ---------------------------------------------------------------------------
+
+#[test]
+fn budget_generous_fallback_no_budget_property() {
+    let mut app = test_app();
+
+    let concept_id = TypeId::new();
+    let traveler_role_id = TypeId::new();
+    let terrain_role_id = TypeId::new();
+    let unit_type_id = TypeId::new();
+    let tile_type_id = TypeId::new();
+    let cost_prop_id = TypeId::new();
+
+    // Register entity types (unit has no properties at all).
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: unit_type_id,
+        name: "Drone".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::WHITE,
+        properties: vec![],
+    });
+    registry.types.push(EntityType {
+        id: tile_type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.3, 0.6, 0.2),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(1),
+        }],
+    });
+    app.insert_resource(registry);
+
+    let concept = Concept {
+        id: concept_id,
+        name: "Motion".to_string(),
+        description: "Movement".to_string(),
+        role_labels: vec![
+            ConceptRole {
+                id: traveler_role_id,
+                name: "traveler".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            },
+            ConceptRole {
+                id: terrain_role_id,
+                name: "terrain".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            },
+        ],
+    };
+
+    // Binding with NO property bindings for the unit.
+    let unit_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: unit_type_id,
+        concept_id,
+        concept_role_id: traveler_role_id,
+        property_bindings: vec![],
+    };
+
+    let tile_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: tile_type_id,
+        concept_id,
+        concept_role_id: terrain_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: cost_prop_id,
+            concept_local_name: "cost".to_string(),
+        }],
+    };
+
+    app.insert_resource(ConceptRegistry {
+        concepts: vec![concept],
+        bindings: vec![unit_binding, tile_binding],
+    });
+
+    // Subtract relation (strategy 1 will fail because no budget property binding).
+    let relation = Relation {
+        id: TypeId::new(),
+        name: "Movement Cost".to_string(),
+        concept_id,
+        subject_role_id: traveler_role_id,
+        object_role_id: terrain_role_id,
+        trigger: RelationTrigger::OnEnter,
+        effect: RelationEffect::ModifyProperty {
+            target_property: "budget".to_string(),
+            source_property: "cost".to_string(),
+            operation: ModifyOperation::Subtract,
+        },
+    };
+    app.insert_resource(RelationRegistry {
+        relations: vec![relation],
+    });
+
+    spawn_hex_grid_with_properties(&mut app, 3, tile_type_id, cost_prop_id, 1);
+
+    // Unit with no properties at all.
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: unit_type_id,
+            properties: HashMap::new(),
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Generous fallback = concepts.len() * 10 = 1 * 10 = 10
+    // With cost 1 per tile, should reach all tiles in radius 3.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Should have valid moves with generous fallback budget"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: unconditional block (condition = None)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn unconditional_block_prevents_all_entry() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let blocked_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: blocked_type_id,
+            name: "Lava".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(1.0, 0.0, 0.0),
+            properties: vec![],
+        });
+    }
+
+    // Bind Lava to the terrain role.
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: blocked_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![],
+        });
+    }
+
+    // Unconditional Block (condition = None).
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Lava Impassable".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block { condition: None },
+        });
+    }
+
+    // Spawn all tiles as Lava except the origin.
+    let radius: u32 = 2;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let type_id = if q == 0 && r == 0 {
+                setup.tile_type_id
+            } else {
+                blocked_type_id
+            };
+            let mut properties = HashMap::new();
+            if type_id == setup.tile_type_id {
+                properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            }
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "All neighbors are Lava with unconditional block, no valid moves"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: IsNotType checks the subject role (unit)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_is_not_type_on_subject() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    // Bind Swamp to the terrain role.
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    // Block condition: IsNotType on subject role (unit).
+    // This means: block if the unit is NOT of the given type.
+    // Since our unit IS of unit_type_id, IsNotType(unit_type_id) should be false,
+    // meaning NOT blocked.
+    let allowed_unit_type_id = setup.unit_type_id;
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Block non-matching units".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::IsNotType {
+                    role_id: setup.traveler_role_id,
+                    entity_type_id: allowed_unit_type_id,
+                }),
+            },
+        });
+    }
+
+    // Spawn swamp tiles.
+    let radius: u32 = 2;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // IsNotType(traveler, unit_type_id) is false because the unit IS unit_type_id.
+    // So the block does NOT apply, and the unit can move.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "IsNotType should allow entry when entity type matches"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: IsType on subject role
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_is_type_on_subject_blocks() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    // Block when the subject (unit) IS of the matching type.
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Block matching units".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::IsType {
+                    role_id: setup.traveler_role_id,
+                    entity_type_id: setup.unit_type_id,
+                }),
+            },
+        });
+    }
+
+    // Spawn all tiles as swamp.
+    let radius: u32 = 2;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // IsType(traveler, unit_type_id) is true, so block applies.
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "IsType on subject should block when entity type matches"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: All/Any/Not compound expressions
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_compound_all_any_not() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    // Block with All: [IsType(terrain, swamp), Not(IsNotType(traveler, unit_type_id))]
+    // All evaluates: IsType terrain=swamp -> true, Not(IsNotType traveler=unit_type -> false) -> Not(false) = true
+    // All([true, true]) = true -> blocked
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Compound block".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::All(vec![
+                    ConstraintExpr::IsType {
+                        role_id: setup.terrain_role_id,
+                        entity_type_id: swamp_type_id,
+                    },
+                    ConstraintExpr::Not(Box::new(ConstraintExpr::IsNotType {
+                        role_id: setup.traveler_role_id,
+                        entity_type_id: setup.unit_type_id,
+                    })),
+                ])),
+            },
+        });
+    }
+
+    // Spawn all tiles as swamp.
+    let radius: u32 = 2;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "All([IsType terrain=swamp, Not(IsNotType traveler=unit)]) should block"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: Any expression
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_any_expression() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    let other_unit_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+        registry.types.push(EntityType {
+            id: other_unit_type_id,
+            name: "Tank".to_string(),
+            role: EntityRole::Token,
+            color: bevy::color::Color::WHITE,
+            properties: vec![],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    // Any: block if terrain is swamp OR unit is a Tank.
+    // The unit IS Infantry (not Tank), terrain IS Swamp -> Any([true, false]) = true -> blocked
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Any block".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::Any(vec![
+                    ConstraintExpr::IsType {
+                        role_id: setup.terrain_role_id,
+                        entity_type_id: swamp_type_id,
+                    },
+                    ConstraintExpr::IsType {
+                        role_id: setup.traveler_role_id,
+                        entity_type_id: other_unit_type_id,
+                    },
+                ])),
+            },
+        });
+    }
+
+    // Spawn swamp tiles.
+    let radius: u32 = 1;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "Any([IsType terrain=swamp]) should block when terrain is swamp"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: default (e.g., PropertyCompare) falls through to blocked
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_default_expression_type_blocks() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    // Block with PropertyCompare condition (not IsType/IsNotType/All/Any/Not).
+    // The default case in evaluate_block_condition returns true (blocked).
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Default blocks".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::PropertyCompare {
+                    role_id: setup.traveler_role_id,
+                    property_name: "budget".to_string(),
+                    operator: hexorder_contracts::ontology::CompareOp::Ge,
+                    value: PropertyValue::Int(0),
+                }),
+            },
+        });
+    }
+
+    let radius: u32 = 1;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "PropertyCompare as block condition should default to blocked (conservative)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: IsType / IsNotType with role_id matching neither subject nor object
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_is_type_unmatched_role_returns_false() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    let unrelated_role_id = TypeId::new();
+
+    // Block with IsType referencing a role_id that is neither subject nor object.
+    // This should evaluate to false (data = None, is_some_and returns false).
+    // So the block does NOT apply.
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "IsType unmatched role".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::IsType {
+                    role_id: unrelated_role_id,
+                    entity_type_id: swamp_type_id,
+                }),
+            },
+        });
+    }
+
+    let radius: u32 = 1;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "IsType with unmatched role_id should not block"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: IsNotType with role_id matching neither subject nor object
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_is_not_type_unmatched_role_returns_false() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    let swamp_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: swamp_type_id,
+            name: "Swamp".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.1),
+            properties: vec![PropertyDefinition {
+                id: setup.cost_prop_id,
+                name: "terrain_cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        });
+    }
+
+    {
+        let mut concepts = app.world_mut().resource_mut::<ConceptRegistry>();
+        concepts.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: swamp_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.terrain_role_id,
+            property_bindings: vec![PropertyBinding {
+                property_id: setup.cost_prop_id,
+                concept_local_name: "cost".to_string(),
+            }],
+        });
+    }
+
+    let unrelated_role_id = TypeId::new();
+
+    // Block with IsNotType referencing a role_id that is neither subject nor object.
+    // data = None, is_some_and returns false -> block does NOT apply.
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "IsNotType unmatched role".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::IsNotType {
+                    role_id: unrelated_role_id,
+                    entity_type_id: swamp_type_id,
+                }),
+            },
+        });
+    }
+
+    let radius: u32 = 1;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() > radius {
+                continue;
+            }
+            let mut properties = HashMap::new();
+            properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+            app.world_mut().spawn((
+                HexTile,
+                HexPosition::new(q, r),
+                EntityData {
+                    entity_type_id: swamp_type_id,
+                    properties,
+                },
+            ));
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "IsNotType with unmatched role_id should not block"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Allow effect is a no-op (not blocking)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn allow_effect_does_not_block() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Add an Allow relation (should be a no-op for blocking).
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Allow Entry".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Allow { condition: None },
+        });
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Allow effect should not block movement"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Float property value used as budget
+// ---------------------------------------------------------------------------
+
+#[test]
+fn float_property_value_used_as_budget() {
+    let mut app = test_app();
+
+    let concept_id = TypeId::new();
+    let traveler_role_id = TypeId::new();
+    let terrain_role_id = TypeId::new();
+    let unit_type_id = TypeId::new();
+    let tile_type_id = TypeId::new();
+    let budget_prop_id = TypeId::new();
+    let cost_prop_id = TypeId::new();
+
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: unit_type_id,
+        name: "FloatUnit".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::WHITE,
+        properties: vec![PropertyDefinition {
+            id: budget_prop_id,
+            name: "movement_points".to_string(),
+            property_type: PropertyType::Float,
+            default_value: PropertyValue::Float(3.5),
+        }],
+    });
+    registry.types.push(EntityType {
+        id: tile_type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.3, 0.6, 0.2),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Float,
+            default_value: PropertyValue::Float(1.5),
+        }],
+    });
+    app.insert_resource(registry);
+
+    let concept = Concept {
+        id: concept_id,
+        name: "Motion".to_string(),
+        description: "Movement".to_string(),
+        role_labels: vec![
+            ConceptRole {
+                id: traveler_role_id,
+                name: "traveler".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            },
+            ConceptRole {
+                id: terrain_role_id,
+                name: "terrain".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            },
+        ],
+    };
+
+    app.insert_resource(ConceptRegistry {
+        concepts: vec![concept],
+        bindings: vec![
+            ConceptBinding {
+                id: TypeId::new(),
+                entity_type_id: unit_type_id,
+                concept_id,
+                concept_role_id: traveler_role_id,
+                property_bindings: vec![PropertyBinding {
+                    property_id: budget_prop_id,
+                    concept_local_name: "budget".to_string(),
+                }],
+            },
+            ConceptBinding {
+                id: TypeId::new(),
+                entity_type_id: tile_type_id,
+                concept_id,
+                concept_role_id: terrain_role_id,
+                property_bindings: vec![PropertyBinding {
+                    property_id: cost_prop_id,
+                    concept_local_name: "cost".to_string(),
+                }],
+            },
+        ],
+    });
+
+    let relation = Relation {
+        id: TypeId::new(),
+        name: "Terrain Cost".to_string(),
+        concept_id,
+        subject_role_id: traveler_role_id,
+        object_role_id: terrain_role_id,
+        trigger: RelationTrigger::OnEnter,
+        effect: RelationEffect::ModifyProperty {
+            target_property: "budget".to_string(),
+            source_property: "cost".to_string(),
+            operation: ModifyOperation::Subtract,
+        },
+    };
+    app.insert_resource(RelationRegistry {
+        relations: vec![relation],
+    });
+
+    // Spawn tiles with float cost = 1.5.
+    let radius: u32 = 3;
+    let radius_i = radius as i32;
+    for q in -radius_i..=radius_i {
+        for r in -radius_i..=radius_i {
+            if (q + r).unsigned_abs() <= radius {
+                let mut properties = HashMap::new();
+                properties.insert(cost_prop_id, PropertyValue::Float(1.5));
+                app.world_mut().spawn((
+                    HexTile,
+                    HexPosition::new(q, r),
+                    EntityData {
+                        entity_type_id: tile_type_id,
+                        properties,
+                    },
+                ));
+            }
+        }
+    }
+
+    // Unit with float budget = 3.5 (truncated to 3 as i64).
+    let mut unit_props = HashMap::new();
+    unit_props.insert(budget_prop_id, PropertyValue::Float(3.5));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Float 3.5 -> i64 = 3 budget, Float 1.5 -> i64 = 1 cost per tile.
+    // Should reach tiles at distance 1, 2, and 3.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Float property values should be usable as budget"
+    );
+    let pos_1 = HexPosition::new(1, 0);
+    assert!(
+        valid_moves.valid_positions.contains(&pos_1),
+        "Distance 1 should be reachable with budget 3 (from 3.5 float)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// advance_phase: turn_number == 0 triggers initialization
+// ---------------------------------------------------------------------------
+
+#[test]
+fn advance_phase_initializes_turn_number_from_zero() {
+    let mut state = TurnState {
+        turn_number: 0,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let structure = test_turn_structure();
+
+    let event = advance_phase(&mut state, &structure);
+
+    assert!(event.is_some());
+    let event = event.expect("should have event");
+    // turn_number was 0, gets set to 1, then advances phase_index from 0 to 1.
+    assert_eq!(event.turn_number, 1);
+    assert_eq!(event.phase_index, 1);
+    assert_eq!(event.phase_name, "Combat");
+    assert_eq!(state.turn_number, 1);
+    assert_eq!(state.current_phase_index, 1);
+}
+
+// ---------------------------------------------------------------------------
+// Movement cost exceeds budget (cost-based blocking)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn cost_exceeds_budget_blocks_movement() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 1, 1);
+
+    // Spawn tiles with very high cost = 10.
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 10);
+
+    // Unit with budget = 1 (can't afford cost 10).
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(1));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "Budget 1 should not afford any tile with cost 10"
+    );
+    assert!(
+        !valid_moves.blocked_explanations.is_empty(),
+        "Should have blocked explanations for tiles exceeding budget"
+    );
+    // Verify explanations mention cost exceeding budget.
+    let has_budget_explanation = valid_moves.blocked_explanations.values().any(|reasons| {
+        reasons
+            .iter()
+            .any(|r| r.explanation.contains("exceeds") && !r.satisfied)
+    });
+    assert!(
+        has_budget_explanation,
+        "Blocked explanations should mention cost exceeding budget"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// ModifyProperty with Add operation reduces cost
+// ---------------------------------------------------------------------------
+
+#[test]
+fn add_operation_reduces_cost() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+
+    // Add an Add relation (reduces cost, effectively adding budget).
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Terrain Bonus".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::ModifyProperty {
+                target_property: "budget".to_string(),
+                source_property: "cost".to_string(),
+                operation: ModifyOperation::Add,
+            },
+        });
+    }
+
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Unit with budget = 2 but Add relation reduces the effective cost.
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // With Subtract cost=1 and Add cost=1, net cost per step = 0.
+    // So the unit can reach all tiles within bounds.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Add operation should reduce effective cost, allowing more movement"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Tile without data (no tile entity at position)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn movement_into_position_without_tile() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+
+    // Only spawn tiles at some positions, leaving gaps.
+    // Spawn a ring at distance 1 but not at (1, 0).
+    let positions_with_tiles = [(0, -1), (-1, 0), (-1, 1), (0, 1), (1, -1)];
+    for &(q, r) in &positions_with_tiles {
+        let mut properties = HashMap::new();
+        properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+        app.world_mut().spawn((
+            HexTile,
+            HexPosition::new(q, r),
+            EntityData {
+                entity_type_id: setup.tile_type_id,
+                properties,
+            },
+        ));
+    }
+    // Also spawn the origin tile.
+    {
+        let mut properties = HashMap::new();
+        properties.insert(setup.cost_prop_id, PropertyValue::Int(1));
+        app.world_mut().spawn((
+            HexTile,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: setup.tile_type_id,
+                properties,
+            },
+        ));
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // The system should still work; positions without tiles won't match relations.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Movement should work even when some positions have no tile data"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Block condition: IsNotType on object role (terrain)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn block_condition_is_not_type_on_object_role() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+
+    // Use the existing Plains tile type.
+    // Block when the terrain IsNotType of a different (non-existent) type.
+    // Since the terrain IS Plains (not some other type), IsNotType(terrain, other_type)
+    // should be true -> blocked.
+    let other_terrain_type = TypeId::new();
+
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Block non-special terrain".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block {
+                condition: Some(ConstraintExpr::IsNotType {
+                    role_id: setup.terrain_role_id,
+                    entity_type_id: other_terrain_type,
+                }),
+            },
+        });
+    }
+
+    spawn_hex_grid_with_properties(&mut app, 2, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // IsNotType(terrain, other_terrain_type) is true because terrain IS Plains, not other_terrain_type.
+    // So block applies to all tiles.
+    assert!(
+        valid_moves.valid_positions.is_empty(),
+        "IsNotType on object role should block when terrain is a different type"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Strategy 1: binding matches but concept_local_name doesn't match target_property
+// ---------------------------------------------------------------------------
+
+#[test]
+fn budget_strategy1_skips_non_matching_property_name() {
+    let mut app = test_app();
+
+    let concept_id = TypeId::new();
+    let traveler_role_id = TypeId::new();
+    let terrain_role_id = TypeId::new();
+    let unit_type_id = TypeId::new();
+    let tile_type_id = TypeId::new();
+    let budget_prop_id = TypeId::new();
+    let other_prop_id = TypeId::new();
+    let cost_prop_id = TypeId::new();
+
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: unit_type_id,
+        name: "Infantry".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::WHITE,
+        properties: vec![
+            PropertyDefinition {
+                id: other_prop_id,
+                name: "health".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(10),
+            },
+            PropertyDefinition {
+                id: budget_prop_id,
+                name: "movement_points".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(3),
+            },
+        ],
+    });
+    registry.types.push(EntityType {
+        id: tile_type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.3, 0.6, 0.2),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(1),
+        }],
+    });
+    app.insert_resource(registry);
+
+    let concept = Concept {
+        id: concept_id,
+        name: "Motion".to_string(),
+        description: "Movement".to_string(),
+        role_labels: vec![
+            ConceptRole {
+                id: traveler_role_id,
+                name: "traveler".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            },
+            ConceptRole {
+                id: terrain_role_id,
+                name: "terrain".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            },
+        ],
+    };
+
+    // Unit binding has two property bindings: "health" (which doesn't match
+    // the target_property "budget") and "budget" (which does).
+    let unit_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: unit_type_id,
+        concept_id,
+        concept_role_id: traveler_role_id,
+        property_bindings: vec![
+            PropertyBinding {
+                property_id: other_prop_id,
+                concept_local_name: "health".to_string(),
+            },
+            PropertyBinding {
+                property_id: budget_prop_id,
+                concept_local_name: "budget".to_string(),
+            },
+        ],
+    };
+
+    let tile_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: tile_type_id,
+        concept_id,
+        concept_role_id: terrain_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: cost_prop_id,
+            concept_local_name: "cost".to_string(),
+        }],
+    };
+
+    app.insert_resource(ConceptRegistry {
+        concepts: vec![concept],
+        bindings: vec![unit_binding, tile_binding],
+    });
+
+    let relation = Relation {
+        id: TypeId::new(),
+        name: "Terrain Movement Cost".to_string(),
+        concept_id,
+        subject_role_id: traveler_role_id,
+        object_role_id: terrain_role_id,
+        trigger: RelationTrigger::OnEnter,
+        effect: RelationEffect::ModifyProperty {
+            target_property: "budget".to_string(),
+            source_property: "cost".to_string(),
+            operation: ModifyOperation::Subtract,
+        },
+    };
+    app.insert_resource(RelationRegistry {
+        relations: vec![relation],
+    });
+
+    spawn_hex_grid_with_properties(&mut app, 3, tile_type_id, cost_prop_id, 1);
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(other_prop_id, PropertyValue::Int(10));
+    unit_props.insert(budget_prop_id, PropertyValue::Int(3));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Should work correctly: strategy 1 iterates property bindings, skips "health",
+    // finds "budget" = 3, and uses that.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Strategy 1 should skip non-matching property name and find budget"
+    );
+    // Budget = 3, cost = 1 per tile. Should reach at least distance 3.
+    let pos_3 = HexPosition::new(3, 0);
+    assert!(
+        valid_moves.valid_positions.contains(&pos_3),
+        "Should reach distance 3 with budget 3 and cost 1"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Multiply/Min/Max operations are no-ops in evaluate_step
+// ---------------------------------------------------------------------------
+
+#[test]
+fn multiply_operation_is_noop_in_step() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+
+    // Add a Multiply relation (should be a no-op in evaluate_step's match).
+    {
+        let mut relations = app.world_mut().resource_mut::<RelationRegistry>();
+        relations.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Multiply Effect".to_string(),
+            concept_id: setup.concept_id,
+            subject_role_id: setup.traveler_role_id,
+            object_role_id: setup.terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::ModifyProperty {
+                target_property: "budget".to_string(),
+                source_property: "cost".to_string(),
+                operation: ModifyOperation::Multiply,
+            },
+        });
+    }
+
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Subtract still costs 1, Multiply is a no-op, budget = 2.
+    assert!(
+        !valid_moves.valid_positions.is_empty(),
+        "Multiply operation should be a no-op in step evaluation"
+    );
+}
