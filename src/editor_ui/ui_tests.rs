@@ -12,8 +12,13 @@ use egui_kittest::kittest::Queryable as _;
 
 use hexorder_contracts::editor_ui::EditorTool;
 use hexorder_contracts::game_system::{
-    EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, PropertyDefinition,
-    PropertyType, PropertyValue, StructRegistry, TypeId,
+    ActiveBoardType, ActiveTokenType, EntityRole, EntityType, EntityTypeRegistry, EnumDefinition,
+    EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue, StructDefinition,
+    StructRegistry, TypeId,
+};
+use hexorder_contracts::mechanics::{
+    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable, CrtColumn,
+    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, PlayerOrder, TurnStructure,
 };
 use hexorder_contracts::ontology::{
     CompareOp, Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -131,6 +136,152 @@ fn test_constraint_registry() -> ConstraintRegistry {
                 relation_id: None,
                 expression: ConstraintExpr::All(Vec::new()),
                 auto_generated: true,
+            },
+        ],
+    }
+}
+
+fn test_enum_registry() -> EnumRegistry {
+    let mut registry = EnumRegistry::default();
+    let id = TypeId::new();
+    registry.definitions.insert(
+        id,
+        EnumDefinition {
+            id,
+            name: "Terrain".to_string(),
+            options: vec!["Open".to_string(), "Rough".to_string(), "Dense".to_string()],
+        },
+    );
+    registry
+}
+
+fn test_struct_registry() -> StructRegistry {
+    let mut registry = StructRegistry::default();
+    let id = TypeId::new();
+    registry.definitions.insert(
+        id,
+        StructDefinition {
+            id,
+            name: "Position".to_string(),
+            fields: vec![
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "x".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "y".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+            ],
+        },
+    );
+    registry
+}
+
+fn test_turn_structure() -> TurnStructure {
+    TurnStructure {
+        player_order: PlayerOrder::Alternating,
+        phases: vec![
+            Phase {
+                id: TypeId::new(),
+                name: "Movement".to_string(),
+                phase_type: PhaseType::Movement,
+                description: String::new(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Combat".to_string(),
+                phase_type: PhaseType::Combat,
+                description: String::new(),
+            },
+            Phase {
+                id: TypeId::new(),
+                name: "Admin".to_string(),
+                phase_type: PhaseType::Admin,
+                description: String::new(),
+            },
+        ],
+    }
+}
+
+fn test_crt() -> CombatResultsTable {
+    CombatResultsTable {
+        id: TypeId::new(),
+        name: "Standard CRT".to_string(),
+        columns: vec![
+            CrtColumn {
+                label: "1:2".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 0.5,
+            },
+            CrtColumn {
+                label: "1:1".to_string(),
+                column_type: CrtColumnType::OddsRatio,
+                threshold: 1.0,
+            },
+        ],
+        rows: vec![
+            CrtRow {
+                label: "1".to_string(),
+                die_value_min: 1,
+                die_value_max: 2,
+            },
+            CrtRow {
+                label: "2".to_string(),
+                die_value_min: 3,
+                die_value_max: 4,
+            },
+        ],
+        outcomes: vec![
+            vec![
+                CombatOutcome {
+                    label: "NE".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DR".to_string(),
+                    effect: None,
+                },
+            ],
+            vec![
+                CombatOutcome {
+                    label: "AR".to_string(),
+                    effect: None,
+                },
+                CombatOutcome {
+                    label: "DE".to_string(),
+                    effect: None,
+                },
+            ],
+        ],
+        combat_concept_id: None,
+    }
+}
+
+fn test_modifiers() -> CombatModifierRegistry {
+    CombatModifierRegistry {
+        modifiers: vec![
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "Forest Defense".to_string(),
+                source: ModifierSource::DefenderTerrain,
+                column_shift: -1,
+                priority: 10,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "Flanking".to_string(),
+                source: ModifierSource::AttackerTerrain,
+                column_shift: 2,
+                priority: 5,
+                cap: None,
+                terrain_type_filter: None,
             },
         ],
     }
@@ -715,4 +866,742 @@ fn validation_tab_shows_error_category_badge() {
         systems::render_validation_tab(ui, &sv);
     });
     harness.get_by_label_contains("Dangling Ref");
+}
+
+// ---------------------------------------------------------------------------
+// Cell Palette
+// ---------------------------------------------------------------------------
+
+#[test]
+fn cell_palette_shows_heading() {
+    let registry = test_registry();
+    let mut active = ActiveBoardType::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_cell_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Cell Palette");
+}
+
+#[test]
+fn cell_palette_shows_board_type_names() {
+    let registry = test_registry();
+    let mut active = ActiveBoardType::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_cell_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Plains");
+}
+
+#[test]
+fn cell_palette_click_selects_type() {
+    let registry = test_registry();
+    let active = ActiveBoardType::default();
+
+    struct CellPaletteState {
+        registry: EntityTypeRegistry,
+        active: ActiveBoardType,
+    }
+
+    let state = CellPaletteState { registry, active };
+
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut CellPaletteState| {
+            systems::render_cell_palette(ui, &s.registry, &mut s.active);
+        },
+        state,
+    );
+
+    harness.get_by_label("Plains").click();
+    harness.run();
+
+    assert!(harness.state().active.entity_type_id.is_some());
+}
+
+// ---------------------------------------------------------------------------
+// Unit Palette
+// ---------------------------------------------------------------------------
+
+#[test]
+fn unit_palette_shows_heading() {
+    let registry = test_registry();
+    let mut active = ActiveTokenType::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_unit_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Unit Palette");
+}
+
+#[test]
+fn unit_palette_shows_token_type_names() {
+    let registry = test_registry();
+    let mut active = ActiveTokenType::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_unit_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Infantry");
+}
+
+#[test]
+fn unit_palette_click_selects_type() {
+    let registry = test_registry();
+    let active = ActiveTokenType::default();
+
+    struct UnitPaletteState {
+        registry: EntityTypeRegistry,
+        active: ActiveTokenType,
+    }
+
+    let state = UnitPaletteState { registry, active };
+
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut UnitPaletteState| {
+            systems::render_unit_palette(ui, &s.registry, &mut s.active);
+        },
+        state,
+    );
+
+    harness.get_by_label("Infantry").click();
+    harness.run();
+
+    assert!(harness.state().active.entity_type_id.is_some());
+}
+
+// ---------------------------------------------------------------------------
+// Entity Type Section
+// ---------------------------------------------------------------------------
+
+#[test]
+fn entity_type_section_shows_section_label() {
+    let mut registry = test_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let enum_registry = EnumRegistry::default();
+    let struct_registry = StructRegistry::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_registry,
+            &struct_registry,
+        );
+    });
+    harness.get_by_label("Board Types");
+}
+
+#[test]
+fn entity_type_section_shows_both_sections() {
+    let mut registry = test_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let enum_registry = EnumRegistry::default();
+    let struct_registry = StructRegistry::default();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::Token,
+            "Token Types",
+            "token",
+            &enum_registry,
+            &struct_registry,
+        );
+    });
+    harness.get_by_label("Token Types");
+}
+
+// ---------------------------------------------------------------------------
+// Enums Tab
+// ---------------------------------------------------------------------------
+
+#[test]
+fn enums_tab_shows_heading() {
+    let enum_registry = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &enum_registry, &mut state, &mut actions);
+    });
+    harness.get_by_label("Enums");
+}
+
+#[test]
+fn enums_tab_empty_shows_no_enums_message() {
+    let enum_registry = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &enum_registry, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("No enums defined");
+}
+
+#[test]
+fn enums_tab_shows_existing_enum_name() {
+    let enum_registry = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &enum_registry, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain");
+}
+
+#[test]
+fn enums_tab_create_enum_produces_action() {
+    let enum_registry = EnumRegistry::default();
+    let state = EditorState {
+        new_enum_name: "Weather".to_string(),
+        ..EditorState::default()
+    };
+    let actions: Vec<EditorAction> = Vec::new();
+
+    struct EnumsState {
+        enum_registry: EnumRegistry,
+        editor_state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+
+    let state = EnumsState {
+        enum_registry,
+        editor_state: state,
+        actions,
+    };
+
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut EnumsState| {
+            systems::render_enums_tab(ui, &s.enum_registry, &mut s.editor_state, &mut s.actions);
+        },
+        state,
+    );
+
+    harness.get_by_label("+ Create Enum").click();
+    harness.run();
+
+    let actions = &harness.state().actions;
+    assert_eq!(actions.len(), 1);
+    assert!(matches!(&actions[0], EditorAction::CreateEnum { name, .. } if name == "Weather"));
+}
+
+// ---------------------------------------------------------------------------
+// Structs Tab
+// ---------------------------------------------------------------------------
+
+#[test]
+fn structs_tab_shows_heading() {
+    let struct_registry = test_struct_registry();
+    let enum_registry = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(
+            ui,
+            &struct_registry,
+            &enum_registry,
+            &mut state,
+            &mut actions,
+        );
+    });
+    harness.get_by_label("Structs");
+}
+
+#[test]
+fn structs_tab_empty_shows_no_structs_message() {
+    let struct_registry = StructRegistry::default();
+    let enum_registry = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(
+            ui,
+            &struct_registry,
+            &enum_registry,
+            &mut state,
+            &mut actions,
+        );
+    });
+    harness.get_by_label_contains("No structs defined");
+}
+
+#[test]
+fn structs_tab_shows_existing_struct_name() {
+    let struct_registry = test_struct_registry();
+    let enum_registry = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(
+            ui,
+            &struct_registry,
+            &enum_registry,
+            &mut state,
+            &mut actions,
+        );
+    });
+    harness.get_by_label("Position");
+}
+
+#[test]
+fn structs_tab_create_struct_produces_action() {
+    let struct_registry = StructRegistry::default();
+    let enum_registry = EnumRegistry::default();
+    let state = EditorState {
+        new_struct_name: "Coordinate".to_string(),
+        ..EditorState::default()
+    };
+    let actions: Vec<EditorAction> = Vec::new();
+
+    struct StructsState {
+        struct_registry: StructRegistry,
+        enum_registry: EnumRegistry,
+        editor_state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+
+    let state = StructsState {
+        struct_registry,
+        enum_registry,
+        editor_state: state,
+        actions,
+    };
+
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut StructsState| {
+            systems::render_structs_tab(
+                ui,
+                &s.struct_registry,
+                &s.enum_registry,
+                &mut s.editor_state,
+                &mut s.actions,
+            );
+        },
+        state,
+    );
+
+    harness.get_by_label("+ Create Struct").click();
+    harness.run();
+
+    let actions = &harness.state().actions;
+    assert_eq!(actions.len(), 1);
+    assert!(matches!(&actions[0], EditorAction::CreateStruct { name } if name == "Coordinate"));
+}
+
+// ---------------------------------------------------------------------------
+// Mechanics Tab
+// ---------------------------------------------------------------------------
+
+struct MechanicsState {
+    turn_structure: TurnStructure,
+    crt: CombatResultsTable,
+    modifiers: CombatModifierRegistry,
+    editor_state: EditorState,
+    actions: Vec<EditorAction>,
+}
+
+fn mechanics_state() -> MechanicsState {
+    MechanicsState {
+        turn_structure: test_turn_structure(),
+        crt: test_crt(),
+        modifiers: test_modifiers(),
+        editor_state: EditorState::default(),
+        actions: Vec::new(),
+    }
+}
+
+#[test]
+fn mechanics_tab_shows_turn_structure_heading() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Turn Structure");
+}
+
+#[test]
+fn mechanics_tab_shows_player_order_labels() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Alternating");
+}
+
+#[test]
+fn mechanics_tab_shows_phase_count() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Phases (3)");
+}
+
+#[test]
+fn mechanics_tab_shows_phase_type_selectors() {
+    // Phase type selector labels are selectable_labels (interactive) and
+    // thus accessible via get_by_label. The phase name labels rendered
+    // inside horizontal layouts only expose accessible `value`, not `label`.
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    // The add-phase form shows selectable type labels.
+    harness.get_by_label("Add Phase");
+}
+
+#[test]
+fn mechanics_tab_shows_crt_heading() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Combat Results");
+}
+
+#[test]
+fn mechanics_tab_shows_crt_name() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Standard CRT");
+}
+
+#[test]
+fn mechanics_tab_shows_crt_column_count() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Columns (2)");
+}
+
+#[test]
+fn mechanics_tab_shows_add_col_button() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Add Col");
+}
+
+#[test]
+fn mechanics_tab_shows_modifier_heading() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Modifiers");
+}
+
+#[test]
+fn mechanics_tab_shows_modifier_names() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Forest Defense");
+    harness.get_by_label("Flanking");
+}
+
+#[test]
+fn mechanics_tab_shows_modifier_column_shift() {
+    let mut state = mechanics_state();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanics_tab(
+            ui,
+            &state.turn_structure,
+            &state.crt,
+            &state.modifiers,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("-1");
+    harness.get_by_label_contains("+2");
+}
+
+// ---------------------------------------------------------------------------
+// Additional Validation badges
+// ---------------------------------------------------------------------------
+
+#[test]
+fn validation_tab_shows_role_mismatch_badge() {
+    let sv = SchemaValidation {
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::RoleMismatch,
+            message: "role error".to_string(),
+            source_id: TypeId::new(),
+        }],
+        is_valid: false,
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_validation_tab(ui, &sv);
+    });
+    harness.get_by_label_contains("Role Mismatch");
+}
+
+#[test]
+fn validation_tab_shows_property_mismatch_badge() {
+    let sv = SchemaValidation {
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::PropertyMismatch,
+            message: "prop error".to_string(),
+            source_id: TypeId::new(),
+        }],
+        is_valid: false,
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_validation_tab(ui, &sv);
+    });
+    harness.get_by_label_contains("Prop Mismatch");
+}
+
+#[test]
+fn validation_tab_shows_missing_binding_badge() {
+    let sv = SchemaValidation {
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::MissingBinding,
+            message: "binding error".to_string(),
+            source_id: TypeId::new(),
+        }],
+        is_valid: false,
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_validation_tab(ui, &sv);
+    });
+    harness.get_by_label_contains("Missing Binding");
+}
+
+#[test]
+fn validation_tab_shows_invalid_expression_badge() {
+    let sv = SchemaValidation {
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::InvalidExpression,
+            message: "expr error".to_string(),
+            source_id: TypeId::new(),
+        }],
+        is_valid: false,
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_validation_tab(ui, &sv);
+    });
+    harness.get_by_label_contains("Invalid Expr");
+}
+
+// ---------------------------------------------------------------------------
+// Additional Relations tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn relations_tab_shows_block_effect_relation() {
+    let mut state = RelationsState {
+        relation_registry: RelationRegistry {
+            relations: vec![Relation {
+                id: TypeId::new(),
+                name: "Wall Block".to_string(),
+                concept_id: TypeId::new(),
+                subject_role_id: TypeId::new(),
+                object_role_id: TypeId::new(),
+                trigger: RelationTrigger::OnEnter,
+                effect: RelationEffect::Block { condition: None },
+            }],
+        },
+        concept_registry: test_concept_registry(),
+        editor_state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(
+            ui,
+            &mut state.relation_registry,
+            &state.concept_registry,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Wall Block");
+}
+
+#[test]
+fn relations_tab_shows_allow_effect_relation() {
+    let mut state = RelationsState {
+        relation_registry: RelationRegistry {
+            relations: vec![Relation {
+                id: TypeId::new(),
+                name: "Bridge Pass".to_string(),
+                concept_id: TypeId::new(),
+                subject_role_id: TypeId::new(),
+                object_role_id: TypeId::new(),
+                trigger: RelationTrigger::OnExit,
+                effect: RelationEffect::Allow { condition: None },
+            }],
+        },
+        concept_registry: test_concept_registry(),
+        editor_state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(
+            ui,
+            &mut state.relation_registry,
+            &state.concept_registry,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label("Bridge Pass");
+}
+
+// ---------------------------------------------------------------------------
+// Additional Constraints tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn constraints_tab_shows_cross_compare_constraint() {
+    let registry = ConstraintRegistry {
+        constraints: vec![Constraint {
+            id: TypeId::new(),
+            name: "Strength Check".to_string(),
+            description: "Compare two properties".to_string(),
+            concept_id: TypeId::new(),
+            relation_id: None,
+            expression: ConstraintExpr::CrossCompare {
+                left_role_id: TypeId::new(),
+                left_property: "attack".to_string(),
+                operator: CompareOp::Gt,
+                right_role_id: TypeId::new(),
+                right_property: "defense".to_string(),
+            },
+            auto_generated: false,
+        }],
+    };
+    let mut state = ConstraintsState {
+        constraint_registry: registry,
+        concept_registry: test_concept_registry(),
+        editor_state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(
+            ui,
+            &mut state.constraint_registry,
+            &state.concept_registry,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Strength Check");
+}
+
+#[test]
+fn constraints_tab_shows_path_budget_constraint() {
+    let registry = ConstraintRegistry {
+        constraints: vec![Constraint {
+            id: TypeId::new(),
+            name: "Budget Limit".to_string(),
+            description: "Path budget constraint".to_string(),
+            concept_id: TypeId::new(),
+            relation_id: None,
+            expression: ConstraintExpr::PathBudget {
+                concept_id: TypeId::new(),
+                budget_role_id: TypeId::new(),
+                budget_property: "mp".to_string(),
+                cost_role_id: TypeId::new(),
+                cost_property: "cost".to_string(),
+            },
+            auto_generated: false,
+        }],
+    };
+    let mut state = ConstraintsState {
+        constraint_registry: registry,
+        concept_registry: test_concept_registry(),
+        editor_state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(
+            ui,
+            &mut state.constraint_registry,
+            &state.concept_registry,
+            &mut state.editor_state,
+            &mut state.actions,
+        );
+    });
+    harness.get_by_label_contains("Budget Limit");
 }
