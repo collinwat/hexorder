@@ -588,3 +588,893 @@ fn camera_command_without_selected_hex_resource_does_not_panic() {
 
     app.update(); // Must not panic
 }
+
+// ---------------------------------------------------------------------------
+// Mouse pan tests
+// ---------------------------------------------------------------------------
+
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll, MouseScrollUnit};
+
+fn mouse_pan_app() -> App {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<AccumulatedMouseMotion>();
+    app.add_systems(Update, systems::mouse_pan);
+    app.update(); // Startup tick
+    app
+}
+
+#[test]
+fn mouse_pan_right_click_drag_moves_camera() {
+    let mut app = mouse_pan_app();
+
+    // Hold right mouse button and move.
+    {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Right);
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(10.0, 5.0);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(state.is_dragging, "should be in dragging state");
+    // Delta is multiplied by current_scale; default scale is 0.03.
+    let expected_x = 10.0 * 0.03;
+    let expected_y = 5.0 * 0.03;
+    assert!(
+        (state.target_position.x - expected_x).abs() < 0.001,
+        "X position should reflect drag delta, got {}",
+        state.target_position.x
+    );
+    assert!(
+        (state.target_position.y - expected_y).abs() < 0.001,
+        "Y position should reflect drag delta, got {}",
+        state.target_position.y
+    );
+}
+
+#[test]
+fn mouse_pan_no_movement_when_no_buttons() {
+    let mut app = mouse_pan_app();
+
+    // Move mouse but don't press any button.
+    {
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(20.0, 20.0);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(!state.is_dragging);
+    assert_eq!(state.target_position, Vec2::ZERO);
+}
+
+#[test]
+fn mouse_pan_left_click_below_threshold_does_not_drag() {
+    let mut app = mouse_pan_app();
+
+    // Press left button with small movement (below DRAG_THRESHOLD of 5.0).
+    {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(1.0, 0.0);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(!state.is_dragging, "should not drag below threshold");
+    assert_eq!(state.target_position, Vec2::ZERO);
+}
+
+#[test]
+fn mouse_pan_left_click_above_threshold_drags() {
+    let mut app = mouse_pan_app();
+
+    // Press left button.
+    {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        // First frame: accumulate past threshold (need > 5.0 total).
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(6.0, 0.0);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        state.is_dragging,
+        "should be dragging after exceeding threshold"
+    );
+    // Should have moved by the delta.
+    assert!(
+        state.target_position.x.abs() > 0.0,
+        "position should have changed"
+    );
+}
+
+#[test]
+fn mouse_pan_zero_delta_noop_when_dragging() {
+    let mut app = mouse_pan_app();
+
+    // Press right button but zero motion.
+    {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Right);
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::ZERO;
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // is_dragging is set based on button state, but position unchanged.
+    assert_eq!(state.target_position, Vec2::ZERO);
+}
+
+#[test]
+fn mouse_pan_left_drag_accumulator_resets_on_fresh_press() {
+    let mut app = mouse_pan_app();
+
+    // First left press with large movement to exceed threshold.
+    {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(10.0, 0.0);
+    }
+    app.update();
+
+    // Release.
+    {
+        let mut buttons = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+        buttons.release(MouseButton::Left);
+    }
+    app.update();
+
+    // Reset camera position.
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::ZERO;
+
+    // Fresh press — accumulator should reset, small movement under threshold.
+    {
+        let mut buttons = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+        buttons.press(MouseButton::Left);
+        app.world_mut()
+            .resource_mut::<AccumulatedMouseMotion>()
+            .delta = Vec2::new(1.0, 0.0);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        !state.is_dragging,
+        "fresh press should reset accumulator, so small movement should not drag"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scroll zoom tests
+// ---------------------------------------------------------------------------
+
+fn scroll_zoom_app() -> App {
+    let mut app = test_app();
+    app.init_resource::<AccumulatedMouseScroll>();
+    app.add_systems(Update, systems::scroll_zoom);
+    app.update();
+    app
+}
+
+#[test]
+fn scroll_zoom_in_decreases_scale() {
+    let mut app = scroll_zoom_app();
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    // Scroll up = zoom in (positive delta.y).
+    {
+        let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+        scroll.delta = Vec2::new(0.0, 1.0);
+        scroll.unit = MouseScrollUnit::Line;
+    }
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        new_scale < initial_scale,
+        "scroll up should zoom in (decrease scale), got {new_scale} vs {initial_scale}"
+    );
+}
+
+#[test]
+fn scroll_zoom_out_increases_scale() {
+    let mut app = scroll_zoom_app();
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    // Scroll down = zoom out (negative delta.y).
+    {
+        let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+        scroll.delta = Vec2::new(0.0, -1.0);
+        scroll.unit = MouseScrollUnit::Line;
+    }
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        new_scale > initial_scale,
+        "scroll down should zoom out (increase scale), got {new_scale} vs {initial_scale}"
+    );
+}
+
+#[test]
+fn scroll_zoom_pixel_unit_scaled() {
+    let mut app = scroll_zoom_app();
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    // Pixel scroll unit is multiplied by 0.01.
+    {
+        let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+        scroll.delta = Vec2::new(0.0, 100.0); // = 1.0 after * 0.01
+        scroll.unit = MouseScrollUnit::Pixel;
+    }
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        new_scale < initial_scale,
+        "pixel scroll should zoom in, got {new_scale} vs {initial_scale}"
+    );
+}
+
+#[test]
+fn scroll_zoom_zero_delta_noop() {
+    let mut app = scroll_zoom_app();
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    {
+        let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+        scroll.delta = Vec2::ZERO;
+        scroll.unit = MouseScrollUnit::Line;
+    }
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        (new_scale - initial_scale).abs() < f32::EPSILON,
+        "zero scroll should not change scale"
+    );
+}
+
+#[test]
+fn scroll_zoom_clamps_to_min() {
+    let mut app = scroll_zoom_app();
+
+    // Zoom in excessively.
+    for _ in 0..100 {
+        {
+            let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+            scroll.delta = Vec2::new(0.0, 5.0);
+            scroll.unit = MouseScrollUnit::Line;
+        }
+        app.update();
+    }
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        (state.target_scale - state.min_scale).abs() < f32::EPSILON,
+        "should clamp at min_scale"
+    );
+}
+
+#[test]
+fn scroll_zoom_clamps_to_max() {
+    let mut app = scroll_zoom_app();
+
+    // Zoom out excessively.
+    for _ in 0..100 {
+        {
+            let mut scroll = app.world_mut().resource_mut::<AccumulatedMouseScroll>();
+            scroll.delta = Vec2::new(0.0, -5.0);
+            scroll.unit = MouseScrollUnit::Line;
+        }
+        app.update();
+    }
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        (state.target_scale - state.max_scale).abs() < f32::EPSILON,
+        "should clamp at max_scale"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Compensate resize tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn compensate_resize_noop_without_window() {
+    let mut app = test_app();
+    app.add_systems(Update, systems::compensate_resize);
+    app.update();
+
+    // Without a window, scale should remain at default.
+    let state = app.world().resource::<CameraState>();
+    let default_state = CameraState::default();
+    assert!(
+        (state.target_scale - default_state.target_scale).abs() < f32::EPSILON,
+        "no window means no resize compensation"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Apply pending reset tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn apply_pending_reset_noop_when_not_pending() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::apply_pending_reset);
+    app.update();
+
+    // pending_reset is false by default.
+    let state = app.world().resource::<CameraState>();
+    assert!(!state.pending_reset);
+}
+
+#[test]
+fn apply_pending_reset_waits_for_margins() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::apply_pending_reset);
+    app.update();
+
+    // Set pending reset but leave margins at zero.
+    app.world_mut().resource_mut::<CameraState>().pending_reset = true;
+    app.update();
+
+    // Should still be pending because margins.left == 0.
+    assert!(
+        app.world().resource::<CameraState>().pending_reset,
+        "should remain pending when margins are zero"
+    );
+}
+
+#[test]
+fn apply_pending_reset_fires_when_margins_set() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::apply_pending_reset);
+    app.update();
+
+    // Set pending reset and non-zero margins.
+    {
+        app.world_mut().resource_mut::<CameraState>().pending_reset = true;
+        let mut margins = app.world_mut().resource_mut::<ViewportMargins>();
+        margins.left = 300.0;
+        margins.right = 0.0;
+        margins.top = 30.0;
+        margins.bottom = 0.0;
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        !state.pending_reset,
+        "pending_reset should be cleared after margins are set"
+    );
+}
+
+#[test]
+fn apply_pending_reset_recomputes_scale_with_grid_config() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::apply_pending_reset);
+    app.update();
+
+    // Set pending reset and non-zero margins.
+    {
+        app.world_mut().resource_mut::<CameraState>().pending_reset = true;
+        app.world_mut()
+            .resource_mut::<CameraState>()
+            .target_position = Vec2::new(50.0, 50.0);
+        let mut margins = app.world_mut().resource_mut::<ViewportMargins>();
+        margins.left = 300.0;
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(!state.pending_reset, "should clear pending reset");
+    // Position should be set to ui_center_offset, not (50, 50).
+    assert!(
+        state.target_position.length() < 50.0,
+        "position should be reset toward center, got {:?}",
+        state.target_position
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Additional camera command observer tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn camera_fit_command_with_grid_config() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Without a window, fit_scale won't fire, but the branch is covered.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.fit"),
+    });
+    app.update(); // Should not panic
+}
+
+#[test]
+fn camera_fit_command_without_grid_config_noop() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.fit"),
+    });
+    app.update();
+
+    // Without HexGridConfig, fit should be a no-op.
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        (new_scale - initial_scale).abs() < f32::EPSILON,
+        "fit without grid config should not change scale"
+    );
+}
+
+#[test]
+fn camera_zoom_to_selection_with_selected_hex() {
+    use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, SelectedHex};
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    });
+    app.insert_resource(SelectedHex {
+        position: Some(HexPosition::new(3, -2)),
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Move camera far away.
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::new(99.0, 99.0);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("view.zoom_to_selection"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // Camera should have moved toward the selected hex position.
+    assert!(
+        state.target_position.x < 99.0 || state.target_position.y < 99.0,
+        "should move camera toward selected hex, got {:?}",
+        state.target_position
+    );
+}
+
+#[test]
+fn camera_zoom_to_selection_without_selection_noop() {
+    use hexorder_contracts::hex_grid::{HexGridConfig, SelectedHex};
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    });
+    app.insert_resource(SelectedHex { position: None });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::new(5.0, 5.0);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("view.zoom_to_selection"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // With no selection, position should remain unchanged.
+    assert!(
+        (state.target_position.x - 5.0).abs() < f32::EPSILON,
+        "should not move when no hex is selected"
+    );
+}
+
+#[test]
+fn camera_unknown_command_noop() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+    let initial_pos = app.world().resource::<CameraState>().target_position;
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("unknown.command"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        (state.target_scale - initial_scale).abs() < f32::EPSILON,
+        "unknown command should not change scale"
+    );
+    assert_eq!(state.target_position, initial_pos);
+}
+
+// ---------------------------------------------------------------------------
+// Tests with a PrimaryWindow (covers fit_scale and window-dependent paths)
+// ---------------------------------------------------------------------------
+
+use bevy::window::PrimaryWindow;
+
+/// Helper: build a test app with a spawned PrimaryWindow entity.
+fn test_app_with_window() -> App {
+    let mut app = test_app();
+    app.world_mut().spawn((
+        Window {
+            resolution: bevy::window::WindowResolution::new(1280, 720),
+            ..default()
+        },
+        PrimaryWindow,
+    ));
+    app
+}
+
+#[test]
+fn configure_bounds_with_window_computes_fit_scale() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+
+    let mut app = test_app_with_window();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    });
+    app.add_systems(
+        Startup,
+        (systems::spawn_camera, systems::configure_bounds_from_grid).chain(),
+    );
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // With a window, fit_scale is called (not the estimated_scale fallback).
+    assert!(
+        state.target_scale > 0.0,
+        "fit_scale should produce a positive scale"
+    );
+    assert_eq!(
+        state.current_scale, state.target_scale,
+        "current_scale should snap to target on startup"
+    );
+}
+
+#[test]
+fn apply_pending_reset_with_window_recomputes_fit_scale() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+
+    let mut app = test_app_with_window();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 10,
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::apply_pending_reset);
+    app.update();
+
+    {
+        let mut state = app.world_mut().resource_mut::<CameraState>();
+        state.pending_reset = true;
+        state.target_scale = 0.01; // Force different from fit scale.
+        let mut margins = app.world_mut().resource_mut::<ViewportMargins>();
+        margins.left = 300.0;
+        margins.right = 0.0;
+        margins.top = 30.0;
+        margins.bottom = 0.0;
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(!state.pending_reset, "should clear pending");
+    assert_eq!(
+        state.current_scale, state.target_scale,
+        "current should snap to target"
+    );
+}
+
+#[test]
+fn camera_fit_command_with_window() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app_with_window();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Manually set an initial scale different from what fit_scale will return.
+    app.world_mut().resource_mut::<CameraState>().target_scale = 0.01;
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.fit"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // fit_scale should have changed the target_scale.
+    assert!(
+        (state.target_scale - 0.01).abs() > f32::EPSILON,
+        "fit command with window should change scale, got {}",
+        state.target_scale
+    );
+}
+
+#[test]
+fn camera_reset_view_with_window_fits_and_centers() {
+    use hexorder_contracts::hex_grid::HexGridConfig;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app_with_window();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Move camera away and change scale.
+    {
+        let mut state = app.world_mut().resource_mut::<CameraState>();
+        state.target_position = Vec2::new(20.0, 20.0);
+        state.target_scale = 0.01;
+    }
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.reset_view"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        (state.target_scale - 0.01).abs() > f32::EPSILON,
+        "reset_view should fit scale"
+    );
+    assert_eq!(
+        state.current_scale, state.target_scale,
+        "current should snap to target on reset"
+    );
+    assert!(!state.pending_reset, "pending_reset should be cleared");
+}
+
+#[test]
+fn compensate_resize_records_initial_height() {
+    let mut app = test_app_with_window();
+    app.add_systems(Update, systems::compensate_resize);
+    app.update();
+
+    // First frame — just records height. Scale should remain unchanged.
+    let state = app.world().resource::<CameraState>();
+    let default_state = CameraState::default();
+    assert!(
+        (state.target_scale - default_state.target_scale).abs() < f32::EPSILON,
+        "first frame should only record height, not change scale"
+    );
+}
+
+#[test]
+fn compensate_resize_adjusts_scale_on_height_change() {
+    let mut app = test_app_with_window();
+    app.add_systems(Update, systems::compensate_resize);
+
+    // First update records the initial height.
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    // Resize the window (change resolution).
+    {
+        let mut q = app.world_mut().query::<&mut Window>();
+        let mut window = q.single_mut(app.world_mut()).expect("one window");
+        window.resolution = bevy::window::WindowResolution::new(1280, 360); // Half height
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // Ratio = 720 / 360 = 2.0, so scale should double.
+    let expected_scale = initial_scale * 2.0;
+    assert!(
+        (state.target_scale - expected_scale).abs() < 0.001,
+        "scale should adjust by height ratio, expected ~{expected_scale}, got {}",
+        state.target_scale
+    );
+    assert!(
+        (state.current_scale - expected_scale).abs() < 0.001,
+        "current_scale should also adjust"
+    );
+}
+
+#[test]
+fn compensate_resize_noop_when_height_unchanged() {
+    let mut app = test_app_with_window();
+    app.add_systems(Update, systems::compensate_resize);
+
+    // First update records height.
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    // Second update with same window size — no resize.
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        (state.target_scale - initial_scale).abs() < f32::EPSILON,
+        "same height should not change scale"
+    );
+}
+
+#[test]
+fn compensate_resize_clamps_to_bounds() {
+    let mut app = test_app_with_window();
+    app.add_systems(Update, systems::compensate_resize);
+    app.update();
+
+    // Shrink window to extreme to push scale past max.
+    {
+        let mut q = app.world_mut().query::<&mut Window>();
+        let mut window = q.single_mut(app.world_mut()).expect("one window");
+        window.resolution = bevy::window::WindowResolution::new(1280, 1);
+    }
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    assert!(
+        state.target_scale <= state.max_scale,
+        "scale should be clamped to max"
+    );
+    assert!(
+        state.current_scale <= state.max_scale,
+        "current_scale should be clamped to max"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Smooth camera scale interpolation tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn smooth_camera_interpolates_scale() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::smooth_camera);
+    app.update();
+
+    // Set a different target scale.
+    {
+        let mut state = app.world_mut().resource_mut::<CameraState>();
+        state.target_scale = 0.10;
+        state.current_scale = 0.03; // default
+    }
+
+    for _ in 0..10 {
+        app.update();
+    }
+
+    let state = app.world().resource::<CameraState>();
+    // current_scale should have moved toward target_scale.
+    assert!(
+        state.current_scale > 0.03,
+        "current_scale should interpolate toward target"
+    );
+}
+
+#[test]
+fn smooth_camera_y_stays_fixed() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_systems(Update, systems::smooth_camera);
+    app.update();
+
+    {
+        let mut state = app.world_mut().resource_mut::<CameraState>();
+        state.target_position = Vec2::new(5.0, 5.0);
+    }
+
+    for _ in 0..5 {
+        app.update();
+    }
+
+    let mut query = app.world_mut().query::<(&TopDownCamera, &Transform)>();
+    let results: Vec<_> = query.iter(app.world()).collect();
+    let (_marker, transform) = results[0];
+    assert!(
+        (transform.translation.y - 100.0).abs() < f32::EPSILON,
+        "camera Y should stay at CAMERA_Y (100.0)"
+    );
+}
