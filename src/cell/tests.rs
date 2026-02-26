@@ -478,6 +478,202 @@ fn paint_then_undo_reverts_terrain() {
     );
 }
 
+/// `assign_default_cell_data` does nothing when no `BoardPosition` type exists.
+#[test]
+fn assign_default_cell_data_noop_when_no_board_position_type() {
+    let mut app = test_app();
+
+    // Registry with only Token types, no BoardPosition.
+    app.insert_resource(EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Infantry".to_string(),
+            role: EntityRole::Token,
+            color: Color::srgb(0.2, 0.4, 0.7),
+            properties: Vec::new(),
+        }],
+    });
+
+    // Still need CellMaterials for setup (empty since no board types).
+    app.insert_resource(CellMaterials {
+        materials: std::collections::HashMap::new(),
+    });
+    app.add_systems(Startup, systems::assign_default_cell_data);
+    app.update();
+
+    // Spawn a tile without EntityData.
+    let tile = app
+        .world_mut()
+        .spawn((HexTile, HexPosition::new(0, 0), Transform::default()))
+        .id();
+
+    app.add_systems(Update, systems::assign_default_cell_data);
+    app.update();
+
+    assert!(
+        app.world().entity(tile).get::<EntityData>().is_none(),
+        "Tile should not get EntityData when no BoardPosition type exists"
+    );
+}
+
+/// Paint does nothing when `ActiveBoardType.entity_type_id` is `None`.
+#[test]
+fn paint_cell_noop_when_no_active_board_type() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
+
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
+        properties: HashMap::new(),
+    });
+
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: None,
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.add_observer(systems::paint_cell);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let ed = app.world().entity(tile_entity).get::<EntityData>().unwrap();
+    assert_eq!(
+        ed.entity_type_id, first_id,
+        "Entity type should remain unchanged when no active board type"
+    );
+}
+
+/// Paint does nothing when the active type ID is not in the registry.
+#[test]
+fn paint_cell_noop_when_type_not_in_registry() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
+
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+    app.world_mut().entity_mut(tile_entity).insert(EntityData {
+        entity_type_id: first_id,
+        properties: HashMap::new(),
+    });
+
+    let unknown_id = TypeId::new();
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(unknown_id),
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.add_observer(systems::paint_cell);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let ed = app.world().entity(tile_entity).get::<EntityData>().unwrap();
+    assert_eq!(
+        ed.entity_type_id, first_id,
+        "Entity type should remain unchanged when active type not in registry"
+    );
+}
+
+/// `update_paint_preview` sets preview material from the active board type.
+#[test]
+fn update_paint_preview_sets_material() {
+    use hexorder_contracts::editor_ui::PaintPreview;
+
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.init_resource::<PaintPreview>();
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
+
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(first_id),
+    });
+
+    app.add_systems(Update, systems::update_paint_preview);
+    app.update();
+
+    let preview = app.world().resource::<PaintPreview>();
+    assert!(
+        preview.material.is_some(),
+        "PaintPreview should have a material when an active board type is set"
+    );
+}
+
+/// `update_paint_preview` clears material when no active type is set.
+#[test]
+fn update_paint_preview_clears_when_no_active_type() {
+    use hexorder_contracts::editor_ui::PaintPreview;
+
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.init_resource::<PaintPreview>();
+    app.update();
+
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: None,
+    });
+
+    app.add_systems(Update, systems::update_paint_preview);
+    app.update();
+
+    let preview = app.world().resource::<PaintPreview>();
+    assert!(
+        preview.material.is_none(),
+        "PaintPreview should have no material when active type is None"
+    );
+}
+
+/// `sync_cell_materials` removes materials for deleted entity types.
+#[test]
+fn sync_cell_materials_removes_deleted_type() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let initial_count = app.world().resource::<CellMaterials>().materials.len();
+    assert_eq!(initial_count, 3);
+
+    // Remove one BoardPosition type from the registry.
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .retain(|et| et.name != "Water");
+
+    app.add_systems(Update, systems::sync_cell_materials);
+    app.update();
+
+    let cell_mats = app.world().resource::<CellMaterials>();
+    assert_eq!(
+        cell_mats.materials.len(),
+        2,
+        "Should have 2 materials after removing a type"
+    );
+}
+
 #[test]
 fn paint_noop_when_same_type() {
     let mut app = test_app();
