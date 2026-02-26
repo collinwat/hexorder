@@ -1144,3 +1144,130 @@ fn apply_crt_combat_template_populates_registries() {
         "CRT combat template should add modifiers"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Coverage: DockTab Display (components.rs)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dock_tab_display_all_variants() {
+    assert_eq!(DockTab::Viewport.to_string(), "Viewport");
+    assert_eq!(DockTab::Palette.to_string(), "Palette");
+    assert_eq!(DockTab::Design.to_string(), "Design");
+    assert_eq!(DockTab::Rules.to_string(), "Rules");
+    assert_eq!(DockTab::Inspector.to_string(), "Inspector");
+    assert_eq!(DockTab::Settings.to_string(), "Settings");
+    assert_eq!(DockTab::Selection.to_string(), "Selection");
+    assert_eq!(DockTab::Validation.to_string(), "Validation");
+    assert_eq!(DockTab::MechanicReference.to_string(), "Mechanic Reference");
+    assert_eq!(DockTab::MapGenerator.to_string(), "Map Generator");
+    assert_eq!(DockTab::Shortcuts.to_string(), "Shortcuts");
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: DockLayoutState Debug (components.rs)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dock_layout_state_debug_output() {
+    let state = DockLayoutState::default();
+    let debug = format!("{state:?}");
+    assert!(debug.contains("DockLayoutState"));
+    assert!(debug.contains("MapEditing"));
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: EditorState default — extended field checks (components.rs)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn editor_state_default_mechanics_fields() {
+    let state = EditorState::default();
+    assert!(state.new_phase_name.is_empty());
+    assert_eq!(state.new_phase_type_index, 0);
+    assert!(state.new_crt_col_label.is_empty());
+    assert_eq!(state.new_crt_col_type_index, 0);
+    assert!(state.new_crt_col_threshold.is_empty());
+    assert!(state.new_crt_row_label.is_empty());
+    assert!(state.new_crt_row_die_min.is_empty());
+    assert!(state.new_crt_row_die_max.is_empty());
+    assert!(state.new_modifier_name.is_empty());
+    assert_eq!(state.new_modifier_source_index, 0);
+    assert!(state.new_modifier_custom_source.is_empty());
+    assert_eq!(state.new_modifier_shift, 0);
+    assert_eq!(state.new_modifier_priority, 0);
+    assert!(state.crt_outcome_labels.is_empty());
+}
+
+#[test]
+fn editor_state_default_launcher_fields() {
+    let state = EditorState::default();
+    assert!(!state.launcher_name_input_visible);
+    assert!(state.launcher_project_name.is_empty());
+    assert!(!state.launcher_request_focus);
+}
+
+#[test]
+fn editor_state_default_constraint_fields() {
+    let state = EditorState::default();
+    assert!(state.new_constraint_description.is_empty());
+    assert_eq!(state.new_constraint_concept_index, 0);
+    assert_eq!(state.new_constraint_expr_type_index, 0);
+    assert_eq!(state.new_constraint_role_index, 0);
+    assert!(state.new_constraint_property.is_empty());
+    assert_eq!(state.new_constraint_op_index, 0);
+    assert!(state.new_constraint_value_str.is_empty());
+}
+
+#[test]
+fn editor_state_default_combat_and_settings_fields() {
+    let state = EditorState::default();
+    assert!((state.combat_attacker_strength - 0.0).abs() < f64::EPSILON);
+    assert!((state.combat_defender_strength - 0.0).abs() < f64::EPSILON);
+    assert_eq!(state.theme_names, vec!["Brand".to_string()]);
+    assert_eq!(state.active_theme_name, "brand");
+    assert!(state.shortcut_entries.is_empty());
+}
+
+#[test]
+fn editor_state_default_property_extended_fields() {
+    let state = EditorState::default();
+    assert_eq!(state.new_prop_entity_ref_role, 0);
+    assert_eq!(state.new_prop_list_inner_type, 0);
+    assert!(state.new_prop_map_enum_id.is_none());
+    assert_eq!(state.new_prop_map_value_type, 0);
+    assert!(state.new_prop_struct_id.is_none());
+    assert_eq!(state.new_prop_int_range_min, 0);
+    assert_eq!(state.new_prop_int_range_max, 100);
+    assert!((state.new_prop_float_range_min - 0.0).abs() < f64::EPSILON);
+    assert!((state.new_prop_float_range_max - 1.0).abs() < f64::EPSILON);
+}
+
+#[test]
+fn editor_state_default_relation_fields() {
+    let state = EditorState::default();
+    assert_eq!(state.new_relation_concept_index, 0);
+    assert_eq!(state.new_relation_subject_index, 0);
+    assert_eq!(state.new_relation_object_index, 0);
+    assert_eq!(state.new_relation_trigger_index, 0);
+    assert_eq!(state.new_relation_effect_index, 0);
+    assert!(state.new_relation_target_prop.is_empty());
+    assert!(state.new_relation_source_prop.is_empty());
+    assert_eq!(state.new_relation_operation_index, 0);
+}
+
+#[test]
+fn editor_state_default_role_allowed_roles() {
+    let state = EditorState::default();
+    assert_eq!(state.new_role_allowed_roles, vec![false, false]);
+    assert!(state.new_role_name.is_empty());
+    assert!(state.binding_concept_role_id.is_none());
+}
+
+#[test]
+fn editor_state_default_visibility_flags() {
+    let state = EditorState::default();
+    assert!(state.inspector_visible);
+    assert!(state.toolbar_visible);
+    assert!(!state.debug_panel_visible);
+}
