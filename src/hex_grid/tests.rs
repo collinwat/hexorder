@@ -674,3 +674,929 @@ fn deselect_command_without_selected_hex_resource_does_not_panic() {
 
     app.update(); // Must not panic
 }
+
+// ---------------------------------------------------------------------------
+// Additional coverage tests for systems.rs
+// ---------------------------------------------------------------------------
+
+use super::components::{
+    HoverIndicator, IndicatorMaterials, MultiSelectIndicator, OverlayMaterials, SelectIndicator,
+};
+use hexorder_contracts::editor_ui::{EditorTool, PaintPreview};
+use hexorder_contracts::game_system::UnitInstance;
+use hexorder_contracts::hex_grid::TileBaseMaterial;
+
+/// Helper: build an app with full indicator setup for testing `update_indicators`
+/// and `sync_multi_select_indicators`.
+fn test_app_with_indicators() -> App {
+    let mut app = test_app();
+    app.init_resource::<EditorTool>();
+    app.insert_resource(SelectedHex::default());
+    app.insert_resource(HoveredHex::default());
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+            systems::setup_indicators,
+        )
+            .chain(),
+    );
+    app
+}
+
+#[test]
+fn setup_grid_config_inserts_selected_and_hovered() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::setup_grid_config);
+    app.update();
+
+    assert!(
+        app.world().get_resource::<SelectedHex>().is_some(),
+        "SelectedHex should be inserted by setup_grid_config"
+    );
+    assert!(
+        app.world().get_resource::<HoveredHex>().is_some(),
+        "HoveredHex should be inserted by setup_grid_config"
+    );
+}
+
+#[test]
+fn setup_indicators_creates_indicator_entities() {
+    let mut app = test_app_with_indicators();
+    app.update();
+
+    // Hover indicator entity should exist.
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<HoverIndicator>>();
+    assert_eq!(
+        hover_q.iter(app.world()).count(),
+        1,
+        "Exactly one HoverIndicator should exist"
+    );
+
+    // Select indicator entity should exist.
+    let mut select_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<SelectIndicator>>();
+    assert_eq!(
+        select_q.iter(app.world()).count(),
+        1,
+        "Exactly one SelectIndicator should exist"
+    );
+}
+
+#[test]
+fn setup_indicators_inserts_indicator_materials_resource() {
+    let mut app = test_app_with_indicators();
+    app.update();
+
+    assert!(
+        app.world().get_resource::<IndicatorMaterials>().is_some(),
+        "IndicatorMaterials resource should be inserted"
+    );
+}
+
+#[test]
+fn setup_indicators_inserts_overlay_materials_resource() {
+    let mut app = test_app_with_indicators();
+    app.update();
+
+    assert!(
+        app.world().get_resource::<OverlayMaterials>().is_some(),
+        "OverlayMaterials resource should be inserted"
+    );
+}
+
+#[test]
+fn update_indicators_shows_hover_ring_when_hovered() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    // Set a hovered position.
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+    app.update();
+
+    // The hover indicator should be visible.
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<HoverIndicator>>();
+    for vis in hover_q.iter(app.world()) {
+        assert_eq!(
+            *vis,
+            Visibility::Visible,
+            "Hover indicator should be visible when a hex is hovered"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_hides_hover_when_nothing_hovered() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    // Hovered is None (default).
+    app.update();
+
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<HoverIndicator>>();
+    for vis in hover_q.iter(app.world()) {
+        assert_eq!(
+            *vis,
+            Visibility::Hidden,
+            "Hover indicator should be hidden when nothing is hovered"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_hides_hover_when_same_as_selected() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    let pos = HexPosition::new(2, -1);
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+    app.world_mut().insert_resource(SelectedHex {
+        position: Some(pos),
+    });
+    app.update();
+
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<HoverIndicator>>();
+    for vis in hover_q.iter(app.world()) {
+        assert_eq!(
+            *vis,
+            Visibility::Hidden,
+            "Hover indicator should be hidden when hovered == selected"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_shows_select_ring_when_selected() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    app.world_mut().insert_resource(SelectedHex {
+        position: Some(HexPosition::new(3, 0)),
+    });
+    app.update();
+
+    let mut select_q = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<SelectIndicator>>();
+    for vis in select_q.iter(app.world()) {
+        assert_eq!(
+            *vis,
+            Visibility::Visible,
+            "Select indicator should be visible when a hex is selected"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_hides_select_ring_when_nothing_selected() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    // SelectedHex is default (None).
+    app.update();
+
+    let mut select_q = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<SelectIndicator>>();
+    for vis in select_q.iter(app.world()) {
+        assert_eq!(
+            *vis,
+            Visibility::Hidden,
+            "Select indicator should be hidden when nothing is selected"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_paint_mode_uses_paint_preview_material() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    // Switch to Paint mode.
+    app.world_mut().insert_resource(EditorTool::Paint);
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 1)),
+    });
+
+    // Add a PaintPreview with a custom material.
+    let custom_material = {
+        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+        materials.add(StandardMaterial {
+            base_color: Color::srgb(0.0, 1.0, 0.0),
+            unlit: true,
+            ..default()
+        })
+    };
+    app.world_mut().insert_resource(PaintPreview {
+        material: Some(custom_material.clone()),
+    });
+
+    app.update();
+
+    // The hover indicator should be visible and using the paint preview material.
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<(&Visibility, &MeshMaterial3d<StandardMaterial>), With<HoverIndicator>>();
+    for (vis, mat) in hover_q.iter(app.world()) {
+        assert_eq!(*vis, Visibility::Visible);
+        assert_eq!(
+            mat.0, custom_material,
+            "Hover indicator should use PaintPreview material in Paint mode"
+        );
+    }
+}
+
+#[test]
+fn update_indicators_select_mode_uses_default_hover_material() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    let default_hover_mat = app.world().resource::<IndicatorMaterials>().hover.clone();
+
+    // EditorTool defaults to Select mode.
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(0, 1)),
+    });
+    app.update();
+
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<&MeshMaterial3d<StandardMaterial>, With<HoverIndicator>>();
+    for mat in hover_q.iter(app.world()) {
+        assert_eq!(
+            mat.0, default_hover_mat,
+            "Hover indicator should use default material in Select mode"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// handle_click: additional branch coverage
+// ---------------------------------------------------------------------------
+
+#[test]
+fn click_on_already_selected_hex_deselects() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    let pos = HexPosition::new(2, 3);
+    app.insert_resource(SelectedHex {
+        position: Some(pos),
+    });
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+    app.add_systems(Update, systems::handle_click);
+
+    // Press
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release (click)
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selected = app.world().resource::<SelectedHex>();
+    assert_eq!(
+        selected.position, None,
+        "Clicking on already-selected hex should deselect it"
+    );
+}
+
+#[test]
+fn click_with_no_hovered_hex_does_nothing() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+    app.insert_resource(HoveredHex { position: None });
+    app.add_systems(Update, systems::handle_click);
+
+    // Press
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selected = app.world().resource::<SelectedHex>();
+    assert_eq!(
+        selected.position, None,
+        "Clicking with no hovered hex should not select anything"
+    );
+}
+
+#[test]
+fn shift_click_adds_entity_to_multi_selection() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+
+    let pos = HexPosition::new(1, 0);
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+
+    // Spawn a tile entity at the hovered position.
+    let tile_entity = app.world_mut().spawn((HexTile, pos)).id();
+
+    app.add_systems(Update, systems::handle_click);
+
+    // Press with shift held.
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ShiftLeft);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selection = app.world().resource::<Selection>();
+    assert!(
+        selection.entities.contains(&tile_entity),
+        "Shift+click should add tile to multi-selection"
+    );
+}
+
+#[test]
+fn shift_click_toggles_entity_out_of_multi_selection() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+
+    let pos = HexPosition::new(1, 0);
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+
+    // Spawn a tile entity at the hovered position.
+    let tile_entity = app.world_mut().spawn((HexTile, pos)).id();
+
+    // Pre-populate the selection with this entity.
+    let mut selection = Selection::default();
+    selection.entities.insert(tile_entity);
+    app.insert_resource(selection);
+
+    app.add_systems(Update, systems::handle_click);
+
+    // Press with shift held.
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ShiftLeft);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selection = app.world().resource::<Selection>();
+    assert!(
+        !selection.entities.contains(&tile_entity),
+        "Shift+click on already-selected entity should remove it from multi-selection"
+    );
+}
+
+#[test]
+fn normal_click_clears_multi_selection() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+
+    let pos = HexPosition::new(1, 0);
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+
+    // Pre-populate multi-selection with some entity.
+    let some_entity = app.world_mut().spawn_empty().id();
+    let mut selection = Selection::default();
+    selection.entities.insert(some_entity);
+    app.insert_resource(selection);
+
+    app.add_systems(Update, systems::handle_click);
+
+    // Press
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release (normal click, no shift)
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selection = app.world().resource::<Selection>();
+    assert!(
+        selection.entities.is_empty(),
+        "Normal click should clear multi-selection"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// handle_hex_grid_command: deselect with resource present
+// ---------------------------------------------------------------------------
+
+#[test]
+fn deselect_command_clears_selected_hex() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(SelectedHex {
+        position: Some(HexPosition::new(5, 3)),
+    });
+    app.add_observer(systems::handle_hex_grid_command);
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.deselect"),
+    });
+    app.update();
+
+    let selected = app.world().resource::<SelectedHex>();
+    assert_eq!(
+        selected.position, None,
+        "edit.deselect command should clear SelectedHex"
+    );
+}
+
+#[test]
+fn non_deselect_command_does_not_change_selected_hex() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let pos = HexPosition::new(2, 1);
+    app.insert_resource(SelectedHex {
+        position: Some(pos),
+    });
+    app.add_observer(systems::handle_hex_grid_command);
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.save"),
+    });
+    app.update();
+
+    let selected = app.world().resource::<SelectedHex>();
+    assert_eq!(
+        selected.position,
+        Some(pos),
+        "Unrelated command should not affect SelectedHex"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// sync_multi_select_indicators
+// ---------------------------------------------------------------------------
+
+#[test]
+fn sync_multi_select_spawns_indicators_for_selected_tiles() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::sync_multi_select_indicators);
+    app.update(); // Startup
+
+    // Find a tile entity to select.
+    let tile_entity = {
+        let mut q = app.world_mut().query_filtered::<Entity, With<HexTile>>();
+        q.iter(app.world()).next().expect("should have tiles")
+    };
+
+    let mut sel = Selection::default();
+    sel.entities.insert(tile_entity);
+    app.insert_resource(sel);
+    app.update();
+
+    let mut indicator_q = app.world_mut().query::<&MultiSelectIndicator>();
+    let indicators: Vec<_> = indicator_q.iter(app.world()).collect();
+    assert_eq!(
+        indicators.len(),
+        1,
+        "Should spawn one multi-select indicator for one selected tile"
+    );
+    assert_eq!(indicators[0].tile_entity, tile_entity);
+}
+
+#[test]
+fn sync_multi_select_despawns_indicators_when_deselected() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::sync_multi_select_indicators);
+    app.update(); // Startup
+
+    // Select a tile.
+    let tile_entity = {
+        let mut q = app.world_mut().query_filtered::<Entity, With<HexTile>>();
+        q.iter(app.world()).next().expect("should have tiles")
+    };
+    let mut sel = Selection::default();
+    sel.entities.insert(tile_entity);
+    app.insert_resource(sel);
+    app.update();
+
+    // Verify indicator exists.
+    let mut indicator_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<MultiSelectIndicator>>();
+    assert_eq!(indicator_q.iter(app.world()).count(), 1);
+
+    // Clear selection.
+    app.insert_resource(Selection::default());
+    app.update();
+
+    let mut indicator_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<MultiSelectIndicator>>();
+    assert_eq!(
+        indicator_q.iter(app.world()).count(),
+        0,
+        "Indicators should be despawned when selection is cleared"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// cleanup_internal_entities
+// ---------------------------------------------------------------------------
+
+#[test]
+fn cleanup_internal_entities_removes_indicators() {
+    let mut app = test_app_with_indicators();
+    app.update(); // Startup
+
+    // Verify indicators exist.
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<HoverIndicator>>();
+    assert!(hover_q.iter(app.world()).count() > 0);
+
+    let mut select_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<SelectIndicator>>();
+    assert!(select_q.iter(app.world()).count() > 0);
+
+    // Run cleanup.
+    app.add_systems(Update, systems::cleanup_internal_entities);
+    app.update();
+
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<HoverIndicator>>();
+    assert_eq!(
+        hover_q.iter(app.world()).count(),
+        0,
+        "HoverIndicator should be despawned by cleanup"
+    );
+
+    let mut select_q = app
+        .world_mut()
+        .query_filtered::<Entity, With<SelectIndicator>>();
+    assert_eq!(
+        select_q.iter(app.world()).count(),
+        0,
+        "SelectIndicator should be despawned by cleanup"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// draw_los_ray with a unit that has a position
+// ---------------------------------------------------------------------------
+
+#[test]
+fn los_ray_drawn_when_unit_selected_and_hovered() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    // Spawn a unit with a position.
+    let unit_pos = HexPosition::new(0, 0);
+    let unit_entity = app.world_mut().spawn((UnitInstance, unit_pos)).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(2, 0)),
+    });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup
+    app.update(); // Update -- draws the LOS ray (should not panic)
+}
+
+#[test]
+fn los_ray_not_drawn_when_hover_equals_unit_position() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    let unit_pos = HexPosition::new(0, 0);
+    let unit_entity = app.world_mut().spawn((UnitInstance, unit_pos)).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+    // Hover the same hex as the unit -- no ray should be drawn.
+    app.insert_resource(HoveredHex {
+        position: Some(unit_pos),
+    });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup
+    app.update(); // Update -- should not panic and should early return
+}
+
+#[test]
+fn los_ray_not_drawn_when_no_hover() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    let unit_pos = HexPosition::new(0, 0);
+    let unit_entity = app.world_mut().spawn((UnitInstance, unit_pos)).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+    app.insert_resource(HoveredHex { position: None });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup
+    app.update(); // No hover means no ray
+}
+
+#[test]
+fn los_ray_not_drawn_when_unit_entity_has_no_position() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    // Spawn a unit entity WITHOUT HexPosition.
+    let unit_entity = app.world_mut().spawn(UnitInstance).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(2, 0)),
+    });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update();
+    app.update(); // Should early return without panic
+}
+
+// ---------------------------------------------------------------------------
+// All tiles have TileBaseMaterial and correct rotation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn all_tiles_have_tile_base_material() {
+    let mut app = test_app_with_grid();
+    app.update();
+
+    let mut query = app
+        .world_mut()
+        .query_filtered::<&TileBaseMaterial, With<HexTile>>();
+    let count = query.iter(app.world()).count();
+
+    let config = app
+        .world()
+        .get_resource::<HexGridConfig>()
+        .expect("config should exist");
+    let expected = systems::tile_count_for_radius(config.map_radius);
+
+    assert_eq!(count, expected, "All tiles should have TileBaseMaterial");
+}
+
+#[test]
+fn all_tiles_have_flat_rotation() {
+    let mut app = test_app_with_grid();
+    app.update();
+
+    let expected_rotation = Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+
+    let mut query = app
+        .world_mut()
+        .query_filtered::<&Transform, With<HexTile>>();
+    for transform in query.iter(app.world()) {
+        let dot = transform.rotation.dot(expected_rotation).abs();
+        assert!(
+            (dot - 1.0).abs() < 1e-5,
+            "Tile rotation should be -90 degrees around X axis"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Plugin build coverage (mod.rs)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn hex_grid_plugin_builds_without_panic() {
+    use hexorder_contracts::editor_ui::ViewportRect;
+    use hexorder_contracts::shortcuts::ShortcutRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.init_state::<AppScreen>();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<ShortcutRegistry>();
+    app.init_resource::<ValidMoveSet>();
+    app.init_resource::<SelectedUnit>();
+    app.init_resource::<Selection>();
+    app.init_resource::<EditorTool>();
+    app.init_resource::<ViewportRect>();
+    app.init_resource::<bevy::input::mouse::AccumulatedMouseMotion>();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+
+    app.add_plugins(super::HexGridPlugin);
+    app.update(); // Should not panic
+}
+
+#[test]
+fn register_shortcuts_adds_deselect_command() {
+    use hexorder_contracts::shortcuts::{KeyBinding, Modifiers, ShortcutRegistry};
+
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    let binding = KeyBinding::new(bevy::input::keyboard::KeyCode::Escape, Modifiers::NONE);
+    let found = registry.lookup(&binding);
+    assert!(
+        found.is_some(),
+        "Escape should be bound after register_shortcuts"
+    );
+    assert_eq!(
+        found.expect("already checked").id.0,
+        "edit.deselect",
+        "Escape should map to edit.deselect"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Shift+click with ShiftRight key
+// ---------------------------------------------------------------------------
+
+#[test]
+fn shift_right_click_adds_to_multi_selection() {
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+
+    let pos = HexPosition::new(1, 0);
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+
+    let tile_entity = app.world_mut().spawn((HexTile, pos)).id();
+    app.add_systems(Update, systems::handle_click);
+
+    // Press with ShiftRight held.
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ShiftRight);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    // Release
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+
+    let selection = app.world().resource::<Selection>();
+    assert!(
+        selection.entities.contains(&tile_entity),
+        "ShiftRight+click should add tile to multi-selection"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Paint mode with no PaintPreview material (None)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn update_indicators_paint_mode_no_preview_uses_default() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    let default_hover_mat = app.world().resource::<IndicatorMaterials>().hover.clone();
+
+    // Switch to Paint mode but PaintPreview.material is None.
+    app.world_mut().insert_resource(EditorTool::Paint);
+    app.world_mut()
+        .insert_resource(PaintPreview { material: None });
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 1)),
+    });
+    app.update();
+
+    let mut hover_q = app
+        .world_mut()
+        .query_filtered::<&MeshMaterial3d<StandardMaterial>, With<HoverIndicator>>();
+    for mat in hover_q.iter(app.world()) {
+        assert_eq!(
+            mat.0, default_hover_mat,
+            "Paint mode with no PaintPreview material should fall back to default"
+        );
+    }
+}
