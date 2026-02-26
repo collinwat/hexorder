@@ -384,6 +384,188 @@ fn keyboard_pan_wasd_matches_arrow_directions() {
     assert!(d.x < 0.0, "D should pan right (decrease X), got {d:?}");
 }
 
+// ---------------------------------------------------------------------------
+// Plugin registration tests (camera/mod.rs coverage)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn camera_plugin_registers_shortcuts() {
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    // Verify all 9 camera commands are registered.
+    let commands = registry.commands();
+    let camera_cmds: Vec<_> = commands
+        .iter()
+        .filter(|c| c.id.0.starts_with("camera."))
+        .collect();
+    assert_eq!(camera_cmds.len(), 9, "expected 9 camera shortcut commands");
+
+    // Verify specific command IDs.
+    let ids: Vec<&str> = camera_cmds.iter().map(|c| c.id.0).collect();
+    assert!(ids.contains(&"camera.pan_up"));
+    assert!(ids.contains(&"camera.pan_down"));
+    assert!(ids.contains(&"camera.pan_left"));
+    assert!(ids.contains(&"camera.pan_right"));
+    assert!(ids.contains(&"camera.zoom_in"));
+    assert!(ids.contains(&"camera.zoom_out"));
+    assert!(ids.contains(&"camera.center"));
+    assert!(ids.contains(&"camera.fit"));
+    assert!(ids.contains(&"camera.reset_view"));
+}
+
+#[test]
+fn camera_plugin_continuous_commands_are_marked() {
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    // Pan commands should be continuous.
+    for cmd in registry.commands() {
+        if cmd.id.0.starts_with("camera.pan_") {
+            assert!(cmd.continuous, "{} should be continuous", cmd.id.0);
+        }
+    }
+
+    // View commands should be discrete.
+    for id in &[
+        "camera.zoom_in",
+        "camera.zoom_out",
+        "camera.center",
+        "camera.fit",
+        "camera.reset_view",
+    ] {
+        let cmd = registry
+            .commands()
+            .iter()
+            .find(|c| c.id.0 == *id)
+            .expect(id);
+        assert!(!cmd.continuous, "{} should be discrete", id);
+    }
+}
+
+#[test]
+fn camera_plugin_pan_bindings_correct() {
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    // Pan up should be W and ArrowUp.
+    let pan_up_keys = registry.bindings_for("camera.pan_up");
+    assert_eq!(pan_up_keys.len(), 2);
+    assert!(pan_up_keys.contains(&KeyCode::KeyW));
+    assert!(pan_up_keys.contains(&KeyCode::ArrowUp));
+
+    // Pan down should be S and ArrowDown.
+    let pan_down_keys = registry.bindings_for("camera.pan_down");
+    assert_eq!(pan_down_keys.len(), 2);
+    assert!(pan_down_keys.contains(&KeyCode::KeyS));
+    assert!(pan_down_keys.contains(&KeyCode::ArrowDown));
+}
+
+// ---------------------------------------------------------------------------
+// Camera command observer tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn camera_zoom_in_command_decreases_scale() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.zoom_in"),
+    });
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        new_scale < initial_scale,
+        "zoom_in should decrease scale (zoom in = smaller ortho scale)"
+    );
+}
+
+#[test]
+fn camera_zoom_out_command_increases_scale() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    let initial_scale = app.world().resource::<CameraState>().target_scale;
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.zoom_out"),
+    });
+    app.update();
+
+    let new_scale = app.world().resource::<CameraState>().target_scale;
+    assert!(
+        new_scale > initial_scale,
+        "zoom_out should increase scale (zoom out = larger ortho scale)"
+    );
+}
+
+#[test]
+fn camera_center_command_resets_position() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Move camera away from center.
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::new(10.0, 10.0);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.center"),
+    });
+    app.update();
+
+    let pos = app.world().resource::<CameraState>().target_position;
+    assert!(
+        pos.x.abs() < f32::EPSILON && pos.y.abs() < f32::EPSILON,
+        "center should reset position to origin, got {pos:?}"
+    );
+}
+
+#[test]
+fn camera_reset_view_command_resets_position() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = test_app();
+    app.add_systems(Startup, systems::spawn_camera);
+    app.add_observer(systems::handle_camera_command);
+    app.update();
+
+    // Move camera away.
+    app.world_mut()
+        .resource_mut::<CameraState>()
+        .target_position = Vec2::new(5.0, 5.0);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("camera.reset_view"),
+    });
+    app.update();
+
+    let state = app.world().resource::<CameraState>();
+    // Without a Window + HexGridConfig, fit_scale is skipped,
+    // but position should still be reset to the UI center offset (≈ 0).
+    assert!(
+        state.target_position.length() < 1.0,
+        "reset should approximately center camera, got {:?}",
+        state.target_position
+    );
+}
+
 /// The `handle_camera_command` observer must not panic when `SelectedHex`
 /// does not exist (e.g., zoom command dispatched before entering the Editor
 /// state). The observer wraps `SelectedHex` in `Option`.
