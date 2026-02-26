@@ -76,9 +76,12 @@ pub(crate) fn config_path() -> PathBuf {
 /// Load the user settings layer from disk. Returns default (empty) on missing
 /// or unparsable file.
 pub(crate) fn load_user_settings() -> PartialSettings {
-    let path = config_path();
+    load_settings_from_path(&config_path())
+}
 
-    let contents = match std::fs::read_to_string(&path) {
+/// Load settings from a specific path. Extracted for testability.
+pub(crate) fn load_settings_from_path(path: &std::path::Path) -> PartialSettings {
+    let contents = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             info!("No settings config at {}, using defaults", path.display());
@@ -166,10 +169,14 @@ pub(crate) fn brand_theme_definition() -> ThemeDefinition {
 /// Load custom themes from the themes directory. Returns the brand theme
 /// first, followed by any custom themes found on disk.
 pub(crate) fn load_themes() -> ThemeLibrary {
+    load_themes_from_dir(&config_dir().join("themes"))
+}
+
+/// Load themes from a specific directory. Extracted for testability.
+pub(crate) fn load_themes_from_dir(themes_dir: &std::path::Path) -> ThemeLibrary {
     let mut themes = vec![brand_theme_definition()];
 
-    let themes_dir = config_dir().join("themes");
-    let entries = match std::fs::read_dir(&themes_dir) {
+    let entries = match std::fs::read_dir(themes_dir) {
         Ok(entries) => entries,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             info!(
