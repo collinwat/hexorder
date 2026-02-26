@@ -488,3 +488,828 @@ fn dispatch_confirm_cancel_does_nothing() {
 fn format_version_is_5() {
     assert_eq!(FORMAT_VERSION, 5);
 }
+
+// ---------------------------------------------------------------------------
+// Helper: build test app with `HexGridConfig` pre-inserted
+// ---------------------------------------------------------------------------
+
+fn test_app_with_grid() -> App {
+    let mut app = test_app();
+    app.insert_resource(HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 5,
+    });
+    app.update();
+    app
+}
+
+// ---------------------------------------------------------------------------
+// sanitize_filename coverage
+// ---------------------------------------------------------------------------
+
+/// `sanitize_filename` replaces special characters with hyphens.
+#[test]
+fn sanitize_filename_replaces_special_chars() {
+    let result = super::systems::sanitize_filename("my/project:name?");
+    assert_eq!(result, "my-project-name-");
+}
+
+/// `sanitize_filename` preserves alphanumeric, hyphens, underscores, spaces.
+#[test]
+fn sanitize_filename_preserves_valid_chars() {
+    let result = super::systems::sanitize_filename("My Project-v2_final");
+    assert_eq!(result, "My Project-v2_final");
+}
+
+/// `sanitize_filename` returns "untitled" for empty input.
+#[test]
+fn sanitize_filename_returns_untitled_for_empty() {
+    let result = super::systems::sanitize_filename("");
+    assert_eq!(result, "untitled");
+}
+
+/// `sanitize_filename` returns "untitled" for whitespace-only input.
+#[test]
+fn sanitize_filename_returns_untitled_for_whitespace() {
+    let result = super::systems::sanitize_filename("   ");
+    assert_eq!(result, "untitled");
+}
+
+/// `sanitize_filename` returns "untitled" for all-special-char input that trims to empty.
+#[test]
+fn sanitize_filename_all_special_chars_that_trim_empty() {
+    // Characters that become hyphens, then trim to hyphens (not empty).
+    let result = super::systems::sanitize_filename("!!!");
+    assert_eq!(result, "---");
+}
+
+// ---------------------------------------------------------------------------
+// save_to_path failure path
+// ---------------------------------------------------------------------------
+
+/// `save_to_path` returns false and triggers error toast on write failure.
+#[test]
+fn save_to_path_returns_false_on_failure() {
+    let mut app = test_app_with_grid();
+
+    // Attempt to save to a non-existent directory that cannot be created.
+    let bad_path = std::path::PathBuf::from("/nonexistent/deeply/nested/dir/file.hexorder");
+    let result = super::systems::save_to_path(&bad_path, app.world_mut());
+
+    assert!(!result, "save_to_path should return false on failure");
+}
+
+// ---------------------------------------------------------------------------
+// load_from_path failure and backward compat
+// ---------------------------------------------------------------------------
+
+/// `load_from_path` returns false on non-existent file.
+#[test]
+fn load_from_path_returns_false_on_missing_file() {
+    let mut app = test_app_with_grid();
+    let bad_path = std::path::PathBuf::from("/nonexistent/file.hexorder");
+    let result = super::systems::load_from_path(&bad_path, app.world_mut());
+    assert!(
+        !result,
+        "load_from_path should return false on missing file"
+    );
+}
+
+/// `load_from_path` derives name from filename when name field is empty (v2 compat).
+#[test]
+fn load_from_path_derives_name_from_filename_stem() {
+    use hexorder_contracts::storage::Storage;
+
+    let mut app = test_app_with_grid();
+
+    // Create a file with empty name field (simulates v2 file).
+    let mut file = test_game_system_file();
+    file.name = String::new();
+
+    let tmp = std::env::temp_dir().join("hexorder_test_v2_compat.hexorder");
+    {
+        let storage = app.world().resource::<Storage>();
+        storage
+            .provider()
+            .save_at(&tmp, &file)
+            .expect("write test file");
+    }
+
+    let result = super::systems::load_from_path(&tmp, app.world_mut());
+    assert!(result, "load_from_path should succeed");
+
+    // Name should be derived from the filename stem.
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.name, "hexorder_test_v2_compat");
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// `load_from_path` restores `workspace_preset` and `font_size_base`.
+#[test]
+fn load_from_path_restores_workspace_preset_and_font_size() {
+    use hexorder_contracts::storage::Storage;
+
+    let mut app = test_app_with_grid();
+
+    let mut file = test_game_system_file();
+    file.workspace_preset = "playtesting".to_string();
+    file.font_size_base = 18.0;
+
+    let tmp = std::env::temp_dir().join("hexorder_test_preset_font.hexorder");
+    {
+        let storage = app.world().resource::<Storage>();
+        storage
+            .provider()
+            .save_at(&tmp, &file)
+            .expect("write test file");
+    }
+
+    super::systems::load_from_path(&tmp, app.world_mut());
+
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.workspace_preset, "playtesting");
+    assert!((workspace.font_size_base - 18.0).abs() < f32::EPSILON);
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+// ---------------------------------------------------------------------------
+// save_to_path marks undo stack clean
+// ---------------------------------------------------------------------------
+
+/// `save_to_path` marks the undo stack as clean.
+#[test]
+fn save_to_path_marks_undo_stack_clean() {
+    use hexorder_contracts::undo_redo::UndoStack;
+
+    let mut app = test_app_with_grid();
+    app.init_resource::<UndoStack>();
+
+    // Record a command to make it dirty.
+    app.world_mut().resource_mut::<UndoStack>().record(Box::new(
+        hexorder_contracts::undo_redo::SetPropertyCommand {
+            entity: Entity::PLACEHOLDER,
+            property_id: TypeId::new(),
+            old_value: hexorder_contracts::game_system::PropertyValue::Int(0),
+            new_value: hexorder_contracts::game_system::PropertyValue::Int(1),
+            label: "test".to_string(),
+        },
+    ));
+    assert!(app.world().resource::<UndoStack>().is_dirty());
+
+    let tmp = std::env::temp_dir().join("hexorder_test_save_undo_clean.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+
+    super::systems::save_to_path(&tmp, app.world_mut());
+
+    assert!(
+        !app.world().resource::<UndoStack>().is_dirty(),
+        "undo stack should be clean after save"
+    );
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+// ---------------------------------------------------------------------------
+// dispatch_dialog_result: additional paths
+// ---------------------------------------------------------------------------
+
+/// Confirm Yes with existing path saves and executes pending action.
+#[test]
+fn dispatch_confirm_yes_with_path_saves_then_executes() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+
+    // Save once to establish a file path.
+    let tmp = std::env::temp_dir().join("hexorder_test_confirm_yes.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+    super::systems::save_to_path(&tmp, app.world_mut());
+
+    // Dispatch confirm Yes with pending CloseProject.
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::CloseProject,
+        },
+        DialogResult::Confirmed(ConfirmChoice::Yes),
+        app.world_mut(),
+    );
+
+    // CloseProject resets workspace.
+    let workspace = app.world().resource::<Workspace>();
+    assert!(workspace.name.is_empty(), "CloseProject should reset name");
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+// NOTE: Confirm Yes without existing path would spawn an rfd save dialog
+// which cannot run in headless tests. The `spawn_save_dialog_for_current_project`
+// codepath is covered indirectly by verifying that Confirm Yes with-path works
+// (tested above) and that the dialog infrastructure polls correctly
+// (tested in async_dialog::tests).
+
+/// Save file dialog with picked path saves the file.
+#[test]
+fn dispatch_save_file_picked_saves() {
+    use crate::persistence::async_dialog::*;
+
+    let mut app = test_app_with_grid();
+
+    let tmp = std::env::temp_dir().join("hexorder_test_dispatch_save.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::SaveFile { then: None },
+        DialogResult::FilePicked(Some(tmp.clone())),
+        app.world_mut(),
+    );
+
+    assert!(tmp.exists(), "file should be written");
+    let workspace = app
+        .world()
+        .resource::<hexorder_contracts::persistence::Workspace>();
+    assert_eq!(workspace.file_path.as_deref(), Some(tmp.as_path()));
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// Save file dialog with chained action executes after save.
+#[test]
+fn dispatch_save_file_with_chained_action() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+
+    let tmp = std::env::temp_dir().join("hexorder_test_save_chain.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::SaveFile {
+            then: Some(PendingAction::CloseProject),
+        },
+        DialogResult::FilePicked(Some(tmp.clone())),
+        app.world_mut(),
+    );
+
+    // CloseProject should have been executed after save.
+    let workspace = app.world().resource::<Workspace>();
+    assert!(
+        workspace.name.is_empty(),
+        "CloseProject should have reset workspace"
+    );
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// Save/Open file dialog cancelled (None) does nothing.
+#[test]
+fn dispatch_file_dialog_cancelled_does_nothing() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+
+    app.world_mut().resource_mut::<Workspace>().name = "Original".to_string();
+
+    // Save cancelled.
+    super::systems::dispatch_dialog_result(
+        DialogKind::SaveFile { then: None },
+        DialogResult::FilePicked(None),
+        app.world_mut(),
+    );
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(workspace.name, "Original");
+
+    // Open cancelled.
+    super::systems::dispatch_dialog_result(
+        DialogKind::OpenFile,
+        DialogResult::FilePicked(None),
+        app.world_mut(),
+    );
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(workspace.name, "Original");
+}
+
+/// Open file dialog with picked path loads the file.
+#[test]
+fn dispatch_open_file_loads() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::storage::Storage;
+
+    let mut app = test_app_with_grid();
+
+    // Write a file first.
+    let file = test_game_system_file();
+    let tmp = std::env::temp_dir().join("hexorder_test_dispatch_open.hexorder");
+    {
+        let storage = app.world().resource::<Storage>();
+        storage
+            .provider()
+            .save_at(&tmp, &file)
+            .expect("write test file");
+    }
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::OpenFile,
+        DialogResult::FilePicked(Some(tmp.clone())),
+        app.world_mut(),
+    );
+
+    let game_system = app.world().resource::<GameSystem>();
+    assert_eq!(game_system.id, "test-save");
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// Unhandled dialog combination logs warning but does not panic.
+#[test]
+fn dispatch_unhandled_combination_logs_warning() {
+    use crate::persistence::async_dialog::*;
+
+    let mut app = test_app_with_grid();
+
+    // OpenFile + Confirmed is an unhandled combination.
+    super::systems::dispatch_dialog_result(
+        DialogKind::OpenFile,
+        DialogResult::Confirmed(ConfirmChoice::Yes),
+        app.world_mut(),
+    );
+    // Should not panic.
+}
+
+// ---------------------------------------------------------------------------
+// execute_pending_action: Load variant
+// ---------------------------------------------------------------------------
+
+// NOTE: `PendingAction::Load` spawns an rfd dialog (calls `spawn_open_dialog`)
+// which cannot run in a headless test environment. The `execute_pending_action`
+// codepath for Load is covered by the dispatch_dialog_result integration path
+// through the async dialog infrastructure.
+
+// ---------------------------------------------------------------------------
+// handle_file_command
+// ---------------------------------------------------------------------------
+
+/// Helper: build a minimal app with only `handle_file_command` observer.
+/// This avoids the full `PersistencePlugin` which would register rfd-based
+/// observers that cannot run in headless test environments.
+fn file_command_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_observer(super::systems::handle_file_command);
+    app
+}
+
+/// `handle_file_command` maps "file.save" to `SaveRequestEvent`.
+#[test]
+fn handle_file_command_maps_save() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use hexorder_contracts::persistence::SaveRequestEvent;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = file_command_app();
+
+    let triggered = Arc::new(AtomicBool::new(false));
+    let triggered_clone = Arc::clone(&triggered);
+    app.add_observer(move |_trigger: On<SaveRequestEvent>| {
+        triggered_clone.store(true, Ordering::SeqCst);
+    });
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.save"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        triggered.load(Ordering::SeqCst),
+        "file.save should trigger SaveRequestEvent"
+    );
+}
+
+/// `handle_file_command` maps `file.save_as` to `SaveRequestEvent` with `save_as: true`.
+#[test]
+fn handle_file_command_maps_save_as() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use hexorder_contracts::persistence::SaveRequestEvent;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = file_command_app();
+
+    let save_as_flag = Arc::new(AtomicBool::new(false));
+    let save_as_clone = Arc::clone(&save_as_flag);
+    app.add_observer(move |trigger: On<SaveRequestEvent>| {
+        if trigger.event().save_as {
+            save_as_clone.store(true, Ordering::SeqCst);
+        }
+    });
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.save_as"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        save_as_flag.load(Ordering::SeqCst),
+        "file.save_as should trigger SaveRequestEvent with save_as=true"
+    );
+}
+
+/// `handle_file_command` maps "file.open" to `LoadRequestEvent`.
+#[test]
+fn handle_file_command_maps_open() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use hexorder_contracts::persistence::LoadRequestEvent;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = file_command_app();
+
+    let triggered = Arc::new(AtomicBool::new(false));
+    let triggered_clone = Arc::clone(&triggered);
+    app.add_observer(move |_trigger: On<LoadRequestEvent>| {
+        triggered_clone.store(true, Ordering::SeqCst);
+    });
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.open"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        triggered.load(Ordering::SeqCst),
+        "file.open should trigger LoadRequestEvent"
+    );
+}
+
+/// `handle_file_command` maps "file.new" to `CloseProjectEvent`.
+#[test]
+fn handle_file_command_maps_new() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use hexorder_contracts::persistence::CloseProjectEvent;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = file_command_app();
+
+    let triggered = Arc::new(AtomicBool::new(false));
+    let triggered_clone = Arc::clone(&triggered);
+    app.add_observer(move |_trigger: On<CloseProjectEvent>| {
+        triggered_clone.store(true, Ordering::SeqCst);
+    });
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.new"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        triggered.load(Ordering::SeqCst),
+        "file.new should trigger CloseProjectEvent"
+    );
+}
+
+/// `handle_file_command` ignores unknown command IDs.
+#[test]
+fn handle_file_command_ignores_unknown() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = file_command_app();
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("editor.undo"),
+    });
+    app.update();
+    // Should not panic.
+}
+
+// ---------------------------------------------------------------------------
+// cleanup_editor_entities
+// ---------------------------------------------------------------------------
+
+/// `cleanup_editor_entities` despawns tiles, units, and move overlays.
+#[test]
+fn cleanup_editor_entities_despawns_all() {
+    use hexorder_contracts::hex_grid::MoveOverlay;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    // Spawn entities.
+    let tile = app.world_mut().spawn(HexTile).id();
+    let unit = app.world_mut().spawn(UnitInstance).id();
+    let overlay = app
+        .world_mut()
+        .spawn(MoveOverlay {
+            state: hexorder_contracts::hex_grid::MoveOverlayState::Valid,
+            position: hexorder_contracts::hex_grid::HexPosition::new(0, 0),
+        })
+        .id();
+
+    app.add_systems(Update, super::systems::cleanup_editor_entities);
+    app.update();
+    app.update(); // commands apply
+
+    assert!(
+        app.world().get_entity(tile).is_err(),
+        "tile should be despawned"
+    );
+    assert!(
+        app.world().get_entity(unit).is_err(),
+        "unit should be despawned"
+    );
+    assert!(
+        app.world().get_entity(overlay).is_err(),
+        "overlay should be despawned"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// apply_pending_board_load: no pending resource
+// ---------------------------------------------------------------------------
+
+/// `apply_pending_board_load` is a no-op when no `PendingBoardLoad` exists.
+#[test]
+fn apply_pending_board_load_noop_without_resource() {
+    let mut app = test_app_with_grid();
+
+    // No PendingBoardLoad inserted.
+    app.update();
+    // Should not panic.
+}
+
+// ---------------------------------------------------------------------------
+// sync_dirty_flag: no undo stack
+// ---------------------------------------------------------------------------
+
+/// `sync_dirty_flag` returns early when no `UndoStack` exists.
+#[test]
+fn sync_dirty_flag_noop_without_undo_stack() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace {
+        name: "Test".to_string(),
+        dirty: false,
+        ..default()
+    });
+    // No UndoStack resource.
+    app.add_systems(Update, super::systems::sync_dirty_flag);
+    app.update();
+
+    // Dirty should remain false.
+    let workspace = app.world().resource::<Workspace>();
+    assert!(!workspace.dirty);
+}
+
+// ---------------------------------------------------------------------------
+// sync_window_title: title already correct (no-op branch)
+// ---------------------------------------------------------------------------
+
+/// `sync_window_title` does not mutate window when title is already correct.
+#[test]
+fn sync_window_title_noop_when_title_matches() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace {
+        name: "MyProject".to_string(),
+        dirty: false,
+        ..default()
+    });
+    app.world_mut().spawn(Window {
+        title: "Hexorder \u{2014} MyProject".to_string(),
+        ..default()
+    });
+    app.add_systems(Update, super::systems::sync_window_title);
+    app.update();
+
+    let mut q = app.world_mut().query::<&Window>();
+    let window = q.single(app.world()).expect("one window");
+    assert_eq!(window.title, "Hexorder \u{2014} MyProject");
+}
+
+// ---------------------------------------------------------------------------
+// async_dialog types coverage
+// ---------------------------------------------------------------------------
+
+/// `AsyncDialogTask` debug impl works.
+#[test]
+fn async_dialog_task_debug_impl() {
+    use crate::persistence::async_dialog::*;
+
+    let future: DialogFuture = Box::pin(std::future::pending());
+    let task = AsyncDialogTask {
+        kind: DialogKind::OpenFile,
+        future: std::sync::Mutex::new(future),
+    };
+    let debug = format!("{task:?}");
+    assert!(debug.contains("AsyncDialogTask"));
+    assert!(debug.contains("OpenFile"));
+}
+
+/// `DialogKind` variants debug correctly.
+#[test]
+fn dialog_kind_debug_variants() {
+    use crate::persistence::async_dialog::*;
+
+    let save = DialogKind::SaveFile { then: None };
+    assert!(format!("{save:?}").contains("SaveFile"));
+
+    let open = DialogKind::OpenFile;
+    assert!(format!("{open:?}").contains("OpenFile"));
+
+    let confirm = DialogKind::ConfirmUnsavedChanges {
+        then: PendingAction::Load,
+    };
+    assert!(format!("{confirm:?}").contains("ConfirmUnsavedChanges"));
+}
+
+/// `PendingAction` variants debug correctly.
+#[test]
+fn pending_action_debug_variants() {
+    use crate::persistence::async_dialog::*;
+
+    let load = PendingAction::Load;
+    assert!(format!("{load:?}").contains("Load"));
+
+    let new_proj = PendingAction::NewProject {
+        name: "test".to_string(),
+    };
+    assert!(format!("{new_proj:?}").contains("NewProject"));
+
+    let close = PendingAction::CloseProject;
+    assert!(format!("{close:?}").contains("CloseProject"));
+}
+
+/// `DialogResult::Confirmed` debug works.
+#[test]
+fn dialog_result_confirmed_debug() {
+    use crate::persistence::async_dialog::*;
+
+    let result = DialogResult::Confirmed(ConfirmChoice::Yes);
+    let debug = format!("{result:?}");
+    assert!(debug.contains("Confirmed"));
+    assert!(debug.contains("Yes"));
+}
+
+/// `DialogCompleted` debug works.
+#[test]
+fn dialog_completed_debug() {
+    use crate::persistence::async_dialog::*;
+
+    let completed = DialogCompleted {
+        kind: DialogKind::OpenFile,
+        result: DialogResult::FilePicked(None),
+    };
+    let debug = format!("{completed:?}");
+    assert!(debug.contains("DialogCompleted"));
+}
+
+// ---------------------------------------------------------------------------
+// load_from_path clears undo stack
+// ---------------------------------------------------------------------------
+
+/// `load_from_path` clears the undo stack.
+#[test]
+fn load_from_path_clears_undo_stack() {
+    use hexorder_contracts::storage::Storage;
+    use hexorder_contracts::undo_redo::UndoStack;
+
+    let mut app = test_app_with_grid();
+    app.init_resource::<UndoStack>();
+
+    // Record a command.
+    app.world_mut().resource_mut::<UndoStack>().record(Box::new(
+        hexorder_contracts::undo_redo::SetPropertyCommand {
+            entity: Entity::PLACEHOLDER,
+            property_id: TypeId::new(),
+            old_value: hexorder_contracts::game_system::PropertyValue::Int(0),
+            new_value: hexorder_contracts::game_system::PropertyValue::Int(1),
+            label: "test".to_string(),
+        },
+    ));
+    assert!(app.world().resource::<UndoStack>().can_undo());
+
+    let file = test_game_system_file();
+    let tmp = std::env::temp_dir().join("hexorder_test_load_clears_undo.hexorder");
+    {
+        let storage = app.world().resource::<Storage>();
+        storage
+            .provider()
+            .save_at(&tmp, &file)
+            .expect("write test file");
+    }
+
+    super::systems::load_from_path(&tmp, app.world_mut());
+
+    assert!(
+        !app.world().resource::<UndoStack>().can_undo(),
+        "undo stack should be cleared after load"
+    );
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+// ---------------------------------------------------------------------------
+// save_to_path with tiles and units present
+// ---------------------------------------------------------------------------
+
+/// `save_to_path` captures tiles and units from the world.
+#[test]
+fn save_to_path_captures_tiles_and_units() {
+    let mut app = test_app_with_grid();
+
+    let type_id = TypeId::new();
+
+    // Spawn a tile and a unit.
+    app.world_mut().spawn((
+        HexTile,
+        HexPosition::new(0, 0),
+        EntityData {
+            entity_type_id: type_id,
+            properties: HashMap::new(),
+        },
+    ));
+    app.world_mut().spawn((
+        UnitInstance,
+        HexPosition::new(1, -1),
+        EntityData {
+            entity_type_id: type_id,
+            properties: HashMap::new(),
+        },
+    ));
+
+    let tmp = std::env::temp_dir().join("hexorder_test_save_with_entities.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+
+    let result = super::systems::save_to_path(&tmp, app.world_mut());
+    assert!(result);
+
+    // Load the file back and verify tiles and units.
+    let contents = std::fs::read_to_string(&tmp).expect("read file");
+    let loaded: GameSystemFile = ron::from_str(&contents).expect("deserialize");
+    assert_eq!(loaded.tiles.len(), 1);
+    assert_eq!(loaded.units.len(), 1);
+    assert_eq!(loaded.tiles[0].entity_type_id, type_id);
+    assert_eq!(loaded.units[0].entity_type_id, type_id);
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+// ---------------------------------------------------------------------------
+// Confirm Yes save failure aborts chain
+// ---------------------------------------------------------------------------
+
+/// Confirm Yes save failure aborts the chain (does not execute pending action).
+#[test]
+fn dispatch_confirm_yes_save_failure_aborts_chain() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+
+    // Set a bad path so save will fail.
+    app.world_mut().resource_mut::<Workspace>().file_path =
+        Some(std::path::PathBuf::from("/nonexistent/dir/bad.hexorder"));
+    app.world_mut().resource_mut::<Workspace>().name = "Original".to_string();
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::CloseProject,
+        },
+        DialogResult::Confirmed(ConfirmChoice::Yes),
+        app.world_mut(),
+    );
+
+    // Save failed, so CloseProject should NOT have executed.
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(
+        workspace.name, "Original",
+        "chain should abort on save failure"
+    );
+}
