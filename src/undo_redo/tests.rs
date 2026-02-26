@@ -191,6 +191,96 @@ fn redo_via_shortcut_command() {
     );
 }
 
+/// Undo on an empty stack is a no-op (covers `pop_undo` → `None` branch).
+#[test]
+fn undo_on_empty_stack_is_noop() {
+    let mut app = test_app();
+    app.update();
+
+    let prop_id = TypeId::new();
+    let entity = app
+        .world_mut()
+        .spawn(EntityData {
+            entity_type_id: TypeId::new(),
+            properties: [(prop_id, PropertyValue::Int(42))].into(),
+        })
+        .id();
+
+    // Request undo with nothing on the stack.
+    app.world_mut().resource_mut::<UndoStack>().request_undo();
+    app.update();
+
+    // Entity data should be unchanged.
+    let data = app.world().entity(entity).get::<EntityData>().unwrap();
+    assert_eq!(
+        data.properties.get(&prop_id),
+        Some(&PropertyValue::Int(42)),
+        "Undo on empty stack should not change anything"
+    );
+}
+
+/// Redo on an empty stack is a no-op (covers `pop_redo` → `None` branch).
+#[test]
+fn redo_on_empty_stack_is_noop() {
+    let mut app = test_app();
+    app.update();
+
+    let prop_id = TypeId::new();
+    let entity = app
+        .world_mut()
+        .spawn(EntityData {
+            entity_type_id: TypeId::new(),
+            properties: [(prop_id, PropertyValue::Int(42))].into(),
+        })
+        .id();
+
+    // Request redo with nothing on the stack.
+    app.world_mut().resource_mut::<UndoStack>().request_redo();
+    app.update();
+
+    let data = app.world().entity(entity).get::<EntityData>().unwrap();
+    assert_eq!(
+        data.properties.get(&prop_id),
+        Some(&PropertyValue::Int(42)),
+        "Redo on empty stack should not change anything"
+    );
+}
+
+/// Unrecognized command ID is a no-op (covers `_ => {}` branch).
+#[test]
+fn unrecognized_command_is_noop() {
+    let mut app = test_app();
+    app.update();
+
+    let prop_id = TypeId::new();
+    let entity = app
+        .world_mut()
+        .spawn(EntityData {
+            entity_type_id: TypeId::new(),
+            properties: [(prop_id, PropertyValue::Int(42))].into(),
+        })
+        .id();
+
+    // Fire an unrecognized command.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.unknown"),
+    });
+    app.update();
+
+    let data = app.world().entity(entity).get::<EntityData>().unwrap();
+    assert_eq!(
+        data.properties.get(&prop_id),
+        Some(&PropertyValue::Int(42)),
+        "Unrecognized command should not affect anything"
+    );
+
+    let stack = app.world().resource::<UndoStack>();
+    assert!(
+        !stack.can_undo(),
+        "Stack should be empty after unrecognized command"
+    );
+}
+
 #[test]
 fn new_record_after_undo_clears_redo() {
     let mut app = test_app();
