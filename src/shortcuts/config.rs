@@ -51,11 +51,24 @@ pub fn apply_config_overrides(mut registry: ResMut<ShortcutRegistry>) {
         }
     };
 
-    let config: ShortcutConfig = match toml::from_str(&contents) {
+    let applied = apply_overrides_from_str(&mut registry, &contents);
+    if applied > 0 {
+        info!(
+            "Applied {applied} shortcut override(s) from {}",
+            path.display()
+        );
+    }
+}
+
+/// Parse TOML shortcut config and apply overrides to the registry.
+/// Returns the number of successfully applied overrides.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn apply_overrides_from_str(registry: &mut ShortcutRegistry, contents: &str) -> usize {
+    let config: ShortcutConfig = match toml::from_str(contents) {
         Ok(c) => c,
         Err(e) => {
-            warn!("Failed to parse shortcut config {}: {e}", path.display());
-            return;
+            warn!("Failed to parse shortcut config: {e}");
+            return 0;
         }
     };
 
@@ -102,13 +115,7 @@ pub fn apply_config_overrides(mut registry: ResMut<ShortcutRegistry>) {
         }
     }
 
-    if applied > 0 {
-        info!(
-            "Applied {} shortcut override(s) from {}",
-            applied,
-            path.display()
-        );
-    }
+    applied
 }
 
 /// Parses a binding string like `cmd+key_s` into a [`KeyBinding`].
@@ -522,5 +529,171 @@ mod tests {
         // Registry should still be empty (default).
         let registry = app.world().resource::<ShortcutRegistry>();
         assert!(registry.commands().is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // apply_overrides_from_str: TOML parsing and application
+    // -----------------------------------------------------------------------
+
+    fn test_registry() -> ShortcutRegistry {
+        let mut r = ShortcutRegistry::default();
+        r.register(hexorder_contracts::shortcuts::CommandEntry {
+            id: hexorder_contracts::shortcuts::CommandId("test.save"),
+            name: "Save".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyS, Modifiers::CMD)],
+            category: hexorder_contracts::shortcuts::CommandCategory::File,
+            continuous: false,
+        });
+        r.register(hexorder_contracts::shortcuts::CommandEntry {
+            id: hexorder_contracts::shortcuts::CommandId("test.undo"),
+            name: "Undo".to_string(),
+            description: String::new(),
+            bindings: vec![KeyBinding::new(KeyCode::KeyZ, Modifiers::CMD)],
+            category: hexorder_contracts::shortcuts::CommandCategory::Edit,
+            continuous: false,
+        });
+        r
+    }
+
+    #[test]
+    fn apply_overrides_single_string_binding() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = "ctrl+key_s"
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 1);
+
+        // Old binding replaced.
+        assert!(
+            registry
+                .lookup(&KeyBinding::new(KeyCode::KeyS, Modifiers::CMD))
+                .is_none()
+        );
+        // New binding works.
+        let ctrl = Modifiers {
+            ctrl: true,
+            ..Modifiers::NONE
+        };
+        assert!(
+            registry
+                .lookup(&KeyBinding::new(KeyCode::KeyS, ctrl))
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn apply_overrides_array_bindings() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = ["ctrl+key_s", "cmd+shift+key_s"]
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 1);
+
+        let ctrl = Modifiers {
+            ctrl: true,
+            ..Modifiers::NONE
+        };
+        assert!(
+            registry
+                .lookup(&KeyBinding::new(KeyCode::KeyS, ctrl))
+                .is_some()
+        );
+        let cmd_shift = Modifiers {
+            cmd: true,
+            shift: true,
+            ..Modifiers::NONE
+        };
+        assert!(
+            registry
+                .lookup(&KeyBinding::new(KeyCode::KeyS, cmd_shift))
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn apply_overrides_empty_string_unbinds() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = ""
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 1);
+
+        // Old binding gone, no new binding.
+        assert!(
+            registry
+                .lookup(&KeyBinding::new(KeyCode::KeyS, Modifiers::CMD))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn apply_overrides_invalid_toml_returns_zero() {
+        let mut registry = test_registry();
+        let applied = apply_overrides_from_str(&mut registry, "{{not valid toml}}");
+        assert_eq!(applied, 0);
+    }
+
+    #[test]
+    fn apply_overrides_unknown_command_skipped() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"nonexistent.command" = "key_a"
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 0);
+    }
+
+    #[test]
+    fn apply_overrides_invalid_value_type_skipped() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = 42
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 0);
+    }
+
+    #[test]
+    fn apply_overrides_invalid_binding_string_skipped() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = "not_a_real_key"
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        // Override is applied (binding is replaced) but with empty vec
+        // since the invalid binding is filtered out.
+        assert_eq!(applied, 1);
+    }
+
+    #[test]
+    fn apply_overrides_multiple_commands() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"test.save" = "ctrl+key_s"
+"test.undo" = "ctrl+key_z"
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 2);
+    }
+
+    #[test]
+    fn apply_overrides_empty_bindings_section() {
+        let mut registry = test_registry();
+        let toml = r#"
+[bindings]
+"#;
+        let applied = apply_overrides_from_str(&mut registry, toml);
+        assert_eq!(applied, 0);
     }
 }
