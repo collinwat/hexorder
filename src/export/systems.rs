@@ -17,6 +17,26 @@ use super::counter_sheet::PrintAndPlayExporter;
 use super::hex_map::HexMapExporter;
 use super::{ExportData, ExportError, ExportTarget, collect_export_data};
 
+/// Type alias for the boxed folder-picker future.
+type FolderFuture = Pin<Box<dyn Future<Output = Option<std::path::PathBuf>> + Send>>;
+
+/// Spawn an async folder-picker dialog for export output.
+///
+/// **Must be called on the main thread** so that rfd's macOS backend can
+/// present the dialog without blocking.
+#[cfg(not(test))]
+fn spawn_export_folder_dialog() -> FolderFuture {
+    let dialog = rfd::AsyncFileDialog::new().set_title("Export Print-and-Play PDFs");
+    let pick_future = dialog.pick_folder();
+    Box::pin(async move { pick_future.await.map(|h| h.path().to_path_buf()) })
+}
+
+/// Test stub: returns a pending future (rfd requires the main thread).
+#[cfg(test)]
+fn spawn_export_folder_dialog() -> FolderFuture {
+    Box::pin(std::future::pending())
+}
+
 // ---------------------------------------------------------------------------
 // Async Export Dialog
 // ---------------------------------------------------------------------------
@@ -87,9 +107,7 @@ pub(crate) fn handle_export_command(trigger: On<CommandExecutedEvent>, mut comma
             export_data.grid_config.map_radius,
         );
 
-        let dialog = rfd::AsyncFileDialog::new().set_title("Export Print-and-Play PDFs");
-        let pick_future = dialog.pick_folder();
-        let future = Box::pin(async move { pick_future.await.map(|h| h.path().to_path_buf()) });
+        let future = spawn_export_folder_dialog();
 
         world.insert_resource(PendingExport {
             data: export_data,
@@ -140,11 +158,20 @@ pub(crate) fn run_export(data: &ExportData, output_dir: &Path, world: &mut World
         Box::new(PrintAndPlayExporter::default()),
         Box::new(HexMapExporter::default()),
     ];
+    run_exporters(data, output_dir, world, &exporters);
+}
 
+/// Run the given exporters against the export data and write files to `output_dir`.
+pub(crate) fn run_exporters(
+    data: &ExportData,
+    output_dir: &Path,
+    world: &mut World,
+    exporters: &[Box<dyn ExportTarget>],
+) {
     let mut written = 0u32;
     let mut errors: Vec<String> = Vec::new();
 
-    for exporter in &exporters {
+    for exporter in exporters {
         match exporter.export(data) {
             Ok(output) => {
                 for file in &output.files {

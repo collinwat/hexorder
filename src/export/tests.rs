@@ -997,6 +997,46 @@ fn run_export_triggers_error_toast_on_write_failure() {
 }
 
 // ---------------------------------------------------------------------------
+// Export systems — run_exporters with non-EmptyGameSystem error
+// ---------------------------------------------------------------------------
+
+#[test]
+fn run_exporters_reports_generation_error() {
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+
+    let received = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let received_clone = received.clone();
+    app.add_observer(move |trigger: On<ToastEvent>| {
+        received_clone
+            .lock()
+            .expect("lock")
+            .push(trigger.event().clone());
+    });
+
+    let temp_dir =
+        std::env::temp_dir().join(format!("hexorder-export-gen-err-{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+    let exporters: Vec<Box<dyn ExportTarget>> = vec![Box::new(MockExporter { should_fail: true })];
+    let data = test_export_data();
+
+    let dir = temp_dir.clone();
+    app.world_mut().commands().queue(move |world: &mut World| {
+        systems::run_exporters(&data, &dir, world, &exporters);
+    });
+    app.update();
+
+    let toasts = received.lock().expect("lock");
+    assert!(!toasts.is_empty(), "should have triggered a toast");
+    assert_eq!(toasts[0].kind, ToastKind::Error);
+    assert!(toasts[0].message.contains("intentional test failure"));
+
+    drop(toasts);
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+// ---------------------------------------------------------------------------
 // Export systems — PendingExport Debug
 // ---------------------------------------------------------------------------
 
@@ -1133,6 +1173,87 @@ fn handle_export_command_noop_without_grid_config() {
             .is_none(),
         "PendingExport should not be created without HexGridConfig"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Export systems — handle_export_command happy path
+// ---------------------------------------------------------------------------
+
+#[test]
+fn handle_export_command_happy_path_creates_pending_export() {
+    use hexorder_contracts::game_system::{EntityRole, EntityType, EntityTypeRegistry, TypeId};
+    use hexorder_contracts::hex_grid::HexTile;
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_observer(systems::handle_export_command);
+
+    let board_type_id = TypeId::new();
+    let token_type_id = TypeId::new();
+
+    app.insert_resource(hexorder_contracts::hex_grid::HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 3,
+    });
+    app.insert_resource(EntityTypeRegistry {
+        types: vec![
+            EntityType {
+                id: board_type_id,
+                name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
+                color: bevy::color::Color::srgb(0.5, 0.8, 0.3),
+                properties: vec![],
+            },
+            EntityType {
+                id: token_type_id,
+                name: "Infantry".to_string(),
+                role: EntityRole::Token,
+                color: bevy::color::Color::srgb(0.2, 0.3, 0.8),
+                properties: vec![],
+            },
+        ],
+    });
+
+    // Spawn a tile entity (HexTile marker, no UnitInstance).
+    app.world_mut().spawn((
+        HexPosition::new(0, 0),
+        EntityData {
+            entity_type_id: board_type_id,
+            properties: std::collections::HashMap::new(),
+        },
+        HexTile,
+    ));
+    // Spawn a token entity (UnitInstance marker).
+    app.world_mut().spawn((
+        HexPosition::new(1, 0),
+        EntityData {
+            entity_type_id: token_type_id,
+            properties: std::collections::HashMap::new(),
+        },
+        hexorder_contracts::game_system::UnitInstance,
+    ));
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.export_pnp"),
+    });
+    // First update: trigger fires the observer, which queues a closure.
+    app.update();
+    // Second update: deferred commands apply the closure.
+    app.update();
+
+    let pending = app
+        .world()
+        .get_resource::<systems::PendingExport>()
+        .expect("PendingExport should be created on happy path");
+    assert_eq!(pending.data.entity_types.len(), 2);
+    assert_eq!(pending.data.board_entities.len(), 1);
+    assert_eq!(pending.data.token_entities.len(), 1);
+    assert_eq!(pending.data.grid_config.map_radius, 3);
 }
 
 // ---------------------------------------------------------------------------

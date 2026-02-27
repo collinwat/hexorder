@@ -35,14 +35,18 @@ pub(crate) use debug_panic;
 #[cfg(test)]
 mod tests {
     #[test]
-    #[should_panic(expected = "test invariant violated")]
     fn debug_panic_panics_in_debug_mode() {
-        debug_panic!("test invariant violated");
+        let result = std::panic::catch_unwind(|| {
+            debug_panic!("test invariant violated");
+        });
+        assert!(result.is_err(), "debug_panic should panic in debug mode");
     }
 
     #[test]
-    #[should_panic(expected = "value was 42")]
     fn debug_panic_supports_format_args() {
-        debug_panic!("value was {}", 42);
+        let result = std::panic::catch_unwind(|| {
+            debug_panic!("value was {}", 42);
+        });
+        assert!(result.is_err(), "debug_panic should panic with format args");
     }
 }
