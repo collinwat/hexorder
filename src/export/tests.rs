@@ -1046,6 +1046,123 @@ fn export_error_from_io_error() {
 }
 
 // ---------------------------------------------------------------------------
+// Export systems — handle_export_command guard clauses
+// ---------------------------------------------------------------------------
+
+#[test]
+fn handle_export_command_ignores_other_commands() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_observer(systems::handle_export_command);
+
+    // Trigger a different command — should early-return at line 52-53.
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("some.other.command"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_none(),
+        "PendingExport should not be created for non-export commands"
+    );
+}
+
+#[test]
+fn handle_export_command_noop_when_pending_export_exists() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_observer(systems::handle_export_command);
+
+    // Insert HexGridConfig so we pass the grid guard.
+    app.insert_resource(hexorder_contracts::hex_grid::HexGridConfig {
+        layout: hexx::HexLayout {
+            orientation: hexx::HexOrientation::Pointy,
+            scale: bevy::math::Vec2::splat(1.0),
+            origin: bevy::math::Vec2::ZERO,
+        },
+        map_radius: 3,
+    });
+
+    // Insert an existing PendingExport — guard should prevent creating another.
+    let future = Box::pin(async { None });
+    app.insert_resource(systems::PendingExport {
+        data: test_export_data(),
+        future: std::sync::Mutex::new(future),
+    });
+
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.export_pnp"),
+    });
+    app.update();
+    app.update();
+
+    // PendingExport should still be present (guard prevented replacement).
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_some(),
+        "existing PendingExport should not be replaced"
+    );
+}
+
+#[test]
+fn handle_export_command_noop_without_grid_config() {
+    use hexorder_contracts::shortcuts::{CommandExecutedEvent, CommandId};
+
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_observer(systems::handle_export_command);
+
+    // Trigger export command WITHOUT HexGridConfig — should early-return.
+    app.world_mut().commands().trigger(CommandExecutedEvent {
+        command_id: CommandId("file.export_pnp"),
+    });
+    app.update();
+    app.update();
+
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_none(),
+        "PendingExport should not be created without HexGridConfig"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Export systems — poll_pending_export with pending future
+// ---------------------------------------------------------------------------
+
+#[test]
+fn poll_pending_export_stays_when_future_pending() {
+    let mut app = bevy::app::App::new();
+    app.add_plugins(bevy::MinimalPlugins);
+    app.add_systems(bevy::app::Update, systems::poll_pending_export);
+
+    // Create a future that never completes.
+    let future = Box::pin(std::future::pending::<Option<std::path::PathBuf>>());
+    app.insert_resource(systems::PendingExport {
+        data: test_export_data(),
+        future: std::sync::Mutex::new(future),
+    });
+
+    app.update();
+
+    assert!(
+        app.world()
+            .get_resource::<systems::PendingExport>()
+            .is_some(),
+        "PendingExport should remain when future is still pending"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
