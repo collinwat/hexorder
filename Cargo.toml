@@ -43,7 +43,7 @@ dbg_macro = "deny"
 
 [package]
 name = "hexorder"
-version = "0.14.0-governance"
+version = "0.14.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false

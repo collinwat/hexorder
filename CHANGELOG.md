@@ -5,6 +5,30 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] — 2026-02-26
+
+### Added
+
+- add remote branch cleanup to ship and teardown checklists (project)
+- add UAT criteria field to pitch template (project)
+- add per-pitch UAT gate to workflow (project)
+- document 95% coverage target in ship gate (project)
+- add ADR directory and template (project)
+- backfill foundational ADRs 001-004 (project)
+- add task list ID to orientation checklist (project)
+
+### Changed
+
+- set up feature branch (project)
+- add disk cleanup automation (project)
+- set up feature branch (project)
+- remove unnecessary bevy_window feature (contracts)
+
+### Fixed
+
+- use clone_from per clippy assigning_clones (map_gen)
+- resolve typos and clippy warnings (project)
+
 ## [0.13.0] — 2026-02-25
 
 ### Added
@@ -66,7 +90,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Fixed
 
 - update imports for hexorder-contracts crate (persistence)
-- correct typo in settings config parsing (settings)
+- correct typo — unparseable to unparsable (settings)
 - resolve clippy and boundary violations (persistence)
 - remove unused async dialog variants and field (persistence)
 - trigger CloseProjectEvent on project close (editor_ui)
