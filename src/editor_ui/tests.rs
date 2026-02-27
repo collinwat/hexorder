@@ -1638,3 +1638,640 @@ fn delete_unit_plain_despawn_without_unit_components() {
     );
     assert!(app.world().resource::<SelectedUnit>().entity.is_none());
 }
+
+// ===========================================================================
+// Coverage: editor_ui/systems.rs — pure logic helpers
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// format_property_type
+// ---------------------------------------------------------------------------
+
+#[test]
+fn format_property_type_all_variants() {
+    use hexorder_contracts::game_system::{PropertyType, TypeId};
+
+    let cases: Vec<(PropertyType, &str)> = vec![
+        (PropertyType::Bool, "Bool"),
+        (PropertyType::Int, "Int"),
+        (PropertyType::Float, "Float"),
+        (PropertyType::String, "String"),
+        (PropertyType::Color, "Color"),
+        (PropertyType::Enum(TypeId::new()), "Enum"),
+        (PropertyType::EntityRef(None), "EntityRef"),
+        (PropertyType::List(Box::new(PropertyType::Int)), "List"),
+        (
+            PropertyType::Map(TypeId::new(), Box::new(PropertyType::Int)),
+            "Map",
+        ),
+        (PropertyType::Struct(TypeId::new()), "Struct"),
+        (PropertyType::IntRange { min: 0, max: 10 }, "IntRange"),
+        (
+            PropertyType::FloatRange { min: 0.0, max: 1.0 },
+            "FloatRange",
+        ),
+    ];
+
+    for (pt, expected) in &cases {
+        assert_eq!(
+            super::systems::format_property_type(pt),
+            *expected,
+            "format_property_type({pt:?})"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// index_to_property_type
+// ---------------------------------------------------------------------------
+
+#[test]
+fn index_to_property_type_all_indices() {
+    use hexorder_contracts::game_system::PropertyType;
+
+    // Index 0 and any out-of-range → Bool (wildcard).
+    assert!(matches!(
+        super::systems::index_to_property_type(0),
+        PropertyType::Bool
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(1),
+        PropertyType::Int
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(2),
+        PropertyType::Float
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(3),
+        PropertyType::String
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(4),
+        PropertyType::Color
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(5),
+        PropertyType::Enum(_)
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(6),
+        PropertyType::EntityRef(_)
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(7),
+        PropertyType::List(_)
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(8),
+        PropertyType::Map(_, _)
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(9),
+        PropertyType::Struct(_)
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(10),
+        PropertyType::IntRange { .. }
+    ));
+    assert!(matches!(
+        super::systems::index_to_property_type(11),
+        PropertyType::FloatRange { .. }
+    ));
+    // Out of range → Bool.
+    assert!(matches!(
+        super::systems::index_to_property_type(99),
+        PropertyType::Bool
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// format_compare_op / index_to_compare_op
+// ---------------------------------------------------------------------------
+
+#[test]
+fn format_compare_op_all_variants() {
+    use hexorder_contracts::ontology::CompareOp;
+
+    assert_eq!(super::systems::format_compare_op(CompareOp::Eq), "==");
+    assert_eq!(super::systems::format_compare_op(CompareOp::Ne), "!=");
+    assert_eq!(super::systems::format_compare_op(CompareOp::Lt), "<");
+    assert_eq!(super::systems::format_compare_op(CompareOp::Le), "<=");
+    assert_eq!(super::systems::format_compare_op(CompareOp::Gt), ">");
+    assert_eq!(super::systems::format_compare_op(CompareOp::Ge), ">=");
+}
+
+#[test]
+fn index_to_compare_op_all_indices() {
+    use hexorder_contracts::ontology::CompareOp;
+
+    assert_eq!(super::systems::index_to_compare_op(0), CompareOp::Eq);
+    assert_eq!(super::systems::index_to_compare_op(1), CompareOp::Ne);
+    assert_eq!(super::systems::index_to_compare_op(2), CompareOp::Lt);
+    assert_eq!(super::systems::index_to_compare_op(3), CompareOp::Le);
+    assert_eq!(super::systems::index_to_compare_op(4), CompareOp::Gt);
+    assert_eq!(super::systems::index_to_compare_op(5), CompareOp::Ge);
+    // Out of range → Eq.
+    assert_eq!(super::systems::index_to_compare_op(99), CompareOp::Eq);
+}
+
+// ---------------------------------------------------------------------------
+// index_to_modify_operation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn index_to_modify_operation_all_indices() {
+    use hexorder_contracts::ontology::ModifyOperation;
+
+    assert_eq!(
+        super::systems::index_to_modify_operation(0),
+        ModifyOperation::Add
+    );
+    assert_eq!(
+        super::systems::index_to_modify_operation(1),
+        ModifyOperation::Subtract
+    );
+    assert_eq!(
+        super::systems::index_to_modify_operation(2),
+        ModifyOperation::Multiply
+    );
+    assert_eq!(
+        super::systems::index_to_modify_operation(3),
+        ModifyOperation::Min
+    );
+    assert_eq!(
+        super::systems::index_to_modify_operation(4),
+        ModifyOperation::Max
+    );
+    // Out of range → Add.
+    assert_eq!(
+        super::systems::index_to_modify_operation(99),
+        ModifyOperation::Add
+    );
+}
+
+// ---------------------------------------------------------------------------
+// format_relation_effect
+// ---------------------------------------------------------------------------
+
+#[test]
+fn format_relation_effect_modify_property() {
+    use hexorder_contracts::ontology::{ModifyOperation, RelationEffect};
+
+    let effect = RelationEffect::ModifyProperty {
+        target_property: "hp".to_string(),
+        source_property: "damage".to_string(),
+        operation: ModifyOperation::Subtract,
+    };
+    assert_eq!(
+        super::systems::format_relation_effect(&effect),
+        "hp - damage"
+    );
+}
+
+#[test]
+fn format_relation_effect_block_and_allow() {
+    use hexorder_contracts::ontology::RelationEffect;
+
+    let block = RelationEffect::Block { condition: None };
+    assert_eq!(super::systems::format_relation_effect(&block), "Block");
+
+    let allow = RelationEffect::Allow { condition: None };
+    assert_eq!(super::systems::format_relation_effect(&allow), "Allow");
+}
+
+// ---------------------------------------------------------------------------
+// format_constraint_expr
+// ---------------------------------------------------------------------------
+
+#[test]
+fn format_constraint_expr_property_compare() {
+    use hexorder_contracts::game_system::{PropertyValue, TypeId};
+    use hexorder_contracts::ontology::{CompareOp, ConstraintExpr};
+
+    let expr = ConstraintExpr::PropertyCompare {
+        role_id: TypeId::new(),
+        property_name: "hp".to_string(),
+        operator: CompareOp::Gt,
+        value: PropertyValue::Int(0),
+    };
+    assert_eq!(super::systems::format_constraint_expr(&expr), "hp > Int(0)");
+}
+
+#[test]
+fn format_constraint_expr_cross_compare() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::{CompareOp, ConstraintExpr};
+
+    let expr = ConstraintExpr::CrossCompare {
+        left_role_id: TypeId::new(),
+        left_property: "attack".to_string(),
+        right_role_id: TypeId::new(),
+        right_property: "defense".to_string(),
+        operator: CompareOp::Ge,
+    };
+    assert_eq!(
+        super::systems::format_constraint_expr(&expr),
+        "attack >= defense"
+    );
+}
+
+#[test]
+fn format_constraint_expr_is_type_and_not_type() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::ConstraintExpr;
+
+    let is_type = ConstraintExpr::IsType {
+        role_id: TypeId::new(),
+        entity_type_id: TypeId::new(),
+    };
+    assert_eq!(super::systems::format_constraint_expr(&is_type), "is type");
+
+    let is_not = ConstraintExpr::IsNotType {
+        role_id: TypeId::new(),
+        entity_type_id: TypeId::new(),
+    };
+    assert_eq!(
+        super::systems::format_constraint_expr(&is_not),
+        "is not type"
+    );
+}
+
+#[test]
+fn format_constraint_expr_path_budget() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::ConstraintExpr;
+
+    let expr = ConstraintExpr::PathBudget {
+        concept_id: TypeId::new(),
+        cost_property: "movement_cost".to_string(),
+        cost_role_id: TypeId::new(),
+        budget_property: "speed".to_string(),
+        budget_role_id: TypeId::new(),
+    };
+    assert_eq!(
+        super::systems::format_constraint_expr(&expr),
+        "sum(path.movement_cost) <= speed"
+    );
+}
+
+#[test]
+fn format_constraint_expr_all_and_any_and_not() {
+    use hexorder_contracts::game_system::{PropertyValue, TypeId};
+    use hexorder_contracts::ontology::{CompareOp, ConstraintExpr};
+
+    let inner = ConstraintExpr::PropertyCompare {
+        role_id: TypeId::new(),
+        property_name: "x".to_string(),
+        operator: CompareOp::Eq,
+        value: PropertyValue::Int(1),
+    };
+
+    let all = ConstraintExpr::All(vec![inner.clone(), inner.clone()]);
+    let result = super::systems::format_constraint_expr(&all);
+    assert!(result.starts_with('('));
+    assert!(result.contains(" AND "));
+
+    let any = ConstraintExpr::Any(vec![inner.clone(), inner.clone()]);
+    let result = super::systems::format_constraint_expr(&any);
+    assert!(result.starts_with('('));
+    assert!(result.contains(" OR "));
+
+    let not = ConstraintExpr::Not(Box::new(inner));
+    let result = super::systems::format_constraint_expr(&not);
+    assert!(result.starts_with("NOT ("));
+}
+
+// ---------------------------------------------------------------------------
+// Color conversion functions
+// ---------------------------------------------------------------------------
+
+#[test]
+fn bevy_color_to_egui_srgba() {
+    let color = Color::srgba(1.0, 0.0, 0.0, 1.0);
+    let egui_color = super::systems::bevy_color_to_egui(color);
+    assert_eq!(egui_color.r(), 255);
+    assert_eq!(egui_color.g(), 0);
+    assert_eq!(egui_color.b(), 0);
+    assert_eq!(egui_color.a(), 255);
+}
+
+#[test]
+fn bevy_color_to_egui_linear_rgba() {
+    let color = Color::linear_rgba(1.0, 0.0, 0.0, 1.0);
+    let egui_color = super::systems::bevy_color_to_egui(color);
+    // LinearRgba(1.0, 0, 0) converts to sRGBA — red should be high.
+    assert!(egui_color.r() > 200);
+    assert_eq!(egui_color.g(), 0);
+    assert_eq!(egui_color.b(), 0);
+}
+
+#[test]
+fn bevy_color_to_egui_other_variant_falls_back() {
+    // Hsla is an "other" variant — should return TEXT_SECONDARY.
+    let color = Color::hsla(0.0, 1.0, 0.5, 1.0);
+    let egui_color = super::systems::bevy_color_to_egui(color);
+    assert_eq!(egui_color, super::components::BrandTheme::TEXT_SECONDARY);
+}
+
+#[test]
+fn egui_color_to_bevy_round_trip() {
+    let egui_color = bevy_egui::egui::Color32::from_rgb(128, 64, 255);
+    let bevy_color = super::systems::egui_color_to_bevy(egui_color);
+    match bevy_color {
+        Color::Srgba(c) => {
+            assert!((c.red - 128.0 / 255.0).abs() < 0.01);
+            assert!((c.green - 64.0 / 255.0).abs() < 0.01);
+            assert!((c.blue - 1.0).abs() < 0.01);
+        }
+        _ => panic!("Expected Srgba"),
+    }
+}
+
+#[test]
+fn rgb_to_color32_and_back() {
+    let rgb = [0.5, 0.25, 0.75];
+    let c32 = super::systems::rgb_to_color32(rgb);
+    let back = super::systems::color32_to_rgb(c32);
+    // Allow rounding error from u8 conversion.
+    assert!((back[0] - rgb[0]).abs() < 0.01);
+    assert!((back[1] - rgb[1]).abs() < 0.01);
+    assert!((back[2] - rgb[2]).abs() < 0.01);
+}
+
+#[test]
+fn rgb_helper_creates_color32() {
+    let c = super::systems::rgb([255, 128, 0]);
+    assert_eq!(c.r(), 255);
+    assert_eq!(c.g(), 128);
+    assert_eq!(c.b(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// build_constraint_expression
+// ---------------------------------------------------------------------------
+
+#[test]
+fn build_constraint_expression_property_compare() {
+    use hexorder_contracts::ontology::{CompareOp, ConstraintExpr};
+
+    let mut state = EditorState::default();
+    state.new_constraint_expr_type_index = 0;
+    state.new_constraint_property = "hp".to_string();
+    state.new_constraint_op_index = 4; // Gt
+    state.new_constraint_value_str = "10".to_string();
+
+    let expr = super::systems::build_constraint_expression(&state, &[]);
+    match expr {
+        ConstraintExpr::PropertyCompare {
+            property_name,
+            operator,
+            ..
+        } => {
+            assert_eq!(property_name, "hp");
+            assert_eq!(operator, CompareOp::Gt);
+        }
+        _ => panic!("Expected PropertyCompare, got {expr:?}"),
+    }
+}
+
+#[test]
+fn build_constraint_expression_path_budget() {
+    use hexorder_contracts::ontology::ConstraintExpr;
+
+    let mut state = EditorState::default();
+    state.new_constraint_expr_type_index = 3;
+    state.new_constraint_property = "cost".to_string();
+    state.new_constraint_value_str = "budget".to_string();
+
+    let expr = super::systems::build_constraint_expression(&state, &[]);
+    match expr {
+        ConstraintExpr::PathBudget {
+            cost_property,
+            budget_property,
+            ..
+        } => {
+            assert_eq!(cost_property, "cost");
+            assert_eq!(budget_property, "budget");
+        }
+        _ => panic!("Expected PathBudget, got {expr:?}"),
+    }
+}
+
+#[test]
+fn build_constraint_expression_unknown_falls_back_to_all() {
+    use hexorder_contracts::ontology::ConstraintExpr;
+
+    let mut state = EditorState::default();
+    state.new_constraint_expr_type_index = 99;
+
+    let expr = super::systems::build_constraint_expression(&state, &[]);
+    assert!(
+        matches!(expr, ConstraintExpr::All(v) if v.is_empty()),
+        "Unknown type should fall back to All([])"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// dock_layout_config_path
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dock_layout_config_path_returns_ron_file() {
+    let path = super::systems::dock_layout_config_path();
+    assert!(
+        path.to_string_lossy().ends_with("dock_layout.ron"),
+        "Config path should end with dock_layout.ron, got: {path:?}"
+    );
+}
+
+// ===========================================================================
+// Coverage: editor_ui/systems.rs — settings sync systems
+// ===========================================================================
+
+#[test]
+fn sync_workspace_preset_updates_workspace() {
+    use super::components::WorkspacePreset;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut layout = DockLayoutState::default();
+    layout.apply_preset(WorkspacePreset::UnitDesign);
+    app.insert_resource(layout);
+    app.insert_resource(Workspace::default());
+    app.add_systems(Update, super::systems::sync_workspace_preset);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert_eq!(ws.workspace_preset, "unit_design");
+}
+
+#[test]
+fn restore_workspace_preset_applies_from_settings() {
+    use super::components::WorkspacePreset;
+    use hexorder_contracts::settings::SettingsRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut settings = SettingsRegistry::default();
+    settings.editor.workspace_preset = "playtesting".to_string();
+    app.insert_resource(settings);
+    app.init_resource::<DockLayoutState>();
+
+    app.add_systems(Update, super::systems::restore_workspace_preset);
+    app.update();
+
+    let layout = app.world().resource::<DockLayoutState>();
+    assert_eq!(layout.active_preset, WorkspacePreset::Playtesting);
+}
+
+#[test]
+fn restore_workspace_preset_noop_when_empty() {
+    use super::components::WorkspacePreset;
+    use hexorder_contracts::settings::SettingsRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(SettingsRegistry::default()); // empty workspace_preset
+    app.init_resource::<DockLayoutState>();
+
+    app.add_systems(Update, super::systems::restore_workspace_preset);
+    app.update();
+
+    let layout = app.world().resource::<DockLayoutState>();
+    assert_eq!(layout.active_preset, WorkspacePreset::MapEditing);
+}
+
+#[test]
+fn sync_font_size_updates_workspace() {
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut state = EditorState::default();
+    state.font_size_base = 20.0;
+    app.insert_resource(state);
+    app.insert_resource(Workspace::default());
+
+    app.add_systems(Update, super::systems::sync_font_size);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert!((ws.font_size_base - 20.0).abs() < f32::EPSILON);
+}
+
+#[test]
+fn restore_font_size_reads_from_settings() {
+    use hexorder_contracts::settings::SettingsRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut settings = SettingsRegistry::default();
+    settings.editor.font_size = 18.0;
+    app.insert_resource(settings);
+    app.insert_resource(EditorState::default());
+
+    app.add_systems(Update, super::systems::restore_font_size);
+    app.update();
+
+    let state = app.world().resource::<EditorState>();
+    assert!((state.font_size_base - 18.0).abs() < f32::EPSILON);
+}
+
+#[test]
+fn sync_theme_updates_settings() {
+    use hexorder_contracts::settings::SettingsRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut state = EditorState::default();
+    state.active_theme_name = "dark".to_string();
+    app.insert_resource(state);
+    app.insert_resource(SettingsRegistry::default());
+
+    app.add_systems(Update, super::systems::sync_theme);
+    app.update();
+
+    let settings = app.world().resource::<SettingsRegistry>();
+    assert_eq!(settings.active_theme, "dark");
+}
+
+#[test]
+fn restore_theme_populates_editor_state() {
+    use hexorder_contracts::settings::{SettingsRegistry, ThemeDefinition, ThemeLibrary};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut settings = SettingsRegistry::default();
+    settings.active_theme = "custom".to_string();
+    app.insert_resource(settings);
+
+    fn test_theme(name: &str) -> ThemeDefinition {
+        ThemeDefinition {
+            name: name.to_string(),
+            bg_deep: [0; 3],
+            bg_panel: [0; 3],
+            bg_surface: [0; 3],
+            widget_inactive: [0; 3],
+            widget_hovered: [0; 3],
+            widget_active: [0; 3],
+            accent_primary: [0; 3],
+            accent_secondary: [0; 3],
+            text_primary: [0; 3],
+            text_secondary: [0; 3],
+            border: [0; 3],
+            danger: [0; 3],
+            success: [0; 3],
+        }
+    }
+    let library = ThemeLibrary {
+        themes: vec![test_theme("Brand"), test_theme("Custom")],
+    };
+    app.insert_resource(library);
+    app.insert_resource(EditorState::default());
+
+    app.add_systems(Update, super::systems::restore_theme);
+    app.update();
+
+    let state = app.world().resource::<EditorState>();
+    assert_eq!(state.theme_names, vec!["Brand", "Custom"]);
+    assert_eq!(state.active_theme_name, "custom");
+}
+
+#[test]
+fn restore_shortcuts_populates_shortcut_entries() {
+    use hexorder_contracts::shortcuts::ShortcutRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+    app.insert_resource(registry);
+    app.insert_resource(EditorState::default());
+
+    app.add_systems(Update, super::systems::restore_shortcuts);
+    app.update();
+
+    let state = app.world().resource::<EditorState>();
+    assert!(
+        !state.shortcut_entries.is_empty(),
+        "restore_shortcuts should populate shortcut_entries"
+    );
+    // Should have entries sorted by category.
+    let categories: Vec<&str> = state
+        .shortcut_entries
+        .iter()
+        .map(|e| e.category.as_str())
+        .collect();
+    assert!(categories.contains(&"Tool"));
+    assert!(categories.contains(&"Edit"));
+    assert!(categories.contains(&"View"));
+}

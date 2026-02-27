@@ -1083,7 +1083,7 @@ pub fn restore_shortcuts(registry: Res<ShortcutRegistry>, mut editor_state: ResM
 // ---------------------------------------------------------------------------
 
 /// Returns the path to the dock layout config file.
-fn dock_layout_config_path() -> std::path::PathBuf {
+pub(super) fn dock_layout_config_path() -> std::path::PathBuf {
     #[cfg(feature = "macos-app")]
     {
         let home = std::env::var("HOME").unwrap_or_default();
@@ -1279,7 +1279,7 @@ pub fn debug_inspector_panel(
 }
 
 /// Convert an RGB `[u8; 3]` array to an `egui::Color32`.
-fn rgb(c: [u8; 3]) -> egui::Color32 {
+pub(super) fn rgb(c: [u8; 3]) -> egui::Color32 {
     egui::Color32::from_rgb(c[0], c[1], c[2])
 }
 
@@ -5154,7 +5154,7 @@ pub(super) fn parse_scaffold_prop_type(s: &str, enum_registry: &EnumRegistry) ->
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn format_property_type(pt: &PropertyType) -> &'static str {
+pub(super) fn format_property_type(pt: &PropertyType) -> &'static str {
     match pt {
         PropertyType::Bool => "Bool",
         PropertyType::Int => "Int",
@@ -5171,7 +5171,7 @@ fn format_property_type(pt: &PropertyType) -> &'static str {
     }
 }
 
-fn index_to_property_type(index: usize) -> PropertyType {
+pub(super) fn index_to_property_type(index: usize) -> PropertyType {
     match index {
         1 => PropertyType::Int,
         2 => PropertyType::Float,
@@ -5188,7 +5188,7 @@ fn index_to_property_type(index: usize) -> PropertyType {
     }
 }
 
-fn bevy_color_to_egui(color: Color) -> egui::Color32 {
+pub(super) fn bevy_color_to_egui(color: Color) -> egui::Color32 {
     match color {
         Color::Srgba(c) => egui::Color32::from_rgba_unmultiplied(
             (c.red * 255.0) as u8,
@@ -5209,12 +5209,12 @@ fn bevy_color_to_egui(color: Color) -> egui::Color32 {
     }
 }
 
-fn egui_color_to_bevy(color: egui::Color32) -> Color {
+pub(super) fn egui_color_to_bevy(color: egui::Color32) -> Color {
     let [r, g, b, _] = color.to_array();
     Color::srgb(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
 }
 
-fn rgb_to_color32(rgb: [f32; 3]) -> egui::Color32 {
+pub(super) fn rgb_to_color32(rgb: [f32; 3]) -> egui::Color32 {
     egui::Color32::from_rgb(
         (rgb[0] * 255.0) as u8,
         (rgb[1] * 255.0) as u8,
@@ -5222,12 +5222,12 @@ fn rgb_to_color32(rgb: [f32; 3]) -> egui::Color32 {
     )
 }
 
-fn color32_to_rgb(c: egui::Color32) -> [f32; 3] {
+pub(super) fn color32_to_rgb(c: egui::Color32) -> [f32; 3] {
     let [r, g, b, _] = c.to_array();
     [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0]
 }
 
-fn format_relation_effect(effect: &RelationEffect) -> String {
+pub(super) fn format_relation_effect(effect: &RelationEffect) -> String {
     match effect {
         RelationEffect::ModifyProperty {
             target_property,
@@ -5248,7 +5248,7 @@ fn format_relation_effect(effect: &RelationEffect) -> String {
     }
 }
 
-fn format_constraint_expr(expr: &ConstraintExpr) -> String {
+pub(super) fn format_constraint_expr(expr: &ConstraintExpr) -> String {
     match expr {
         ConstraintExpr::PropertyCompare {
             property_name,
@@ -5291,7 +5291,7 @@ fn format_constraint_expr(expr: &ConstraintExpr) -> String {
     }
 }
 
-fn format_compare_op(op: CompareOp) -> &'static str {
+pub(super) fn format_compare_op(op: CompareOp) -> &'static str {
     match op {
         CompareOp::Eq => "==",
         CompareOp::Ne => "!=",
@@ -5302,7 +5302,7 @@ fn format_compare_op(op: CompareOp) -> &'static str {
     }
 }
 
-fn index_to_modify_operation(index: usize) -> ModifyOperation {
+pub(super) fn index_to_modify_operation(index: usize) -> ModifyOperation {
     match index {
         1 => ModifyOperation::Subtract,
         2 => ModifyOperation::Multiply,
@@ -5312,7 +5312,7 @@ fn index_to_modify_operation(index: usize) -> ModifyOperation {
     }
 }
 
-fn index_to_compare_op(index: usize) -> CompareOp {
+pub(super) fn index_to_compare_op(index: usize) -> CompareOp {
     match index {
         1 => CompareOp::Ne,
         2 => CompareOp::Lt,
@@ -5323,7 +5323,7 @@ fn index_to_compare_op(index: usize) -> CompareOp {
     }
 }
 
-fn build_constraint_expression(
+pub(super) fn build_constraint_expression(
     editor_state: &EditorState,
     roles: &[ConceptRole],
 ) -> ConstraintExpr {
