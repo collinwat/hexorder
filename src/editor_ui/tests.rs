@@ -1607,13 +1607,6 @@ fn workspace_unit_design_command_applies_preset() {
 }
 
 // ---------------------------------------------------------------------------
-// NOTE: EditorUiPlugin::build() is a structural ceiling (lines 40-152).
-// EguiPlugin requires Assets<Shader> and the rendering pipeline, which
-// MinimalPlugins does not provide. The build() method is 113 lines of
-// plugin wiring (resource inserts + system registrations) that cannot
-// be tested without a full rendering context.
-
-// ---------------------------------------------------------------------------
 // Coverage: delete_unit fallback (entity without unit components)
 // ---------------------------------------------------------------------------
 
@@ -3381,5 +3374,56 @@ fn apply_actions_generate_map_inserts_resource() {
             .get_resource::<hexorder_contracts::map_gen::GenerateMap>()
             .is_some(),
         "GenerateMap resource should be inserted"
+    );
+}
+
+// ===========================================================================
+// Coverage: EditorUiPlugin::build() — plugin registration wiring
+// ===========================================================================
+
+/// Builds the full `EditorUiPlugin` in a headless context to cover the
+/// resource insertion and system registration wiring in `build()`.
+///
+/// `EguiPlugin` gracefully skips render-pipeline setup when `RenderApp` is
+/// absent, so MinimalPlugins + AssetPlugin is sufficient.
+#[test]
+fn editor_ui_plugin_builds_without_panic() {
+    use hexorder_contracts::shortcuts::ShortcutRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    // EguiPlugin's load_internal_asset! needs Assets<Shader>.
+    app.init_resource::<Assets<bevy::shader::Shader>>();
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.init_state::<AppScreen>();
+    app.init_resource::<ShortcutRegistry>();
+
+    // EditorUiPlugin::build() registers resources, systems, and observers.
+    // Note: we skip app.update() — EguiPlugin runtime systems need full
+    // windowing/input infrastructure. build() coverage is achieved by
+    // add_plugins alone.
+    app.add_plugins(super::EditorUiPlugin);
+
+    // Verify resources inserted by build().
+    assert!(
+        app.world().get_resource::<EditorTool>().is_some(),
+        "EditorTool should be inserted by build()"
+    );
+    assert!(
+        app.world().get_resource::<EditorState>().is_some(),
+        "EditorState should be inserted by build()"
+    );
+    assert!(
+        app.world().get_resource::<Selection>().is_some(),
+        "Selection should be inserted by build()"
+    );
+    assert!(
+        app.world().get_resource::<ToastState>().is_some(),
+        "ToastState should be inserted by build()"
+    );
+    assert!(
+        app.world().get_resource::<GridOverlayVisible>().is_some(),
+        "GridOverlayVisible should be inserted by build()"
     );
 }
