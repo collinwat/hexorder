@@ -95,6 +95,7 @@ pub(crate) type DialogFuture = Pin<Box<dyn Future<Output = DialogResult> + Send>
 ///
 /// If `initial_dir` is `Some`, the dialog opens in that directory.
 /// `file_name` is the suggested filename.
+#[cfg(not(test))]
 pub(crate) fn spawn_save_dialog(
     initial_dir: Option<&std::path::Path>,
     file_name: &str,
@@ -116,9 +117,19 @@ pub(crate) fn spawn_save_dialog(
     })
 }
 
+/// Test stub: returns a pending future (rfd requires the main thread).
+#[cfg(test)]
+pub(crate) fn spawn_save_dialog(
+    _initial_dir: Option<&std::path::Path>,
+    _file_name: &str,
+) -> DialogFuture {
+    Box::pin(std::future::pending())
+}
+
 /// Create an async open-file dialog future.
 ///
 /// **Must be called on the main thread** — see [`spawn_save_dialog`].
+#[cfg(not(test))]
 pub(crate) fn spawn_open_dialog() -> DialogFuture {
     let dialog = rfd::AsyncFileDialog::new().add_filter("Hexorder", &["hexorder"]);
     let future = dialog.pick_file();
@@ -128,9 +139,16 @@ pub(crate) fn spawn_open_dialog() -> DialogFuture {
     })
 }
 
+/// Test stub: returns a pending future (rfd requires the main thread).
+#[cfg(test)]
+pub(crate) fn spawn_open_dialog() -> DialogFuture {
+    Box::pin(std::future::pending())
+}
+
 /// Create an async unsaved-changes confirmation dialog future.
 ///
 /// **Must be called on the main thread** — see [`spawn_save_dialog`].
+#[cfg(not(test))]
 pub(crate) fn spawn_confirm_dialog() -> DialogFuture {
     let future = rfd::AsyncMessageDialog::new()
         .set_title("Unsaved Changes")
@@ -147,6 +165,12 @@ pub(crate) fn spawn_confirm_dialog() -> DialogFuture {
         };
         DialogResult::Confirmed(choice)
     })
+}
+
+/// Test stub: returns a pending future (rfd requires the main thread).
+#[cfg(test)]
+pub(crate) fn spawn_confirm_dialog() -> DialogFuture {
+    Box::pin(std::future::pending())
 }
 
 /// Polls the in-flight async dialog each frame.

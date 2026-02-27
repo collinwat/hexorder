@@ -1626,3 +1626,235 @@ fn close_project_clears_undo_stack() {
         "undo stack should be cleared after close_project"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Dialog-spawning paths (rfd stubbed via #[cfg(test)] in async_dialog)
+// ---------------------------------------------------------------------------
+
+/// `execute_pending_action(Load)` spawns an open-file dialog.
+#[test]
+fn execute_pending_action_load_spawns_open_dialog() {
+    use crate::persistence::async_dialog::*;
+
+    let mut app = test_app_with_grid();
+
+    // Dispatch confirm No with pending Load action.
+    // This calls execute_pending_action(Load) → spawn_open_dialog().
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::Load,
+        },
+        DialogResult::Confirmed(ConfirmChoice::No),
+        app.world_mut(),
+    );
+
+    // Verify AsyncDialogTask was inserted with OpenFile kind.
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(task.kind, DialogKind::OpenFile),
+        "should be OpenFile dialog"
+    );
+}
+
+/// Confirm Yes without existing path spawns a save-as dialog with chained action.
+#[test]
+fn dispatch_confirm_yes_without_path_spawns_save_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+
+    // Ensure workspace has no file_path.
+    app.world_mut().resource_mut::<Workspace>().file_path = None;
+    app.world_mut().resource_mut::<Workspace>().name = "MyProject".to_string();
+
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::CloseProject,
+        },
+        DialogResult::Confirmed(ConfirmChoice::Yes),
+        app.world_mut(),
+    );
+
+    // Should have spawned a save dialog with the chained CloseProject action.
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(
+            task.kind,
+            DialogKind::SaveFile {
+                then: Some(PendingAction::CloseProject)
+            }
+        ),
+        "should be SaveFile dialog with CloseProject chain"
+    );
+}
+
+/// `handle_load_request` spawns an open-file dialog when workspace is not dirty.
+#[test]
+fn handle_load_request_not_dirty_spawns_open_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{LoadRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+    app.world_mut().resource_mut::<Workspace>().dirty = false;
+
+    app.world_mut().commands().trigger(LoadRequestEvent);
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(task.kind, DialogKind::OpenFile),
+        "should be OpenFile dialog"
+    );
+}
+
+/// `handle_load_request` spawns a confirm dialog when workspace is dirty.
+#[test]
+fn handle_load_request_dirty_spawns_confirm_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{LoadRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+    app.world_mut().resource_mut::<Workspace>().dirty = true;
+
+    app.world_mut().commands().trigger(LoadRequestEvent);
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(
+            task.kind,
+            DialogKind::ConfirmUnsavedChanges {
+                then: PendingAction::Load
+            }
+        ),
+        "should be ConfirmUnsavedChanges with Load pending action"
+    );
+}
+
+/// `handle_new_project` spawns a confirm dialog when workspace is dirty.
+#[test]
+fn handle_new_project_dirty_spawns_confirm_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{NewProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+    app.world_mut().resource_mut::<Workspace>().dirty = true;
+
+    app.world_mut().commands().trigger(NewProjectEvent {
+        name: "Fresh".to_string(),
+    });
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(
+            task.kind,
+            DialogKind::ConfirmUnsavedChanges {
+                then: PendingAction::NewProject { .. }
+            }
+        ),
+        "should be ConfirmUnsavedChanges with NewProject pending action"
+    );
+}
+
+/// `handle_close_project` spawns a confirm dialog when workspace is dirty.
+#[test]
+fn handle_close_project_dirty_spawns_confirm_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{CloseProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+    app.world_mut().resource_mut::<Workspace>().dirty = true;
+
+    app.world_mut().commands().trigger(CloseProjectEvent);
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(
+            task.kind,
+            DialogKind::ConfirmUnsavedChanges {
+                then: PendingAction::CloseProject
+            }
+        ),
+        "should be ConfirmUnsavedChanges with CloseProject pending action"
+    );
+}
+
+/// `handle_save_request` spawns a save dialog when `save_as` is true.
+#[test]
+fn handle_save_request_save_as_spawns_save_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    // Set a file path — save_as should ignore it and spawn dialog anyway.
+    let tmp = std::env::temp_dir().join("hexorder_test_save_as_dialog.hexorder");
+    app.world_mut().resource_mut::<Workspace>().file_path = Some(tmp);
+
+    app.world_mut()
+        .commands()
+        .trigger(SaveRequestEvent { save_as: true });
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(task.kind, DialogKind::SaveFile { then: None }),
+        "should be SaveFile dialog with no chained action"
+    );
+}
+
+/// `handle_save_request` spawns a save dialog when workspace has no file path.
+#[test]
+fn handle_save_request_no_path_spawns_save_dialog() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    // Ensure no file path.
+    app.world_mut().resource_mut::<Workspace>().file_path = None;
+
+    app.world_mut()
+        .commands()
+        .trigger(SaveRequestEvent { save_as: false });
+    app.update();
+    app.update();
+
+    let task = app
+        .world()
+        .get_resource::<AsyncDialogTask>()
+        .expect("AsyncDialogTask should be inserted");
+    assert!(
+        matches!(task.kind, DialogKind::SaveFile { then: None }),
+        "should be SaveFile dialog with no chained action"
+    );
+}
