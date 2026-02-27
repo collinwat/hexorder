@@ -1271,3 +1271,370 @@ fn editor_state_default_visibility_flags() {
     assert!(state.toolbar_visible);
     assert!(!state.debug_panel_visible);
 }
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — tool switching branches
+// ---------------------------------------------------------------------------
+
+#[test]
+fn tool_select_command_switches_to_select() {
+    let mut app = observer_app();
+    app.world_mut().insert_resource(EditorTool::Paint);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("tool.select"),
+    });
+    app.update();
+
+    assert_eq!(*app.world().resource::<EditorTool>(), EditorTool::Select);
+}
+
+#[test]
+fn tool_paint_command_switches_to_paint() {
+    let mut app = observer_app();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("tool.paint"),
+    });
+    app.update();
+
+    assert_eq!(*app.world().resource::<EditorTool>(), EditorTool::Paint);
+}
+
+#[test]
+fn tool_place_command_switches_to_place() {
+    let mut app = observer_app();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("tool.place"),
+    });
+    app.update();
+
+    assert_eq!(*app.world().resource::<EditorTool>(), EditorTool::Place);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — mode switching branches
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mode_editor_command_sets_editor_state() {
+    let mut app = observer_app();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("mode.editor"),
+    });
+    app.update();
+
+    // NextState should have been set to Editor. After update, the state should
+    // be (or transition to) Editor.
+    let state = app.world().resource::<State<AppScreen>>();
+    assert_eq!(*state.get(), AppScreen::Editor);
+}
+
+#[test]
+fn mode_close_command_triggers_close_project_event() {
+    use hexorder_contracts::persistence::CloseProjectEvent;
+
+    let mut app = observer_app();
+
+    // Add an observer to detect that CloseProjectEvent was triggered.
+    let marker = app.world_mut().spawn_empty().id();
+    app.add_observer(
+        move |_trigger: On<CloseProjectEvent>, mut commands: Commands| {
+            commands.entity(marker).despawn();
+        },
+    );
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("mode.close"),
+    });
+    app.update();
+    // The queued closure runs on the next update.
+    app.update();
+
+    assert!(
+        app.world().get_entity(marker).is_err(),
+        "CloseProjectEvent should have been triggered, despawning the marker"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — view.toggle_debug_panel
+// ---------------------------------------------------------------------------
+
+#[test]
+fn toggle_debug_panel_command_flips_visibility() {
+    let mut app = observer_app();
+
+    assert!(!app.world().resource::<EditorState>().debug_panel_visible);
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("view.toggle_debug_panel"),
+    });
+    app.update();
+
+    assert!(app.world().resource::<EditorState>().debug_panel_visible);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — view.toggle_fullscreen
+// ---------------------------------------------------------------------------
+
+#[test]
+fn toggle_fullscreen_command_switches_window_mode() {
+    use bevy::window::{MonitorSelection, WindowMode};
+
+    let mut app = observer_app();
+    app.world_mut().spawn(Window {
+        mode: WindowMode::Windowed,
+        ..Default::default()
+    });
+    app.update();
+
+    // Toggle to fullscreen.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("view.toggle_fullscreen"),
+    });
+    app.update();
+
+    let window = app
+        .world_mut()
+        .query::<&Window>()
+        .single(app.world())
+        .expect("single window");
+    assert_eq!(
+        window.mode,
+        WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+    );
+
+    // Toggle back to windowed.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("view.toggle_fullscreen"),
+    });
+    app.update();
+
+    let window = app
+        .world_mut()
+        .query::<&Window>()
+        .single(app.world())
+        .expect("single window");
+    assert_eq!(window.mode, WindowMode::Windowed);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — edit.deselect (escape)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn deselect_command_exits_fullscreen() {
+    use bevy::window::{MonitorSelection, WindowMode};
+
+    let mut app = observer_app();
+    app.world_mut().spawn(Window {
+        mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+        ..Default::default()
+    });
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.deselect"),
+    });
+    app.update();
+
+    let window = app
+        .world_mut()
+        .query::<&Window>()
+        .single(app.world())
+        .expect("single window");
+    assert_eq!(window.mode, WindowMode::Windowed);
+}
+
+#[test]
+fn deselect_command_noop_when_already_windowed() {
+    use bevy::window::WindowMode;
+
+    let mut app = observer_app();
+    app.world_mut().spawn(Window {
+        mode: WindowMode::Windowed,
+        ..Default::default()
+    });
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.deselect"),
+    });
+    app.update();
+
+    let window = app
+        .world_mut()
+        .query::<&Window>()
+        .single(app.world())
+        .expect("single window");
+    assert_eq!(window.mode, WindowMode::Windowed);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: handle_editor_ui_command — unknown command (wildcard arm)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn unknown_command_is_noop() {
+    let mut app = observer_app();
+    let tool_before = *app.world().resource::<EditorTool>();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("nonexistent.command"),
+    });
+    app.update();
+
+    // Nothing should have changed.
+    assert_eq!(*app.world().resource::<EditorTool>(), tool_before);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: register_shortcuts
+// ---------------------------------------------------------------------------
+
+#[test]
+fn register_shortcuts_populates_all_expected_commands() {
+    use hexorder_contracts::shortcuts::ShortcutRegistry;
+
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    let expected = [
+        "tool.select",
+        "tool.paint",
+        "tool.place",
+        "mode.editor",
+        "mode.close",
+        "workspace.map_editing",
+        "workspace.unit_design",
+        "workspace.rule_authoring",
+        "workspace.playtesting",
+        "edit.select_all",
+        "edit.delete",
+        "view.toggle_inspector",
+        "view.toggle_toolbar",
+        "view.toggle_grid_overlay",
+        "view.zoom_to_selection",
+        "view.toggle_fullscreen",
+        "help.about",
+    ];
+
+    for id in &expected {
+        let found = registry.commands().iter().any(|entry| entry.id.0 == *id);
+        assert!(found, "command '{id}' should be registered");
+    }
+}
+
+#[test]
+fn register_shortcuts_tool_bindings_use_digit_keys() {
+    use bevy::input::keyboard::KeyCode;
+    use hexorder_contracts::shortcuts::ShortcutRegistry;
+
+    let mut registry = ShortcutRegistry::default();
+    super::register_shortcuts(&mut registry);
+
+    let select_bindings = registry.bindings_for("tool.select");
+    assert!(
+        select_bindings.contains(&KeyCode::Digit1),
+        "tool.select should bind to Digit1"
+    );
+
+    let paint_bindings = registry.bindings_for("tool.paint");
+    assert!(
+        paint_bindings.contains(&KeyCode::Digit2),
+        "tool.paint should bind to Digit2"
+    );
+
+    let place_bindings = registry.bindings_for("tool.place");
+    assert!(
+        place_bindings.contains(&KeyCode::Digit3),
+        "tool.place should bind to Digit3"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Coverage: delete_unit fallback (entity without unit components)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_map_editing_command_applies_preset() {
+    use super::components::WorkspacePreset;
+
+    let mut app = observer_app();
+
+    // First switch away from MapEditing.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("workspace.playtesting"),
+    });
+    app.update();
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::Playtesting,
+    );
+
+    // Now switch to MapEditing.
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("workspace.map_editing"),
+    });
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::MapEditing,
+    );
+}
+
+#[test]
+fn workspace_unit_design_command_applies_preset() {
+    use super::components::WorkspacePreset;
+
+    let mut app = observer_app();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("workspace.unit_design"),
+    });
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<DockLayoutState>().active_preset,
+        WorkspacePreset::UnitDesign,
+    );
+}
+
+// ---------------------------------------------------------------------------
+// NOTE: EditorUiPlugin::build() is a structural ceiling (lines 40-152).
+// EguiPlugin requires Assets<Shader> and the rendering pipeline, which
+// MinimalPlugins does not provide. The build() method is 113 lines of
+// plugin wiring (resource inserts + system registrations) that cannot
+// be tested without a full rendering context.
+
+// ---------------------------------------------------------------------------
+// Coverage: delete_unit fallback (entity without unit components)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn delete_unit_plain_despawn_without_unit_components() {
+    let mut app = observer_app();
+
+    // Spawn a plain entity (no UnitInstance components).
+    let entity = app.world_mut().spawn_empty().id();
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(entity);
+    app.update();
+
+    app.world_mut().trigger(CommandExecutedEvent {
+        command_id: CommandId("edit.delete"),
+    });
+    app.update();
+
+    // Entity should be despawned even without unit components.
+    assert!(
+        app.world().get_entity(entity).is_err(),
+        "Plain entity should be despawned by delete fallback"
+    );
+    assert!(app.world().resource::<SelectedUnit>().entity.is_none());
+}
