@@ -1313,3 +1313,316 @@ fn dispatch_confirm_yes_save_failure_aborts_chain() {
         "chain should abort on save failure"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Observer: handle_save_request
+// ---------------------------------------------------------------------------
+
+/// `handle_save_request` saves directly when `file_path` exists and `save_as` is false.
+#[test]
+fn handle_save_request_saves_directly_with_existing_path() {
+    use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    // Establish a file path by saving first.
+    let tmp = std::env::temp_dir().join("hexorder_test_handle_save_direct.hexorder");
+    let _ = std::fs::remove_file(&tmp);
+    super::systems::save_to_path(&tmp, app.world_mut());
+
+    // Dirty the workspace.
+    app.world_mut().resource_mut::<Workspace>().dirty = true;
+
+    // Trigger save request (not save_as).
+    app.world_mut()
+        .commands()
+        .trigger(SaveRequestEvent { save_as: false });
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert!(!workspace.dirty, "save should clear dirty flag");
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// `handle_save_request` is a no-op when a dialog is already open.
+#[test]
+fn handle_save_request_noop_when_dialog_open() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    // Insert an existing dialog task.
+    let future: DialogFuture = Box::pin(std::future::pending());
+    app.insert_resource(AsyncDialogTask {
+        kind: DialogKind::OpenFile,
+        future: std::sync::Mutex::new(future),
+    });
+
+    // Set a file path and dirty flag.
+    let tmp = std::env::temp_dir().join("hexorder_test_save_noop_dialog.hexorder");
+    app.world_mut().resource_mut::<Workspace>().file_path = Some(tmp.clone());
+    app.world_mut().resource_mut::<Workspace>().dirty = true;
+
+    app.world_mut()
+        .commands()
+        .trigger(SaveRequestEvent { save_as: false });
+    app.update();
+    app.update();
+
+    // Should still be dirty — save was skipped.
+    let workspace = app.world().resource::<Workspace>();
+    assert!(
+        workspace.dirty,
+        "save should be skipped when dialog is open"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Observer: handle_new_project
+// ---------------------------------------------------------------------------
+
+/// `handle_new_project` resets to new project when workspace is not dirty.
+#[test]
+fn handle_new_project_resets_when_not_dirty() {
+    use hexorder_contracts::persistence::{NewProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    // Ensure workspace is not dirty.
+    app.world_mut().resource_mut::<Workspace>().dirty = false;
+    app.world_mut().resource_mut::<Workspace>().name = "OldProject".to_string();
+
+    app.world_mut().commands().trigger(NewProjectEvent {
+        name: "Fresh".to_string(),
+    });
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(workspace.name, "Fresh");
+}
+
+/// `handle_new_project` is a no-op when a dialog is already open.
+#[test]
+fn handle_new_project_noop_when_dialog_open() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{NewProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    let future: DialogFuture = Box::pin(std::future::pending());
+    app.insert_resource(AsyncDialogTask {
+        kind: DialogKind::OpenFile,
+        future: std::sync::Mutex::new(future),
+    });
+
+    app.world_mut().resource_mut::<Workspace>().name = "OldProject".to_string();
+
+    app.world_mut().commands().trigger(NewProjectEvent {
+        name: "Fresh".to_string(),
+    });
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(
+        workspace.name, "OldProject",
+        "new project should be skipped when dialog is open"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Observer: handle_close_project
+// ---------------------------------------------------------------------------
+
+/// `handle_close_project` closes when workspace is not dirty.
+#[test]
+fn handle_close_project_closes_when_not_dirty() {
+    use hexorder_contracts::persistence::{CloseProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    app.world_mut().resource_mut::<Workspace>().dirty = false;
+    app.world_mut().resource_mut::<Workspace>().name = "MyProject".to_string();
+
+    app.world_mut().commands().trigger(CloseProjectEvent);
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert!(
+        workspace.name.is_empty(),
+        "CloseProject should reset workspace name"
+    );
+}
+
+/// `handle_close_project` is a no-op when a dialog is already open.
+#[test]
+fn handle_close_project_noop_when_dialog_open() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::{CloseProjectEvent, Workspace};
+
+    let mut app = test_app_with_grid();
+
+    let future: DialogFuture = Box::pin(std::future::pending());
+    app.insert_resource(AsyncDialogTask {
+        kind: DialogKind::OpenFile,
+        future: std::sync::Mutex::new(future),
+    });
+
+    app.world_mut().resource_mut::<Workspace>().name = "MyProject".to_string();
+
+    app.world_mut().commands().trigger(CloseProjectEvent);
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(
+        workspace.name, "MyProject",
+        "close should be skipped when dialog is open"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Observer: handle_load_request
+// ---------------------------------------------------------------------------
+
+/// `handle_load_request` is a no-op when a dialog is already open.
+#[test]
+fn handle_load_request_noop_when_dialog_open() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::LoadRequestEvent;
+
+    let mut app = test_app_with_grid();
+
+    let future: DialogFuture = Box::pin(std::future::pending());
+    app.insert_resource(AsyncDialogTask {
+        kind: DialogKind::OpenFile,
+        future: std::sync::Mutex::new(future),
+    });
+
+    app.world_mut().commands().trigger(LoadRequestEvent);
+    app.update();
+    app.update();
+
+    // Dialog task should still exist (not replaced).
+    assert!(
+        app.world().get_resource::<AsyncDialogTask>().is_some(),
+        "existing dialog task should remain"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Observer: handle_dialog_completed
+// ---------------------------------------------------------------------------
+
+/// `handle_dialog_completed` dispatches the dialog result through the world.
+#[test]
+fn handle_dialog_completed_dispatches_to_world() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::persistence::Workspace;
+
+    let mut app = test_app_with_grid();
+    app.world_mut().resource_mut::<Workspace>().name = "Before".to_string();
+
+    // Trigger DialogCompleted with confirm No + NewProject.
+    // handle_dialog_completed queues dispatch_dialog_result, which calls
+    // execute_pending_action(NewProject), which calls reset_to_new_project.
+    app.world_mut().commands().trigger(DialogCompleted {
+        kind: DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::NewProject {
+                name: "After".to_string(),
+            },
+        },
+        result: DialogResult::Confirmed(ConfirmChoice::No),
+    });
+    app.update();
+    app.update();
+    app.update();
+
+    let workspace = app.world().resource::<Workspace>();
+    assert_eq!(
+        workspace.name, "After",
+        "dialog result should have been dispatched"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Undo stack coverage in reset_to_new_project and close_project
+// ---------------------------------------------------------------------------
+
+/// `reset_to_new_project` clears the undo stack when present.
+#[test]
+fn reset_to_new_project_clears_undo_stack() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::undo_redo::UndoStack;
+
+    let mut app = test_app_with_grid();
+    app.init_resource::<UndoStack>();
+
+    // Record a command to make the undo stack non-empty.
+    app.world_mut().resource_mut::<UndoStack>().record(Box::new(
+        hexorder_contracts::undo_redo::SetPropertyCommand {
+            entity: Entity::PLACEHOLDER,
+            property_id: TypeId::new(),
+            old_value: hexorder_contracts::game_system::PropertyValue::Int(0),
+            new_value: hexorder_contracts::game_system::PropertyValue::Int(1),
+            label: "test".to_string(),
+        },
+    ));
+    assert!(app.world().resource::<UndoStack>().can_undo());
+
+    // Dispatch confirm No with NewProject → calls reset_to_new_project.
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::NewProject {
+                name: "Fresh".to_string(),
+            },
+        },
+        DialogResult::Confirmed(ConfirmChoice::No),
+        app.world_mut(),
+    );
+
+    assert!(
+        !app.world().resource::<UndoStack>().can_undo(),
+        "undo stack should be cleared after reset_to_new_project"
+    );
+}
+
+/// `close_project` clears the undo stack when present.
+#[test]
+fn close_project_clears_undo_stack() {
+    use crate::persistence::async_dialog::*;
+    use hexorder_contracts::undo_redo::UndoStack;
+
+    let mut app = test_app_with_grid();
+    app.init_resource::<UndoStack>();
+
+    app.world_mut().resource_mut::<UndoStack>().record(Box::new(
+        hexorder_contracts::undo_redo::SetPropertyCommand {
+            entity: Entity::PLACEHOLDER,
+            property_id: TypeId::new(),
+            old_value: hexorder_contracts::game_system::PropertyValue::Int(0),
+            new_value: hexorder_contracts::game_system::PropertyValue::Int(1),
+            label: "test".to_string(),
+        },
+    ));
+    assert!(app.world().resource::<UndoStack>().can_undo());
+
+    // Dispatch confirm No with CloseProject → calls close_project.
+    super::systems::dispatch_dialog_result(
+        DialogKind::ConfirmUnsavedChanges {
+            then: PendingAction::CloseProject,
+        },
+        DialogResult::Confirmed(ConfirmChoice::No),
+        app.world_mut(),
+    );
+
+    assert!(
+        !app.world().resource::<UndoStack>().can_undo(),
+        "undo stack should be cleared after close_project"
+    );
+}

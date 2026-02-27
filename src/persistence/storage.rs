@@ -306,4 +306,56 @@ mod tests {
         let entries = provider.list().expect("list should succeed");
         assert!(entries.is_empty());
     }
+
+    /// `load` rejects files with a format version higher than the current.
+    #[test]
+    fn load_rejects_future_format_version() {
+        let (provider, dir) = temp_provider("future_version");
+        let mut data = test_file();
+        data.format_version = FORMAT_VERSION + 1;
+
+        // Write the file manually (save_at doesn't validate version).
+        let path = dir.join("future.hexorder");
+        provider.save_at(&path, &data).expect("write");
+
+        let result = provider.load(&path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, PersistenceError::UnsupportedVersion { .. }),
+            "should be UnsupportedVersion, got: {err:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `list` ignores non-hexorder files in the directory.
+    #[test]
+    fn list_ignores_non_hexorder_files() {
+        let (provider, dir) = temp_provider("list_filter");
+        let data = test_file();
+
+        provider.save("Valid", &data).expect("save valid");
+        // Create a non-hexorder file.
+        std::fs::write(dir.join("notes.txt"), "not a hexorder file").expect("write txt");
+
+        let entries = provider.list().expect("list should succeed");
+        assert_eq!(entries.len(), 1, "should only find .hexorder files");
+        assert_eq!(entries[0].name, "Valid");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `base_dir` returns the configured base directory path.
+    #[test]
+    fn base_dir_returns_configured_path() {
+        let dir = std::env::temp_dir().join("hexorder_storage_test_base_dir");
+        let config = StorageConfig {
+            base_dir: dir.clone(),
+            source: StorageSource::ProjectLocal,
+        };
+        let provider = FilesystemProvider::new(config);
+
+        assert_eq!(provider.base_dir(), dir.as_path());
+    }
 }
