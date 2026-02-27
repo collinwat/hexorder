@@ -464,10 +464,11 @@ fn palette_filtered_results_empty_query_shows_all() {
 
 #[test]
 fn palette_selected_index_clamped_to_results() {
-    let mut palette = hexorder_contracts::shortcuts::CommandPaletteState::default();
-    palette.open = true;
-    palette.selected_index = 100;
-    palette.query = "xyz_nomatch".to_string();
+    let mut palette = hexorder_contracts::shortcuts::CommandPaletteState {
+        open: true,
+        selected_index: 100,
+        query: "xyz_nomatch".to_string(),
+    };
 
     let mut registry = ShortcutRegistry::default();
     registry.register(named_entry("a", "Alpha"));
@@ -484,9 +485,11 @@ fn palette_selected_index_clamped_to_results() {
 
 #[test]
 fn palette_selected_index_clamped_within_bounds() {
-    let mut palette = hexorder_contracts::shortcuts::CommandPaletteState::default();
-    palette.open = true;
-    palette.selected_index = 5;
+    let mut palette = hexorder_contracts::shortcuts::CommandPaletteState {
+        open: true,
+        selected_index: 5,
+        query: String::new(),
+    };
 
     let mut registry = ShortcutRegistry::default();
     registry.register(named_entry("a", "Alpha"));

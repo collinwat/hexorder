@@ -2015,11 +2015,13 @@ fn rgb_helper_creates_color32() {
 fn build_constraint_expression_property_compare() {
     use hexorder_contracts::ontology::{CompareOp, ConstraintExpr};
 
-    let mut state = EditorState::default();
-    state.new_constraint_expr_type_index = 0;
-    state.new_constraint_property = "hp".to_string();
-    state.new_constraint_op_index = 4; // Gt
-    state.new_constraint_value_str = "10".to_string();
+    let state = EditorState {
+        new_constraint_expr_type_index: 0,
+        new_constraint_property: "hp".to_string(),
+        new_constraint_op_index: 4, // Gt
+        new_constraint_value_str: "10".to_string(),
+        ..EditorState::default()
+    };
 
     let expr = super::systems::build_constraint_expression(&state, &[]);
     match expr {
@@ -2039,10 +2041,12 @@ fn build_constraint_expression_property_compare() {
 fn build_constraint_expression_path_budget() {
     use hexorder_contracts::ontology::ConstraintExpr;
 
-    let mut state = EditorState::default();
-    state.new_constraint_expr_type_index = 3;
-    state.new_constraint_property = "cost".to_string();
-    state.new_constraint_value_str = "budget".to_string();
+    let state = EditorState {
+        new_constraint_expr_type_index: 3,
+        new_constraint_property: "cost".to_string(),
+        new_constraint_value_str: "budget".to_string(),
+        ..EditorState::default()
+    };
 
     let expr = super::systems::build_constraint_expression(&state, &[]);
     match expr {
@@ -2062,8 +2066,10 @@ fn build_constraint_expression_path_budget() {
 fn build_constraint_expression_unknown_falls_back_to_all() {
     use hexorder_contracts::ontology::ConstraintExpr;
 
-    let mut state = EditorState::default();
-    state.new_constraint_expr_type_index = 99;
+    let state = EditorState {
+        new_constraint_expr_type_index: 99,
+        ..EditorState::default()
+    };
 
     let expr = super::systems::build_constraint_expression(&state, &[]);
     assert!(
@@ -2152,9 +2158,10 @@ fn sync_font_size_updates_workspace() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
 
-    let mut state = EditorState::default();
-    state.font_size_base = 20.0;
-    app.insert_resource(state);
+    app.insert_resource(EditorState {
+        font_size_base: 20.0,
+        ..EditorState::default()
+    });
     app.insert_resource(Workspace::default());
 
     app.add_systems(Update, super::systems::sync_font_size);
@@ -2190,9 +2197,10 @@ fn sync_theme_updates_settings() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
 
-    let mut state = EditorState::default();
-    state.active_theme_name = "dark".to_string();
-    app.insert_resource(state);
+    app.insert_resource(EditorState {
+        active_theme_name: "dark".to_string(),
+        ..EditorState::default()
+    });
     app.insert_resource(SettingsRegistry::default());
 
     app.add_systems(Update, super::systems::sync_theme);
@@ -2205,13 +2213,6 @@ fn sync_theme_updates_settings() {
 #[test]
 fn restore_theme_populates_editor_state() {
     use hexorder_contracts::settings::{SettingsRegistry, ThemeDefinition, ThemeLibrary};
-
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-
-    let mut settings = SettingsRegistry::default();
-    settings.active_theme = "custom".to_string();
-    app.insert_resource(settings);
 
     fn test_theme(name: &str) -> ThemeDefinition {
         ThemeDefinition {
@@ -2231,6 +2232,14 @@ fn restore_theme_populates_editor_state() {
             success: [0; 3],
         }
     }
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+
+    app.insert_resource(SettingsRegistry {
+        active_theme: "custom".to_string(),
+        ..SettingsRegistry::default()
+    });
     let library = ThemeLibrary {
         themes: vec![test_theme("Brand"), test_theme("Custom")],
     };
@@ -2274,4 +2283,1103 @@ fn restore_shortcuts_populates_shortcut_entries() {
     assert!(categories.contains(&"Tool"));
     assert!(categories.contains(&"Edit"));
     assert!(categories.contains(&"View"));
+}
+
+// ---------------------------------------------------------------------------
+// apply_actions tests
+// ---------------------------------------------------------------------------
+
+/// Resource used to pass actions into the system wrapper.
+#[derive(Resource)]
+struct TestActions(Vec<super::components::EditorAction>);
+
+/// System that drains `TestActions` and forwards them to `apply_actions`.
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+fn run_apply_actions(
+    mut test_actions: ResMut<TestActions>,
+    (mut registry, mut enum_registry, mut struct_registry): (
+        ResMut<hexorder_contracts::game_system::EntityTypeRegistry>,
+        ResMut<hexorder_contracts::game_system::EnumRegistry>,
+        ResMut<hexorder_contracts::game_system::StructRegistry>,
+    ),
+    mut tile_data_query: Query<
+        &mut hexorder_contracts::game_system::EntityData,
+        Without<hexorder_contracts::game_system::UnitInstance>,
+    >,
+    mut active_board: ResMut<hexorder_contracts::game_system::ActiveBoardType>,
+    mut active_token: ResMut<hexorder_contracts::game_system::ActiveTokenType>,
+    mut selected_unit: ResMut<hexorder_contracts::game_system::SelectedUnit>,
+    editor_state: Res<super::components::EditorState>,
+    mut commands: Commands,
+    mut concept_registry: ResMut<hexorder_contracts::ontology::ConceptRegistry>,
+    mut relation_registry: ResMut<hexorder_contracts::ontology::RelationRegistry>,
+    mut constraint_registry: ResMut<hexorder_contracts::ontology::ConstraintRegistry>,
+    (mut turn_structure, mut combat_results_table, mut combat_modifiers, mechanic_catalog): (
+        ResMut<hexorder_contracts::mechanics::TurnStructure>,
+        ResMut<hexorder_contracts::mechanics::CombatResultsTable>,
+        ResMut<hexorder_contracts::mechanics::CombatModifierRegistry>,
+        Res<hexorder_contracts::mechanic_reference::MechanicCatalog>,
+    ),
+) {
+    let actions = std::mem::take(&mut test_actions.0);
+    super::systems::apply_actions(
+        actions,
+        &mut registry,
+        &mut enum_registry,
+        &mut struct_registry,
+        &mut tile_data_query,
+        &mut active_board,
+        &mut active_token,
+        &mut selected_unit,
+        &editor_state,
+        &mut commands,
+        &mut concept_registry,
+        &mut relation_registry,
+        &mut constraint_registry,
+        &mut turn_structure,
+        &mut combat_results_table,
+        &mut combat_modifiers,
+        &mechanic_catalog,
+    );
+}
+
+/// Creates an `App` with all resources needed by `apply_actions`, runs the
+/// given actions through the system wrapper, and returns the app for assertions.
+fn actions_app(actions: Vec<super::components::EditorAction>) -> App {
+    use hexorder_contracts::game_system::{
+        ActiveBoardType, ActiveTokenType, EntityTypeRegistry, EnumRegistry, SelectedUnit,
+        StructRegistry,
+    };
+    use hexorder_contracts::mechanic_reference::MechanicCatalog;
+    use hexorder_contracts::mechanics::{
+        CombatModifierRegistry, CombatResultsTable, TurnStructure,
+    };
+    use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<EntityTypeRegistry>();
+    app.init_resource::<EnumRegistry>();
+    app.init_resource::<StructRegistry>();
+    app.init_resource::<ActiveBoardType>();
+    app.init_resource::<ActiveTokenType>();
+    app.init_resource::<SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<ConceptRegistry>();
+    app.init_resource::<RelationRegistry>();
+    app.init_resource::<ConstraintRegistry>();
+    app.init_resource::<TurnStructure>();
+    app.init_resource::<CombatResultsTable>();
+    app.init_resource::<CombatModifierRegistry>();
+    app.init_resource::<MechanicCatalog>();
+    app.insert_resource(TestActions(actions));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+    app
+}
+
+#[test]
+fn apply_actions_create_entity_type() {
+    use hexorder_contracts::game_system::{EntityRole, EntityTypeRegistry};
+
+    let app = actions_app(vec![super::components::EditorAction::CreateEntityType {
+        name: "Infantry".to_string(),
+        role: EntityRole::Token,
+        color: Color::WHITE,
+    }]);
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    assert_eq!(registry.types.len(), 1);
+    assert_eq!(registry.types[0].name, "Infantry");
+    assert_eq!(registry.types[0].role, EntityRole::Token);
+}
+
+#[test]
+fn apply_actions_delete_entity_type_board_position_with_fallback() {
+    use hexorder_contracts::game_system::{
+        ActiveBoardType, EntityRole, EntityType, EntityTypeRegistry, TypeId,
+    };
+
+    let id_to_delete = TypeId::new();
+    let fallback_id = TypeId::new();
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: id_to_delete,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    registry.types.push(EntityType {
+        id: fallback_id,
+        name: "Forest".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::BLACK,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.insert_resource(ActiveBoardType {
+        entity_type_id: Some(id_to_delete),
+    });
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::DeleteEntityType { id: id_to_delete },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    assert_eq!(reg.types.len(), 1);
+    assert_eq!(reg.types[0].name, "Forest");
+    let ab = app.world().resource::<ActiveBoardType>();
+    assert_eq!(ab.entity_type_id, Some(fallback_id));
+}
+
+#[test]
+fn apply_actions_delete_entity_type_token_with_fallback() {
+    use hexorder_contracts::game_system::{
+        ActiveTokenType, EntityRole, EntityType, EntityTypeRegistry, TypeId,
+    };
+
+    let id_to_delete = TypeId::new();
+    let fallback_id = TypeId::new();
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: id_to_delete,
+        name: "Tank".to_string(),
+        role: EntityRole::Token,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    registry.types.push(EntityType {
+        id: fallback_id,
+        name: "Soldier".to_string(),
+        role: EntityRole::Token,
+        color: Color::BLACK,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.insert_resource(ActiveTokenType {
+        entity_type_id: Some(id_to_delete),
+    });
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::DeleteEntityType { id: id_to_delete },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    assert_eq!(reg.types.len(), 1);
+    assert_eq!(reg.types[0].name, "Soldier");
+    let at = app.world().resource::<ActiveTokenType>();
+    assert_eq!(at.entity_type_id, Some(fallback_id));
+}
+
+#[test]
+fn apply_actions_add_property_simple_types() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Defense".to_string(),
+            prop_type: PropertyType::Int,
+            enum_options: String::new(),
+        },
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Label".to_string(),
+            prop_type: PropertyType::String,
+            enum_options: String::new(),
+        },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = &reg.types[0];
+    assert_eq!(et.properties.len(), 2);
+    assert_eq!(et.properties[0].name, "Defense");
+    assert!(matches!(et.properties[0].property_type, PropertyType::Int));
+    assert_eq!(et.properties[1].name, "Label");
+}
+
+#[test]
+fn apply_actions_add_property_enum_creates_enum_def() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Terrain".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "TerrainType".to_string(),
+            prop_type: PropertyType::Enum(TypeId::default()),
+            enum_options: "Forest, Mountain, Plains".to_string(),
+        },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let enum_reg = app.world().resource::<EnumRegistry>();
+    assert_eq!(enum_reg.definitions.len(), 1);
+    let def = enum_reg.definitions.values().next().expect("one enum");
+    assert_eq!(def.name, "TerrainType");
+    assert_eq!(def.options, vec!["Forest", "Mountain", "Plains"]);
+}
+
+#[test]
+fn apply_actions_add_property_int_range_and_float_range() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Unit".to_string(),
+        role: EntityRole::Token,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState {
+        new_prop_int_range_min: 1,
+        new_prop_int_range_max: 10,
+        new_prop_float_range_min: 0.0,
+        new_prop_float_range_max: 100.0,
+        ..super::components::EditorState::default()
+    });
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Strength".to_string(),
+            prop_type: PropertyType::IntRange { min: 0, max: 0 },
+            enum_options: String::new(),
+        },
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Morale".to_string(),
+            prop_type: PropertyType::FloatRange { min: 0.0, max: 0.0 },
+            enum_options: String::new(),
+        },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = &reg.types[0];
+    assert_eq!(et.properties.len(), 2);
+    assert!(matches!(
+        et.properties[0].property_type,
+        PropertyType::IntRange { min: 1, max: 10 }
+    ));
+    assert!(matches!(
+        et.properties[1].property_type,
+        PropertyType::FloatRange { min, max } if min == 0.0 && max == 100.0
+    ));
+}
+
+#[test]
+fn apply_actions_add_property_list_and_map_and_struct() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let struct_id = TypeId::new();
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Unit".to_string(),
+        role: EntityRole::Token,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState {
+        new_prop_list_inner_type: 2, // Float
+        new_prop_map_value_type: 1,  // Int
+        new_prop_struct_id: Some(struct_id),
+        ..super::components::EditorState::default()
+    });
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Modifiers".to_string(),
+            prop_type: PropertyType::List(Box::new(PropertyType::Bool)),
+            enum_options: String::new(),
+        },
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Stats".to_string(),
+            prop_type: PropertyType::Map(TypeId::default(), Box::new(PropertyType::Bool)),
+            enum_options: String::new(),
+        },
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Equipment".to_string(),
+            prop_type: PropertyType::Struct(TypeId::default()),
+            enum_options: String::new(),
+        },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = &reg.types[0];
+    assert_eq!(et.properties.len(), 3);
+    assert!(matches!(
+        et.properties[0].property_type,
+        PropertyType::List(ref inner) if matches!(**inner, PropertyType::Float)
+    ));
+    assert!(matches!(
+        et.properties[1].property_type,
+        PropertyType::Map(_, ref val) if matches!(**val, PropertyType::Int)
+    ));
+    assert_eq!(
+        et.properties[2].property_type,
+        PropertyType::Struct(struct_id)
+    );
+}
+
+#[test]
+fn apply_actions_add_property_entity_ref() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Unit".to_string(),
+        role: EntityRole::Token,
+        color: Color::WHITE,
+        properties: Vec::new(),
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState {
+        new_prop_entity_ref_role: 2, // Token
+        ..super::components::EditorState::default()
+    });
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "Target".to_string(),
+            prop_type: PropertyType::EntityRef(None),
+            enum_options: String::new(),
+        },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = &reg.types[0];
+    assert_eq!(et.properties.len(), 1);
+    assert!(matches!(
+        et.properties[0].property_type,
+        PropertyType::EntityRef(Some(EntityRole::Token))
+    ));
+}
+
+#[test]
+fn apply_actions_remove_property() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType,
+        PropertyValue, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let prop_id = TypeId::new();
+    let keep_id = TypeId::new();
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let mut registry = EntityTypeRegistry::default();
+    registry.types.push(EntityType {
+        id: type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::WHITE,
+        properties: vec![
+            PropertyDefinition {
+                id: prop_id,
+                name: "ToRemove".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(0),
+            },
+            PropertyDefinition {
+                id: keep_id,
+                name: "ToKeep".to_string(),
+                property_type: PropertyType::Bool,
+                default_value: PropertyValue::Bool(false),
+            },
+        ],
+    });
+    app.insert_resource(registry);
+    app.init_resource::<hexorder_contracts::game_system::EnumRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::StructRegistry>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveBoardType>();
+    app.init_resource::<hexorder_contracts::game_system::ActiveTokenType>();
+    app.init_resource::<hexorder_contracts::game_system::SelectedUnit>();
+    app.insert_resource(super::components::EditorState::default());
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::TurnStructure>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
+    app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
+    app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.insert_resource(TestActions(vec![
+        super::components::EditorAction::RemoveProperty { type_id, prop_id },
+    ]));
+    app.add_systems(Update, run_apply_actions);
+    app.update();
+
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    assert_eq!(reg.types[0].properties.len(), 1);
+    assert_eq!(reg.types[0].properties[0].name, "ToKeep");
+}
+
+#[test]
+fn apply_actions_delete_selected_unit() {
+    use hexorder_contracts::game_system::SelectedUnit;
+
+    let mut app = actions_app(vec![]);
+    let entity = app.world_mut().spawn_empty().id();
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(entity);
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteSelectedUnit);
+    app.update();
+
+    let su = app.world().resource::<SelectedUnit>();
+    assert!(su.entity.is_none());
+    assert!(app.world().get_entity(entity).is_err());
+}
+
+#[test]
+fn apply_actions_create_and_delete_concept_cascades() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::{
+        ConceptBinding, ConceptRegistry, Constraint, ConstraintExpr, ConstraintRegistry, Relation,
+        RelationEffect, RelationRegistry, RelationTrigger,
+    };
+
+    let concept_id = TypeId::new();
+    // Pre-populate registries so we can verify cascade deletes.
+    let mut app = actions_app(vec![]);
+    {
+        let mut cr = app.world_mut().resource_mut::<ConceptRegistry>();
+        cr.concepts.push(hexorder_contracts::ontology::Concept {
+            id: concept_id,
+            name: "Battle".to_string(),
+            description: String::new(),
+            role_labels: Vec::new(),
+        });
+        cr.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: TypeId::new(),
+            concept_id,
+            concept_role_id: TypeId::new(),
+            property_bindings: Vec::new(),
+        });
+    }
+    {
+        let mut rr = app.world_mut().resource_mut::<RelationRegistry>();
+        rr.relations.push(Relation {
+            id: TypeId::new(),
+            name: "Attack".to_string(),
+            concept_id,
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Allow { condition: None },
+        });
+    }
+    {
+        let mut csr = app.world_mut().resource_mut::<ConstraintRegistry>();
+        csr.constraints.push(Constraint {
+            id: TypeId::new(),
+            name: "Limit".to_string(),
+            description: String::new(),
+            concept_id,
+            relation_id: None,
+            expression: ConstraintExpr::All(Vec::new()),
+            auto_generated: false,
+        });
+    }
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteConcept { id: concept_id });
+    app.update();
+
+    let cr = app.world().resource::<ConceptRegistry>();
+    assert!(cr.concepts.is_empty());
+    assert!(cr.bindings.is_empty());
+    let rr = app.world().resource::<RelationRegistry>();
+    assert!(rr.relations.is_empty());
+    let csr = app.world().resource::<ConstraintRegistry>();
+    assert!(csr.constraints.is_empty());
+}
+
+#[test]
+fn apply_actions_concept_roles_add_and_remove() {
+    use hexorder_contracts::game_system::{EntityRole, TypeId};
+    use hexorder_contracts::ontology::{ConceptBinding, ConceptRegistry};
+
+    let mut app = actions_app(vec![super::components::EditorAction::CreateConcept {
+        name: "Movement".to_string(),
+        description: "How units move".to_string(),
+    }]);
+
+    // Grab the generated concept ID.
+    let concept_id = app.world().resource::<ConceptRegistry>().concepts[0].id;
+
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::AddConceptRole {
+            concept_id,
+            name: "Mover".to_string(),
+            allowed_roles: vec![EntityRole::Token],
+        },
+    );
+    app.update();
+
+    let cr = app.world().resource::<ConceptRegistry>();
+    assert_eq!(cr.concepts[0].role_labels.len(), 1);
+    assert_eq!(cr.concepts[0].role_labels[0].name, "Mover");
+
+    let role_id = cr.concepts[0].role_labels[0].id;
+    // Add a binding that references this role, then remove the role.
+    {
+        let mut cr = app.world_mut().resource_mut::<ConceptRegistry>();
+        cr.bindings.push(ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: TypeId::new(),
+            concept_id,
+            concept_role_id: role_id,
+            property_bindings: Vec::new(),
+        });
+    }
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::RemoveConceptRole {
+            concept_id,
+            role_id,
+        },
+    );
+    app.update();
+
+    let cr = app.world().resource::<ConceptRegistry>();
+    assert!(cr.concepts[0].role_labels.is_empty());
+    assert!(cr.bindings.is_empty(), "cascade should remove binding");
+}
+
+#[test]
+fn apply_actions_bind_and_unbind_entity() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::ConceptRegistry;
+
+    let entity_type_id = TypeId::new();
+    let concept_id = TypeId::new();
+    let concept_role_id = TypeId::new();
+
+    let app = actions_app(vec![super::components::EditorAction::BindEntityToConcept {
+        entity_type_id,
+        concept_id,
+        concept_role_id,
+    }]);
+
+    let cr = app.world().resource::<ConceptRegistry>();
+    assert_eq!(cr.bindings.len(), 1);
+    let binding_id = cr.bindings[0].id;
+
+    let mut app = app;
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::UnbindEntityFromConcept {
+            concept_id,
+            binding_id,
+        },
+    );
+    app.update();
+
+    let cr = app.world().resource::<ConceptRegistry>();
+    assert!(cr.bindings.is_empty());
+}
+
+#[test]
+fn apply_actions_create_and_delete_relation_cascades() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::{
+        Constraint, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
+        RelationTrigger,
+    };
+
+    let app = actions_app(vec![super::components::EditorAction::CreateRelation {
+        name: "Controls".to_string(),
+        concept_id: TypeId::new(),
+        subject_role_id: TypeId::new(),
+        object_role_id: TypeId::new(),
+        trigger: RelationTrigger::OnEnter,
+        effect: RelationEffect::Allow { condition: None },
+    }]);
+
+    let rr = app.world().resource::<RelationRegistry>();
+    assert_eq!(rr.relations.len(), 1);
+    let relation_id = rr.relations[0].id;
+
+    let mut app = app;
+    // Add a constraint tied to this relation.
+    {
+        let mut csr = app.world_mut().resource_mut::<ConstraintRegistry>();
+        csr.constraints.push(Constraint {
+            id: TypeId::new(),
+            name: "Linked".to_string(),
+            description: String::new(),
+            concept_id: TypeId::new(),
+            relation_id: Some(relation_id),
+            expression: ConstraintExpr::All(Vec::new()),
+            auto_generated: false,
+        });
+    }
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteRelation { id: relation_id });
+    app.update();
+
+    let rr = app.world().resource::<RelationRegistry>();
+    assert!(rr.relations.is_empty());
+    let csr = app.world().resource::<ConstraintRegistry>();
+    assert!(
+        csr.constraints.is_empty(),
+        "cascade should remove constraint"
+    );
+}
+
+#[test]
+fn apply_actions_create_and_delete_constraint() {
+    use hexorder_contracts::game_system::TypeId;
+    use hexorder_contracts::ontology::{ConstraintExpr, ConstraintRegistry};
+
+    let app = actions_app(vec![super::components::EditorAction::CreateConstraint {
+        name: "Max3".to_string(),
+        description: "Limit to 3".to_string(),
+        concept_id: TypeId::new(),
+        expression: ConstraintExpr::All(Vec::new()),
+    }]);
+
+    let csr = app.world().resource::<ConstraintRegistry>();
+    assert_eq!(csr.constraints.len(), 1);
+    assert_eq!(csr.constraints[0].name, "Max3");
+    assert!(!csr.constraints[0].auto_generated);
+    let id = csr.constraints[0].id;
+
+    let mut app = app;
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteConstraint { id });
+    app.update();
+
+    let csr = app.world().resource::<ConstraintRegistry>();
+    assert!(csr.constraints.is_empty());
+}
+
+#[test]
+fn apply_actions_enum_create_delete_add_remove_option() {
+    use hexorder_contracts::game_system::EnumRegistry;
+
+    let app = actions_app(vec![super::components::EditorAction::CreateEnum {
+        name: "Weather".to_string(),
+        options: vec!["Clear".to_string(), "Rain".to_string()],
+    }]);
+
+    let er = app.world().resource::<EnumRegistry>();
+    assert_eq!(er.definitions.len(), 1);
+    let enum_id = *er.definitions.keys().next().expect("one enum");
+
+    let mut app = app;
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::AddEnumOption {
+            enum_id,
+            option: "Snow".to_string(),
+        },
+    );
+    app.update();
+
+    let er = app.world().resource::<EnumRegistry>();
+    assert_eq!(er.definitions[&enum_id].options.len(), 3);
+
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::RemoveEnumOption {
+            enum_id,
+            option: "Rain".to_string(),
+        },
+    );
+    app.update();
+
+    let er = app.world().resource::<EnumRegistry>();
+    assert_eq!(er.definitions[&enum_id].options, vec!["Clear", "Snow"]);
+
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteEnum { id: enum_id });
+    app.update();
+
+    let er = app.world().resource::<EnumRegistry>();
+    assert!(er.definitions.is_empty());
+}
+
+#[test]
+fn apply_actions_struct_create_delete_add_remove_field() {
+    use hexorder_contracts::game_system::{PropertyType, StructRegistry};
+
+    let app = actions_app(vec![super::components::EditorAction::CreateStruct {
+        name: "Coord".to_string(),
+    }]);
+
+    let sr = app.world().resource::<StructRegistry>();
+    assert_eq!(sr.definitions.len(), 1);
+    let struct_id = *sr.definitions.keys().next().expect("one struct");
+
+    let mut app = app;
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::AddStructField {
+            struct_id,
+            name: "x".to_string(),
+            prop_type: PropertyType::Int,
+        },
+    );
+    app.update();
+
+    let sr = app.world().resource::<StructRegistry>();
+    assert_eq!(sr.definitions[&struct_id].fields.len(), 1);
+    let field_id = sr.definitions[&struct_id].fields[0].id;
+
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::RemoveStructField {
+            struct_id,
+            field_id,
+        },
+    );
+    app.update();
+
+    let sr = app.world().resource::<StructRegistry>();
+    assert!(sr.definitions[&struct_id].fields.is_empty());
+
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::DeleteStruct { id: struct_id });
+    app.update();
+
+    let sr = app.world().resource::<StructRegistry>();
+    assert!(sr.definitions.is_empty());
+}
+
+#[test]
+fn apply_actions_set_player_order_and_phases() {
+    use hexorder_contracts::mechanics::{PhaseType, PlayerOrder, TurnStructure};
+
+    let app = actions_app(vec![
+        super::components::EditorAction::SetPlayerOrder {
+            order: PlayerOrder::Simultaneous,
+        },
+        super::components::EditorAction::AddPhase {
+            name: "Movement".to_string(),
+            phase_type: PhaseType::Movement,
+        },
+        super::components::EditorAction::AddPhase {
+            name: "Combat".to_string(),
+            phase_type: PhaseType::Combat,
+        },
+    ]);
+
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.player_order, PlayerOrder::Simultaneous);
+    assert_eq!(ts.phases.len(), 2);
+    assert_eq!(ts.phases[0].name, "Movement");
+    assert_eq!(ts.phases[1].name, "Combat");
+
+    // Move phase down, then up.
+    let phase_id = ts.phases[0].id;
+    let mut app = app;
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::MovePhaseDown { id: phase_id });
+    app.update();
+
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.phases[0].name, "Combat");
+    assert_eq!(ts.phases[1].name, "Movement");
+
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::MovePhaseUp { id: phase_id });
+    app.update();
+
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.phases[0].name, "Movement");
+
+    // Remove a phase.
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::RemovePhase { id: phase_id });
+    app.update();
+
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.phases.len(), 1);
+    assert_eq!(ts.phases[0].name, "Combat");
+}
+
+#[test]
+fn apply_actions_crt_columns_and_rows() {
+    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+
+    let app = actions_app(vec![
+        super::components::EditorAction::AddCrtColumn {
+            label: "1:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 1.0,
+        },
+        super::components::EditorAction::AddCrtColumn {
+            label: "2:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 2.0,
+        },
+        super::components::EditorAction::AddCrtRow {
+            label: "1".to_string(),
+            die_min: 1,
+            die_max: 2,
+        },
+    ]);
+
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert_eq!(crt.columns.len(), 2);
+    assert_eq!(crt.rows.len(), 1);
+    // Row should have default outcomes matching column count.
+    assert_eq!(crt.outcomes.len(), 1);
+    assert_eq!(crt.outcomes[0].len(), 2);
+    assert_eq!(crt.outcomes[0][0].label, "--");
+
+    // Remove a column — should also trim outcomes.
+    let mut app = app;
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::RemoveCrtColumn { index: 0 });
+    app.update();
+
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert_eq!(crt.columns.len(), 1);
+    assert_eq!(crt.outcomes[0].len(), 1);
+
+    // Remove the row.
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::RemoveCrtRow { index: 0 });
+    app.update();
+
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert!(crt.rows.is_empty());
+    assert!(crt.outcomes.is_empty());
+}
+
+#[test]
+fn apply_actions_set_crt_outcome() {
+    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+
+    let app = actions_app(vec![
+        super::components::EditorAction::AddCrtColumn {
+            label: "1:1".to_string(),
+            column_type: CrtColumnType::OddsRatio,
+            threshold: 1.0,
+        },
+        super::components::EditorAction::AddCrtRow {
+            label: "1".to_string(),
+            die_min: 1,
+            die_max: 1,
+        },
+        super::components::EditorAction::SetCrtOutcome {
+            row: 0,
+            col: 0,
+            label: "AE".to_string(),
+        },
+    ]);
+
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert_eq!(crt.outcomes[0][0].label, "AE");
+}
+
+#[test]
+fn apply_actions_combat_modifiers() {
+    use hexorder_contracts::mechanics::{CombatModifierRegistry, ModifierSource};
+
+    let app = actions_app(vec![super::components::EditorAction::AddCombatModifier {
+        name: "Terrain Bonus".to_string(),
+        source: ModifierSource::DefenderTerrain,
+        shift: 2,
+        priority: 1,
+    }]);
+
+    let cm = app.world().resource::<CombatModifierRegistry>();
+    assert_eq!(cm.modifiers.len(), 1);
+    assert_eq!(cm.modifiers[0].name, "Terrain Bonus");
+    assert_eq!(cm.modifiers[0].column_shift, 2);
+    let mod_id = cm.modifiers[0].id;
+
+    let mut app = app;
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::RemoveCombatModifier { id: mod_id });
+    app.update();
+
+    let cm = app.world().resource::<CombatModifierRegistry>();
+    assert!(cm.modifiers.is_empty());
+}
+
+#[test]
+fn apply_actions_generate_map_inserts_resource() {
+    let mut app = actions_app(vec![super::components::EditorAction::GenerateMap]);
+    // GenerateMap resource is inserted via commands, needs another update to flush.
+    app.update();
+    assert!(
+        app.world()
+            .get_resource::<hexorder_contracts::map_gen::GenerateMap>()
+            .is_some(),
+        "GenerateMap resource should be inserted"
+    );
 }

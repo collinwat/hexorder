@@ -4483,7 +4483,7 @@ fn render_property_value_editor(
 // ---------------------------------------------------------------------------
 
 #[allow(clippy::too_many_arguments)]
-fn apply_actions(
+pub(super) fn apply_actions(
     actions: Vec<EditorAction>,
     registry: &mut EntityTypeRegistry,
     enum_registry: &mut EnumRegistry,
