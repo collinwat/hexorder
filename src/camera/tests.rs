@@ -1478,3 +1478,50 @@ fn smooth_camera_y_stays_fixed() {
         "camera Y should stay at CAMERA_Y (100.0)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Plugin registration coverage
+// ---------------------------------------------------------------------------
+
+/// `CameraPlugin::build` wires up all systems, resources, and shortcuts.
+///
+/// Note: We avoid calling `app.update()` because the run conditions
+/// reference `EguiWantsInput` (from bevy_egui) which requires the egui
+/// plugin and rendering pipeline. We verify that `build()` itself
+/// completes and initializes the expected resources.
+#[test]
+fn camera_plugin_registers_systems_and_shortcuts() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(AppScreen::Editor);
+    app.init_resource::<ShortcutRegistry>();
+    app.add_plugins(super::CameraPlugin);
+
+    // CameraState should be initialized by the plugin.
+    assert!(
+        app.world().get_resource::<CameraState>().is_some(),
+        "CameraPlugin should init CameraState resource"
+    );
+
+    // ViewportMargins should be initialized by the plugin.
+    assert!(
+        app.world().get_resource::<ViewportMargins>().is_some(),
+        "CameraPlugin should init ViewportMargins resource"
+    );
+
+    // Shortcuts should be registered.
+    let registry = app.world().resource::<ShortcutRegistry>();
+    assert!(
+        !registry.bindings_for("camera.pan_up").is_empty(),
+        "should register camera.pan_up"
+    );
+    assert!(
+        !registry.bindings_for("camera.zoom_in").is_empty(),
+        "should register camera.zoom_in"
+    );
+    assert!(
+        !registry.bindings_for("camera.fit").is_empty(),
+        "should register camera.fit"
+    );
+}

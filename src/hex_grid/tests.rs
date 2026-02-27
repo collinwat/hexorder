@@ -1150,6 +1150,56 @@ fn normal_click_clears_multi_selection() {
 }
 
 // ---------------------------------------------------------------------------
+// handle_click: drag threshold
+// ---------------------------------------------------------------------------
+
+/// Mouse drag exceeding threshold should NOT register as a click.
+#[test]
+fn handle_click_ignores_drag() {
+    use bevy::input::mouse::AccumulatedMouseMotion;
+
+    let mut app = test_app();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.insert_resource(SelectedHex::default());
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(3, 1)),
+    });
+    app.add_systems(Update, systems::handle_click);
+
+    // Frame 1: Press left mouse button with large motion in the same frame.
+    // This simulates a press+drag in a single frame.
+    {
+        let mut buttons = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+        buttons.press(MouseButton::Left);
+    }
+    app.world_mut()
+        .resource_mut::<AccumulatedMouseMotion>()
+        .delta = Vec2::new(10.0, 0.0);
+    app.update(); // just_pressed → drag_acc = 0; pressed → drag_acc += 10.0
+
+    // Clear just_pressed state (MinimalPlugins doesn't run input clearing).
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear_just_pressed(MouseButton::Left);
+
+    // Frame 2: Release the button — should be treated as a drag, not a click.
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    // Reset mouse motion for this frame (no additional motion).
+    app.world_mut()
+        .resource_mut::<AccumulatedMouseMotion>()
+        .delta = Vec2::ZERO;
+    app.update(); // just_released, but drag_acc (10.0) > threshold (5.0) → early return.
+
+    let selected = app.world().resource::<SelectedHex>();
+    assert!(
+        selected.position.is_none(),
+        "Drag should not change SelectedHex"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // handle_hex_grid_command: deselect with resource present
 // ---------------------------------------------------------------------------
 
