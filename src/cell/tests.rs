@@ -675,6 +675,149 @@ fn sync_cell_materials_removes_deleted_type() {
 }
 
 #[test]
+#[test]
+fn sync_cell_materials_updates_existing_color() {
+    let mut app = test_app();
+    setup_cell_resources(&mut app);
+    app.update();
+
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let first_id = registry
+        .first_by_role(EntityRole::BoardPosition)
+        .unwrap()
+        .id;
+
+    // Record the original material handle.
+    let original_handle = app
+        .world()
+        .resource::<CellMaterials>()
+        .get(first_id)
+        .expect("should have material")
+        .clone();
+
+    // Change the color of the first type in the registry.
+    let new_color = Color::srgb(1.0, 0.0, 0.0);
+    {
+        let mut reg = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        if let Some(et) = reg.types.iter_mut().find(|t| t.id == first_id) {
+            et.color = new_color;
+        }
+    }
+
+    app.add_systems(Update, systems::sync_cell_materials);
+    app.update();
+
+    // Material handle should be the same (updated in place, not replaced).
+    let current_handle = app
+        .world()
+        .resource::<CellMaterials>()
+        .get(first_id)
+        .expect("should have material")
+        .clone();
+    assert_eq!(
+        original_handle, current_handle,
+        "Handle should be the same (in-place update)"
+    );
+
+    // The material asset's base_color should now match the new color.
+    let materials = app.world().resource::<Assets<StandardMaterial>>();
+    let mat = materials
+        .get(&current_handle)
+        .expect("material should exist");
+    assert_eq!(
+        mat.base_color, new_color,
+        "Material base_color should be updated to the new registry color"
+    );
+}
+
+#[test]
+/// `assign_default_cell_data` and `paint_cell` closures execute when entity
+/// types have properties, covering the `PropertyValue::default_for` path.
+fn paint_cell_with_properties() {
+    use hexorder_contracts::game_system::{PropertyDefinition, PropertyType, PropertyValue};
+
+    let plains_id = TypeId::new();
+    let forest_id = TypeId::new();
+
+    let registry = EntityTypeRegistry {
+        types: vec![
+            EntityType {
+                id: plains_id,
+                name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
+                color: Color::srgb(0.6, 0.8, 0.4),
+                properties: vec![PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "elevation".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                }],
+            },
+            EntityType {
+                id: forest_id,
+                name: "Forest".to_string(),
+                role: EntityRole::BoardPosition,
+                color: Color::srgb(0.2, 0.5, 0.2),
+                properties: vec![PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "density".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                }],
+            },
+        ],
+    };
+
+    let mut app = test_app();
+    app.insert_resource(registry);
+    app.add_systems(Startup, systems::setup_cell_materials);
+    app.update();
+
+    // Spawn tile without EntityData — will get default data.
+    let tile_entity = spawn_test_tile(&mut app, 0, 0);
+
+    app.add_systems(Update, systems::assign_default_cell_data);
+    app.update();
+
+    // Verify default data was assigned with properties.
+    let ed = app
+        .world()
+        .entity(tile_entity)
+        .get::<EntityData>()
+        .expect("should have EntityData");
+    assert_eq!(ed.entity_type_id, plains_id);
+    assert_eq!(
+        ed.properties.len(),
+        1,
+        "Should have 1 property from definition"
+    );
+
+    // Now paint to the forest type.
+    app.world_mut().insert_resource(ActiveBoardType {
+        entity_type_id: Some(forest_id),
+    });
+    app.world_mut().insert_resource(EditorTool::Paint);
+    app.add_observer(systems::paint_cell);
+
+    app.world_mut().commands().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let ed = app
+        .world()
+        .entity(tile_entity)
+        .get::<EntityData>()
+        .expect("should have EntityData after paint");
+    assert_eq!(ed.entity_type_id, forest_id);
+    assert_eq!(
+        ed.properties.len(),
+        1,
+        "Forest should have 1 property from definition"
+    );
+}
+
+#[test]
 fn paint_noop_when_same_type() {
     let mut app = test_app();
     setup_cell_resources(&mut app);
