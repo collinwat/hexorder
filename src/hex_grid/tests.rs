@@ -1650,3 +1650,380 @@ fn update_indicators_paint_mode_no_preview_uses_default() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// update_hover tests
+// ---------------------------------------------------------------------------
+
+use bevy::window::PrimaryWindow;
+
+/// `update_hover` returns early when no PrimaryWindow entity exists.
+#[test]
+fn update_hover_noop_without_window() {
+    let mut app = test_app();
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+    app.add_systems(Update, systems::update_hover);
+    app.update(); // Startup (sets HoveredHex to default)
+
+    // Set HoveredHex AFTER startup to avoid being overwritten.
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+    app.update(); // Update — no window, should return early
+
+    let hovered = app.world().resource::<HoveredHex>();
+    assert_eq!(
+        hovered.position,
+        Some(HexPosition::new(1, 0)),
+        "HoveredHex should remain unchanged when no window exists"
+    );
+}
+
+/// `update_hover` returns early when no Camera3d entity exists.
+#[test]
+fn update_hover_noop_without_camera() {
+    let mut app = test_app();
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    // Spawn a window but no camera.
+    app.world_mut().spawn((
+        Window {
+            title: "Test".to_string(),
+            ..default()
+        },
+        PrimaryWindow,
+    ));
+
+    app.add_systems(Update, systems::update_hover);
+    app.update(); // Startup
+
+    // Set HoveredHex AFTER startup to avoid being overwritten.
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+    app.update(); // Update — no camera, should return early
+
+    let hovered = app.world().resource::<HoveredHex>();
+    assert_eq!(
+        hovered.position,
+        Some(HexPosition::new(1, 0)),
+        "HoveredHex should remain unchanged when no camera exists"
+    );
+}
+
+/// `update_hover` clears hovered when cursor is not in window.
+#[test]
+fn update_hover_clears_when_no_cursor() {
+    let mut app = test_app();
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+
+    // Spawn a window without cursor position (cursor_position() returns None).
+    app.world_mut().spawn((
+        Window {
+            title: "Test".to_string(),
+            ..default()
+        },
+        PrimaryWindow,
+    ));
+
+    // Spawn a camera.
+    app.world_mut().spawn((
+        Camera3d::default(),
+        Transform::default(),
+        GlobalTransform::default(),
+    ));
+
+    app.add_systems(Update, systems::update_hover);
+    app.update(); // Startup
+    app.update(); // Update — no cursor position, hovered should be cleared
+
+    let hovered = app.world().resource::<HoveredHex>();
+    assert!(
+        hovered.position.is_none(),
+        "HoveredHex should be None when cursor is outside window"
+    );
+}
+
+/// `update_hover` clears hovered when screen_to_ground fails
+/// (camera has no computed viewport in headless mode).
+#[test]
+fn update_hover_clears_when_screen_to_ground_fails() {
+    let mut app = test_app();
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+
+    // Spawn a window WITH a cursor position set via internal cursor field.
+    let mut window = Window {
+        title: "Test".to_string(),
+        ..default()
+    };
+    window.set_cursor_position(Some(Vec2::new(400.0, 300.0)));
+    app.world_mut().spawn((window, PrimaryWindow));
+
+    // Spawn a camera — in headless mode, viewport_to_world will fail.
+    app.world_mut().spawn((
+        Camera3d::default(),
+        Transform::default(),
+        GlobalTransform::default(),
+    ));
+
+    app.add_systems(Update, systems::update_hover);
+    app.update(); // Startup
+    app.update(); // Update — screen_to_ground returns None
+
+    let hovered = app.world().resource::<HoveredHex>();
+    assert!(
+        hovered.position.is_none(),
+        "HoveredHex should be None when screen_to_ground fails"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// draw_los_ray: full LOS calculation path
+// ---------------------------------------------------------------------------
+
+/// Covers the actual LOS ray drawing (line calculation + gizmos) when
+/// unit is selected, hovered hex differs from unit position, and path
+/// has >=2 segments.
+#[test]
+fn los_ray_draws_line_segments_when_clear() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    // Place unit at (0,0).
+    let unit_pos = HexPosition::new(0, 0);
+    let unit_entity = app.world_mut().spawn((UnitInstance, unit_pos)).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup (overwrites HoveredHex with default)
+
+    // Set hover AFTER startup to avoid being overwritten by setup_grid_config.
+    app.insert_resource(HoveredHex {
+        position: Some(HexPosition::new(3, 0)),
+    });
+    app.update(); // Update — should compute LOS and call gizmos.line
+}
+
+/// Covers the `unit_pos == hover_pos` early return in draw_los_ray.
+#[test]
+fn los_ray_early_return_when_same_position() {
+    let mut app = test_app();
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::gizmos::GizmoPlugin);
+    app.add_systems(
+        Startup,
+        (
+            systems::setup_grid_config,
+            systems::setup_materials,
+            systems::spawn_grid,
+        )
+            .chain(),
+    );
+
+    let pos = HexPosition::new(2, 1);
+    let unit_entity = app.world_mut().spawn((UnitInstance, pos)).id();
+    app.insert_resource(SelectedUnit {
+        entity: Some(unit_entity),
+    });
+
+    app.add_systems(Update, systems::draw_los_ray);
+    app.update(); // Startup (overwrites HoveredHex with default)
+
+    // Set hover to same hex as unit AFTER startup.
+    app.insert_resource(HoveredHex {
+        position: Some(pos),
+    });
+    app.update(); // Should hit unit_pos == hover_pos and return
+}
+
+// ---------------------------------------------------------------------------
+// sync_multi_select_indicators: edge-case branches
+// ---------------------------------------------------------------------------
+
+/// Covers the `has_indicator.contains` continue branch where an indicator
+/// already exists for the selected tile.
+#[test]
+fn sync_multi_select_skips_existing_indicators() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::sync_multi_select_indicators);
+    app.update(); // Startup
+
+    // Spawn a tile and select it.
+    let tile_pos = HexPosition::new(1, 0);
+    let tile_entity = app.world_mut().spawn((HexTile, tile_pos)).id();
+    app.world_mut()
+        .resource_mut::<Selection>()
+        .entities
+        .insert(tile_entity);
+    app.update(); // Spawns indicator
+
+    let indicator_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<MultiSelectIndicator>>()
+        .iter(app.world())
+        .count();
+    assert_eq!(indicator_count, 1, "Should have 1 indicator");
+
+    // Mark selection as changed again without modifying the set.
+    // We do this by removing and re-inserting the same entity.
+    let mut selection = app.world_mut().resource_mut::<Selection>();
+    selection.entities.remove(&tile_entity);
+    selection.entities.insert(tile_entity);
+    app.update(); // Should hit the `has_indicator.contains` branch
+
+    let indicator_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<MultiSelectIndicator>>()
+        .iter(app.world())
+        .count();
+    assert_eq!(
+        indicator_count, 1,
+        "Should still have exactly 1 indicator (no duplicate spawned)"
+    );
+}
+
+/// Covers the `tile_positions.get(tile_entity)` else continue branch
+/// where a selected entity doesn't have a HexPosition.
+#[test]
+fn sync_multi_select_skips_entity_without_position() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::sync_multi_select_indicators);
+    app.update(); // Startup
+
+    // Spawn a non-tile entity and select it.
+    let non_tile = app.world_mut().spawn_empty().id();
+    app.world_mut()
+        .resource_mut::<Selection>()
+        .entities
+        .insert(non_tile);
+    app.update();
+
+    let indicator_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<MultiSelectIndicator>>()
+        .iter(app.world())
+        .count();
+    assert_eq!(
+        indicator_count, 0,
+        "Should not spawn indicator for entity without HexPosition"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// update_indicators / sync_multi_select: change detection early returns
+// ---------------------------------------------------------------------------
+
+/// Covers the implicit else path in `update_indicators` when
+/// no HoverIndicator or SelectIndicator entities exist.
+#[test]
+fn update_indicators_handles_missing_indicator_entities() {
+    let mut app = test_app();
+    app.add_systems(Startup, systems::setup_grid_config);
+    // Do NOT run setup_indicators — no HoverIndicator/SelectIndicator entities.
+    app.init_resource::<EditorTool>();
+    app.insert_resource(IndicatorMaterials {
+        hover: Handle::default(),
+        multi_select: Handle::default(),
+        ring_mesh: Handle::default(),
+        flat_rotation: Quat::IDENTITY,
+    });
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+
+    // Trigger change detection by setting a hovered hex.
+    app.world_mut().insert_resource(HoveredHex {
+        position: Some(HexPosition::new(1, 0)),
+    });
+    app.update(); // Query returns Err — covers the implicit else paths
+}
+
+/// Covers the change-detection early return in `update_indicators` when
+/// no resources have changed.
+#[test]
+fn update_indicators_noop_when_unchanged() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::update_indicators);
+    app.update(); // Startup
+    app.update(); // First update — processes initial changes
+
+    // Run again without changing anything — hits the early return.
+    app.update();
+    app.update();
+    // No panic = success (change detection path exercised).
+}
+
+/// Covers the change-detection early return in `sync_multi_select_indicators`.
+#[test]
+fn sync_multi_select_noop_when_selection_unchanged() {
+    let mut app = test_app_with_indicators();
+    app.add_systems(Update, systems::sync_multi_select_indicators);
+    app.update(); // Startup
+    app.update(); // First update
+
+    // Run again without changing Selection — hits the early return.
+    app.update();
+    app.update();
+}
+
+/// Covers the change-detection early return in `sync_move_overlays`.
+#[test]
+fn sync_move_overlays_noop_when_unchanged() {
+    let mut app = test_app_with_overlays();
+    app.add_systems(Update, systems::sync_move_overlays);
+    app.update(); // Startup
+    app.update(); // First update
+
+    // Run again without changing ValidMoveSet — hits the early return.
+    app.update();
+    app.update();
+}
