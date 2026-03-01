@@ -9027,3 +9027,118 @@ fn structs_tab_field_form() {
     harness.run();
     harness.get_by_label_contains("Field:");
 }
+
+// ===========================================================================
+// Batch 8 — ComboBox dropdown bodies + button click coverage
+// ===========================================================================
+
+// ── render_ontology: concept role removal ──
+
+/// Concept role x-button removal with single role concept.
+#[test]
+fn concepts_tab_remove_role_click() {
+    let reg = test_registry();
+    let mut creg = ConceptRegistry {
+        concepts: vec![Concept {
+            id: TypeId::new(),
+            name: "Solo".to_string(),
+            description: String::new(),
+            role_labels: vec![ConceptRole {
+                id: TypeId::new(),
+                name: "unit".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            }],
+        }],
+        bindings: vec![],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Solo").click();
+    harness.run();
+    harness.get_by_label("x").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveConceptRole { .. }))
+    );
+}
+
+// ── render_design: enum option x button ──
+
+/// Enums tab — enum option remove via x button (single option enum).
+#[test]
+fn enums_tab_remove_option_click() {
+    use std::collections::HashMap;
+    let mut defs = HashMap::new();
+    let eid = TypeId::new();
+    defs.insert(
+        eid,
+        EnumDefinition {
+            id: eid,
+            name: "Single".to_string(),
+            options: vec!["Only".to_string()],
+        },
+    );
+    let ereg = EnumRegistry { definitions: defs };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Single").click();
+    harness.run();
+    harness.get_by_label("x").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveEnumOption { .. }))
+    );
+}
+
+// ── render_design: struct field x button ──
+
+/// Structs tab — struct field remove via x button (single field struct).
+#[test]
+fn structs_tab_remove_field_click() {
+    use std::collections::HashMap;
+    let sid = TypeId::new();
+    let fid = TypeId::new();
+    let mut defs = HashMap::new();
+    defs.insert(
+        sid,
+        StructDefinition {
+            id: sid,
+            name: "Tiny".to_string(),
+            fields: vec![PropertyDefinition {
+                id: fid,
+                name: "val".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(0),
+            }],
+        },
+    );
+    let sreg = StructRegistry { definitions: defs };
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Tiny").click();
+    harness.run();
+    harness.get_by_label("x").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveStructField { .. }))
+    );
+}
