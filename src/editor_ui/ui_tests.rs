@@ -35,6 +35,7 @@ use hexorder_contracts::ontology::{
 use hexorder_contracts::persistence::Workspace;
 use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
+use super::actions;
 use super::components::{EditorAction, EditorState, OntologyTab};
 use super::render_play;
 use super::render_rules;
@@ -10636,4 +10637,141 @@ fn inspector_no_properties() {
         Some(HexPosition { q: 0, r: 0 }),
     );
     harness.get_by_label("No properties");
+}
+
+// ---------------------------------------------------------------------------
+// Batch 12 — format_relation_effect ops & binding interaction tests
+// ---------------------------------------------------------------------------
+
+/// `format_relation_effect` with `Add` operation.
+#[test]
+fn format_relation_effect_add_op() {
+    let effect = RelationEffect::ModifyProperty {
+        target_property: "hp".to_string(),
+        source_property: "bonus".to_string(),
+        operation: ModifyOperation::Add,
+    };
+    assert_eq!(actions::format_relation_effect(&effect), "hp + bonus");
+}
+
+/// `format_relation_effect` with `Multiply` operation.
+#[test]
+fn format_relation_effect_multiply_op() {
+    let effect = RelationEffect::ModifyProperty {
+        target_property: "damage".to_string(),
+        source_property: "factor".to_string(),
+        operation: ModifyOperation::Multiply,
+    };
+    assert_eq!(actions::format_relation_effect(&effect), "damage * factor");
+}
+
+/// `format_relation_effect` with `Min` operation.
+#[test]
+fn format_relation_effect_min_op() {
+    let effect = RelationEffect::ModifyProperty {
+        target_property: "speed".to_string(),
+        source_property: "cap".to_string(),
+        operation: ModifyOperation::Min,
+    };
+    assert_eq!(actions::format_relation_effect(&effect), "speed min cap");
+}
+
+/// `format_relation_effect` with `Max` operation.
+#[test]
+fn format_relation_effect_max_op() {
+    let effect = RelationEffect::ModifyProperty {
+        target_property: "armor".to_string(),
+        source_property: "floor".to_string(),
+        operation: ModifyOperation::Max,
+    };
+    assert_eq!(actions::format_relation_effect(&effect), "armor max floor");
+}
+
+/// Select entity type in binding `ComboBox` and verify state change.
+#[test]
+fn concepts_binding_select_entity_type() {
+    let mut harness = concepts_binding_harness();
+    // Open the entity type ComboBox (first "(select)")
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("(select)"))
+        .collect();
+    cbs[0].click();
+    harness.run();
+    // Click "Plains" to select it
+    harness.get_by_label("Plains").click();
+    harness.run();
+    // After selection, the state should have the entity type ID set
+    assert!(harness.state().0.binding_entity_type_id.is_some());
+}
+
+/// Select concept role in binding `ComboBox` and verify state change.
+#[test]
+fn concepts_binding_select_concept_role() {
+    let mut harness = concepts_binding_harness();
+    // Open the concept role ComboBox (second "(select)")
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("(select)"))
+        .collect();
+    if cbs.len() >= 2 {
+        cbs[1].click();
+        harness.run();
+        // Click "traveler" to select it
+        harness.get_by_label("traveler").click();
+        harness.run();
+        assert!(harness.state().0.binding_concept_role_id.is_some());
+    }
+}
+
+/// Select both entity type and concept role, then click "+ Bind".
+#[test]
+fn concepts_binding_bind_entity_click() {
+    let reg = test_registry();
+    let et_id = reg.types[0].id;
+    let cr_id = test_concept_registry().concepts[0].role_labels[0].id;
+
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                ConceptRegistry,
+                EntityTypeRegistry,
+                Vec<EditorAction>,
+            )| {
+                super::render_ontology::render_concepts_tab(ui, &mut s.1, &s.2, &mut s.0, &mut s.3);
+            },
+            (
+                EditorState {
+                    binding_entity_type_id: Some(et_id),
+                    binding_concept_role_id: Some(cr_id),
+                    ..EditorState::default()
+                },
+                test_concept_registry(),
+                reg,
+                vec![],
+            ),
+        );
+    h.run();
+    // Expand the concept
+    h.get_by_label("Motion").click();
+    h.run();
+    // Click "+ Bind" — button should be enabled since both IDs are set
+    h.get_by_label("+ Bind").click();
+    h.run();
+    let acts = &h.state().3;
+    assert!(
+        acts.iter().any(|a| matches!(
+            a,
+            EditorAction::BindEntityToConcept {
+                entity_type_id: _,
+                concept_id: _,
+                concept_role_id: _,
+            }
+        )),
+        "Should emit BindEntityToConcept action, got: {acts:?}"
+    );
+    // After binding, the editor state should be cleared
+    assert!(h.state().0.binding_entity_type_id.is_none());
+    assert!(h.state().0.binding_concept_role_id.is_none());
 }
