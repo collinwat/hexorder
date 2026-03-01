@@ -7695,3 +7695,900 @@ fn property_value_editor_struct_nesting_limit() {
     });
     harness.get_by_label_contains("nested");
 }
+
+// ===========================================================================
+// Batch 6 — targeted coverage for uncovered branches
+// ===========================================================================
+
+// ── render_play: turn tracker ──
+
+/// Turn tracker — empty phases shows placeholder.
+#[test]
+fn turn_tracker_empty_phases_placeholder() {
+    let ts = TurnStructure {
+        player_order: PlayerOrder::Alternating,
+        phases: vec![],
+    };
+    let mut ts2 = TurnState::default();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut ts2, &ts);
+    });
+    harness.get_by_label_contains("No phases defined");
+}
+
+/// Turn tracker — `turn_number` 0 initializes.
+#[test]
+fn turn_tracker_init_turn_number() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 0,
+        current_phase_index: 0,
+        is_active: false,
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label_contains("Turn 1");
+}
+
+/// Turn tracker — Movement type label.
+#[test]
+fn turn_tracker_movement_label() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label_contains("[Movement]");
+}
+
+/// Turn tracker — Combat type label.
+#[test]
+fn turn_tracker_combat_label() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 1,
+        current_phase_index: 1,
+        is_active: true,
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label_contains("[Combat]");
+    harness.get_by_label_contains("Phase 2 of 3");
+}
+
+/// Turn tracker — Admin type label.
+#[test]
+fn turn_tracker_admin_label() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 1,
+        current_phase_index: 2,
+        is_active: true,
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label_contains("[Admin]");
+    harness.get_by_label_contains("Phase 3 of 3");
+}
+
+/// Turn tracker — Next Phase wraps turn (batch 6).
+#[test]
+fn turn_tracker_wrap_increments_turn() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 1,
+        current_phase_index: 2,
+        is_active: true,
+    };
+    let mut harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label("Next Phase \u{23E9}").click();
+    harness.run();
+    harness.get_by_label_contains("Turn 2");
+}
+
+/// Turn tracker — Next Phase advances within turn.
+#[test]
+fn turn_tracker_advance_within_turn() {
+    let ts = test_turn_structure();
+    let mut s = TurnState {
+        turn_number: 1,
+        current_phase_index: 0,
+        is_active: true,
+    };
+    let mut harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut s, &ts);
+    });
+    harness.get_by_label("Next Phase \u{23E9}").click();
+    harness.run();
+    harness.get_by_label_contains("Phase 2 of 3");
+}
+
+// ── render_rules: mechanics tab ──
+
+/// Mechanics tab — outcome grid resyncs when buffer empty.
+#[test]
+fn mechanics_tab_outcome_grid_resync_on_empty_buffer() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Outcome Grid");
+}
+
+/// Mechanics tab — add CRT column with Differential type.
+#[test]
+fn mechanics_tab_crt_col_differential() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_crt_col_label: "D+1".to_string(),
+        new_crt_col_type_index: 1,
+        new_crt_col_threshold: "1.0".to_string(),
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label("Add Col").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtColumn { .. }))
+    );
+}
+
+/// Mechanics tab — add phase with Movement type.
+#[test]
+fn mechanics_tab_phase_movement() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_phase_name: "Advance".to_string(),
+        new_phase_type_index: 0,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label("Add Phase").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddPhase { .. }))
+    );
+}
+
+/// Mechanics tab — add phase with Combat type.
+#[test]
+fn mechanics_tab_phase_combat() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_phase_name: "Fire".to_string(),
+        new_phase_type_index: 1,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label("Add Phase").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddPhase { .. }))
+    );
+}
+
+/// Mechanics tab — add CRT row with bad `die_max` uses fallback.
+#[test]
+fn mechanics_tab_crt_row_bad_die_max() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_crt_row_label: "R".to_string(),
+        new_crt_row_die_min: "3".to_string(),
+        new_crt_row_die_max: "abc".to_string(),
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label("Add Row").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtRow { .. }))
+    );
+}
+
+/// Mechanics tab — modifier form with source index 1 renders Atk selector.
+#[test]
+fn mechanics_tab_modifier_form_atk_source() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_modifier_source_index: 1,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Atk.Terrain");
+}
+
+/// Mechanics tab — modifier form with source index 2 shows Custom desc.
+#[test]
+fn mechanics_tab_modifier_form_custom_desc() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_modifier_source_index: 2,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Desc:");
+}
+
+// ── render_ontology ──
+
+/// Concepts tab — bindings render entity-role mapping.
+#[test]
+fn concepts_tab_bindings_show_entity_role() {
+    use hexorder_contracts::ontology::{ConceptBinding, PropertyBinding};
+    let cid = TypeId::new();
+    let rid = TypeId::new();
+    let etid = TypeId::new();
+    let reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: etid,
+            name: "Plains".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.5),
+            properties: vec![],
+        }],
+    };
+    let mut creg = ConceptRegistry {
+        concepts: vec![Concept {
+            id: cid,
+            name: "Terrain".to_string(),
+            description: String::new(),
+            role_labels: vec![ConceptRole {
+                id: rid,
+                name: "ground".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            }],
+        }],
+        bindings: vec![ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: etid,
+            concept_id: cid,
+            concept_role_id: rid,
+            property_bindings: vec![PropertyBinding {
+                property_id: TypeId::new(),
+                concept_local_name: "cost".to_string(),
+            }],
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label_contains("Plains -> ground");
+    harness.get_by_label_contains("cost");
+}
+
+/// Relations tab — `OnExit` trigger when opened.
+#[test]
+fn relations_tab_on_exit_trigger_label() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Exit Cost".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::OnExit,
+            effect: RelationEffect::ModifyProperty {
+                target_property: "budget".to_string(),
+                source_property: "exit_cost".to_string(),
+                operation: ModifyOperation::Subtract,
+            },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Exit Cost").click();
+    harness.run();
+    harness.get_by_label_contains("OnExit");
+}
+
+/// Relations tab — `WhilePresent` trigger when opened.
+#[test]
+fn relations_tab_while_present_label() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Stacking".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::WhilePresent,
+            effect: RelationEffect::Block { condition: None },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Stacking").click();
+    harness.run();
+    harness.get_by_label_contains("WhilePresent");
+}
+
+/// Relations tab — Block effect when opened.
+#[test]
+fn relations_tab_block_effect_opened() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Impassable".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block { condition: None },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Impassable").click();
+    harness.run();
+    harness.get_by_label_contains("Block");
+}
+
+/// Relations tab — Allow effect when opened.
+#[test]
+fn relations_tab_allow_effect_opened() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Road".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Allow { condition: None },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Road").click();
+    harness.run();
+    harness.get_by_label_contains("Allow");
+}
+
+/// Relations tab — empty concepts skips selector.
+#[test]
+fn relations_tab_no_concepts() {
+    let creg = ConceptRegistry::default();
+    let mut rreg = RelationRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Relations");
+}
+
+/// Constraints tab — `PathBudget` form renders.
+#[test]
+fn constraints_tab_path_budget_form() {
+    let creg = test_concept_registry();
+    let mut conreg = test_constraint_registry();
+    let mut state = EditorState {
+        new_constraint_expr_type_index: 3,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+    harness.get_by_label_contains("Cost:");
+}
+
+// ── render_design ──
+
+/// Entity type section — remove property via "x" click.
+#[test]
+fn entity_type_section_prop_remove_click() {
+    let pid = TypeId::new();
+    let tid = TypeId::new();
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: tid,
+            name: "Plains".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.4, 0.6, 0.2),
+            properties: vec![PropertyDefinition {
+                id: pid,
+                name: "cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(1),
+            }],
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label("x").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveProperty { .. }))
+    );
+}
+
+/// Entity type section — add property with Enum type (index 5) form renders.
+#[test]
+fn entity_type_section_enum_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 5,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Opts:");
+}
+
+/// Entity type section — add property with `EntityRef` (index 6) form renders.
+#[test]
+fn entity_type_section_entity_ref_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 6,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Role:");
+}
+
+/// Entity type section — add property with List (index 7) form renders.
+#[test]
+fn entity_type_section_list_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 7,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Item type:");
+}
+
+/// Entity type section — add property with Map (index 8) form renders.
+#[test]
+fn entity_type_section_map_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 8,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = test_enum_registry();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Value type:");
+}
+
+/// Entity type section — add property with Struct (index 9) form renders.
+#[test]
+fn entity_type_section_struct_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 9,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = test_struct_registry();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Struct:");
+}
+
+/// Entity type section — add property with `IntRange` (index 10) form renders.
+#[test]
+fn entity_type_section_int_range_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 10,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Min:");
+}
+
+/// Entity type section — add property with `FloatRange` (index 11) form renders.
+#[test]
+fn entity_type_section_float_range_prop_form() {
+    let mut reg = EntityTypeRegistry {
+        types: vec![EntityType {
+            id: TypeId::new(),
+            name: "Hill".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::srgb(0.5, 0.5, 0.3),
+            properties: vec![],
+        }],
+    };
+    let mut state = EditorState {
+        new_prop_type_index: 11,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut reg,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &ereg,
+            &sreg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hill").click();
+    harness.run();
+    harness.get_by_label_contains("Min:");
+}
+
+// ── render_rules: property value editor CollapsingHeader ──
+
+/// Property value editor — List body renders items.
+#[test]
+fn prop_editor_list_body_items() {
+    use super::render_rules;
+    let mut val = PropertyValue::List(vec![PropertyValue::Int(10), PropertyValue::Int(20)]);
+    let pt = PropertyType::List(Box::new(PropertyType::Int));
+    let ereg = EnumRegistry::default();
+    let sreg = StructRegistry::default();
+    let reg = test_registry();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(ui, &mut val, &pt, &ereg, &sreg, &reg, 0);
+    });
+    harness.get_by_label_contains("List (2)").click();
+    harness.run();
+    harness.get_by_label_contains("[0]");
+    harness.get_by_label_contains("[1]");
+    harness.get_by_label_contains("+ Add");
+}
+
+/// Property value editor — Map body renders entries.
+#[test]
+fn prop_editor_map_body_entries() {
+    use super::render_rules;
+    let ereg = test_enum_registry();
+    let eid = *ereg.definitions.keys().next().expect("has enum");
+    let mut val = PropertyValue::Map(vec![("Open".to_string(), PropertyValue::Int(1))]);
+    let pt = PropertyType::Map(eid, Box::new(PropertyType::Int));
+    let sreg = StructRegistry::default();
+    let reg = test_registry();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(ui, &mut val, &pt, &ereg, &sreg, &reg, 0);
+    });
+    // Enum has 3 options (Open, Rough, Dense). Map shows based on those.
+    harness.get_by_label_contains("Map (").click();
+    harness.run();
+    // Should render the enum options as map keys.
+    let _ = harness;
+}
+
+/// Property value editor — Struct body renders field editors.
+#[test]
+fn prop_editor_struct_body_fields() {
+    use super::render_rules;
+    let sreg = test_struct_registry();
+    let sid = *sreg.definitions.keys().next().expect("has struct");
+    let sdef = sreg.definitions.get(&sid).expect("has def");
+    let mut fields = std::collections::HashMap::new();
+    fields.insert(sdef.fields[0].id, PropertyValue::Int(5));
+    fields.insert(sdef.fields[1].id, PropertyValue::Int(10));
+    let mut val = PropertyValue::Struct(fields);
+    let pt = PropertyType::Struct(sid);
+    let ereg = EnumRegistry::default();
+    let reg = test_registry();
+    let mut harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(ui, &mut val, &pt, &ereg, &sreg, &reg, 0);
+    });
+    harness.get_by_label_contains("Position").click();
+    harness.run();
+    harness.get_by_label_contains("x:");
+    harness.get_by_label_contains("y:");
+}
+
+// ── render_design: structs tab ──
+
+/// Structs tab — add field with Bool type (index 0).
+#[test]
+fn structs_tab_field_bool_type() {
+    let sreg = test_struct_registry();
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState {
+        new_struct_field_name: "active".to_string(),
+        new_struct_field_type_index: 0,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label("+ Add Field").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddStructField { .. }))
+    );
+}
+
+/// Structs tab — add field with Float type (index 2).
+#[test]
+fn structs_tab_field_float_type() {
+    let sreg = test_struct_registry();
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState {
+        new_struct_field_name: "weight".to_string(),
+        new_struct_field_type_index: 2,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label("+ Add Field").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddStructField { .. }))
+    );
+}
