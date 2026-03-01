@@ -9142,3 +9142,571 @@ fn structs_tab_remove_field_click() {
             .any(|a| matches!(a, EditorAction::RemoveStructField { .. }))
     );
 }
+
+// ---------------------------------------------------------------------------
+// Batch 9 — ComboBox dropdown coverage tests
+//
+// Each test opens a ComboBox dropdown by clicking the widget, which causes
+// the `.show_ui()` closure body to execute — covering the dropdown item
+// rendering code.
+//
+// Pattern: ComboBoxes created with `from_id_salt()` expose their selected
+// text via `accesskit::value` (not `label`). Find them with:
+//   `get_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("text"))`
+// ---------------------------------------------------------------------------
+
+/// Helper: find a `ComboBox` by its current value and click it open.
+fn click_combobox_by_value<State>(harness: &mut egui_kittest::Harness<'_, State>, value: &str) {
+    use bevy_egui::egui::accesskit::Role;
+    let cb = harness.get_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some(value));
+    cb.click();
+    harness.run();
+}
+
+/// Helper: build a relation form harness for `ComboBox` tests.
+fn relation_form_harness() -> egui_kittest::Harness<
+    'static,
+    (
+        EditorState,
+        RelationRegistry,
+        ConceptRegistry,
+        Vec<EditorAction>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                RelationRegistry,
+                ConceptRegistry,
+                Vec<EditorAction>,
+            )| {
+                super::render_ontology::render_relations_tab(
+                    ui, &mut s.1, &s.2, &mut s.0, &mut s.3,
+                );
+            },
+            (
+                EditorState::default(),
+                RelationRegistry::default(),
+                test_concept_registry(),
+                vec![],
+            ),
+        );
+    h.run();
+    h
+}
+
+/// Relation form: open Concept `ComboBox` dropdown.
+#[test]
+fn relation_form_concept_dropdown() {
+    let mut harness = relation_form_harness();
+    click_combobox_by_value(&mut harness, "Motion");
+    assert!(harness.query_by_label("Motion").is_some());
+}
+
+/// Relation form: open Subject role `ComboBox` dropdown.
+#[test]
+fn relation_form_subject_dropdown() {
+    use bevy_egui::egui::accesskit::Role;
+    let mut harness = relation_form_harness();
+    // Two ComboBoxes share value "traveler" (subject + object).
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("traveler"))
+        .collect();
+    cbs[0].click();
+    harness.run();
+    harness.get_by_label("terrain");
+}
+
+/// Relation form: open Trigger `ComboBox` dropdown.
+#[test]
+fn relation_form_trigger_dropdown() {
+    let mut harness = relation_form_harness();
+    click_combobox_by_value(&mut harness, "OnEnter");
+    harness.get_by_label("OnExit");
+}
+
+/// Relation form: open Effect `ComboBox` dropdown.
+#[test]
+fn relation_form_effect_dropdown() {
+    let mut harness = relation_form_harness();
+    click_combobox_by_value(&mut harness, "ModifyProperty");
+    harness.get_by_label("Block");
+}
+
+/// Relation form: open Operation `ComboBox` dropdown.
+#[test]
+fn relation_form_operation_dropdown() {
+    let mut harness = relation_form_harness();
+    click_combobox_by_value(&mut harness, "Add");
+    harness.get_by_label("Subtract");
+}
+
+/// Helper: build a constraint form harness for `ComboBox` tests.
+fn constraint_form_harness(
+    expr_type_index: usize,
+) -> egui_kittest::Harness<
+    'static,
+    (
+        EditorState,
+        ConstraintRegistry,
+        ConceptRegistry,
+        Vec<EditorAction>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                ConstraintRegistry,
+                ConceptRegistry,
+                Vec<EditorAction>,
+            )| {
+                super::render_ontology::render_constraints_tab(
+                    ui, &mut s.1, &s.2, &mut s.0, &mut s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_constraint_expr_type_index: expr_type_index,
+                    ..EditorState::default()
+                },
+                ConstraintRegistry::default(),
+                test_concept_registry(),
+                vec![],
+            ),
+        );
+    h.run();
+    h.get_by_label("New Constraint").click();
+    h.run();
+    h
+}
+
+/// Constraint form: open Concept `ComboBox` dropdown.
+#[test]
+fn constraint_form_concept_dropdown() {
+    let mut harness = constraint_form_harness(0);
+    click_combobox_by_value(&mut harness, "Motion");
+    assert!(harness.query_by_label("Motion").is_some());
+}
+
+/// Constraint form: open Expr type `ComboBox` dropdown.
+#[test]
+fn constraint_form_expr_type_dropdown() {
+    let mut harness = constraint_form_harness(0);
+    click_combobox_by_value(&mut harness, "PropertyCompare");
+    harness.get_by_label("PathBudget");
+}
+
+/// Constraint form (PropertyCompare): open Role `ComboBox` dropdown.
+#[test]
+fn constraint_form_role_dropdown() {
+    let mut harness = constraint_form_harness(0);
+    click_combobox_by_value(&mut harness, "traveler");
+    harness.get_by_label("terrain");
+}
+
+/// Constraint form (PropertyCompare): open Op `ComboBox` dropdown.
+#[test]
+fn constraint_form_op_dropdown() {
+    let mut harness = constraint_form_harness(0);
+    click_combobox_by_value(&mut harness, "==");
+    harness.get_by_label(">=");
+}
+
+/// Constraint form (PathBudget): open the cost role `ComboBox`.
+#[test]
+fn constraint_form_path_budget_combobox_dropdown() {
+    let concept_reg = test_concept_registry();
+
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                ConstraintRegistry,
+                ConceptRegistry,
+                Vec<EditorAction>,
+            )| {
+                super::render_ontology::render_constraints_tab(
+                    ui, &mut s.1, &s.2, &mut s.0, &mut s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_constraint_expr_type_index: 3, // PathBudget
+                    ..EditorState::default()
+                },
+                ConstraintRegistry::default(),
+                concept_reg,
+                vec![],
+            ),
+        );
+    harness.run();
+
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+
+    // Cost role dropdown (selected_text = "traveler")
+    click_combobox_by_value(&mut harness, "traveler");
+    harness.get_by_label("terrain");
+}
+
+/// Helper: build a concepts tab harness with Motion concept expanded.
+fn concepts_binding_harness() -> egui_kittest::Harness<
+    'static,
+    (
+        EditorState,
+        ConceptRegistry,
+        EntityTypeRegistry,
+        Vec<EditorAction>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                ConceptRegistry,
+                EntityTypeRegistry,
+                Vec<EditorAction>,
+            )| {
+                super::render_ontology::render_concepts_tab(ui, &mut s.1, &s.2, &mut s.0, &mut s.3);
+            },
+            (
+                EditorState::default(),
+                test_concept_registry(),
+                test_registry(),
+                vec![],
+            ),
+        );
+    h.run();
+    h.get_by_label("Motion").click();
+    h.run();
+    h
+}
+
+/// Concepts tab: open entity type binding `ComboBox` dropdown.
+#[test]
+fn concepts_binding_entity_type_dropdown() {
+    use bevy_egui::egui::accesskit::Role;
+    let mut harness = concepts_binding_harness();
+    // Two "(select)" ComboBoxes — click the first (entity type).
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("(select)"))
+        .collect();
+    cbs[0].click();
+    harness.run();
+    harness.get_by_label("Plains");
+}
+
+/// Concepts tab: open concept role binding `ComboBox` dropdown.
+#[test]
+fn concepts_binding_concept_role_dropdown() {
+    use bevy_egui::egui::accesskit::Role;
+    let mut harness = concepts_binding_harness();
+    // Two "(select)" ComboBoxes — click the second (concept role).
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("(select)"))
+        .collect();
+    if cbs.len() >= 2 {
+        cbs[1].click();
+        harness.run();
+        harness.get_by_label("traveler");
+    }
+}
+
+/// Entity type section: open property type `ComboBox` dropdown.
+#[test]
+fn entity_type_prop_type_combobox_dropdown() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                systems::render_entity_type_section(
+                    ui,
+                    &mut s.1,
+                    &mut s.0,
+                    &mut s.4,
+                    EntityRole::BoardPosition,
+                    "Board Types",
+                    "bt",
+                    &s.2,
+                    &s.3,
+                );
+            },
+            (
+                EditorState::default(),
+                test_registry(),
+                EnumRegistry::default(),
+                StructRegistry::default(),
+                vec![],
+            ),
+        );
+    harness.run();
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+
+    // Property type ComboBox (selected_text = "Bool")
+    click_combobox_by_value(&mut harness, "Bool");
+    harness.get_by_label("Enum");
+    harness.get_by_label("IntRange");
+}
+
+/// Entity type section: open `EntityRef` role filter dropdown (`prop_type_index=6`).
+#[test]
+fn entity_type_entityref_role_combobox_dropdown() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                systems::render_entity_type_section(
+                    ui,
+                    &mut s.1,
+                    &mut s.0,
+                    &mut s.4,
+                    EntityRole::BoardPosition,
+                    "Board Types",
+                    "bt",
+                    &s.2,
+                    &s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_prop_type_index: 6,
+                    ..EditorState::default()
+                },
+                test_registry(),
+                EnumRegistry::default(),
+                StructRegistry::default(),
+                vec![],
+            ),
+        );
+    harness.run();
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+
+    // EntityRef role ComboBox (selected_text = "Any")
+    click_combobox_by_value(&mut harness, "Any");
+    harness.get_by_label("BoardPosition");
+    harness.get_by_label("Token");
+}
+
+/// Entity type section: open List inner type dropdown (`prop_type_index=7`).
+#[test]
+fn entity_type_list_inner_type_combobox_dropdown() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                systems::render_entity_type_section(
+                    ui,
+                    &mut s.1,
+                    &mut s.0,
+                    &mut s.4,
+                    EntityRole::BoardPosition,
+                    "Board Types",
+                    "bt",
+                    &s.2,
+                    &s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_prop_type_index: 7,
+                    ..EditorState::default()
+                },
+                test_registry(),
+                EnumRegistry::default(),
+                StructRegistry::default(),
+                vec![],
+            ),
+        );
+    harness.run();
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+
+    // List inner type ComboBox (selected_text = "Bool")
+    click_combobox_by_value(&mut harness, "Bool");
+    harness.get_by_label("Float");
+    harness.get_by_label("Color");
+}
+
+/// Helper: build entity type section harness with map prop type, headers expanded.
+fn entity_type_map_harness() -> egui_kittest::Harness<
+    'static,
+    (
+        EditorState,
+        EntityTypeRegistry,
+        EnumRegistry,
+        StructRegistry,
+        Vec<EditorAction>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                systems::render_entity_type_section(
+                    ui,
+                    &mut s.1,
+                    &mut s.0,
+                    &mut s.4,
+                    EntityRole::BoardPosition,
+                    "Board Types",
+                    "bt",
+                    &s.2,
+                    &s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_prop_type_index: 8,
+                    ..EditorState::default()
+                },
+                test_registry(),
+                test_enum_registry(),
+                StructRegistry::default(),
+                vec![],
+            ),
+        );
+    h.run();
+    h.get_by_label("Board Types").click();
+    h.run();
+    h.get_by_label("Plains").click();
+    h.run();
+    h
+}
+
+/// Entity type section: open Map key enum dropdown (`prop_type_index=8`).
+#[test]
+fn entity_type_map_key_enum_dropdown() {
+    let mut harness = entity_type_map_harness();
+    click_combobox_by_value(&mut harness, "(select)");
+    harness.get_by_label("Terrain");
+}
+
+/// Entity type section: open Map value type dropdown (`prop_type_index=8`).
+#[test]
+fn entity_type_map_value_type_dropdown() {
+    let mut harness = entity_type_map_harness();
+    click_combobox_by_value(&mut harness, "Bool");
+    harness.get_by_label("Float");
+}
+
+/// Entity type section: open Struct selector dropdown (`prop_type_index=9`).
+#[test]
+fn entity_type_struct_selector_combobox_dropdown() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                systems::render_entity_type_section(
+                    ui,
+                    &mut s.1,
+                    &mut s.0,
+                    &mut s.4,
+                    EntityRole::BoardPosition,
+                    "Board Types",
+                    "bt",
+                    &s.2,
+                    &s.3,
+                );
+            },
+            (
+                EditorState {
+                    new_prop_type_index: 9,
+                    ..EditorState::default()
+                },
+                test_registry(),
+                EnumRegistry::default(),
+                test_struct_registry(),
+                vec![],
+            ),
+        );
+    harness.run();
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+
+    // Struct selector ComboBox (selected_text = "(select)")
+    click_combobox_by_value(&mut harness, "(select)");
+    harness.get_by_label("Position");
+}
+
+/// Struct tab: open field type `ComboBox` dropdown.
+#[test]
+fn struct_field_type_combobox_dropdown() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui, s: &mut (EditorState, StructRegistry, EnumRegistry, Vec<EditorAction>)| {
+                systems::render_structs_tab(ui, &s.1, &s.2, &mut s.0, &mut s.3);
+            },
+            (
+                EditorState::default(),
+                test_struct_registry(),
+                EnumRegistry::default(),
+                vec![],
+            ),
+        );
+    harness.run();
+
+    // Expand "Position" struct CollapsingHeader
+    harness.get_by_label("Position").click();
+    harness.run();
+
+    // Field type ComboBox (selected_text = "Bool")
+    click_combobox_by_value(&mut harness, "Bool");
+    harness.get_by_label("Float");
+    harness.get_by_label("Color");
+}
