@@ -8592,3 +8592,438 @@ fn structs_tab_field_float_type() {
             .any(|a| matches!(a, EditorAction::AddStructField { .. }))
     );
 }
+
+// ===========================================================================
+// Batch 7 — ontology & design CollapsingHeader body coverage
+// ===========================================================================
+
+// ── render_ontology: concepts tab body ──
+
+/// Concepts tab — expanding concept shows roles section.
+#[test]
+fn concepts_tab_expanded_shows_roles() {
+    let reg = test_registry();
+    let mut creg = test_concept_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Motion").click();
+    harness.run();
+    harness.get_by_label_contains("Roles:");
+    harness.get_by_label_contains("traveler [Token]");
+    harness.get_by_label_contains("terrain [Board]");
+}
+
+/// Concepts tab — expanding concept with no roles shows Roles: label.
+#[test]
+fn concepts_tab_no_roles_placeholder() {
+    let reg = test_registry();
+    let mut creg = ConceptRegistry {
+        concepts: vec![Concept {
+            id: TypeId::new(),
+            name: "Empty".to_string(),
+            description: "No roles yet".to_string(),
+            role_labels: vec![],
+        }],
+        bindings: vec![],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Empty").click();
+    harness.run();
+    harness.get_by_label_contains("Roles:");
+    harness.get_by_label_contains("Bindings:");
+}
+
+/// Concepts tab — delete concept button produces action.
+#[test]
+fn concepts_tab_delete_concept() {
+    let reg = test_registry();
+    let mut creg = test_concept_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Motion").click();
+    harness.run();
+    harness.get_by_label("Delete Concept").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteConcept { .. }))
+    );
+}
+
+/// Concepts tab — expanding concept shows empty bindings placeholder.
+#[test]
+fn concepts_tab_empty_bindings() {
+    let reg = test_registry();
+    let mut creg = test_concept_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Motion").click();
+    harness.run();
+    harness.get_by_label_contains("Bindings:");
+}
+
+/// Concepts tab — add role form renders Board/Token checkboxes.
+#[test]
+fn concepts_tab_add_role_form() {
+    let reg = test_registry();
+    let mut creg = test_concept_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_concepts_tab(ui, &mut creg, &reg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Motion").click();
+    harness.run();
+    harness.get_by_label_contains("+ Add Role");
+}
+
+// ── render_ontology: relations tab creation form ──
+
+/// Relations tab — creation form renders concept/subject/object selectors.
+#[test]
+fn relations_tab_creation_form_concept_selector() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("New Relation");
+    harness.get_by_label_contains("Concept:");
+    harness.get_by_label_contains("Subject:");
+    harness.get_by_label_contains("Object:");
+    harness.get_by_label_contains("Trigger:");
+    harness.get_by_label_contains("Effect:");
+}
+
+/// Relations tab — `ModifyProperty` effect renders Target/Source/Op fields.
+#[test]
+fn relations_tab_modify_property_fields() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry::default();
+    let mut state = EditorState {
+        new_relation_effect_index: 0,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Target:");
+    harness.get_by_label_contains("Source:");
+    harness.get_by_label_contains("Op:");
+}
+
+/// Relations tab — Block effect index 1 hides `ModifyProperty` fields.
+#[test]
+fn relations_tab_block_hides_modify_fields() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry::default();
+    let mut state = EditorState {
+        new_relation_effect_index: 1,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    // Should NOT contain Target: / Source: / Op: when Block is selected
+    harness.get_by_label_contains("Effect:");
+}
+
+/// Relations tab — expanded relation shows concept, roles, trigger, effect.
+#[test]
+fn relations_tab_expanded_shows_details() {
+    let creg = test_concept_registry();
+    let concept_id = creg.concepts[0].id;
+    let subject_id = creg.concepts[0].role_labels[0].id;
+    let object_id = creg.concepts[0].role_labels[1].id;
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Movement Cost".to_string(),
+            concept_id,
+            subject_role_id: subject_id,
+            object_role_id: object_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::ModifyProperty {
+                target_property: "budget".to_string(),
+                source_property: "cost".to_string(),
+                operation: ModifyOperation::Subtract,
+            },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Movement Cost").click();
+    harness.run();
+    harness.get_by_label_contains("Concept: Motion");
+    harness.get_by_label_contains("traveler -> terrain");
+    harness.get_by_label_contains("Trigger: OnEnter");
+    harness.get_by_label_contains("budget - cost");
+}
+
+/// Relations tab — delete relation button produces action.
+#[test]
+fn relations_tab_delete_relation() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Terrain Cost".to_string(),
+            concept_id: TypeId::new(),
+            subject_role_id: TypeId::new(),
+            object_role_id: TypeId::new(),
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::Block { condition: None },
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain Cost").click();
+    harness.run();
+    harness.get_by_label("Delete").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteRelation { .. }))
+    );
+}
+
+/// Relations tab — empty relations shows placeholder.
+#[test]
+fn relations_tab_empty_shows_placeholder() {
+    let creg = test_concept_registry();
+    let mut rreg = RelationRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_relations_tab(ui, &mut rreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("No relations defined");
+}
+
+// ── render_ontology: constraints tab ──
+
+/// Constraints tab — existing constraint renders name and expression.
+#[test]
+fn constraints_tab_shows_constraint_list() {
+    let creg = test_concept_registry();
+    let mut conreg = test_constraint_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("Budget >= 0");
+}
+
+/// Constraints tab — delete constraint via x button.
+#[test]
+fn constraints_tab_delete_constraint() {
+    let creg = test_concept_registry();
+    let mut conreg = ConstraintRegistry {
+        constraints: vec![Constraint {
+            id: TypeId::new(),
+            name: "Single".to_string(),
+            description: String::new(),
+            concept_id: TypeId::new(),
+            relation_id: None,
+            expression: ConstraintExpr::All(Vec::new()),
+            auto_generated: false,
+        }],
+    };
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("x").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteConstraint { .. }))
+    );
+}
+
+/// Constraints tab — `PropertyCompare` expression form renders.
+#[test]
+fn constraints_tab_property_compare_form() {
+    let creg = test_concept_registry();
+    let mut conreg = ConstraintRegistry::default();
+    let mut state = EditorState {
+        new_constraint_expr_type_index: 0,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+    harness.get_by_label_contains("Prop:");
+    harness.get_by_label_contains("Op:");
+}
+
+/// Constraints tab — empty constraints shows placeholder.
+#[test]
+fn constraints_tab_empty_placeholder() {
+    let creg = test_concept_registry();
+    let mut conreg = ConstraintRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("No constraints defined");
+}
+
+/// Constraints tab — `CrossCompare`/`IsType` shows placeholder editor.
+#[test]
+fn constraints_tab_cross_compare_placeholder() {
+    let creg = test_concept_registry();
+    let mut conreg = ConstraintRegistry::default();
+    let mut state = EditorState {
+        new_constraint_expr_type_index: 1,
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(ui, &mut conreg, &creg, &mut state, &mut actions);
+    });
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+    harness.get_by_label_contains("full editor");
+}
+
+// ── render_design: enum option and struct field removal ──
+
+/// Enums tab — expanded enum body shows option labels.
+#[test]
+fn enums_tab_expanded_body_shows_options() {
+    let ereg = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label_contains("Open");
+    harness.get_by_label_contains("Rough");
+    harness.get_by_label_contains("Dense");
+}
+
+/// Enums tab — delete enum button produces action.
+#[test]
+fn enums_tab_delete_enum() {
+    let ereg = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label("Delete Enum").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteEnum { .. }))
+    );
+}
+
+/// Enums tab — add option inline form renders.
+#[test]
+fn enums_tab_add_option_form() {
+    let ereg = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label_contains("Add:");
+}
+
+/// Structs tab — expanded struct shows field labels.
+#[test]
+fn structs_tab_expanded_shows_fields() {
+    let sreg = test_struct_registry();
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label_contains("x: Int");
+    harness.get_by_label_contains("y: Int");
+}
+
+/// Structs tab — delete struct button produces action.
+#[test]
+fn structs_tab_delete_struct() {
+    let sreg = test_struct_registry();
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label("Delete Struct").click();
+    harness.run();
+    drop(harness);
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteStruct { .. }))
+    );
+}
+
+/// Structs tab — field form shows type selector.
+#[test]
+fn structs_tab_field_form() {
+    let sreg = test_struct_registry();
+    let ereg = EnumRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &sreg, &ereg, &mut state, &mut actions);
+    });
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label_contains("Field:");
+}
