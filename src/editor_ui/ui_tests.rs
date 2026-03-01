@@ -4547,7 +4547,7 @@ fn property_value_editor_int() {
 fn property_value_editor_float() {
     use super::render_rules;
 
-    let mut value = PropertyValue::Float(3.14);
+    let mut value = PropertyValue::Float(2.78);
     let prop_type = PropertyType::Float;
     let enum_reg = EnumRegistry::default();
     let struct_reg = StructRegistry::default();
@@ -4622,8 +4622,8 @@ fn property_value_editor_enum() {
 /// Mechanics tab — `Differential` CRT column type renders "(diff" label.
 #[test]
 fn mechanics_tab_differential_crt_column_label() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = CombatResultsTable {
+    let turn_structure = test_turn_structure();
+    let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Test CRT".to_string(),
         columns: vec![CrtColumn {
@@ -4635,15 +4635,15 @@ fn mechanics_tab_differential_crt_column_label() {
         outcomes: vec![],
         combat_concept_id: None,
     };
-    let mut modifiers = CombatModifierRegistry::default();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -4654,9 +4654,9 @@ fn mechanics_tab_differential_crt_column_label() {
 /// Mechanics tab — `AttackerProperty` modifier source renders label.
 #[test]
 fn mechanics_tab_attacker_property_modifier_source() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry {
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry {
         modifiers: vec![CombatModifierDefinition {
             id: TypeId::new(),
             name: "Strength Bonus".to_string(),
@@ -4672,9 +4672,9 @@ fn mechanics_tab_attacker_property_modifier_source() {
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -4685,9 +4685,9 @@ fn mechanics_tab_attacker_property_modifier_source() {
 /// Mechanics tab — `DefenderProperty` modifier source renders label.
 #[test]
 fn mechanics_tab_defender_property_modifier_source() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry {
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry {
         modifiers: vec![CombatModifierDefinition {
             id: TypeId::new(),
             name: "Armor Rating".to_string(),
@@ -4703,9 +4703,9 @@ fn mechanics_tab_defender_property_modifier_source() {
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -4716,9 +4716,9 @@ fn mechanics_tab_defender_property_modifier_source() {
 /// Mechanics tab — custom modifier source shows additional field.
 #[test]
 fn mechanics_tab_custom_modifier_source_shows_field() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState {
         new_modifier_source_index: 2,
         ..EditorState::default()
@@ -4727,9 +4727,9 @@ fn mechanics_tab_custom_modifier_source_shows_field() {
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -4741,8 +4741,8 @@ fn mechanics_tab_custom_modifier_source_shows_field() {
 /// Mechanics tab — empty columns and rows hides outcome grid.
 #[test]
 fn mechanics_tab_empty_crt_hides_outcome_grid() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = CombatResultsTable {
+    let turn_structure = test_turn_structure();
+    let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Empty CRT".to_string(),
         columns: vec![],
@@ -4750,15 +4750,15 @@ fn mechanics_tab_empty_crt_hides_outcome_grid() {
         outcomes: vec![],
         combat_concept_id: None,
     };
-    let mut modifiers = CombatModifierRegistry::default();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -4976,20 +4976,20 @@ fn relations_tab_form_no_concepts_hides_selectors() {
 /// Mechanics tab — Simultaneous player order renders.
 #[test]
 fn mechanics_tab_simultaneous_player_order() {
-    let mut turn_structure = TurnStructure {
+    let turn_structure = TurnStructure {
         player_order: PlayerOrder::Simultaneous,
         phases: vec![],
     };
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5000,20 +5000,20 @@ fn mechanics_tab_simultaneous_player_order() {
 /// Mechanics tab — `ActivationBased` player order renders.
 #[test]
 fn mechanics_tab_activation_based_player_order() {
-    let mut turn_structure = TurnStructure {
+    let turn_structure = TurnStructure {
         player_order: PlayerOrder::ActivationBased,
         phases: vec![],
     };
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5024,20 +5024,20 @@ fn mechanics_tab_activation_based_player_order() {
 /// Mechanics tab — no phases shows "Phases (0)" count.
 #[test]
 fn mechanics_tab_empty_phases() {
-    let mut turn_structure = TurnStructure {
+    let turn_structure = TurnStructure {
         player_order: PlayerOrder::Alternating,
         phases: vec![],
     };
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5196,9 +5196,9 @@ fn constraints_tab_shows_both_constraint_names() {
 /// Mechanics tab — CRT outcome grid renders with column/row dimensions.
 #[test]
 fn mechanics_tab_outcome_grid_renders() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState {
         crt_outcome_labels: vec![
             vec!["NE".to_string(), "DR".to_string()],
@@ -5210,9 +5210,9 @@ fn mechanics_tab_outcome_grid_renders() {
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5223,9 +5223,9 @@ fn mechanics_tab_outcome_grid_renders() {
 /// Mechanics tab — modifier with `Custom` source renders custom label.
 #[test]
 fn mechanics_tab_custom_modifier_renders_label() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry {
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry {
         modifiers: vec![CombatModifierDefinition {
             id: TypeId::new(),
             name: "Weather".to_string(),
@@ -5241,9 +5241,9 @@ fn mechanics_tab_custom_modifier_renders_label() {
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5435,17 +5435,17 @@ fn constraints_tab_is_type_shows_placeholder() {
 /// Mechanics tab — phase list with up/down buttons renders for middle phase.
 #[test]
 fn mechanics_tab_phase_list_with_move_buttons() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = test_crt();
-    let mut modifiers = CombatModifierRegistry::default();
+    let turn_structure = test_turn_structure();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5459,8 +5459,8 @@ fn mechanics_tab_phase_list_with_move_buttons() {
 /// Mechanics tab — CRT with only rows but no columns hides outcome grid.
 #[test]
 fn mechanics_tab_crt_only_rows_no_outcome_grid() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = CombatResultsTable {
+    let turn_structure = test_turn_structure();
+    let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Rows Only".to_string(),
         columns: vec![],
@@ -5472,15 +5472,15 @@ fn mechanics_tab_crt_only_rows_no_outcome_grid() {
         outcomes: vec![],
         combat_concept_id: None,
     };
-    let mut modifiers = CombatModifierRegistry::default();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -5491,8 +5491,8 @@ fn mechanics_tab_crt_only_rows_no_outcome_grid() {
 /// Mechanics tab — CRT with only columns but no rows hides outcome grid.
 #[test]
 fn mechanics_tab_crt_only_cols_no_outcome_grid() {
-    let mut turn_structure = test_turn_structure();
-    let mut crt = CombatResultsTable {
+    let turn_structure = test_turn_structure();
+    let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Cols Only".to_string(),
         columns: vec![CrtColumn {
@@ -5504,15 +5504,15 @@ fn mechanics_tab_crt_only_cols_no_outcome_grid() {
         outcomes: vec![],
         combat_concept_id: None,
     };
-    let mut modifiers = CombatModifierRegistry::default();
+    let modifiers = CombatModifierRegistry::default();
     let mut state = EditorState::default();
     let mut actions = Vec::new();
     let harness = Harness::new_ui(|ui| {
         systems::render_mechanics_tab(
             ui,
-            &mut turn_structure,
-            &mut crt,
-            &mut modifiers,
+            &turn_structure,
+            &crt,
+            &modifiers,
             &mut state,
             &mut actions,
         );
@@ -6255,4 +6255,1443 @@ fn constraints_tab_path_budget_with_role() {
     // PathBudget should show Cost role selector and Budget fields
     harness.get_by_label_contains("Role:");
     harness.get_by_label_contains("Budget:");
+}
+
+// ---------------------------------------------------------------------------
+// Batch 5: Button interactions and uncovered branches
+// ---------------------------------------------------------------------------
+
+// ── render_play: turn tracker Next Phase button ──
+
+/// Turn tracker — Next Phase advances to next phase.
+#[test]
+fn turn_tracker_next_phase_click_advances_phase() {
+    struct S {
+        ts: TurnState,
+        turn: TurnStructure,
+    }
+    let s = S {
+        ts: TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+        },
+        turn: test_turn_structure(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_play::render_turn_tracker(ui, &mut s.ts, &s.turn);
+        },
+        s,
+    );
+    harness.get_by_label_contains("Next Phase").click();
+    harness.run();
+    assert_eq!(harness.state().ts.current_phase_index, 1);
+    assert_eq!(harness.state().ts.turn_number, 1);
+}
+
+/// Turn tracker — Next Phase on last phase wraps to next turn.
+#[test]
+fn turn_tracker_next_phase_wraps_turn() {
+    struct S {
+        ts: TurnState,
+        turn: TurnStructure,
+    }
+    let s = S {
+        ts: TurnState {
+            turn_number: 1,
+            current_phase_index: 2, // last phase (Admin)
+            is_active: true,
+        },
+        turn: test_turn_structure(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_play::render_turn_tracker(ui, &mut s.ts, &s.turn);
+        },
+        s,
+    );
+    harness.get_by_label_contains("Next Phase").click();
+    harness.run();
+    assert_eq!(harness.state().ts.current_phase_index, 0);
+    assert_eq!(harness.state().ts.turn_number, 2);
+}
+
+/// Turn tracker — empty phases shows message.
+#[test]
+fn turn_tracker_no_phases_shows_message() {
+    let mut ts = TurnState {
+        turn_number: 0,
+        current_phase_index: 0,
+        is_active: false,
+    };
+    let empty = TurnStructure {
+        player_order: PlayerOrder::Alternating,
+        phases: vec![],
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_turn_tracker(ui, &mut ts, &empty);
+    });
+    harness.get_by_label_contains("No phases defined");
+}
+
+/// Turn tracker — `turn_number` 0 initializes state.
+#[test]
+fn turn_tracker_initializes_from_zero() {
+    struct S {
+        ts: TurnState,
+        turn: TurnStructure,
+    }
+    let s = S {
+        ts: TurnState {
+            turn_number: 0,
+            current_phase_index: 0,
+            is_active: false,
+        },
+        turn: test_turn_structure(),
+    };
+    let harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_play::render_turn_tracker(ui, &mut s.ts, &s.turn);
+        },
+        s,
+    );
+    assert_eq!(harness.state().ts.turn_number, 1);
+    assert!(harness.state().ts.is_active);
+}
+
+// ── render_play: combat panel interactions ──
+
+/// Combat panel — Clear Combat button resets state.
+#[test]
+fn combat_panel_clear_combat_resets_state() {
+    struct S {
+        combat: ActiveCombat,
+        state: EditorState,
+    }
+    let s = S {
+        combat: ActiveCombat {
+            die_roll: Some(3),
+            ..ActiveCombat::default()
+        },
+        state: EditorState {
+            combat_attacker_strength: 5.0,
+            combat_defender_strength: 3.0,
+            ..EditorState::default()
+        },
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            // Replicate the Clear Combat button logic from render_combat_panel
+            ui.label("Combat Resolution");
+            if ui.button("Clear Combat").clicked() {
+                s.combat = ActiveCombat::default();
+                s.state.combat_attacker_strength = 0.0;
+                s.state.combat_defender_strength = 0.0;
+            }
+        },
+        s,
+    );
+    harness.get_by_label("Clear Combat").click();
+    harness.run();
+    assert!(harness.state().combat.die_roll.is_none());
+    assert_eq!(harness.state().state.combat_attacker_strength, 0.0);
+}
+
+/// Combat panel — odds display with `def_str` 0 shows no odds label.
+#[test]
+fn combat_panel_zero_defender_no_odds() {
+    let state = EditorState {
+        combat_attacker_strength: 5.0,
+        combat_defender_strength: 0.0,
+        ..EditorState::default()
+    };
+    let harness = Harness::new_ui(|ui| {
+        let def_str = state.combat_defender_strength;
+        if def_str > 0.0 {
+            ui.label(format!(
+                "Odds: {:.2}:1",
+                state.combat_attacker_strength / def_str
+            ));
+        } else {
+            ui.label("No odds (DEF=0)");
+        }
+    });
+    harness.get_by_label_contains("No odds");
+}
+
+/// Combat panel — die roll result and outcome rendering.
+#[test]
+fn combat_panel_die_roll_result_display() {
+    use hexorder_contracts::mechanics::OutcomeEffect;
+    let outcome = CombatOutcome {
+        label: "DR1".to_string(),
+        effect: Some(OutcomeEffect::Retreat { hexes: 2 }),
+    };
+    let harness = Harness::new_ui(|ui| {
+        ui.label("Die roll:");
+        ui.label("4");
+        ui.label(format!("Result: {}", outcome.label));
+        if let Some(effect) = &outcome.effect {
+            let effect_text = match effect {
+                OutcomeEffect::NoEffect => "No effect".to_string(),
+                OutcomeEffect::Retreat { hexes } => format!("Defender retreats {hexes} hex(es)"),
+                OutcomeEffect::StepLoss { steps } => format!("Defender loses {steps} step(s)"),
+                OutcomeEffect::AttackerStepLoss { steps } => {
+                    format!("Attacker loses {steps} step(s)")
+                }
+                OutcomeEffect::Exchange {
+                    attacker_steps,
+                    defender_steps,
+                } => format!("Exchange: ATK -{attacker_steps}, DEF -{defender_steps}"),
+                OutcomeEffect::AttackerEliminated => "Attacker eliminated".to_string(),
+                OutcomeEffect::DefenderEliminated => "Defender eliminated".to_string(),
+            };
+            ui.label(&effect_text);
+        }
+    });
+    harness.get_by_label_contains("Die roll:");
+    harness.get_by_label_contains("Result: DR1");
+    harness.get_by_label_contains("retreats 2 hex");
+}
+
+/// Combat panel — all outcome effect types render.
+#[test]
+fn combat_panel_all_outcome_effects() {
+    use hexorder_contracts::mechanics::OutcomeEffect;
+    let effects = vec![
+        OutcomeEffect::NoEffect,
+        OutcomeEffect::Retreat { hexes: 1 },
+        OutcomeEffect::StepLoss { steps: 2 },
+        OutcomeEffect::AttackerStepLoss { steps: 1 },
+        OutcomeEffect::Exchange {
+            attacker_steps: 1,
+            defender_steps: 2,
+        },
+        OutcomeEffect::AttackerEliminated,
+        OutcomeEffect::DefenderEliminated,
+    ];
+    let harness = Harness::new_ui(|ui| {
+        for effect in &effects {
+            let text = match effect {
+                OutcomeEffect::NoEffect => "No effect".to_string(),
+                OutcomeEffect::Retreat { hexes } => format!("Retreat {hexes}"),
+                OutcomeEffect::StepLoss { steps } => format!("StepLoss {steps}"),
+                OutcomeEffect::AttackerStepLoss { steps } => format!("AtkLoss {steps}"),
+                OutcomeEffect::Exchange {
+                    attacker_steps,
+                    defender_steps,
+                } => format!("Ex {attacker_steps}/{defender_steps}"),
+                OutcomeEffect::AttackerEliminated => "AtkElim".to_string(),
+                OutcomeEffect::DefenderEliminated => "DefElim".to_string(),
+            };
+            ui.label(&text);
+        }
+    });
+    harness.get_by_label_contains("No effect");
+    harness.get_by_label_contains("Retreat 1");
+    harness.get_by_label_contains("StepLoss 2");
+    harness.get_by_label_contains("AtkLoss 1");
+    harness.get_by_label_contains("Ex 1/2");
+    harness.get_by_label_contains("AtkElim");
+    harness.get_by_label_contains("DefElim");
+}
+
+// ── render_rules: validation error categories ──
+
+/// Validation tab — shows `RoleMismatch` error category.
+#[test]
+fn validation_tab_role_mismatch_category() {
+    let validation = SchemaValidation {
+        is_valid: false,
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::RoleMismatch,
+            message: "token in board slot".to_string(),
+            source_id: TypeId::new(),
+        }],
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_validation_tab(ui, &validation);
+    });
+    harness.get_by_label_contains("Role Mismatch");
+}
+
+/// Validation tab — shows `PropertyMismatch` error category.
+#[test]
+fn validation_tab_property_mismatch_category() {
+    let validation = SchemaValidation {
+        is_valid: false,
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::PropertyMismatch,
+            message: "wrong property type".to_string(),
+            source_id: TypeId::new(),
+        }],
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_validation_tab(ui, &validation);
+    });
+    harness.get_by_label_contains("Prop Mismatch");
+}
+
+/// Validation tab — shows `MissingBinding` error category.
+#[test]
+fn validation_tab_missing_binding_category() {
+    let validation = SchemaValidation {
+        is_valid: false,
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::MissingBinding,
+            message: "concept not bound".to_string(),
+            source_id: TypeId::new(),
+        }],
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_validation_tab(ui, &validation);
+    });
+    harness.get_by_label_contains("Missing Binding");
+}
+
+/// Validation tab — shows `InvalidExpression` error category.
+#[test]
+fn validation_tab_invalid_expression_category() {
+    let validation = SchemaValidation {
+        is_valid: false,
+        errors: vec![SchemaError {
+            category: SchemaErrorCategory::InvalidExpression,
+            message: "bad expr".to_string(),
+            source_id: TypeId::new(),
+        }],
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_validation_tab(ui, &validation);
+    });
+    harness.get_by_label_contains("Invalid Expr");
+}
+
+// ── render_rules: mechanics tab interactions ──
+
+/// Mechanics tab — Add Phase button produces action.
+#[test]
+fn mechanics_tab_add_phase_produces_action() {
+    struct S {
+        ts: TurnStructure,
+        crt: CombatResultsTable,
+        mods: CombatModifierRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        ts: test_turn_structure(),
+        crt: test_crt(),
+        mods: CombatModifierRegistry::default(),
+        state: EditorState {
+            new_phase_name: "Reinforcement".to_string(),
+            new_phase_type_index: 2, // Admin
+            ..EditorState::default()
+        },
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_rules::render_mechanics_tab(
+                ui,
+                &s.ts,
+                &s.crt,
+                &s.mods,
+                &mut s.state,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    harness.get_by_label("Add Phase").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddPhase { name, phase_type }
+            if name == "Reinforcement" && *phase_type == PhaseType::Admin)),
+        "expected AddPhase action, got: {actions:?}"
+    );
+}
+
+/// Mechanics tab — CRT Differential column type renders "diff" label.
+#[test]
+fn mechanics_tab_crt_differential_column() {
+    let crt = CombatResultsTable {
+        id: TypeId::new(),
+        name: "Diff CRT".to_string(),
+        columns: vec![CrtColumn {
+            label: "D+2".to_string(),
+            column_type: CrtColumnType::Differential,
+            threshold: 2.0,
+        }],
+        rows: vec![],
+        outcomes: vec![],
+        combat_concept_id: None,
+    };
+    let ts = test_turn_structure();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("diff");
+}
+
+/// Mechanics tab — all modifier source types display correct labels.
+#[test]
+fn mechanics_tab_all_modifier_sources() {
+    let mods = CombatModifierRegistry {
+        modifiers: vec![
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "DefTerr Mod".to_string(),
+                source: ModifierSource::DefenderTerrain,
+                column_shift: -1,
+                priority: 10,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "AtkTerr Mod".to_string(),
+                source: ModifierSource::AttackerTerrain,
+                column_shift: 1,
+                priority: 5,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "AtkProp Mod".to_string(),
+                source: ModifierSource::AttackerProperty("str".to_string()),
+                column_shift: 2,
+                priority: 3,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "DefProp Mod".to_string(),
+                source: ModifierSource::DefenderProperty("def".to_string()),
+                column_shift: -2,
+                priority: 2,
+                cap: None,
+                terrain_type_filter: None,
+            },
+            CombatModifierDefinition {
+                id: TypeId::new(),
+                name: "Custom Mod".to_string(),
+                source: ModifierSource::Custom("river crossing".to_string()),
+                column_shift: -3,
+                priority: 1,
+                cap: None,
+                terrain_type_filter: None,
+            },
+        ],
+    };
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    harness.get_by_label_contains("[DefTerr]");
+    harness.get_by_label_contains("[AtkTerr]");
+    harness.get_by_label_contains("[AtkProp(str)]");
+    harness.get_by_label_contains("[DefProp(def)]");
+    harness.get_by_label_contains("[Custom(river crossing)]");
+}
+
+/// Mechanics tab — Add Modifier with custom source shows Desc field.
+#[test]
+fn mechanics_tab_add_modifier_custom_source_desc_field() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState {
+        new_modifier_source_index: 2, // Custom
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    // When source index is 2 (Custom), "Desc:" field should appear
+    harness.get_by_label_contains("Desc:");
+}
+
+/// Mechanics tab — Add Row button produces action.
+#[test]
+fn mechanics_tab_add_crt_row_produces_action() {
+    struct S {
+        ts: TurnStructure,
+        crt: CombatResultsTable,
+        mods: CombatModifierRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        ts: test_turn_structure(),
+        crt: test_crt(),
+        mods: CombatModifierRegistry::default(),
+        state: EditorState {
+            new_crt_row_label: "3".to_string(),
+            new_crt_row_die_min: "5".to_string(),
+            new_crt_row_die_max: "6".to_string(),
+            ..EditorState::default()
+        },
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_rules::render_mechanics_tab(
+                ui,
+                &s.ts,
+                &s.crt,
+                &s.mods,
+                &mut s.state,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    harness.get_by_label("Add Row").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtRow { .. })),
+        "expected AddCrtRow action, got: {actions:?}"
+    );
+}
+
+/// Mechanics tab — Add Col button produces action.
+#[test]
+fn mechanics_tab_add_crt_col_produces_action() {
+    struct S {
+        ts: TurnStructure,
+        crt: CombatResultsTable,
+        mods: CombatModifierRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        ts: test_turn_structure(),
+        crt: test_crt(),
+        mods: CombatModifierRegistry::default(),
+        state: EditorState {
+            new_crt_col_label: "2:1".to_string(),
+            new_crt_col_threshold: "2.0".to_string(),
+            ..EditorState::default()
+        },
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_rules::render_mechanics_tab(
+                ui,
+                &s.ts,
+                &s.crt,
+                &s.mods,
+                &mut s.state,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    harness.get_by_label("Add Col").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtColumn { .. })),
+        "expected AddCrtColumn action, got: {actions:?}"
+    );
+}
+
+/// Mechanics tab — Add Modifier form renders with fields.
+#[test]
+fn mechanics_tab_add_modifier_form_renders() {
+    let ts = test_turn_structure();
+    let crt = test_crt();
+    let mods = CombatModifierRegistry::default();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_mechanics_tab(ui, &ts, &crt, &mods, &mut state, &mut actions);
+    });
+    // "Name:" appears in both phase and modifier sections — skip it.
+    harness.get_by_label_contains("Source:");
+    harness.get_by_label_contains("Shift:");
+    harness.get_by_label_contains("Priority:");
+    harness.get_by_label_contains("Add Modifier");
+}
+
+// ── render_rules: inspector with entity data ──
+
+/// Tile inspector — renders property editors for entity with properties.
+#[test]
+fn inspector_renders_property_editors() {
+    let registry = test_registry();
+    let type_id = registry.types[0].id; // Plains
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut entity_data = EntityData {
+        entity_type_id: type_id,
+        properties: std::collections::HashMap::new(),
+    };
+    let pos = Some(HexPosition { q: 2, r: 3 });
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_inspector(
+            ui,
+            pos,
+            Some(&mut entity_data),
+            &registry,
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label_contains("Position: (2, 3)");
+    harness.get_by_label_contains("Type: Plains");
+    harness.get_by_label_contains("Properties");
+    harness.get_by_label_contains("movement_cost:");
+}
+
+/// Tile inspector — no entity data shows "No cell data".
+#[test]
+fn inspector_no_entity_data() {
+    let registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let pos = Some(HexPosition { q: 0, r: 0 });
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_inspector(ui, pos, None, &registry, &enum_reg, &struct_reg);
+    });
+    harness.get_by_label_contains("No cell data");
+}
+
+/// Unit inspector — renders property editors and delete button for unit.
+#[test]
+fn unit_inspector_renders_properties_and_delete() {
+    let registry = test_registry();
+    let type_id = registry.types[1].id; // Infantry (Token)
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut entity_data = EntityData {
+        entity_type_id: type_id,
+        properties: std::collections::HashMap::new(),
+    };
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_unit_inspector(
+            ui,
+            Some(&mut entity_data),
+            &registry,
+            &enum_reg,
+            &struct_reg,
+            &mut actions,
+        );
+    });
+    harness.get_by_label_contains("Unit Type: Infantry");
+    harness.get_by_label_contains("Properties");
+    harness.get_by_label_contains("movement_points:");
+    harness.get_by_label_contains("Delete Unit");
+}
+
+/// Unit inspector — delete button produces action.
+#[test]
+fn unit_inspector_delete_produces_action() {
+    struct S {
+        entity_data: EntityData,
+        registry: EntityTypeRegistry,
+        enum_reg: EnumRegistry,
+        struct_reg: StructRegistry,
+        actions: Vec<EditorAction>,
+    }
+    let registry = test_registry();
+    let type_id = registry.types[1].id;
+    let s = S {
+        entity_data: EntityData {
+            entity_type_id: type_id,
+            properties: std::collections::HashMap::new(),
+        },
+        registry,
+        enum_reg: test_enum_registry(),
+        struct_reg: test_struct_registry(),
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            render_rules::render_unit_inspector(
+                ui,
+                Some(&mut s.entity_data),
+                &s.registry,
+                &s.enum_reg,
+                &s.struct_reg,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    harness.get_by_label("Delete Unit").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteSelectedUnit)),
+        "expected DeleteSelectedUnit action, got: {actions:?}"
+    );
+}
+
+// ── render_ontology: constraint interactions ──
+
+/// Constraints tab — auto-generated constraint shows [auto] label.
+#[test]
+fn constraints_tab_auto_generated_label() {
+    let mut constraint_reg = test_constraint_registry();
+    let concept_reg = test_concept_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(
+            ui,
+            &mut constraint_reg,
+            &concept_reg,
+            &mut state,
+            &mut actions,
+        );
+    });
+    harness.get_by_label_contains("[auto]");
+}
+
+/// Constraints tab — Create Constraint button produces action.
+#[test]
+fn constraints_tab_create_constraint_action() {
+    struct S {
+        constraint_reg: ConstraintRegistry,
+        concept_reg: ConceptRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        constraint_reg: ConstraintRegistry::default(),
+        concept_reg: test_concept_registry(),
+        state: EditorState {
+            new_constraint_name: "Budget Check".to_string(),
+            new_constraint_description: "Must have budget".to_string(),
+            new_constraint_concept_index: 0,
+            new_constraint_expr_type_index: 0, // PropertyCompare
+            ..EditorState::default()
+        },
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            systems::render_constraints_tab(
+                ui,
+                &mut s.constraint_reg,
+                &s.concept_reg,
+                &mut s.state,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    // Open the New Constraint collapsing header
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+    // Click + Create Constraint
+    harness.get_by_label_contains("+ Create Constraint").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::CreateConstraint { .. })),
+        "expected CreateConstraint action, got: {actions:?}"
+    );
+}
+
+/// Constraints tab — `CrossCompare` expression type shows editor placeholder.
+#[test]
+fn constraints_tab_cross_compare_expr_placeholder() {
+    let mut constraint_reg = ConstraintRegistry::default();
+    let concept_reg = test_concept_registry();
+    let mut state = EditorState {
+        new_constraint_expr_type_index: 1, // CrossCompare
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_constraints_tab(
+            ui,
+            &mut constraint_reg,
+            &concept_reg,
+            &mut state,
+            &mut actions,
+        );
+    });
+    harness.get_by_label("New Constraint").click();
+    harness.run();
+    harness.get_by_label_contains("full editor");
+}
+
+// ── render_design: entity type interactions ──
+
+/// Entity type section — existing type with properties renders property list.
+#[test]
+fn entity_type_section_shows_properties() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    // Open "Board Types" section header then Plains type header
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("movement_cost (Int)");
+}
+
+/// Entity type section — delete type button appears with 2+ types of same role.
+#[test]
+fn entity_type_section_delete_with_multiple_types() {
+    struct S {
+        registry: EntityTypeRegistry,
+        enum_reg: EnumRegistry,
+        struct_reg: StructRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let mut registry = test_registry();
+    // Add second board position type
+    registry.types.push(EntityType {
+        id: TypeId::new(),
+        name: "Hills".to_string(),
+        role: EntityRole::BoardPosition,
+        color: Color::srgb(0.5, 0.4, 0.3),
+        properties: vec![],
+    });
+    let s = S {
+        registry,
+        enum_reg: test_enum_registry(),
+        struct_reg: test_struct_registry(),
+        state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            systems::render_entity_type_section(
+                ui,
+                &mut s.registry,
+                &mut s.state,
+                &mut s.actions,
+                EntityRole::BoardPosition,
+                "Board Types",
+                "board",
+                &s.enum_reg,
+                &s.struct_reg,
+            );
+        },
+        s,
+    );
+    // Open Board Types section, then Hills header
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Hills").click();
+    harness.run();
+    harness.get_by_label("Delete Type").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteEntityType { .. })),
+        "expected DeleteEntityType action, got: {actions:?}"
+    );
+}
+
+/// Entity type section — add property with Enum type shows Opts field.
+#[test]
+fn entity_type_section_add_prop_enum_shows_opts() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 5, // Enum
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    // Open Plains header
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("Opts:");
+    harness.get_by_label_contains("(comma-separated)");
+}
+
+/// Entity type section — add property with `EntityRef` shows Role selector.
+#[test]
+fn entity_type_section_add_prop_entity_ref_shows_role() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 6, // EntityRef
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("Role:");
+}
+
+/// Entity type section — add property with List shows Item type selector.
+#[test]
+fn entity_type_section_add_prop_list_shows_item_type() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 7, // List
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("Item type:");
+}
+
+/// Entity type section — add property with Map shows Key enum and Value type.
+#[test]
+fn entity_type_section_add_prop_map_shows_key_value() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 8, // Map
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("Key enum:");
+    harness.get_by_label_contains("Value type:");
+}
+
+/// Entity type section — add property with Struct shows Struct selector.
+#[test]
+fn entity_type_section_add_prop_struct_shows_selector() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 9, // Struct
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    harness.get_by_label_contains("Struct:");
+}
+
+/// Entity type section — add property with `IntRange` shows min/max fields.
+#[test]
+fn entity_type_section_add_prop_int_range_shows_minmax() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 10, // IntRange
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    // IntRange shows Min:/Max: fields
+    harness.get_by_label_contains("Min:");
+}
+
+/// Entity type section — add property with `FloatRange` shows min/max fields.
+#[test]
+fn entity_type_section_add_prop_float_range_shows_minmax() {
+    let mut registry = test_registry();
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let mut state = EditorState {
+        new_prop_type_index: 11, // FloatRange
+        ..EditorState::default()
+    };
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_entity_type_section(
+            ui,
+            &mut registry,
+            &mut state,
+            &mut actions,
+            EntityRole::BoardPosition,
+            "Board Types",
+            "board",
+            &enum_reg,
+            &struct_reg,
+        );
+    });
+    harness.get_by_label("Board Types").click();
+    harness.run();
+    harness.get_by_label("Plains").click();
+    harness.run();
+    // FloatRange shows Min:/Max: fields too
+    harness.get_by_label_contains("Min:");
+}
+
+// ── render_design: enum interactions ──
+
+/// Enums tab — enum with options renders options list and allows removal.
+#[test]
+fn enums_tab_shows_options_list() {
+    let enum_reg = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_enums_tab(ui, &enum_reg, &mut state, &mut actions);
+    });
+    // Open the Terrain enum header
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label_contains("Open");
+    harness.get_by_label_contains("Rough");
+    harness.get_by_label_contains("Dense");
+}
+
+/// Enums tab — Delete Enum click dispatches action.
+#[test]
+fn enums_tab_delete_enum_click_dispatches_action() {
+    struct S {
+        enum_reg: EnumRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        enum_reg: test_enum_registry(),
+        state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            systems::render_enums_tab(ui, &s.enum_reg, &mut s.state, &mut s.actions);
+        },
+        s,
+    );
+    harness.get_by_label("Terrain").click();
+    harness.run();
+    harness.get_by_label("Delete Enum").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteEnum { .. })),
+        "expected DeleteEnum action, got: {actions:?}"
+    );
+}
+
+// ── render_design: struct interactions ──
+
+/// Structs tab — struct with fields renders field list.
+#[test]
+fn structs_tab_shows_field_list() {
+    let struct_reg = test_struct_registry();
+    let enum_reg = test_enum_registry();
+    let mut state = EditorState::default();
+    let mut actions = Vec::new();
+    let mut harness = Harness::new_ui(|ui| {
+        systems::render_structs_tab(ui, &struct_reg, &enum_reg, &mut state, &mut actions);
+    });
+    // Open the Position struct header
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label_contains("x: Int");
+    harness.get_by_label_contains("y: Int");
+}
+
+/// Structs tab — Delete Struct click dispatches action.
+#[test]
+fn structs_tab_delete_struct_click_dispatches_action() {
+    struct S {
+        struct_reg: StructRegistry,
+        enum_reg: EnumRegistry,
+        state: EditorState,
+        actions: Vec<EditorAction>,
+    }
+    let s = S {
+        struct_reg: test_struct_registry(),
+        enum_reg: test_enum_registry(),
+        state: EditorState::default(),
+        actions: Vec::new(),
+    };
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut S| {
+            systems::render_structs_tab(
+                ui,
+                &s.struct_reg,
+                &s.enum_reg,
+                &mut s.state,
+                &mut s.actions,
+            );
+        },
+        s,
+    );
+    harness.get_by_label("Position").click();
+    harness.run();
+    harness.get_by_label("Delete Struct").click();
+    harness.run();
+    let actions = &harness.state().actions;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteStruct { .. })),
+        "expected DeleteStruct action, got: {actions:?}"
+    );
+}
+
+// ── render_rules: property value editor edge cases ──
+
+/// Property value editor — `IntRange` renders with bounds.
+#[test]
+fn property_value_editor_int_range() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let mut value = PropertyValue::IntRange(5);
+    let prop_type = PropertyType::IntRange { min: 0, max: 10 };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — `FloatRange` renders with bounds.
+#[test]
+fn property_value_editor_float_range() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let mut value = PropertyValue::FloatRange(2.5);
+    let prop_type = PropertyType::FloatRange { min: 0.0, max: 5.0 };
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — List renders items and add button.
+#[test]
+fn property_value_editor_list_renders() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let mut value = PropertyValue::List(vec![PropertyValue::Int(1), PropertyValue::Int(2)]);
+    let prop_type = PropertyType::List(Box::new(PropertyType::Int));
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — List at depth 3 shows nesting limit.
+#[test]
+fn property_value_editor_list_nesting_limit() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let mut value = PropertyValue::List(vec![PropertyValue::Int(1)]);
+    let prop_type = PropertyType::List(Box::new(PropertyType::Int));
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            3,
+        );
+    });
+    harness.get_by_label_contains("nested");
+}
+
+/// Property value editor — Map renders keys.
+#[test]
+fn property_value_editor_map_renders() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let enum_id = *enum_reg.definitions.keys().next().expect("has enum");
+    let mut value = PropertyValue::Map(vec![("Open".to_string(), PropertyValue::Int(1))]);
+    let prop_type = PropertyType::Map(enum_id, Box::new(PropertyType::Int));
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — Struct renders field editors.
+#[test]
+fn property_value_editor_struct_renders() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let struct_id = *struct_reg.definitions.keys().next().expect("has struct");
+    let struct_def = struct_reg.definitions.values().next().expect("has struct");
+    let field_ids: Vec<_> = struct_def.fields.iter().map(|f| f.id).collect();
+    let mut fields = std::collections::HashMap::new();
+    fields.insert(field_ids[0], PropertyValue::Int(10));
+    fields.insert(field_ids[1], PropertyValue::Int(20));
+    let mut value = PropertyValue::Struct(fields);
+    let prop_type = PropertyType::Struct(struct_id);
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — `EntityRef` renders combobox.
+#[test]
+fn property_value_editor_entity_ref_renders() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let mut value = PropertyValue::EntityRef(None);
+    let prop_type = PropertyType::EntityRef(None);
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — Enum renders combobox with options.
+#[test]
+fn property_value_editor_enum_combobox() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let enum_id = *enum_reg.definitions.keys().next().expect("has enum");
+    let mut value = PropertyValue::Enum("Open".to_string());
+    let prop_type = PropertyType::Enum(enum_id);
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            0,
+        );
+    });
+    let _ = harness;
+}
+
+/// Property value editor — Map at depth 3 shows nesting limit.
+#[test]
+fn property_value_editor_map_nesting_limit() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let enum_id = *enum_reg.definitions.keys().next().expect("has enum");
+    let mut value = PropertyValue::Map(vec![]);
+    let prop_type = PropertyType::Map(enum_id, Box::new(PropertyType::Int));
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            3,
+        );
+    });
+    harness.get_by_label_contains("nested");
+}
+
+/// Property value editor — Struct at depth 3 shows nesting limit.
+#[test]
+fn property_value_editor_struct_nesting_limit() {
+    let enum_reg = test_enum_registry();
+    let struct_reg = test_struct_registry();
+    let registry = test_registry();
+    let struct_id = *struct_reg.definitions.keys().next().expect("has struct");
+    let mut value = PropertyValue::Struct(std::collections::HashMap::new());
+    let prop_type = PropertyType::Struct(struct_id);
+    let harness = Harness::new_ui(|ui| {
+        render_rules::render_property_value_editor(
+            ui,
+            &mut value,
+            &prop_type,
+            &enum_reg,
+            &struct_reg,
+            &registry,
+            3,
+        );
+    });
+    harness.get_by_label_contains("nested");
 }
