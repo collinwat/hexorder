@@ -1,0 +1,891 @@
+//! Rules tab rendering — validation, mechanics, and inspector.
+
+use bevy_egui::egui;
+
+use hexorder_contracts::game_system::{
+    EntityData, EntityTypeRegistry, EnumRegistry, PropertyType, PropertyValue, StructRegistry,
+};
+use hexorder_contracts::hex_grid::HexPosition;
+use hexorder_contracts::mechanics::{
+    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
+    PlayerOrder, TurnStructure,
+};
+use hexorder_contracts::validation::SchemaValidation;
+
+use super::actions::{bevy_color_to_egui, egui_color_to_bevy};
+use super::components::{BrandTheme, EditorAction, EditorState};
+
+pub(crate) fn render_validation_tab(ui: &mut egui::Ui, validation: &SchemaValidation) {
+    ui.label(
+        egui::RichText::new("Validation")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(8.0);
+
+    if validation.is_valid {
+        ui.label(egui::RichText::new("Schema Valid").color(BrandTheme::SUCCESS));
+    } else {
+        ui.label(
+            egui::RichText::new(format!("{} Error(s)", validation.errors.len()))
+                .color(BrandTheme::DANGER),
+        );
+    }
+
+    if !validation.errors.is_empty() {
+        ui.add_space(4.0);
+        for error in &validation.errors {
+            ui.group(|ui| {
+                let category_str = match error.category {
+                    hexorder_contracts::validation::SchemaErrorCategory::DanglingReference => {
+                        "Dangling Ref"
+                    }
+                    hexorder_contracts::validation::SchemaErrorCategory::RoleMismatch => {
+                        "Role Mismatch"
+                    }
+                    hexorder_contracts::validation::SchemaErrorCategory::PropertyMismatch => {
+                        "Prop Mismatch"
+                    }
+                    hexorder_contracts::validation::SchemaErrorCategory::MissingBinding => {
+                        "Missing Binding"
+                    }
+                    hexorder_contracts::validation::SchemaErrorCategory::InvalidExpression => {
+                        "Invalid Expr"
+                    }
+                };
+                ui.label(
+                    egui::RichText::new(category_str)
+                        .small()
+                        .color(BrandTheme::ACCENT_AMBER),
+                );
+                ui.label(egui::RichText::new(&error.message).small());
+            });
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_mechanics_tab(
+    ui: &mut egui::Ui,
+    turn_structure: &TurnStructure,
+    crt: &CombatResultsTable,
+    modifiers: &CombatModifierRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    // ── Turn Structure ──────────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Turn Structure")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    // Player order selector.
+    ui.horizontal(|ui| {
+        ui.label("Player Order:");
+        let order_labels = ["Alternating", "Simultaneous", "Activation"];
+        let current = match turn_structure.player_order {
+            PlayerOrder::Alternating => 0,
+            PlayerOrder::Simultaneous => 1,
+            PlayerOrder::ActivationBased => 2,
+        };
+        for (i, label) in order_labels.iter().enumerate() {
+            if ui.selectable_label(current == i, *label).clicked() && current != i {
+                let order = match i {
+                    1 => PlayerOrder::Simultaneous,
+                    2 => PlayerOrder::ActivationBased,
+                    _ => PlayerOrder::Alternating,
+                };
+                actions.push(EditorAction::SetPlayerOrder { order });
+            }
+        }
+    });
+    ui.add_space(4.0);
+
+    // Phase list.
+    ui.label(
+        egui::RichText::new(format!("Phases ({})", turn_structure.phases.len()))
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    let mut phase_action: Option<EditorAction> = None;
+    for (i, phase) in turn_structure.phases.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let type_label = match phase.phase_type {
+                PhaseType::Movement => "Mov",
+                PhaseType::Combat => "Cbt",
+                PhaseType::Admin => "Adm",
+            };
+            ui.label(
+                egui::RichText::new(format!("{}.", i + 1))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.label(&phase.name);
+            ui.label(
+                egui::RichText::new(format!("[{type_label}]"))
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    phase_action = Some(EditorAction::RemovePhase { id: phase.id });
+                }
+                if i > 0
+                    && ui
+                        .small_button(
+                            egui::RichText::new("\u{2191}").color(BrandTheme::TEXT_PRIMARY),
+                        )
+                        .clicked()
+                {
+                    phase_action = Some(EditorAction::MovePhaseUp { id: phase.id });
+                }
+                if i + 1 < turn_structure.phases.len()
+                    && ui
+                        .small_button(
+                            egui::RichText::new("\u{2193}").color(BrandTheme::TEXT_PRIMARY),
+                        )
+                        .clicked()
+                {
+                    phase_action = Some(EditorAction::MovePhaseDown { id: phase.id });
+                }
+            });
+        });
+    }
+    if let Some(action) = phase_action {
+        actions.push(action);
+    }
+
+    // Add phase form.
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut editor_state.new_phase_name);
+    });
+    ui.horizontal(|ui| {
+        ui.label("Type:");
+        let type_labels = ["Movement", "Combat", "Admin"];
+        for (i, label) in type_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_phase_type_index, i, *label);
+        }
+    });
+    if ui.button("Add Phase").clicked() && !editor_state.new_phase_name.trim().is_empty() {
+        let phase_type = match editor_state.new_phase_type_index {
+            1 => PhaseType::Combat,
+            2 => PhaseType::Admin,
+            _ => PhaseType::Movement,
+        };
+        actions.push(EditorAction::AddPhase {
+            name: editor_state.new_phase_name.trim().to_string(),
+            phase_type,
+        });
+        editor_state.new_phase_name.clear();
+    }
+
+    ui.separator();
+
+    // ── Combat Results Table ────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Combat Results Table")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new(&crt.name)
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+
+    // Column headers.
+    ui.label(
+        egui::RichText::new(format!("Columns ({})", crt.columns.len()))
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    for (i, col) in crt.columns.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let type_label = match col.column_type {
+                CrtColumnType::OddsRatio => "ratio",
+                CrtColumnType::Differential => "diff",
+            };
+            ui.label(
+                egui::RichText::new(&col.label)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("({type_label} \u{2265}{:.1})", col.threshold))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCrtColumn { index: i });
+                }
+            });
+        });
+    }
+
+    // Add column form.
+    ui.horizontal(|ui| {
+        ui.label("Label:");
+        ui.add(egui::TextEdit::singleline(&mut editor_state.new_crt_col_label).desired_width(60.0));
+        ui.label("Thr:");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_col_threshold).desired_width(40.0),
+        );
+    });
+    ui.horizontal(|ui| {
+        let col_type_labels = ["Ratio", "Diff"];
+        for (i, label) in col_type_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_crt_col_type_index, i, *label);
+        }
+        if ui.button("Add Col").clicked() && !editor_state.new_crt_col_label.trim().is_empty() {
+            let threshold = editor_state
+                .new_crt_col_threshold
+                .trim()
+                .parse::<f64>()
+                .unwrap_or(0.0);
+            let column_type = match editor_state.new_crt_col_type_index {
+                1 => CrtColumnType::Differential,
+                _ => CrtColumnType::OddsRatio,
+            };
+            actions.push(EditorAction::AddCrtColumn {
+                label: editor_state.new_crt_col_label.trim().to_string(),
+                column_type,
+                threshold,
+            });
+            editor_state.new_crt_col_label.clear();
+            editor_state.new_crt_col_threshold.clear();
+        }
+    });
+
+    ui.add_space(4.0);
+
+    // Row headers.
+    ui.label(
+        egui::RichText::new(format!("Rows ({})", crt.rows.len())).color(BrandTheme::TEXT_SECONDARY),
+    );
+    for (i, row) in crt.rows.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(&row.label)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("(die {}-{})", row.die_value_min, row.die_value_max))
+                    .small()
+                    .color(BrandTheme::TEXT_TERTIARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCrtRow { index: i });
+                }
+            });
+        });
+    }
+
+    // Add row form.
+    ui.horizontal(|ui| {
+        ui.label("Label:");
+        ui.add(egui::TextEdit::singleline(&mut editor_state.new_crt_row_label).desired_width(40.0));
+        ui.label("Die:");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_row_die_min).desired_width(30.0),
+        );
+        ui.label("-");
+        ui.add(
+            egui::TextEdit::singleline(&mut editor_state.new_crt_row_die_max).desired_width(30.0),
+        );
+        if ui.button("Add Row").clicked() && !editor_state.new_crt_row_label.trim().is_empty() {
+            let die_min = editor_state
+                .new_crt_row_die_min
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(1);
+            let die_max = editor_state
+                .new_crt_row_die_max
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(die_min);
+            actions.push(EditorAction::AddCrtRow {
+                label: editor_state.new_crt_row_label.trim().to_string(),
+                die_min,
+                die_max,
+            });
+            editor_state.new_crt_row_label.clear();
+            editor_state.new_crt_row_die_min.clear();
+            editor_state.new_crt_row_die_max.clear();
+        }
+    });
+
+    ui.add_space(4.0);
+
+    // Outcome grid (editable).
+    if !crt.columns.is_empty() && !crt.rows.is_empty() {
+        // Sync edit buffer when CRT dimensions change.
+        let num_rows = crt.rows.len();
+        let num_cols = crt.columns.len();
+        if editor_state.crt_outcome_labels.len() != num_rows
+            || editor_state
+                .crt_outcome_labels
+                .first()
+                .is_some_and(|r| r.len() != num_cols)
+        {
+            editor_state.crt_outcome_labels = (0..num_rows)
+                .map(|ri| {
+                    (0..num_cols)
+                        .map(|ci| {
+                            crt.outcomes
+                                .get(ri)
+                                .and_then(|r| r.get(ci))
+                                .map_or_else(|| "--".to_string(), |o| o.label.clone())
+                        })
+                        .collect()
+                })
+                .collect();
+        }
+
+        ui.label(
+            egui::RichText::new("Outcome Grid")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        egui::Grid::new("crt_outcome_grid")
+            .striped(true)
+            .show(ui, |ui| {
+                // Header row.
+                ui.label("");
+                for col in &crt.columns {
+                    ui.label(
+                        egui::RichText::new(&col.label)
+                            .small()
+                            .strong()
+                            .color(BrandTheme::ACCENT_TEAL),
+                    );
+                }
+                ui.end_row();
+
+                // Data rows with editable cells.
+                for (ri, row) in crt.rows.iter().enumerate() {
+                    ui.label(
+                        egui::RichText::new(&row.label)
+                            .small()
+                            .strong()
+                            .color(BrandTheme::ACCENT_TEAL),
+                    );
+                    for ci in 0..num_cols {
+                        let cell = &mut editor_state.crt_outcome_labels[ri][ci];
+                        let response = ui.add(
+                            egui::TextEdit::singleline(cell)
+                                .desired_width(28.0)
+                                .font(egui::TextStyle::Small),
+                        );
+                        if response.lost_focus() || response.changed() {
+                            actions.push(EditorAction::SetCrtOutcome {
+                                row: ri,
+                                col: ci,
+                                label: cell.clone(),
+                            });
+                        }
+                    }
+                    ui.end_row();
+                }
+            });
+    }
+
+    ui.separator();
+
+    // ── Combat Modifiers ────────────────────────────────────────────
+    ui.label(
+        egui::RichText::new("Combat Modifiers")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    for modifier in &modifiers.modifiers {
+        ui.horizontal(|ui| {
+            let source_label = match &modifier.source {
+                ModifierSource::DefenderTerrain => "DefTerr".to_string(),
+                ModifierSource::AttackerTerrain => "AtkTerr".to_string(),
+                ModifierSource::AttackerProperty(p) => format!("AtkProp({p})"),
+                ModifierSource::DefenderProperty(p) => format!("DefProp({p})"),
+                ModifierSource::Custom(s) => format!("Custom({s})"),
+            };
+            let shift_str = if modifier.column_shift >= 0 {
+                format!("+{}", modifier.column_shift)
+            } else {
+                format!("{}", modifier.column_shift)
+            };
+            ui.label(&modifier.name);
+            ui.label(
+                egui::RichText::new(format!(
+                    "{shift_str} [{source_label}] p{}",
+                    modifier.priority
+                ))
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    actions.push(EditorAction::RemoveCombatModifier { id: modifier.id });
+                }
+            });
+        });
+    }
+
+    // Add modifier form.
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut editor_state.new_modifier_name);
+    });
+    ui.horizontal(|ui| {
+        ui.label("Source:");
+        let source_labels = ["Def.Terrain", "Atk.Terrain", "Custom"];
+        for (i, label) in source_labels.iter().enumerate() {
+            ui.selectable_value(&mut editor_state.new_modifier_source_index, i, *label);
+        }
+    });
+    if editor_state.new_modifier_source_index == 2 {
+        ui.horizontal(|ui| {
+            ui.label("Desc:");
+            ui.text_edit_singleline(&mut editor_state.new_modifier_custom_source);
+        });
+    }
+    ui.horizontal(|ui| {
+        ui.label("Shift:");
+        ui.add(egui::DragValue::new(&mut editor_state.new_modifier_shift).range(-10..=10));
+        ui.label("Priority:");
+        ui.add(egui::DragValue::new(&mut editor_state.new_modifier_priority).range(0..=100));
+    });
+    if ui.button("Add Modifier").clicked() && !editor_state.new_modifier_name.trim().is_empty() {
+        let source = match editor_state.new_modifier_source_index {
+            1 => ModifierSource::AttackerTerrain,
+            2 => ModifierSource::Custom(editor_state.new_modifier_custom_source.trim().to_string()),
+            _ => ModifierSource::DefenderTerrain,
+        };
+        actions.push(EditorAction::AddCombatModifier {
+            name: editor_state.new_modifier_name.trim().to_string(),
+            source,
+            shift: editor_state.new_modifier_shift,
+            priority: editor_state.new_modifier_priority,
+        });
+        editor_state.new_modifier_name.clear();
+        editor_state.new_modifier_custom_source.clear();
+        editor_state.new_modifier_shift = 0;
+        editor_state.new_modifier_priority = 0;
+    }
+}
+
+/// Renders the tile inspector panel inside the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_inspector(
+    ui: &mut egui::Ui,
+    position: Option<HexPosition>,
+    entity_data: Option<&mut EntityData>,
+    registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+) {
+    egui::CollapsingHeader::new(
+        egui::RichText::new("Tile Inspector")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    )
+    .default_open(true)
+    .show(ui, |ui| {
+        let Some(pos) = position else {
+            ui.label(egui::RichText::new("No tile selected").color(BrandTheme::TEXT_SECONDARY));
+            return;
+        };
+
+        ui.label(egui::RichText::new(format!("Position: ({}, {})", pos.q, pos.r)).monospace());
+
+        let Some(entity_data) = entity_data else {
+            ui.label("No cell data");
+            return;
+        };
+
+        // Cell type name
+        let type_name = registry
+            .get(entity_data.entity_type_id)
+            .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
+        ui.label(format!("Type: {type_name}"));
+
+        // Property value editors
+        let prop_defs: Vec<_> = registry
+            .get(entity_data.entity_type_id)
+            .map(|et| et.properties.clone())
+            .unwrap_or_default();
+
+        if prop_defs.is_empty() {
+            ui.label(
+                egui::RichText::new("No properties")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            return;
+        }
+
+        ui.separator();
+        ui.label(egui::RichText::new("Properties").small());
+
+        for prop_def in &prop_defs {
+            ui.horizontal(|ui| {
+                ui.label(format!("{}:", prop_def.name));
+
+                let value = entity_data
+                    .properties
+                    .entry(prop_def.id)
+                    .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
+
+                render_property_value_editor(
+                    ui,
+                    value,
+                    &prop_def.property_type,
+                    enum_registry,
+                    struct_registry,
+                    registry,
+                    0,
+                );
+            });
+        }
+    });
+}
+
+/// Renders the unit inspector panel inside the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_unit_inspector(
+    ui: &mut egui::Ui,
+    entity_data: Option<&mut EntityData>,
+    registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+    actions: &mut Vec<EditorAction>,
+) {
+    egui::CollapsingHeader::new(
+        egui::RichText::new("Unit Inspector")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    )
+    .default_open(true)
+    .show(ui, |ui| {
+        let Some(entity_data) = entity_data else {
+            ui.label(egui::RichText::new("No unit selected").color(BrandTheme::TEXT_SECONDARY));
+            return;
+        };
+
+        // Unit type name
+        let type_name = registry
+            .get(entity_data.entity_type_id)
+            .map_or_else(|| "Unknown".to_string(), |et| et.name.clone());
+        ui.label(format!("Unit Type: {type_name}"));
+
+        // Property value editors
+        let prop_defs: Vec<_> = registry
+            .get(entity_data.entity_type_id)
+            .map(|et| et.properties.clone())
+            .unwrap_or_default();
+
+        if !prop_defs.is_empty() {
+            ui.separator();
+            ui.label(egui::RichText::new("Properties").small());
+
+            for prop_def in &prop_defs {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}:", prop_def.name));
+
+                    let value = entity_data
+                        .properties
+                        .entry(prop_def.id)
+                        .or_insert_with(|| PropertyValue::default_for(&prop_def.property_type));
+
+                    render_property_value_editor(
+                        ui,
+                        value,
+                        &prop_def.property_type,
+                        enum_registry,
+                        struct_registry,
+                        registry,
+                        0,
+                    );
+                });
+            }
+        }
+
+        ui.separator();
+
+        // Delete unit button
+        if ui
+            .button(egui::RichText::new("Delete Unit").color(BrandTheme::DANGER))
+            .clicked()
+        {
+            actions.push(EditorAction::DeleteSelectedUnit);
+        }
+    });
+}
+
+/// Renders an inline property value editor for the Inspector dock tab.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_property_value_editor(
+    ui: &mut egui::Ui,
+    value: &mut PropertyValue,
+    prop_type: &PropertyType,
+    enum_registry: &EnumRegistry,
+    struct_registry: &StructRegistry,
+    entity_registry: &EntityTypeRegistry,
+    depth: usize,
+) {
+    match value {
+        PropertyValue::Bool(b) => {
+            ui.checkbox(b, "");
+        }
+        PropertyValue::Int(i) => {
+            ui.add(egui::DragValue::new(i));
+        }
+        PropertyValue::Float(f) => {
+            ui.add(egui::DragValue::new(f).speed(0.1));
+        }
+        PropertyValue::String(s) => {
+            ui.text_edit_singleline(s);
+        }
+        PropertyValue::Color(c) => {
+            let mut c32 = bevy_color_to_egui(*c);
+            if egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut c32,
+                egui::color_picker::Alpha::Opaque,
+            )
+            .changed()
+            {
+                *c = egui_color_to_bevy(c32);
+            }
+        }
+        PropertyValue::Enum(selected) => {
+            if let PropertyType::Enum(enum_id) = prop_type {
+                let options: Vec<String> = enum_registry
+                    .get(*enum_id)
+                    .map(|ed| ed.options.clone())
+                    .unwrap_or_default();
+
+                egui::ComboBox::from_id_salt(format!("ev_{enum_id:?}"))
+                    .selected_text(selected.as_str())
+                    .show_ui(ui, |ui| {
+                        for option in &options {
+                            ui.selectable_value(selected, option.clone(), option);
+                        }
+                    });
+            }
+        }
+        PropertyValue::EntityRef(selected) => {
+            let role_filter = if let PropertyType::EntityRef(filter) = prop_type {
+                *filter
+            } else {
+                None
+            };
+            let candidates: Vec<_> = entity_registry
+                .types
+                .iter()
+                .filter(|et| role_filter.is_none() || Some(et.role) == role_filter)
+                .map(|et| (et.id, et.name.clone()))
+                .collect();
+            let selected_name = selected
+                .and_then(|id| candidates.iter().find(|(eid, _)| *eid == id))
+                .map_or("(none)".to_string(), |(_, n)| n.clone());
+            egui::ComboBox::from_id_salt(format!("eref_{depth}"))
+                .selected_text(&selected_name)
+                .show_ui(ui, |ui| {
+                    if ui.selectable_label(selected.is_none(), "(none)").clicked() {
+                        *selected = None;
+                    }
+                    for (eid, ename) in &candidates {
+                        if ui
+                            .selectable_label(*selected == Some(*eid), ename)
+                            .clicked()
+                        {
+                            *selected = Some(*eid);
+                        }
+                    }
+                });
+        }
+        PropertyValue::List(items) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                return;
+            }
+            let inner_type = if let PropertyType::List(inner) = prop_type {
+                inner.as_ref()
+            } else {
+                return;
+            };
+            egui::CollapsingHeader::new(format!("List ({})", items.len()))
+                .id_salt(format!("list_{depth}"))
+                .show(ui, |ui| {
+                    let mut remove_idx = None;
+                    for (idx, item) in items.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("[{idx}]"));
+                            render_property_value_editor(
+                                ui,
+                                item,
+                                inner_type,
+                                enum_registry,
+                                struct_registry,
+                                entity_registry,
+                                depth + 1,
+                            );
+                            if ui.small_button("x").clicked() {
+                                remove_idx = Some(idx);
+                            }
+                        });
+                    }
+                    if let Some(idx) = remove_idx {
+                        items.remove(idx);
+                    }
+                    if ui
+                        .button(egui::RichText::new("+ Add").color(BrandTheme::ACCENT_AMBER))
+                        .clicked()
+                    {
+                        items.push(PropertyValue::default_for(inner_type));
+                    }
+                });
+        }
+        PropertyValue::Map(entries) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                return;
+            }
+            let (enum_id, value_type) = if let PropertyType::Map(eid, vt) = prop_type {
+                (*eid, vt.as_ref())
+            } else {
+                return;
+            };
+            let enum_options = enum_registry
+                .get(enum_id)
+                .map(|ed| ed.options.clone())
+                .unwrap_or_default();
+            egui::CollapsingHeader::new(format!("Map ({})", entries.len()))
+                .id_salt(format!("map_{depth}"))
+                .show(ui, |ui| {
+                    for opt in &enum_options {
+                        let entry = entries.iter_mut().find(|(k, _)| k == opt);
+                        if let Some((_, val)) = entry {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{opt}:"));
+                                render_property_value_editor(
+                                    ui,
+                                    val,
+                                    value_type,
+                                    enum_registry,
+                                    struct_registry,
+                                    entity_registry,
+                                    depth + 1,
+                                );
+                            });
+                        } else {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{opt}:"));
+                                ui.label(
+                                    egui::RichText::new("(default)")
+                                        .small()
+                                        .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                                if ui.small_button("+").clicked() {
+                                    entries.push((
+                                        opt.clone(),
+                                        PropertyValue::default_for(value_type),
+                                    ));
+                                }
+                            });
+                        }
+                    }
+                });
+        }
+        PropertyValue::Struct(fields) => {
+            if depth >= 3 {
+                ui.label(
+                    egui::RichText::new("(nested limit)")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                return;
+            }
+            let struct_id = if let PropertyType::Struct(sid) = prop_type {
+                *sid
+            } else {
+                return;
+            };
+            let struct_def = struct_registry.get(struct_id);
+            egui::CollapsingHeader::new(
+                struct_def
+                    .map_or("Struct", |sd| sd.name.as_str())
+                    .to_string(),
+            )
+            .id_salt(format!("struct_{depth}"))
+            .show(ui, |ui| {
+                if let Some(sd) = struct_def {
+                    for field in &sd.fields {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}:", field.name));
+                            let val = fields.entry(field.id).or_insert_with(|| {
+                                PropertyValue::default_for(&field.property_type)
+                            });
+                            render_property_value_editor(
+                                ui,
+                                val,
+                                &field.property_type,
+                                enum_registry,
+                                struct_registry,
+                                entity_registry,
+                                depth + 1,
+                            );
+                        });
+                    }
+                } else {
+                    ui.label(
+                        egui::RichText::new("(unknown struct)")
+                            .small()
+                            .color(BrandTheme::TEXT_SECONDARY),
+                    );
+                }
+            });
+        }
+        PropertyValue::IntRange(v) => {
+            if let PropertyType::IntRange { min, max } = prop_type {
+                ui.add(egui::DragValue::new(v).range(*min..=*max));
+            } else {
+                ui.add(egui::DragValue::new(v));
+            }
+        }
+        PropertyValue::FloatRange(v) => {
+            if let PropertyType::FloatRange { min, max } = prop_type {
+                ui.add(egui::DragValue::new(v).range(*min..=*max).speed(0.1));
+            } else {
+                ui.add(egui::DragValue::new(v).speed(0.1));
+            }
+        }
+    }
+}

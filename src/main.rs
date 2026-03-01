@@ -80,6 +80,110 @@ fn reveal_window(
     }
 }
 
+/// Unit tests for the `reveal_window` system.
+#[cfg(test)]
+mod reveal_window_tests {
+    use bevy::prelude::*;
+    use bevy::window::PrimaryWindow;
+
+    /// When no `PrimaryWindow` entity exists, `reveal_window` must not panic.
+    /// This exercises the `Err` branch of `windows.single_mut()` (line 76-78).
+    #[test]
+    fn no_primary_window_does_not_panic() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, super::reveal_window);
+
+        // Run enough updates to pass the 3-frame threshold.
+        for _ in 0..5 {
+            app.update();
+        }
+
+        // No PrimaryWindow entity exists — the system should have silently
+        // skipped the visibility toggle without panicking.
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>();
+        assert_eq!(query.iter(app.world()).count(), 0);
+    }
+
+    /// When a `PrimaryWindow` entity exists, `reveal_window` sets it visible
+    /// after 3 frames. This exercises the `Ok` branch of `windows.single_mut()`.
+    #[test]
+    fn reveals_window_after_three_frames() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, super::reveal_window);
+
+        // Spawn a hidden window with PrimaryWindow marker.
+        app.world_mut().spawn((
+            Window {
+                visible: false,
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+
+        // After 2 frames, window should still be hidden.
+        app.update();
+        app.update();
+        {
+            let mut query = app
+                .world_mut()
+                .query_filtered::<&Window, With<PrimaryWindow>>();
+            let window = query
+                .single(app.world())
+                .expect("PrimaryWindow should exist");
+            assert!(
+                !window.visible,
+                "Window should still be hidden after 2 frames"
+            );
+        }
+
+        // 3rd frame triggers the reveal.
+        app.update();
+        {
+            let mut query = app
+                .world_mut()
+                .query_filtered::<&Window, With<PrimaryWindow>>();
+            let window = query
+                .single(app.world())
+                .expect("PrimaryWindow should exist");
+            assert!(window.visible, "Window should be visible after 3 frames");
+        }
+    }
+
+    /// After the window is revealed, additional frames should not change anything.
+    #[test]
+    fn reveal_window_is_idempotent_after_done() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, super::reveal_window);
+
+        app.world_mut().spawn((
+            Window {
+                visible: false,
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+
+        // Frames 1-3 reveal the window; frame 4 should be a no-op.
+        for _ in 0..4 {
+            app.update();
+        }
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>();
+        let window = query.single(app.world()).expect("window should exist");
+        assert!(
+            window.visible,
+            "Window should still be visible after extra frame"
+        );
+    }
+}
+
 /// Architecture enforcement tests.
 /// These verify structural rules that apply across the entire project.
 #[cfg(test)]
@@ -87,15 +191,13 @@ mod architecture_tests {
     use std::fs;
     use std::path::Path;
 
-    /// Scans all plugin mod.rs files and fails if any sub-module is declared
-    /// `pub mod` (except for re-exports). Plugin internals must be private;
-    /// shared types go through `crates/hexorder-contracts/`.
-    #[test]
-    fn plugin_modules_are_private() {
-        let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    /// Scans all plugin `mod.rs` files under `src_dir` and returns violations
+    /// where sub-modules are declared `pub mod`. Plugin internals must be
+    /// private; shared types go through `crates/hexorder-contracts/`.
+    fn find_pub_mod_violations(src_dir: &Path) -> Vec<String> {
         let mut violations = Vec::new();
 
-        for entry in fs::read_dir(&src_dir).expect("failed to read src/") {
+        for entry in fs::read_dir(src_dir).expect("failed to read src/") {
             let entry = entry.expect("failed to read dir entry");
             let path = entry.path();
 
@@ -135,11 +237,47 @@ mod architecture_tests {
             }
         }
 
+        violations
+    }
+
+    #[test]
+    fn plugin_modules_are_private() {
+        let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let violations = find_pub_mod_violations(&src_dir);
+
         assert!(
             violations.is_empty(),
             "Contract boundary violations found:\n{}",
             violations.join("\n"),
         );
+    }
+
+    #[test]
+    fn find_pub_mod_violations_detects_bad_module() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+
+        // Plugin with a pub mod violation.
+        let plugin_dir = tmp.path().join("fake_plugin");
+        fs::create_dir(&plugin_dir).expect("failed to create plugin dir");
+        fs::write(
+            plugin_dir.join("mod.rs"),
+            "mod private_ok;\npub mod leaked;\n",
+        )
+        .expect("failed to write mod.rs");
+
+        // "contracts" directory should be skipped (not flagged).
+        let contracts_dir = tmp.path().join("contracts");
+        fs::create_dir(&contracts_dir).expect("failed to create contracts dir");
+        fs::write(contracts_dir.join("mod.rs"), "pub mod types;\n")
+            .expect("failed to write contracts mod.rs");
+
+        // Directory without mod.rs should be skipped silently.
+        let no_mod_dir = tmp.path().join("no_mod_plugin");
+        fs::create_dir(&no_mod_dir).expect("failed to create no_mod dir");
+
+        let violations = find_pub_mod_violations(tmp.path());
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("pub mod leaked;"));
     }
 
     /// Walks the project for `.md` files and fails if any filename contains
@@ -187,51 +325,56 @@ mod architecture_tests {
         );
     }
 
-    /// Scans `editor_ui` source files for color literals and verifies each one
-    /// is in the approved brand palette (`docs/brand.md`). Catches ad-hoc
-    /// colors that drift from the design system.
+    #[test]
+    fn walk_for_underscore_md_detects_bad_filename() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(tmp.path().join("bad_name.md"), "# Bad").expect("failed to write file");
+        fs::write(tmp.path().join("good-name.md"), "# Good").expect("failed to write file");
+
+        let mut violations = Vec::new();
+        walk_for_underscore_md(tmp.path(), &mut violations);
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("bad_name.md"));
+    }
+
+    // --- Approved brand palette constants ---
+
+    const APPROVED_GRAYS: &[u8] = &[
+        10,  // #0a0a0a — deep background (BG_DEEP)
+        25,  // #191919 — panel fill (BG_PANEL)
+        30,  // widget noninteractive (WIDGET_NONINTERACTIVE)
+        35,  // #232323 — surface / faint bg (BG_SURFACE)
+        40,  // widget inactive (WIDGET_INACTIVE)
+        55,  // widget hovered (WIDGET_HOVERED)
+        60,  // #3c3c3c — border (BORDER_SUBTLE)
+        70,  // widget active (WIDGET_ACTIVE)
+        80,  // #505050 — disabled text (TEXT_DISABLED)
+        120, // tertiary text (TEXT_TERTIARY)
+        128, // #808080 — secondary text (TEXT_SECONDARY)
+        224, // #e0e0e0 — primary text (TEXT_PRIMARY)
+    ];
+
+    const APPROVED_RGB: &[(u8, u8, u8)] = &[
+        (0, 92, 128),   // #005c80 — teal accent (ACCENT_TEAL)
+        (200, 80, 80),  // #c85050 — danger red (DANGER)
+        (200, 150, 64), // #c89640 — amber/gold accent (ACCENT_AMBER)
+        (80, 152, 80),  // #509850 — success green (SUCCESS)
+    ];
+
+    const APPROVED_NAMED: &[&str] = &[];
+
+    /// Scans `.rs` files in `editor_dir` for color literals and returns
+    /// violations where a color is not in the approved brand palette.
     ///
     /// Exempt patterns:
     /// - Color conversion utilities (functions that transform values, not define them)
     /// - Dynamic colors constructed from variables (e.g., user-picked colors)
     /// - Test modules
-    #[test]
-    fn editor_ui_colors_match_brand_palette() {
-        let editor_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src")
-            .join("editor_ui");
-
-        // --- Approved brand palette ---
-        // from_gray(N) values
-        let approved_grays: &[u8] = &[
-            10,  // #0a0a0a — deep background (BG_DEEP)
-            25,  // #191919 — panel fill (BG_PANEL)
-            30,  // widget noninteractive (WIDGET_NONINTERACTIVE)
-            35,  // #232323 — surface / faint bg (BG_SURFACE)
-            40,  // widget inactive (WIDGET_INACTIVE)
-            55,  // widget hovered (WIDGET_HOVERED)
-            60,  // #3c3c3c — border (BORDER_SUBTLE)
-            70,  // widget active (WIDGET_ACTIVE)
-            80,  // #505050 — disabled text (TEXT_DISABLED)
-            120, // tertiary text (TEXT_TERTIARY)
-            128, // #808080 — secondary text (TEXT_SECONDARY)
-            224, // #e0e0e0 — primary text (TEXT_PRIMARY)
-        ];
-
-        // from_rgb(R, G, B) values
-        let approved_rgb: &[(u8, u8, u8)] = &[
-            (0, 92, 128),   // #005c80 — teal accent (ACCENT_TEAL)
-            (200, 80, 80),  // #c85050 — danger red (DANGER)
-            (200, 150, 64), // #c89640 — amber/gold accent (ACCENT_AMBER)
-            (80, 152, 80),  // #509850 — success green (SUCCESS)
-        ];
-
-        // Named constants that are allowed
-        let approved_named: &[&str] = &[];
-
+    fn find_brand_palette_violations(editor_dir: &Path) -> Vec<String> {
         let mut violations = Vec::new();
 
-        for entry in fs::read_dir(&editor_dir).expect("failed to read editor_ui/") {
+        for entry in fs::read_dir(editor_dir).expect("failed to read editor_ui/") {
             let entry = entry.expect("failed to read dir entry");
             let path = entry.path();
 
@@ -285,7 +428,7 @@ mod architecture_tests {
                     if let Some(end) = after.find(')') {
                         let num_str = &after[..end];
                         if let Ok(val) = num_str.trim().parse::<u8>()
-                            && !approved_grays.contains(&val)
+                            && !APPROVED_GRAYS.contains(&val)
                         {
                             violations.push(format!(
                                 "{}:{}: `from_gray({})` is not in the brand palette. \
@@ -307,7 +450,7 @@ mod architecture_tests {
                             let parsed: Vec<Option<u8>> =
                                 parts.iter().map(|s| s.parse::<u8>().ok()).collect();
                             if let (Some(r), Some(g), Some(b)) = (parsed[0], parsed[1], parsed[2])
-                                && !approved_rgb.contains(&(r, g, b))
+                                && !APPROVED_RGB.contains(&(r, g, b))
                             {
                                 violations.push(format!(
                                     "{}:{}: `from_rgb({}, {}, {})` is not in the brand palette. \
@@ -340,7 +483,7 @@ mod architecture_tests {
                             let r: u8 = parts[0].parse().unwrap_or(0);
                             let g: u8 = parts[1].parse().unwrap_or(0);
                             let b: u8 = parts[2].parse().unwrap_or(0);
-                            if !approved_rgb.contains(&(r, g, b)) {
+                            if !APPROVED_RGB.contains(&(r, g, b)) {
                                 violations.push(format!(
                                         "{}:{}: `from_rgba*({}, {}, {}, ...)` is not in the brand palette. \
                                          See docs/brand.md for approved colors.",
@@ -369,7 +512,7 @@ mod architecture_tests {
                     {
                         // Ignore lowercase-starting (method calls like .r(), .g()).
                         let full = format!("Color32::{name}");
-                        if !approved_named.contains(&full.as_str()) {
+                        if !APPROVED_NAMED.contains(&full.as_str()) {
                             violations.push(format!(
                                 "{}:{}: `{}` is not in the brand palette. \
                                  See docs/brand.md for approved colors.",
@@ -383,80 +526,140 @@ mod architecture_tests {
             }
         }
 
+        violations
+    }
+
+    /// Validates the real `editor_ui` directory has no brand palette violations.
+    #[test]
+    fn editor_ui_colors_match_brand_palette() {
+        let editor_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("editor_ui");
+
+        let violations = find_brand_palette_violations(&editor_dir);
+
         assert!(
             violations.is_empty(),
             "Brand palette violations found in editor_ui/:\n{}",
             violations.join("\n"),
         );
     }
-}
 
-/// Tests for the `reveal_window` system.
-#[cfg(test)]
-mod reveal_window_tests {
-    use bevy::prelude::*;
-    use bevy::window::PrimaryWindow;
+    #[test]
+    fn brand_palette_detects_unapproved_gray() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("bad_gray.rs"),
+            "let c = Color32::from_gray(99);\n",
+        )
+        .expect("failed to write file");
 
-    /// Build a headless app with the `reveal_window` system and a mock window.
-    fn app_with_reveal() -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.world_mut().spawn((
-            Window {
-                visible: false,
-                ..default()
-            },
-            PrimaryWindow,
-        ));
-        app.add_systems(Update, super::reveal_window);
-        app
+        let violations = find_brand_palette_violations(tmp.path());
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("from_gray(99)"));
     }
 
     #[test]
-    fn window_stays_hidden_before_three_frames() {
-        let mut app = app_with_reveal();
-        app.update(); // frame 1
-        app.update(); // frame 2
+    fn brand_palette_detects_unapproved_rgb() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("bad_rgb.rs"),
+            "let c = Color32::from_rgb(255, 0, 0);\n",
+        )
+        .expect("failed to write file");
 
-        let mut query = app
-            .world_mut()
-            .query_filtered::<&Window, With<PrimaryWindow>>();
-        let window = query.single(app.world()).expect("window should exist");
+        let violations = find_brand_palette_violations(tmp.path());
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("from_rgb(255, 0, 0)"));
+    }
+
+    #[test]
+    fn brand_palette_detects_unapproved_rgba() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("bad_rgba.rs"),
+            "let c = Color32::from_rgba_unmultiplied(255, 0, 0, 255);\n",
+        )
+        .expect("failed to write file");
+
+        let violations = find_brand_palette_violations(tmp.path());
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("from_rgba*(255, 0, 0, ...)"));
+    }
+
+    #[test]
+    fn brand_palette_detects_unapproved_named_constant() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(tmp.path().join("bad_named.rs"), "let c = Color32::RED;\n")
+            .expect("failed to write file");
+
+        let violations = find_brand_palette_violations(tmp.path());
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("Color32::RED"));
+    }
+
+    #[test]
+    fn brand_palette_allows_approved_colors() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("good_colors.rs"),
+            "let a = Color32::from_gray(25);\n\
+             let b = Color32::from_rgb(0, 92, 128);\n",
+        )
+        .expect("failed to write file");
+
+        let violations = find_brand_palette_violations(tmp.path());
         assert!(
-            !window.visible,
-            "Window should still be hidden after 2 frames"
+            violations.is_empty(),
+            "Approved colors should pass: {violations:?}"
         );
     }
 
     #[test]
-    fn window_becomes_visible_after_three_frames() {
-        let mut app = app_with_reveal();
-        app.update(); // frame 1
-        app.update(); // frame 2
-        app.update(); // frame 3
+    fn brand_palette_skips_test_files() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        // tests.rs should be exempt even with bad colors.
+        fs::write(tmp.path().join("tests.rs"), "let c = Color32::RED;\n")
+            .expect("failed to write file");
 
-        let mut query = app
-            .world_mut()
-            .query_filtered::<&Window, With<PrimaryWindow>>();
-        let window = query.single(app.world()).expect("window should exist");
-        assert!(window.visible, "Window should be visible after 3 frames");
+        let violations = find_brand_palette_violations(tmp.path());
+        assert!(
+            violations.is_empty(),
+            "tests.rs should be exempt: {violations:?}"
+        );
     }
 
     #[test]
-    fn reveal_window_is_idempotent_after_done() {
-        let mut app = app_with_reveal();
-        app.update(); // frame 1
-        app.update(); // frame 2
-        app.update(); // frame 3 — reveals
-        app.update(); // frame 4 — should be a no-op
+    fn brand_palette_skips_conversion_functions() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("conversions.rs"),
+            "fn bevy_color_to_egui(color: Color) -> Color32 {\n\
+             \x20   Color32::from_rgb(255, 0, 0)\n\
+             }\n",
+        )
+        .expect("failed to write file");
 
-        let mut query = app
-            .world_mut()
-            .query_filtered::<&Window, With<PrimaryWindow>>();
-        let window = query.single(app.world()).expect("window should exist");
+        let violations = find_brand_palette_violations(tmp.path());
         assert!(
-            window.visible,
-            "Window should still be visible after extra frame"
+            violations.is_empty(),
+            "Conversion functions should be exempt: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn brand_palette_skips_non_rs_files() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(
+            tmp.path().join("readme.md"),
+            "Color32::RED and from_gray(99)\n",
+        )
+        .expect("failed to write file");
+
+        let violations = find_brand_palette_violations(tmp.path());
+        assert!(
+            violations.is_empty(),
+            "Non-.rs files should be skipped: {violations:?}"
         );
     }
 }

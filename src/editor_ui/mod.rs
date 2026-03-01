@@ -23,7 +23,13 @@ use hexorder_contracts::shortcuts::{
 use hexorder_contracts::undo_redo::{DeleteUnitCommand, UndoStack};
 use hexorder_contracts::validation::SchemaValidation;
 
+mod actions;
 mod components;
+mod render_design;
+mod render_ontology;
+mod render_panels;
+mod render_play;
+mod render_rules;
 mod systems;
 
 #[cfg(test)]

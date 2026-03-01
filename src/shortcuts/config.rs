@@ -690,9 +690,9 @@ mod tests {
     #[test]
     fn apply_overrides_empty_bindings_section() {
         let mut registry = test_registry();
-        let toml = r#"
+        let toml = r"
 [bindings]
-"#;
+";
         let applied = apply_overrides_from_str(&mut registry, toml);
         assert_eq!(applied, 0);
     }

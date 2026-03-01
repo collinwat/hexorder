@@ -439,7 +439,7 @@ fn camera_plugin_continuous_commands_are_marked() {
             .iter()
             .find(|c| c.id.0 == *id)
             .expect(id);
-        assert!(!cmd.continuous, "{} should be discrete", id);
+        assert!(!cmd.continuous, "{id} should be discrete");
     }
 }
 
@@ -1174,7 +1174,7 @@ fn camera_unknown_command_noop() {
 
 use bevy::window::PrimaryWindow;
 
-/// Helper: build a test app with a spawned PrimaryWindow entity.
+/// Helper: build a test app with a spawned `PrimaryWindow` entity.
 fn test_app_with_window() -> App {
     let mut app = test_app();
     app.world_mut().spawn((
@@ -1486,7 +1486,7 @@ fn smooth_camera_y_stays_fixed() {
 /// `CameraPlugin::build` wires up all systems, resources, and shortcuts.
 ///
 /// Note: We avoid calling `app.update()` because the run conditions
-/// reference `EguiWantsInput` (from bevy_egui) which requires the egui
+/// reference `EguiWantsInput` (from `bevy_egui`) which requires the egui
 /// plugin and rendering pipeline. We verify that `build()` itself
 /// completes and initializes the expected resources.
 #[test]

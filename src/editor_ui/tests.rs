@@ -3378,6 +3378,432 @@ fn apply_actions_generate_map_inserts_resource() {
 }
 
 // ===========================================================================
+// Coverage: actions.rs — remaining branch coverage
+// ===========================================================================
+
+#[test]
+fn apply_actions_apply_template_delegates_to_scaffold() {
+    use hexorder_contracts::game_system::EntityTypeRegistry;
+    use hexorder_contracts::mechanic_reference::{MechanicCatalog, ScaffoldAction, ScaffoldRecipe};
+
+    let mut app = actions_app(vec![super::components::EditorAction::ApplyTemplate {
+        template_id: "test_tpl".to_string(),
+    }]);
+    // Insert a catalog with a matching template before re-running.
+    app.world_mut()
+        .resource_mut::<MechanicCatalog>()
+        .templates
+        .push(ScaffoldRecipe {
+            template_id: "test_tpl".to_string(),
+            description: "test".to_string(),
+            actions: vec![ScaffoldAction::CreateEntityType {
+                name: "Riflemen".to_string(),
+                role: "Token".to_string(),
+                color: [1.0, 0.0, 0.0],
+            }],
+        });
+    // First update already ran with empty catalog, re-enqueue the action.
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::ApplyTemplate {
+            template_id: "test_tpl".to_string(),
+        },
+    );
+    app.update();
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    assert!(
+        registry.types.iter().any(|et| et.name == "Riflemen"),
+        "ApplyTemplate should create entity type via scaffold"
+    );
+}
+
+#[test]
+fn apply_actions_add_property_entity_ref_board_position() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = actions_app(vec![]);
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .push(EntityType {
+            id: type_id,
+            name: "Tile".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::WHITE,
+            properties: vec![],
+        });
+    {
+        let mut state = app.world_mut().resource_mut::<EditorState>();
+        state.new_prop_name = "home_base".to_string();
+        state.new_prop_type_index = 6; // EntityRef
+        state.new_prop_entity_ref_role = 1; // BoardPosition
+    }
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "home_base".to_string(),
+            prop_type: PropertyType::EntityRef(None),
+            enum_options: String::new(),
+        },
+    );
+    app.update();
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = reg.types.iter().find(|et| et.id == type_id).unwrap();
+    assert!(matches!(
+        et.properties[0].property_type,
+        PropertyType::EntityRef(Some(EntityRole::BoardPosition))
+    ));
+}
+
+#[test]
+fn apply_actions_add_property_entity_ref_none() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    let type_id = TypeId::new();
+    let mut app = actions_app(vec![]);
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .push(EntityType {
+            id: type_id,
+            name: "Tile".to_string(),
+            role: EntityRole::BoardPosition,
+            color: Color::WHITE,
+            properties: vec![],
+        });
+    {
+        let mut state = app.world_mut().resource_mut::<EditorState>();
+        state.new_prop_name = "ref_none".to_string();
+        state.new_prop_type_index = 6;
+        state.new_prop_entity_ref_role = 0; // None
+    }
+    app.world_mut().resource_mut::<TestActions>().0.push(
+        super::components::EditorAction::AddProperty {
+            type_id,
+            name: "ref_none".to_string(),
+            prop_type: PropertyType::EntityRef(None),
+            enum_options: String::new(),
+        },
+    );
+    app.update();
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    let et = reg.types.iter().find(|et| et.id == type_id).unwrap();
+    assert!(matches!(
+        et.properties[0].property_type,
+        PropertyType::EntityRef(None)
+    ));
+}
+
+#[test]
+fn apply_actions_add_property_list_inner_types() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    // Test inner type indices 0 (Bool), 1 (Int), 3 (String), 4 (Color)
+    for (inner_idx, expected_name) in [(0usize, "Bool"), (1, "Int"), (3, "String"), (4, "Color")] {
+        let type_id = TypeId::new();
+        let mut app = actions_app(vec![]);
+        app.world_mut()
+            .resource_mut::<EntityTypeRegistry>()
+            .types
+            .push(EntityType {
+                id: type_id,
+                name: "T".to_string(),
+                role: EntityRole::BoardPosition,
+                color: Color::WHITE,
+                properties: vec![],
+            });
+        {
+            let mut state = app.world_mut().resource_mut::<EditorState>();
+            state.new_prop_name = format!("list_{expected_name}");
+            state.new_prop_type_index = 8; // List
+            state.new_prop_list_inner_type = inner_idx;
+        }
+        app.world_mut().resource_mut::<TestActions>().0.push(
+            super::components::EditorAction::AddProperty {
+                type_id,
+                name: format!("list_{expected_name}"),
+                prop_type: PropertyType::List(Box::new(PropertyType::Bool)),
+                enum_options: String::new(),
+            },
+        );
+        app.update();
+        let reg = app.world().resource::<EntityTypeRegistry>();
+        let et = reg.types.iter().find(|et| et.id == type_id).unwrap();
+        let PropertyType::List(inner) = &et.properties[0].property_type else {
+            panic!("Expected List type for inner_idx={inner_idx}");
+        };
+        let actual = super::systems::format_property_type(inner);
+        assert_eq!(actual, expected_name, "inner_idx={inner_idx}");
+    }
+}
+
+#[test]
+fn apply_actions_add_property_map_value_types() {
+    use hexorder_contracts::game_system::{
+        EntityRole, EntityType, EntityTypeRegistry, PropertyType, TypeId,
+    };
+
+    // Test value type indices 0 (Bool), 2 (Float), 3 (String), 4 (Color)
+    for (val_idx, expected_name) in [(0usize, "Bool"), (2, "Float"), (3, "String"), (4, "Color")] {
+        let type_id = TypeId::new();
+        let mut app = actions_app(vec![]);
+        app.world_mut()
+            .resource_mut::<EntityTypeRegistry>()
+            .types
+            .push(EntityType {
+                id: type_id,
+                name: "T".to_string(),
+                role: EntityRole::BoardPosition,
+                color: Color::WHITE,
+                properties: vec![],
+            });
+        {
+            let mut state = app.world_mut().resource_mut::<EditorState>();
+            state.new_prop_name = format!("map_{expected_name}");
+            state.new_prop_type_index = 9; // Map
+            state.new_prop_map_value_type = val_idx;
+        }
+        app.world_mut().resource_mut::<TestActions>().0.push(
+            super::components::EditorAction::AddProperty {
+                type_id,
+                name: format!("map_{expected_name}"),
+                prop_type: PropertyType::Map(TypeId::default(), Box::new(PropertyType::Bool)),
+                enum_options: String::new(),
+            },
+        );
+        app.update();
+        let reg = app.world().resource::<EntityTypeRegistry>();
+        let et = reg.types.iter().find(|et| et.id == type_id).unwrap();
+        let PropertyType::Map(_, val_type) = &et.properties[0].property_type else {
+            panic!("Expected Map type for val_idx={val_idx}");
+        };
+        let actual = super::systems::format_property_type(val_type);
+        assert_eq!(actual, expected_name, "val_idx={val_idx}");
+    }
+}
+
+#[test]
+fn apply_scaffold_adds_differential_column() {
+    use hexorder_contracts::mechanic_reference::ScaffoldAction;
+    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = hexorder_contracts::mechanic_reference::ScaffoldRecipe {
+        template_id: "diff_test".to_string(),
+        description: String::new(),
+        actions: vec![ScaffoldAction::AddCrtColumn {
+            label: "-2".to_string(),
+            column_type: "Differential".to_string(),
+            threshold: -2.0,
+        }],
+    };
+    super::actions::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+    assert_eq!(crt.columns.len(), 1);
+    assert!(matches!(
+        crt.columns[0].column_type,
+        CrtColumnType::Differential
+    ));
+}
+
+#[test]
+fn apply_scaffold_adds_attacker_terrain_and_custom_modifiers() {
+    use hexorder_contracts::mechanic_reference::ScaffoldAction;
+    use hexorder_contracts::mechanics::{CombatModifierRegistry, ModifierSource};
+
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = hexorder_contracts::mechanic_reference::ScaffoldRecipe {
+        template_id: "mod_test".to_string(),
+        description: String::new(),
+        actions: vec![
+            ScaffoldAction::AddCombatModifier {
+                name: "AtkTerr".to_string(),
+                source: "AttackerTerrain".to_string(),
+                shift: 1,
+                priority: 1,
+            },
+            ScaffoldAction::AddCombatModifier {
+                name: "Weather".to_string(),
+                source: "WeatherEffect".to_string(),
+                shift: -1,
+                priority: 2,
+            },
+        ],
+    };
+    super::actions::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+    assert_eq!(modifiers.modifiers.len(), 2);
+    assert!(matches!(
+        modifiers.modifiers[0].source,
+        ModifierSource::AttackerTerrain
+    ));
+    assert!(matches!(
+        modifiers.modifiers[1].source,
+        ModifierSource::Custom(ref s) if s == "WeatherEffect"
+    ));
+}
+
+#[test]
+fn apply_scaffold_adds_admin_phase() {
+    use hexorder_contracts::mechanic_reference::ScaffoldAction;
+    use hexorder_contracts::mechanics::{PhaseType, TurnStructure};
+
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut crt = CombatResultsTable::default();
+    let mut modifiers = CombatModifierRegistry::default();
+
+    let recipe = hexorder_contracts::mechanic_reference::ScaffoldRecipe {
+        template_id: "phase_test".to_string(),
+        description: String::new(),
+        actions: vec![ScaffoldAction::AddPhase {
+            name: "Cleanup".to_string(),
+            phase_type: "Admin".to_string(),
+        }],
+    };
+    super::actions::apply_scaffold_recipe(
+        &recipe,
+        &mut registry,
+        &mut enum_registry,
+        &mut turn_structure,
+        &mut crt,
+        &mut modifiers,
+    );
+    assert_eq!(turn_structure.phases.len(), 1);
+    assert!(matches!(
+        turn_structure.phases[0].phase_type,
+        PhaseType::Admin
+    ));
+}
+
+#[test]
+fn parse_scaffold_prop_type_unknown_falls_back_to_string() {
+    use hexorder_contracts::game_system::PropertyType;
+
+    let enum_registry = EnumRegistry::default();
+    let result = super::actions::parse_scaffold_prop_type("SomethingUnknown", &enum_registry);
+    assert!(
+        matches!(result, PropertyType::String),
+        "Unknown type should fallback to String"
+    );
+}
+
+#[test]
+fn apply_actions_move_phase_up_at_top_is_noop() {
+    use hexorder_contracts::mechanics::TurnStructure;
+
+    let mut app = actions_app(vec![
+        super::components::EditorAction::AddPhase {
+            name: "Move".to_string(),
+            phase_type: PhaseType::Movement,
+        },
+        super::components::EditorAction::AddPhase {
+            name: "Fight".to_string(),
+            phase_type: PhaseType::Combat,
+        },
+    ]);
+    let ts = app.world().resource::<TurnStructure>();
+    let first_id = ts.phases[0].id;
+    // Try to move the first phase up — should be a no-op.
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::MovePhaseUp { id: first_id });
+    app.update();
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.phases[0].id, first_id, "First phase should stay first");
+}
+
+#[test]
+fn apply_actions_move_phase_down_at_bottom_is_noop() {
+    use hexorder_contracts::mechanics::TurnStructure;
+
+    let mut app = actions_app(vec![
+        super::components::EditorAction::AddPhase {
+            name: "Move".to_string(),
+            phase_type: PhaseType::Movement,
+        },
+        super::components::EditorAction::AddPhase {
+            name: "Fight".to_string(),
+            phase_type: PhaseType::Combat,
+        },
+    ]);
+    let ts = app.world().resource::<TurnStructure>();
+    let last_id = ts.phases[1].id;
+    // Try to move the last phase down — should be a no-op.
+    app.world_mut()
+        .resource_mut::<TestActions>()
+        .0
+        .push(super::components::EditorAction::MovePhaseDown { id: last_id });
+    app.update();
+    let ts = app.world().resource::<TurnStructure>();
+    assert_eq!(ts.phases[1].id, last_id, "Last phase should stay last");
+}
+
+#[test]
+fn apply_actions_delete_entity_type_nonexistent_is_noop() {
+    use hexorder_contracts::game_system::{EntityTypeRegistry, TypeId};
+
+    let fake_id = TypeId::new();
+    let app = actions_app(vec![super::components::EditorAction::DeleteEntityType {
+        id: fake_id,
+    }]);
+    let reg = app.world().resource::<EntityTypeRegistry>();
+    assert!(reg.types.is_empty(), "Registry should remain empty");
+}
+
+#[test]
+fn apply_actions_remove_crt_column_out_of_bounds_is_noop() {
+    use hexorder_contracts::mechanics::CombatResultsTable;
+
+    let app = actions_app(vec![super::components::EditorAction::RemoveCrtColumn {
+        index: 999,
+    }]);
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert!(crt.columns.is_empty(), "CRT should be unchanged");
+}
+
+#[test]
+fn apply_actions_remove_crt_row_out_of_bounds_is_noop() {
+    use hexorder_contracts::mechanics::CombatResultsTable;
+
+    let app = actions_app(vec![super::components::EditorAction::RemoveCrtRow {
+        index: 999,
+    }]);
+    let crt = app.world().resource::<CombatResultsTable>();
+    assert!(crt.rows.is_empty(), "CRT should be unchanged");
+}
+
+// ===========================================================================
 // Coverage: EditorUiPlugin::build() — plugin registration wiring
 // ===========================================================================
 
@@ -3385,7 +3811,7 @@ fn apply_actions_generate_map_inserts_resource() {
 /// resource insertion and system registration wiring in `build()`.
 ///
 /// `EguiPlugin` gracefully skips render-pipeline setup when `RenderApp` is
-/// absent, so MinimalPlugins + AssetPlugin is sufficient.
+/// absent, so `MinimalPlugins` + `AssetPlugin` is sufficient.
 #[test]
 fn editor_ui_plugin_builds_without_panic() {
     use hexorder_contracts::shortcuts::ShortcutRegistry;

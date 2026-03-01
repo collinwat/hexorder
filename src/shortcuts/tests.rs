@@ -449,7 +449,7 @@ fn render_palette_row_no_bindings() {
 // ---------------------------------------------------------------------------
 
 /// Test the command palette rendering logic extracted into a Harness.
-/// Since command_palette_system is a Bevy system that needs EguiContexts,
+/// Since `command_palette_system` is a Bevy system that needs `EguiContexts`,
 /// we test its rendering paths by calling the sub-functions and inline
 /// logic directly.
 #[test]
@@ -885,7 +885,7 @@ fn capture_command(trigger: On<CommandExecutedEvent>, mut cmds: Commands) {
     cmds.insert_resource(LastFiredCommand(trigger.event().command_id.clone()));
 }
 
-/// Build a minimal app with match_shortcuts system.
+/// Build a minimal app with `match_shortcuts` system.
 fn shortcut_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

@@ -1657,7 +1657,7 @@ fn update_indicators_paint_mode_no_preview_uses_default() {
 
 use bevy::window::PrimaryWindow;
 
-/// `update_hover` returns early when no PrimaryWindow entity exists.
+/// `update_hover` returns early when no `PrimaryWindow` entity exists.
 #[test]
 fn update_hover_noop_without_window() {
     let mut app = test_app();
@@ -1771,7 +1771,7 @@ fn update_hover_clears_when_no_cursor() {
     );
 }
 
-/// `update_hover` clears hovered when screen_to_ground fails
+/// `update_hover` clears hovered when `screen_to_ground` fails
 /// (camera has no computed viewport in headless mode).
 #[test]
 fn update_hover_clears_when_screen_to_ground_fails() {
@@ -1854,7 +1854,7 @@ fn los_ray_draws_line_segments_when_clear() {
     app.update(); // Update — should compute LOS and call gizmos.line
 }
 
-/// Covers the `unit_pos == hover_pos` early return in draw_los_ray.
+/// Covers the `unit_pos == hover_pos` early return in `draw_los_ray`.
 #[test]
 fn los_ray_early_return_when_same_position() {
     let mut app = test_app();
@@ -1933,7 +1933,7 @@ fn sync_multi_select_skips_existing_indicators() {
 }
 
 /// Covers the `tile_positions.get(tile_entity)` else continue branch
-/// where a selected entity doesn't have a HexPosition.
+/// where a selected entity doesn't have a `HexPosition`.
 #[test]
 fn sync_multi_select_skips_entity_without_position() {
     let mut app = test_app_with_indicators();
@@ -1964,7 +1964,7 @@ fn sync_multi_select_skips_entity_without_position() {
 // ---------------------------------------------------------------------------
 
 /// Covers the implicit else path in `update_indicators` when
-/// no HoverIndicator or SelectIndicator entities exist.
+/// no `HoverIndicator` or `SelectIndicator` entities exist.
 #[test]
 fn update_indicators_handles_missing_indicator_entities() {
     let mut app = test_app();

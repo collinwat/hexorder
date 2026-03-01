@@ -160,7 +160,7 @@ run = "cargo doc --no-deps --quiet"
 description = "Measure test coverage (advisory — 40% minimum)"
 run = """
 echo "Measuring test coverage with cargo-llvm-cov..."
-output=$(cargo llvm-cov --features dev --summary-only 2>&1)
+output=$(cargo llvm-cov --workspace --features dev --summary-only 2>&1)
 echo "$output"
 total_line=$(echo "$output" | grep '^TOTAL')
 if [ -z "$total_line" ]; then

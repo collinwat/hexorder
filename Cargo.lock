@@ -3582,6 +3582,7 @@ dependencies = [
  "ron",
  "serde",
  "sublime_fuzzy",
+ "tempfile",
  "toml",
  "uuid",
 ]
