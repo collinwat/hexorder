@@ -7,6 +7,7 @@
 //! states are handled correctly.
 
 use bevy::prelude::*;
+use bevy_egui::egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -9157,7 +9158,6 @@ fn structs_tab_remove_field_click() {
 
 /// Helper: find a `ComboBox` by its current value and click it open.
 fn click_combobox_by_value<State>(harness: &mut egui_kittest::Harness<'_, State>, value: &str) {
-    use bevy_egui::egui::accesskit::Role;
     let cb = harness.get_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some(value));
     cb.click();
     harness.run();
@@ -9209,7 +9209,6 @@ fn relation_form_concept_dropdown() {
 /// Relation form: open Subject role `ComboBox` dropdown.
 #[test]
 fn relation_form_subject_dropdown() {
-    use bevy_egui::egui::accesskit::Role;
     let mut harness = relation_form_harness();
     // Two ComboBoxes share value "traveler" (subject + object).
     let cbs: Vec<_> = harness
@@ -9395,7 +9394,6 @@ fn concepts_binding_harness() -> egui_kittest::Harness<
 /// Concepts tab: open entity type binding `ComboBox` dropdown.
 #[test]
 fn concepts_binding_entity_type_dropdown() {
-    use bevy_egui::egui::accesskit::Role;
     let mut harness = concepts_binding_harness();
     // Two "(select)" ComboBoxes — click the first (entity type).
     let cbs: Vec<_> = harness
@@ -9409,7 +9407,6 @@ fn concepts_binding_entity_type_dropdown() {
 /// Concepts tab: open concept role binding `ComboBox` dropdown.
 #[test]
 fn concepts_binding_concept_role_dropdown() {
-    use bevy_egui::egui::accesskit::Role;
     let mut harness = concepts_binding_harness();
     // Two "(select)" ComboBoxes — click the second (concept role).
     let cbs: Vec<_> = harness
@@ -9709,4 +9706,437 @@ fn struct_field_type_combobox_dropdown() {
     click_combobox_by_value(&mut harness, "Bool");
     harness.get_by_label("Float");
     harness.get_by_label("Color");
+}
+
+// ---------------------------------------------------------------------------
+// Batch 10 — render_rules button click and form submission coverage
+// ---------------------------------------------------------------------------
+
+/// Helper: build a mechanics tab harness for interaction tests.
+fn mechanics_harness(
+    ts: TurnStructure,
+    crt: CombatResultsTable,
+    mods: CombatModifierRegistry,
+    state: EditorState,
+) -> egui_kittest::Harness<
+    'static,
+    (
+        EditorState,
+        TurnStructure,
+        CombatResultsTable,
+        CombatModifierRegistry,
+        Vec<EditorAction>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 2000.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                EditorState,
+                TurnStructure,
+                CombatResultsTable,
+                CombatModifierRegistry,
+                Vec<EditorAction>,
+            )| {
+                render_rules::render_mechanics_tab(ui, &s.1, &s.2, &s.3, &mut s.0, &mut s.4);
+            },
+            (state, ts, crt, mods, vec![]),
+        );
+    h.run();
+    h
+}
+
+/// Click "Simultaneous" player order and verify action is emitted.
+#[test]
+fn mechanics_player_order_simultaneous_click() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    harness.get_by_label("Simultaneous").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(actions.iter().any(|a| matches!(
+        a,
+        EditorAction::SetPlayerOrder {
+            order: PlayerOrder::Simultaneous
+        }
+    )));
+}
+
+/// Click "Activation" player order and verify action is emitted.
+#[test]
+fn mechanics_player_order_activation_click() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    harness.get_by_label("Activation").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(actions.iter().any(|a| matches!(
+        a,
+        EditorAction::SetPlayerOrder {
+            order: PlayerOrder::ActivationBased
+        }
+    )));
+}
+
+/// Click "x" on a phase to remove it.
+#[test]
+fn mechanics_phase_remove_click() {
+    let ts = test_turn_structure();
+    let phase_id = ts.phases[0].id;
+    let mut harness = mechanics_harness(
+        ts,
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    // Multiple "x" buttons exist. Find the first small one near phase area.
+    // The phases render "x" buttons — click the first one.
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("x"))
+        .collect();
+    assert!(!btns.is_empty(), "no x buttons found");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemovePhase { id } if *id == phase_id))
+    );
+}
+
+/// Click up arrow on second phase to move it up.
+#[test]
+fn mechanics_phase_move_up_click() {
+    let ts = test_turn_structure();
+    let combat_id = ts.phases[1].id;
+    let mut harness = mechanics_harness(
+        ts,
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    // Find up-arrow buttons (Unicode ↑ = \u{2191})
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("\u{2191}"))
+        .collect();
+    assert!(!btns.is_empty(), "no up-arrow buttons found");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::MovePhaseUp { id } if *id == combat_id))
+    );
+}
+
+/// Click down arrow on first phase to move it down.
+#[test]
+fn mechanics_phase_move_down_click() {
+    let ts = test_turn_structure();
+    let movement_id = ts.phases[0].id;
+    let mut harness = mechanics_harness(
+        ts,
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    // Find down-arrow buttons (Unicode ↓ = \u{2193})
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("\u{2193}"))
+        .collect();
+    assert!(!btns.is_empty(), "no down-arrow buttons found");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::MovePhaseDown { id } if *id == movement_id))
+    );
+}
+
+/// Click "Add Phase" button with Combat type to cover `PhaseType::Combat` branch.
+#[test]
+fn mechanics_add_phase_combat_type() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_phase_name: "Assault".to_string(),
+            new_phase_type_index: 1,
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Phase").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(actions.iter().any(|a| matches!(
+        a,
+        EditorAction::AddPhase {
+            phase_type: PhaseType::Combat,
+            ..
+        }
+    )));
+}
+
+/// Click "Add Phase" button with Admin type to cover `PhaseType::Admin` branch.
+#[test]
+fn mechanics_add_phase_admin_type() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_phase_name: "Cleanup".to_string(),
+            new_phase_type_index: 2,
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Phase").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(actions.iter().any(|a| matches!(
+        a,
+        EditorAction::AddPhase {
+            phase_type: PhaseType::Admin,
+            ..
+        }
+    )));
+}
+
+/// Click "Add Col" with Differential type to cover that branch.
+#[test]
+fn mechanics_add_crt_col_differential() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_crt_col_label: "D+1".to_string(),
+            new_crt_col_threshold: "1.0".to_string(),
+            new_crt_col_type_index: 1,
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Col").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtColumn { .. }))
+    );
+}
+
+/// Click "x" on a CRT column to remove it.
+#[test]
+fn mechanics_remove_crt_column_click() {
+    let mut harness = mechanics_harness(
+        TurnStructure {
+            player_order: PlayerOrder::Alternating,
+            phases: vec![],
+        },
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    // With no phases, the first "x" buttons belong to CRT columns
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("x"))
+        .collect();
+    assert!(!btns.is_empty(), "no x buttons found");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveCrtColumn { .. }))
+    );
+}
+
+/// Click "x" on a CRT row to remove it.
+#[test]
+fn mechanics_remove_crt_row_click() {
+    let mut harness = mechanics_harness(
+        TurnStructure {
+            player_order: PlayerOrder::Alternating,
+            phases: vec![],
+        },
+        CombatResultsTable {
+            id: TypeId::new(),
+            name: "Test CRT".to_string(),
+            columns: vec![],
+            rows: vec![hexorder_contracts::mechanics::CrtRow {
+                label: "1".to_string(),
+                die_value_min: 1,
+                die_value_max: 2,
+            }],
+            outcomes: vec![],
+            combat_concept_id: None,
+        },
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("x"))
+        .collect();
+    assert!(!btns.is_empty(), "no x buttons found for row");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveCrtRow { .. }))
+    );
+}
+
+/// Click "Add Row" button to cover row creation logic.
+#[test]
+fn mechanics_add_crt_row() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_crt_row_label: "3".to_string(),
+            new_crt_row_die_min: "5".to_string(),
+            new_crt_row_die_max: "6".to_string(),
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Row").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCrtRow { .. }))
+    );
+}
+
+/// Click "x" on a combat modifier to remove it.
+#[test]
+fn mechanics_remove_modifier_click() {
+    let mods = test_modifiers();
+    let mod_id = mods.modifiers[0].id;
+    let mut harness = mechanics_harness(
+        TurnStructure {
+            player_order: PlayerOrder::Alternating,
+            phases: vec![],
+        },
+        CombatResultsTable {
+            id: TypeId::new(),
+            name: "CRT".to_string(),
+            columns: vec![],
+            rows: vec![],
+            outcomes: vec![],
+            combat_concept_id: None,
+        },
+        mods,
+        EditorState::default(),
+    );
+
+    let btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("x"))
+        .collect();
+    assert!(!btns.is_empty(), "no x buttons found for modifiers");
+    btns[0].click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::RemoveCombatModifier { id } if *id == mod_id))
+    );
+}
+
+/// Click "Add Modifier" with default source (`DefenderTerrain`).
+#[test]
+fn mechanics_add_modifier_defender_terrain() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_modifier_name: "River Crossing".to_string(),
+            new_modifier_source_index: 0,
+            new_modifier_shift: -2,
+            new_modifier_priority: 5,
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Modifier").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCombatModifier { .. }))
+    );
+}
+
+/// Click "Add Modifier" with `AttackerTerrain` source.
+#[test]
+fn mechanics_add_modifier_attacker_terrain() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_modifier_name: "Open Ground".to_string(),
+            new_modifier_source_index: 1,
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Modifier").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCombatModifier { .. }))
+    );
+}
+
+/// Click "Add Modifier" with Custom source.
+#[test]
+fn mechanics_add_modifier_custom_source() {
+    let mut harness = mechanics_harness(
+        test_turn_structure(),
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState {
+            new_modifier_name: "Weather".to_string(),
+            new_modifier_source_index: 2,
+            new_modifier_custom_source: "storm".to_string(),
+            ..EditorState::default()
+        },
+    );
+    harness.get_by_label("Add Modifier").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::AddCombatModifier { .. }))
+    );
 }
