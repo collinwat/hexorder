@@ -6,6 +6,8 @@
 //! buttons produce the correct `EditorAction`s, and that disabled
 //! states are handled correctly.
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use bevy_egui::egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -10139,4 +10141,499 @@ fn mechanics_add_modifier_custom_source() {
             .iter()
             .any(|a| matches!(a, EditorAction::AddCombatModifier { .. }))
     );
+}
+
+// ---------------------------------------------------------------------------
+// Batch 11 — Inspector property editors & remaining mechanics
+// ---------------------------------------------------------------------------
+
+/// Create an entity type registry with diverse property types for inspector tests.
+fn inspector_entity_registry() -> (EntityTypeRegistry, EnumRegistry, StructRegistry) {
+    let enum_id = TypeId::new();
+    let struct_id = TypeId::new();
+    let board_type_id = TypeId::new();
+    let token_type_id = TypeId::new();
+
+    let registry = EntityTypeRegistry {
+        types: vec![
+            EntityType {
+                id: board_type_id,
+                name: "Plains".to_string(),
+                role: EntityRole::BoardPosition,
+                color: Color::srgb(0.4, 0.6, 0.2),
+                properties: vec![
+                    PropertyDefinition {
+                        id: TypeId::new(),
+                        name: "terrain".to_string(),
+                        property_type: PropertyType::Enum(enum_id),
+                        default_value: PropertyValue::Enum("Open".to_string()),
+                    },
+                    PropertyDefinition {
+                        id: TypeId::new(),
+                        name: "owner".to_string(),
+                        property_type: PropertyType::EntityRef(Some(EntityRole::Token)),
+                        default_value: PropertyValue::EntityRef(None),
+                    },
+                    PropertyDefinition {
+                        id: TypeId::new(),
+                        name: "tags".to_string(),
+                        property_type: PropertyType::List(Box::new(PropertyType::Int)),
+                        default_value: PropertyValue::List(vec![PropertyValue::Int(1)]),
+                    },
+                    PropertyDefinition {
+                        id: TypeId::new(),
+                        name: "costs".to_string(),
+                        property_type: PropertyType::Map(enum_id, Box::new(PropertyType::Int)),
+                        default_value: PropertyValue::Map(vec![]),
+                    },
+                    PropertyDefinition {
+                        id: TypeId::new(),
+                        name: "coords".to_string(),
+                        property_type: PropertyType::Struct(struct_id),
+                        default_value: PropertyValue::Struct(HashMap::new()),
+                    },
+                ],
+            },
+            EntityType {
+                id: token_type_id,
+                name: "Infantry".to_string(),
+                role: EntityRole::Token,
+                color: Color::srgb(0.2, 0.2, 0.8),
+                properties: vec![],
+            },
+        ],
+    };
+
+    let mut enum_registry = EnumRegistry::default();
+    enum_registry.definitions.insert(
+        enum_id,
+        EnumDefinition {
+            id: enum_id,
+            name: "Terrain".to_string(),
+            options: vec!["Open".to_string(), "Rough".to_string(), "Dense".to_string()],
+        },
+    );
+
+    let mut struct_registry = StructRegistry::default();
+    struct_registry.definitions.insert(
+        struct_id,
+        StructDefinition {
+            id: struct_id,
+            name: "Coords".to_string(),
+            fields: vec![
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "x".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+                PropertyDefinition {
+                    id: TypeId::new(),
+                    name: "y".to_string(),
+                    property_type: PropertyType::Int,
+                    default_value: PropertyValue::Int(0),
+                },
+            ],
+        },
+    );
+
+    (registry, enum_registry, struct_registry)
+}
+
+/// Build `EntityData` pre-populated with each property's `default_value` from the registry.
+fn entity_data_from_registry(registry: &EntityTypeRegistry, type_index: usize) -> EntityData {
+    let et = &registry.types[type_index];
+    let mut properties = std::collections::HashMap::new();
+    for prop in &et.properties {
+        properties.insert(prop.id, prop.default_value.clone());
+    }
+    EntityData {
+        entity_type_id: et.id,
+        properties,
+    }
+}
+
+/// Build a harness that renders `render_inspector` with an entity having diverse properties.
+#[allow(clippy::type_complexity)]
+fn inspector_harness(
+    registry: EntityTypeRegistry,
+    enum_registry: EnumRegistry,
+    struct_registry: StructRegistry,
+    entity_data: Option<EntityData>,
+    position: Option<HexPosition>,
+) -> Harness<
+    'static,
+    (
+        Option<EntityData>,
+        EntityTypeRegistry,
+        EnumRegistry,
+        StructRegistry,
+        Option<HexPosition>,
+    ),
+> {
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 3000.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                Option<EntityData>,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Option<HexPosition>,
+            )| {
+                render_rules::render_inspector(ui, s.4, s.0.as_mut(), &s.1, &s.2, &s.3);
+            },
+            (
+                entity_data,
+                registry,
+                enum_registry,
+                struct_registry,
+                position,
+            ),
+        );
+    h.run();
+    h
+}
+
+/// Click "Alternating" player order when starting from Simultaneous.
+#[test]
+fn mechanics_player_order_alternating_click() {
+    let mut ts = test_turn_structure();
+    ts.player_order = PlayerOrder::Simultaneous;
+    let mut harness = mechanics_harness(
+        ts,
+        test_crt(),
+        CombatModifierRegistry::default(),
+        EditorState::default(),
+    );
+    harness.get_by_label("Alternating").click();
+    harness.run();
+    let actions = &harness.state().4;
+    assert!(actions.iter().any(|a| matches!(
+        a,
+        EditorAction::SetPlayerOrder {
+            order: PlayerOrder::Alternating
+        }
+    )));
+}
+
+/// Render inspector (diverse props) with no tile selected — shows message.
+#[test]
+fn inspector_diverse_no_tile_selected() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let harness = inspector_harness(reg, enums, structs, None, None);
+    harness.get_by_label("No tile selected");
+}
+
+/// Render inspector with position but no entity data — shows "No cell data".
+#[test]
+fn inspector_diverse_no_cell_data() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let harness = inspector_harness(reg, enums, structs, None, Some(HexPosition { q: 1, r: 2 }));
+    harness.get_by_label("No cell data");
+}
+
+/// Render inspector with entity having diverse property types — covers render path.
+#[test]
+fn inspector_diverse_properties_render() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    harness.get_by_label("terrain:");
+}
+
+/// Open Enum property `ComboBox` dropdown in inspector — covers lines 689-692.
+#[test]
+fn inspector_enum_combobox_dropdown() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Find the Enum ComboBox showing "Open" (default value) and click it
+    click_combobox_by_value(&mut harness, "Open");
+    // The dropdown should now show the enum options
+    let rough = harness.query_by_label("Rough");
+    assert!(rough.is_some(), "Enum dropdown should show 'Rough' option");
+}
+
+/// Open `EntityRef` property `ComboBox` dropdown — covers lines 713-724.
+#[test]
+fn inspector_entity_ref_combobox_dropdown() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // EntityRef ComboBox shows "(none)" by default
+    click_combobox_by_value(&mut harness, "(none)");
+    // The dropdown should show Infantry (token type matching the filter)
+    let infantry = harness.query_by_label("Infantry");
+    assert!(
+        infantry.is_some(),
+        "EntityRef dropdown should show 'Infantry' option"
+    );
+}
+
+/// Render inspector with List property — click `CollapsingHeader` to expand list.
+/// Covers List rendering path (lines 740-770).
+#[test]
+fn inspector_list_property_renders() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Click the "List (1)" collapsing header to expand it
+    harness.get_by_label("List (1)").click();
+    harness.run();
+    // Should see the [0] label and the "+ Add" button
+    let idx_label = harness.query_by_label("[0]");
+    assert!(idx_label.is_some(), "List should show [0] index label");
+    let add_btn = harness.query_by_label("+ Add");
+    assert!(add_btn.is_some(), "List should show '+ Add' button");
+}
+
+/// Click "+ Add" in List property to add an item — covers line 768.
+#[test]
+fn inspector_list_add_item() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Expand the list
+    harness.get_by_label("List (1)").click();
+    harness.run();
+    // Click "+ Add"
+    harness.get_by_label("+ Add").click();
+    harness.run();
+    // After add, the list label should change to "List (2)"
+    let expanded = harness.query_by_label("List (2)");
+    assert!(expanded.is_some(), "List should grow to 2 items after add");
+}
+
+/// Click "x" in List property to remove an item — covers lines 757, 762.
+#[test]
+fn inspector_list_remove_item() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Expand the list
+    harness.get_by_label("List (1)").click();
+    harness.run();
+    // Click "x" to remove item [0]
+    let x_btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("x"))
+        .collect();
+    // Find the "x" button inside the list (may be multiple "x" buttons in UI)
+    x_btns.last().expect("should have 'x' button").click();
+    harness.run();
+    // After remove, the list label should change to "List (0)"
+    let shrunk = harness.query_by_label("List (0)");
+    assert!(
+        shrunk.is_some(),
+        "List should shrink to 0 items after remove"
+    );
+}
+
+/// Render Map property — expand `CollapsingHeader` to see entries.
+/// Covers Map rendering path (lines 790-825).
+#[test]
+fn inspector_map_property_renders() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Click the "Map (0)" collapsing header to expand it
+    harness.get_by_label("Map (0)").click();
+    harness.run();
+    // Should see the enum options as labels with "(default)" marker
+    let open_label = harness.query_by_label("Open:");
+    assert!(open_label.is_some(), "Map should show 'Open:' key label");
+    let default_labels: Vec<_> = harness.query_all_by_label("(default)").collect();
+    assert!(
+        !default_labels.is_empty(),
+        "Map should show '(default)' for missing entries"
+    );
+}
+
+/// Click "+" in Map property to add an entry — covers lines 817-820.
+#[test]
+fn inspector_map_add_entry() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Expand the map
+    harness.get_by_label("Map (0)").click();
+    harness.run();
+    // Click the first "+" button to add an entry
+    let plus_btns: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("+"))
+        .collect();
+    plus_btns[0].click();
+    harness.run();
+    // After adding, the map should have 1 entry
+    let grown = harness.query_by_label("Map (1)");
+    assert!(grown.is_some(), "Map should grow to 1 entry after add");
+}
+
+/// Render Struct property — expand `CollapsingHeader` to see fields.
+/// Covers Struct rendering path (lines 842-866) and field default insertion (line 854-855).
+#[test]
+fn inspector_struct_property_renders() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    // Click the "Coords" collapsing header to expand struct
+    harness.get_by_label("Coords").click();
+    harness.run();
+    // Should see fields "x:" and "y:"
+    let x_label = harness.query_by_label("x:");
+    assert!(x_label.is_some(), "Struct should show 'x:' field label");
+    let y_label = harness.query_by_label("y:");
+    assert!(y_label.is_some(), "Struct should show 'y:' field label");
+}
+
+/// Render unit inspector with entity data — covers `render_unit_inspector` property path.
+#[test]
+fn unit_inspector_renders_properties() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 3000.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                Option<EntityData>,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                render_rules::render_unit_inspector(ui, s.0.as_mut(), &s.1, &s.2, &s.3, &mut s.4);
+            },
+            (Some(entity_data), reg, enums, structs, vec![]),
+        );
+    h.run();
+    // The unit inspector should show the type name and property labels
+    let type_label = h.query_by_label("Unit Type: Plains");
+    assert!(type_label.is_some(), "Should show unit type name");
+    let terrain = h.query_by_label("terrain:");
+    assert!(terrain.is_some(), "Should show property labels");
+}
+
+/// Render unit inspector (diverse props) with no entity data — shows message.
+#[test]
+fn unit_inspector_diverse_no_unit_selected() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1000.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                Option<EntityData>,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                render_rules::render_unit_inspector(ui, s.0.as_mut(), &s.1, &s.2, &s.3, &mut s.4);
+            },
+            (None, reg, enums, structs, vec![]),
+        );
+    h.run();
+    h.get_by_label("No unit selected");
+}
+
+/// Click "Delete Unit" in unit inspector — emits `DeleteSelectedUnit` action.
+#[test]
+fn unit_inspector_delete_unit_click() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 0);
+    let mut h = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 3000.0))
+        .build_ui_state(
+            |ui,
+             s: &mut (
+                Option<EntityData>,
+                EntityTypeRegistry,
+                EnumRegistry,
+                StructRegistry,
+                Vec<EditorAction>,
+            )| {
+                render_rules::render_unit_inspector(ui, s.0.as_mut(), &s.1, &s.2, &s.3, &mut s.4);
+            },
+            (Some(entity_data), reg, enums, structs, vec![]),
+        );
+    h.run();
+    h.get_by_label("Delete Unit").click();
+    h.run();
+    let actions = &h.state().4;
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, EditorAction::DeleteSelectedUnit))
+    );
+}
+
+/// Inspector with entity whose type has no properties — shows "No properties" message.
+#[test]
+fn inspector_no_properties() {
+    let (reg, enums, structs) = inspector_entity_registry();
+    let entity_data = entity_data_from_registry(&reg, 1); // Infantry has no properties
+    let harness = inspector_harness(
+        reg,
+        enums,
+        structs,
+        Some(entity_data),
+        Some(HexPosition { q: 0, r: 0 }),
+    );
+    harness.get_by_label("No properties");
 }
