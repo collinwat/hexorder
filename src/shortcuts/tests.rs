@@ -670,14 +670,14 @@ fn render_palette_requests_focus_once() {
     let ctx = egui::Context::default();
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     assert!(focus_requested, "should request focus on first render");
 
     // Second render — should NOT re-request (flag stays true).
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     assert!(focus_requested, "focus_requested should remain true");
 }
@@ -712,7 +712,7 @@ fn render_palette_arrow_down_advances_selection() {
     // First pass to establish the palette window.
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     // Second pass with ArrowDown key event.
     let mut input = egui::RawInput::default();
@@ -725,7 +725,7 @@ fn render_palette_arrow_down_advances_selection() {
     });
     ctx.begin_pass(input);
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     assert!(
         palette.selected_index > 0,
@@ -749,7 +749,7 @@ fn render_palette_arrow_up_retreats_selection() {
     // First pass.
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     // Second pass with ArrowUp.
     let mut input = egui::RawInput::default();
@@ -762,7 +762,7 @@ fn render_palette_arrow_up_retreats_selection() {
     });
     ctx.begin_pass(input);
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     assert!(
         palette.selected_index < 2,
@@ -786,7 +786,7 @@ fn render_palette_enter_executes_and_closes() {
     // First pass to establish window.
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     // Second pass with Enter key.
     let mut input = egui::RawInput::default();
@@ -800,7 +800,7 @@ fn render_palette_enter_executes_and_closes() {
     ctx.begin_pass(input);
     let result =
         super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     if let Some(cmd) = &result {
         assert_eq!(cmd.0, "file.save", "should execute first command");
@@ -824,7 +824,7 @@ fn render_palette_empty_results_clamps_index_to_zero() {
     let ctx = egui::Context::default();
     ctx.begin_pass(egui::RawInput::default());
     super::systems::render_palette(&ctx, &mut palette, &registry, &mut focus_requested);
-    ctx.end_pass();
+    let _ = ctx.end_pass();
 
     assert_eq!(
         palette.selected_index, 0,
@@ -1069,4 +1069,41 @@ fn escape_noop_when_palette_closed() {
         !app.world().resource::<CommandPaletteState>().open,
         "should stay closed"
     );
+}
+
+// ---------------------------------------------------------------------------
+// command_palette_system tests (covers lines 120-139)
+// ---------------------------------------------------------------------------
+
+/// Builds a minimal app with `command_palette_system` but NO full `EguiPlugin`.
+/// We insert the `EguiUserTextures` resource (required by `EguiContexts` param)
+/// but no `EguiContext` entity, so `ctx_mut()` returns `Err` — exercising
+/// the early-return paths.
+fn palette_system_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<CommandPaletteState>();
+    app.insert_resource(ShortcutRegistry::default());
+    app.init_resource::<bevy_egui::EguiUserTextures>();
+    app.add_systems(Update, super::systems::command_palette_system);
+    app.update(); // prime
+    app
+}
+
+#[test]
+fn command_palette_system_closed_palette_early_return() {
+    let mut app = palette_system_app();
+    // Palette is closed by default — should hit lines 127-129.
+    app.update();
+    // No panic means the early return worked.
+}
+
+#[test]
+fn command_palette_system_open_palette_no_egui_context() {
+    let mut app = palette_system_app();
+    // Open the palette so it passes the `!palette.open` check
+    // but hits the `contexts.ctx_mut()` Err branch (lines 132-133).
+    app.world_mut().resource_mut::<CommandPaletteState>().open = true;
+    app.update();
+    // No panic means the Err branch returned gracefully.
 }

@@ -675,7 +675,6 @@ fn sync_cell_materials_removes_deleted_type() {
 }
 
 #[test]
-#[test]
 fn sync_cell_materials_updates_existing_color() {
     let mut app = test_app();
     setup_cell_resources(&mut app);
