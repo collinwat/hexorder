@@ -101,7 +101,23 @@ echo "No boundary violations found."
 [tasks."check:unwrap"]
 description = "Check no unwrap() in production code"
 run = """
-violations=$(grep -rn '\\.unwrap()' src/ crates/hexorder-contracts/src/ --include='*.rs' | grep -v tests.rs | grep -v 'mod tests' | grep -v '#\\[cfg(test)\\]' | grep -v '#\\[test\\]' || true)
+# Find unwrap() calls, excluding dedicated test files and inline #[cfg(test)] modules.
+cfg_test_pat='cfg(test)'
+violations=""
+while IFS=: read -r file line content; do
+  # Skip dedicated test files.
+  case "$file" in *tests.rs) continue ;; esac
+  # Skip if line itself is a test annotation or mod tests.
+  case "$content" in *'mod tests'*|*"$cfg_test_pat"*|*'#[test]'*) continue ;; esac
+  # Skip if line is inside a #[cfg(test)] block (after the last #[cfg(test)] in the file).
+  cfg_line=$(grep -n "$cfg_test_pat" "$file" 2>/dev/null | tail -1 | cut -d: -f1)
+  if [ -n "$cfg_line" ] && [ "$line" -gt "$cfg_line" ]; then
+    continue
+  fi
+  violations="${violations}${file}:${line}:${content}
+"
+done <<< "$(grep -rn '\\.unwrap()' src/ crates/hexorder-contracts/src/ --include='*.rs' || true)"
+violations=$(echo "$violations" | sed '/^$/d')
 if [ -n "$violations" ]; then
   echo "ERROR: unwrap() found in production code (test files exempt):"
   echo "$violations"
