@@ -5,7 +5,69 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.14.0] — 2026-02-26
+## [0.15.0] — 2026-03-02
+
+### Added
+
+- improve coverage to 95%+ across all contract types (contracts)
+- cover guard branches and edge cases (unit)
+- cover guard branches and edge cases (cell)
+- cover remaining system edge cases (undo_redo)
+- cover counter_sheet edge cases and system branches (export)
+- cover components defaults and dock layouts (editor_ui)
+- cover architecture test helpers in main (project)
+- cover systems and plugin registration (hex_grid)
+- cover biome assignment and generation pipeline (map_gen)
+- cover save/load flow and async dialog paths (persistence)
+- cover lua api bindings and runtime init (scripting)
+- cover constraint evaluation and binding resolution (ontology)
+- cover rule execution and modifier application (rules_engine)
+- cover plugin setup and resource initialization (camera)
+- cover toml parsing and keybinding edge cases (shortcuts)
+- update coverage plan for sequential execution (project)
+- cover systems.rs to 98%+ line coverage (camera)
+- cover systems.rs to 94%+ and mod.rs to 100% (shortcuts)
+- cover config, mod, and systems to 93%+ line coverage (settings)
+- push config.rs to 98%+ line coverage (settings)
+- cover ui tabs and palettes in Harness tests (editor_ui)
+- push persistence module coverage to 87% line (persistence)
+- cover observer guards and poll pending path (export)
+- cover camera plugin build and hex_grid drag path (project)
+- cover TOML config parsing with apply_overrides_from_str (shortcuts)
+- cover all handle_editor_ui_command branches in mod.rs (editor_ui)
+- cover systems.rs helpers and sync functions (editor_ui)
+- cover dialog-spawning paths in systems.rs (persistence)
+- cover apply_actions and fix clippy warnings (editor_ui)
+- cover command happy path and generation error (export)
+- cover EditorUiPlugin::build() registration wiring (editor_ui)
+- cover hover, LOS ray, and indicator paths (hex_grid)
+- cover material update and property closure paths (cell)
+- add 100+ UI tests, split systems into modules (editor_ui)
+- add batch 5 render coverage tests (editor_ui)
+- add batch 6 render coverage tests (editor_ui)
+- add batch 7 ontology and design body coverage tests (editor_ui)
+- add batch 8 button click coverage tests (editor_ui)
+- add batch 9 ComboBox dropdown coverage tests (editor_ui)
+- add batch 10 mechanics button click coverage tests (editor_ui)
+- add batch 11 inspector property editor coverage tests (editor_ui)
+- add batch 12 binding and effect format tests (editor_ui)
+- add ECS system, menu, and combat resolution tests (editor_ui)
+
+### Changed
+
+- set up feature branch (project)
+- extract pure rendering functions and add tests (editor_ui)
+- minimize ECS integration surface (editor_ui)
+- raise coverage threshold from 40% to 90% (project)
+- remove transient plan documents from coverage cycle (project)
+- strip pre-release suffix for 0.15.0 (project)
+
+### Fixed
+
+- fix duplicate test attr and unused must_use warnings (project)
+- improve check:unwrap to handle inline test modules (project)
+
+## [0.14.0] — 2026-02-27
 
 ### Added
 
@@ -23,6 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - add disk cleanup automation (project)
 - set up feature branch (project)
 - remove unnecessary bevy_window feature (contracts)
+- bump version to 0.14.0 (project)
 
 ### Fixed
 
