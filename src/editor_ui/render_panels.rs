@@ -16,6 +16,18 @@ use hexorder_contracts::settings::{SettingsRegistry, ThemeLibrary};
 use super::actions::bevy_color_to_egui;
 use super::components::{BrandTheme, EditorState, GridOverlayVisible, ToastState};
 
+/// Actions returned by [`render_launcher_content`] to signal side-effects.
+///
+/// The launcher UI is a pure function that returns an action rather than
+/// triggering ECS commands directly, so it can be tested with `egui_kittest`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum LauncherAction {
+    /// User confirmed a new project with the given name.
+    NewProject(String),
+    /// User clicked the "Open..." button.
+    OpenProject,
+}
+
 /// Debug inspector as a right-side panel.
 /// Only compiled when the `inspector` feature is enabled.
 /// Toggled via the `view.toggle_debug_panel` command (backtick key).
@@ -137,6 +149,71 @@ pub(super) fn rgb(c: [u8; 3]) -> egui::Color32 {
     egui::Color32::from_rgb(c[0], c[1], c[2])
 }
 
+/// Build egui `Visuals` from a [`ThemeDefinition`](hexorder_contracts::settings::ThemeDefinition).
+///
+/// Pure function — no ECS or egui context required — so it is testable in
+/// isolation with `egui_kittest`.
+pub(crate) fn build_theme_visuals(
+    theme: &hexorder_contracts::settings::ThemeDefinition,
+) -> egui::Visuals {
+    let mut visuals = egui::Visuals::dark();
+    visuals.panel_fill = rgb(theme.bg_panel);
+    visuals.window_fill = rgb(theme.bg_panel);
+    visuals.extreme_bg_color = rgb(theme.bg_deep);
+    visuals.faint_bg_color = rgb(theme.bg_surface);
+    // Noninteractive fill derived from inactive (slightly darker).
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(
+        theme.widget_inactive[0].saturating_sub(10),
+        theme.widget_inactive[1].saturating_sub(10),
+        theme.widget_inactive[2].saturating_sub(10),
+    );
+    visuals.widgets.inactive.bg_fill = rgb(theme.widget_inactive);
+    visuals.widgets.hovered.bg_fill = rgb(theme.widget_hovered);
+    visuals.widgets.active.bg_fill = rgb(theme.widget_active);
+    visuals.selection.bg_fill = rgb(theme.accent_primary);
+    visuals.window_stroke = egui::Stroke::new(1.0, rgb(theme.border));
+
+    // Text colors (fg_stroke)
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_secondary));
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    visuals
+}
+
+/// Build the text style map from a base font size.
+///
+/// Pure function — no ECS or egui context required — so it is testable in
+/// isolation with `egui_kittest`.
+pub(crate) fn build_theme_text_styles(
+    font_size_base: f32,
+) -> std::collections::BTreeMap<egui::TextStyle, egui::FontId> {
+    let scale = font_size_base / 15.0;
+    let mut styles = std::collections::BTreeMap::new();
+    styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::new(20.0 * scale, egui::FontFamily::Proportional),
+    );
+    styles.insert(
+        egui::TextStyle::Body,
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
+    );
+    styles.insert(
+        egui::TextStyle::Small,
+        egui::FontId::new(13.0 * scale, egui::FontFamily::Proportional),
+    );
+    styles.insert(
+        egui::TextStyle::Button,
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
+    );
+    styles.insert(
+        egui::TextStyle::Monospace,
+        egui::FontId::new(15.0 * scale, egui::FontFamily::Monospace),
+    );
+    styles
+}
+
 /// Configures the egui dark theme every frame. This is idempotent and cheap
 /// (a few struct assignments). Running every frame guarantees the theme is
 /// always applied, even after a window visibility change resets the context.
@@ -163,54 +240,125 @@ pub fn configure_theme(
         return;
     };
 
-    let mut visuals = egui::Visuals::dark();
-    visuals.panel_fill = rgb(theme.bg_panel);
-    visuals.window_fill = rgb(theme.bg_panel);
-    visuals.extreme_bg_color = rgb(theme.bg_deep);
-    visuals.faint_bg_color = rgb(theme.bg_surface);
-    // Noninteractive fill derived from inactive (slightly darker).
-    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(
-        theme.widget_inactive[0].saturating_sub(10),
-        theme.widget_inactive[1].saturating_sub(10),
-        theme.widget_inactive[2].saturating_sub(10),
-    );
-    visuals.widgets.inactive.bg_fill = rgb(theme.widget_inactive);
-    visuals.widgets.hovered.bg_fill = rgb(theme.widget_hovered);
-    visuals.widgets.active.bg_fill = rgb(theme.widget_active);
-    visuals.selection.bg_fill = rgb(theme.accent_primary);
-    visuals.window_stroke = egui::Stroke::new(1.0, rgb(theme.border));
-
-    // Text colors (fg_stroke)
-    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
-    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_secondary));
-    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
-    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
-    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, rgb(theme.text_primary));
+    let visuals = build_theme_visuals(theme);
     ctx.set_visuals(visuals);
 
-    let scale = editor_state.font_size_base / 15.0;
+    let text_styles = build_theme_text_styles(editor_state.font_size_base);
     let mut style = (*ctx.style()).clone();
-    style.text_styles.insert(
-        egui::TextStyle::Heading,
-        egui::FontId::new(20.0 * scale, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Body,
-        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Small,
-        egui::FontId::new(13.0 * scale, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Button,
-        egui::FontId::new(15.0 * scale, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Monospace,
-        egui::FontId::new(15.0 * scale, egui::FontFamily::Monospace),
-    );
+    style.text_styles = text_styles;
     ctx.set_style(style);
+}
+
+/// Renders the launcher content inside a `vertical_centered` layout.
+///
+/// Pure function — no ECS commands — returns an optional [`LauncherAction`]
+/// that the caller dispatches. Testable with `egui_kittest`.
+pub(crate) fn render_launcher_content(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+) -> Option<LauncherAction> {
+    let mut action = None;
+
+    ui.label(
+        egui::RichText::new("HEXORDER")
+            .size(32.0)
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.label(
+        egui::RichText::new("Game System Design Tool")
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+            .small()
+            .monospace()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    ui.add_space(24.0);
+
+    if editor_state.launcher_name_input_visible {
+        // Show inline name input.
+        ui.label("Project Name:");
+        let response = ui.add(
+            egui::TextEdit::singleline(&mut editor_state.launcher_project_name)
+                .hint_text("e.g., My WW2 Campaign")
+                .desired_width(200.0),
+        );
+
+        // Request focus on first frame after reveal.
+        if editor_state.launcher_request_focus {
+            response.request_focus();
+            editor_state.launcher_request_focus = false;
+        }
+
+        let trimmed_name = editor_state.launcher_project_name.trim().to_string();
+        let name_valid = !trimmed_name.is_empty();
+
+        // Enter key triggers Create.
+        let enter_pressed = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+        let spacing = ui.spacing().item_spacing.x;
+        let half_width = (200.0 - spacing) / 2.0;
+        let btn_size = egui::vec2(half_width, 0.0);
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(200.0, 24.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                let create_btn = ui.add_enabled(
+                    name_valid,
+                    egui::Button::new(egui::RichText::new("Create").color(if name_valid {
+                        BrandTheme::ACCENT_AMBER
+                    } else {
+                        BrandTheme::TEXT_DISABLED
+                    }))
+                    .min_size(btn_size),
+                );
+
+                if name_valid && (create_btn.clicked() || enter_pressed) {
+                    action = Some(LauncherAction::NewProject(trimmed_name));
+                    editor_state.launcher_name_input_visible = false;
+                    editor_state.launcher_project_name = String::new();
+                }
+
+                if ui
+                    .add(egui::Button::new("Cancel").min_size(btn_size))
+                    .clicked()
+                {
+                    editor_state.launcher_name_input_visible = false;
+                    editor_state.launcher_project_name = String::new();
+                }
+            },
+        );
+    } else {
+        // Show the "New Game System" button.
+        if ui
+            .add(
+                egui::Button::new(
+                    egui::RichText::new("New Game System").color(BrandTheme::ACCENT_AMBER),
+                )
+                .min_size(egui::vec2(200.0, 36.0)),
+            )
+            .clicked()
+        {
+            editor_state.launcher_name_input_visible = true;
+            editor_state.launcher_project_name = String::new();
+            editor_state.launcher_request_focus = true;
+        }
+    }
+
+    ui.add_space(8.0);
+    if ui
+        .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
+        .clicked()
+    {
+        action = Some(LauncherAction::OpenProject);
+    }
+
+    action
 }
 
 /// Launcher screen system. Renders a centered panel with New / Open buttons.
@@ -234,114 +382,20 @@ pub fn launcher_system(
     ))
     .rect_filled(screen, egui::CornerRadius::ZERO, panel_fill);
 
+    let mut action = None;
     egui::Area::new(egui::Id::new("launcher_area"))
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
-                ui.label(
-                    egui::RichText::new("HEXORDER")
-                        .size(32.0)
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                );
-                ui.label(
-                    egui::RichText::new("Game System Design Tool")
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-                ui.add_space(4.0);
-                ui.label(
-                    egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
-                        .small()
-                        .monospace()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-                ui.add_space(24.0);
-
-                if editor_state.launcher_name_input_visible {
-                    // Show inline name input.
-                    ui.label("Project Name:");
-                    let response = ui.add(
-                        egui::TextEdit::singleline(&mut editor_state.launcher_project_name)
-                            .hint_text("e.g., My WW2 Campaign")
-                            .desired_width(200.0),
-                    );
-
-                    // Request focus on first frame after reveal.
-                    if editor_state.launcher_request_focus {
-                        response.request_focus();
-                        editor_state.launcher_request_focus = false;
-                    }
-
-                    let trimmed_name = editor_state.launcher_project_name.trim().to_string();
-                    let name_valid = !trimmed_name.is_empty();
-
-                    // Enter key triggers Create.
-                    let enter_pressed =
-                        response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-
-                    let spacing = ui.spacing().item_spacing.x;
-                    let half_width = (200.0 - spacing) / 2.0;
-                    let btn_size = egui::vec2(half_width, 0.0);
-
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(200.0, 24.0),
-                        egui::Layout::left_to_right(egui::Align::Center),
-                        |ui| {
-                            let create_btn = ui.add_enabled(
-                                name_valid,
-                                egui::Button::new(egui::RichText::new("Create").color(
-                                    if name_valid {
-                                        BrandTheme::ACCENT_AMBER
-                                    } else {
-                                        BrandTheme::TEXT_DISABLED
-                                    },
-                                ))
-                                .min_size(btn_size),
-                            );
-
-                            if name_valid && (create_btn.clicked() || enter_pressed) {
-                                commands.trigger(NewProjectEvent { name: trimmed_name });
-                                editor_state.launcher_name_input_visible = false;
-                                editor_state.launcher_project_name = String::new();
-                            }
-
-                            if ui
-                                .add(egui::Button::new("Cancel").min_size(btn_size))
-                                .clicked()
-                            {
-                                editor_state.launcher_name_input_visible = false;
-                                editor_state.launcher_project_name = String::new();
-                            }
-                        },
-                    );
-                } else {
-                    // Show the "New Game System" button.
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                egui::RichText::new("New Game System")
-                                    .color(BrandTheme::ACCENT_AMBER),
-                            )
-                            .min_size(egui::vec2(200.0, 36.0)),
-                        )
-                        .clicked()
-                    {
-                        editor_state.launcher_name_input_visible = true;
-                        editor_state.launcher_project_name = String::new();
-                        editor_state.launcher_request_focus = true;
-                    }
-                }
-
-                ui.add_space(8.0);
-                if ui
-                    .add(egui::Button::new("Open...").min_size(egui::vec2(200.0, 36.0)))
-                    .clicked()
-                {
-                    commands.trigger(LoadRequestEvent);
-                }
+                action = render_launcher_content(ui, &mut editor_state);
             });
         });
+
+    match action {
+        Some(LauncherAction::NewProject(name)) => commands.trigger(NewProjectEvent { name }),
+        Some(LauncherAction::OpenProject) => commands.trigger(LoadRequestEvent),
+        None => {}
+    }
 }
 
 pub(crate) fn render_workspace_header(ui: &mut egui::Ui, workspace: &Workspace, gs: &GameSystem) {

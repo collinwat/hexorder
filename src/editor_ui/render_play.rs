@@ -16,6 +16,19 @@ use hexorder_contracts::persistence::{
 use super::components::{BrandTheme, EditorState};
 use super::render_panels::{render_about_panel, render_workspace_header};
 
+/// Actions that can be triggered from the play mode file menu.
+/// Returned by [`render_play_file_menu`] so the caller can dispatch ECS
+/// commands outside the egui closure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PlayMenuAction {
+    NewProject,
+    OpenProject,
+    Save,
+    SaveAs,
+    #[allow(dead_code)]
+    ShowAbout,
+}
+
 /// Play mode panel system. Shows the turn tracker, combat panel, and mode toggle.
 /// Runs only in `AppScreen::Play`.
 #[allow(clippy::too_many_arguments)]
@@ -40,26 +53,11 @@ pub fn play_panel_system(
     };
 
     // -- File Menu Bar --
+    let mut menu_actions = Vec::new();
     egui::TopBottomPanel::top("file_menu_bar").show(ctx, |ui| {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
-                if ui.button("New          Cmd+N").clicked() {
-                    commands.trigger(CloseProjectEvent);
-                    ui.close();
-                }
-                if ui.button("Open...      Cmd+O").clicked() {
-                    commands.trigger(LoadRequestEvent);
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Save         Cmd+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: false });
-                    ui.close();
-                }
-                if ui.button("Save As...   Cmd+Shift+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: true });
-                    ui.close();
-                }
+                menu_actions = render_play_file_menu(ui);
             });
             ui.menu_button("Help", |ui| {
                 if ui.button("About Hexorder").clicked() {
@@ -70,48 +68,129 @@ pub fn play_panel_system(
         });
     });
 
+    // Dispatch menu actions outside the egui closure.
+    for action in menu_actions {
+        match action {
+            PlayMenuAction::NewProject => commands.trigger(CloseProjectEvent),
+            PlayMenuAction::OpenProject => commands.trigger(LoadRequestEvent),
+            PlayMenuAction::Save => commands.trigger(SaveRequestEvent { save_as: false }),
+            PlayMenuAction::SaveAs => commands.trigger(SaveRequestEvent { save_as: true }),
+            PlayMenuAction::ShowAbout => editor_state.about_panel_visible = true,
+        }
+    }
+
+    // -- Sidebar --
+    let mut switch_to_editor = false;
     egui::SidePanel::left("play_panel")
         .default_width(280.0)
         .show(ctx, |ui| {
-            // -- Workspace Header --
-            render_workspace_header(ui, &workspace, &game_system);
-
-            // -- Back to Editor --
-            if ui
-                .button(
-                    egui::RichText::new("\u{25A0} Editor")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                )
-                .clicked()
-            {
-                turn_state.is_active = false;
-                next_state.set(AppScreen::Editor);
-            }
-            ui.separator();
-
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                // -- Turn Tracker --
-                render_turn_tracker(ui, &mut turn_state, &turn_structure);
-
-                ui.separator();
-
-                // -- Combat Panel --
-                render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &combat_results_table,
-                    &combat_modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
+            switch_to_editor = render_play_sidebar(
+                ui,
+                &workspace,
+                &game_system,
+                &mut turn_state,
+                &turn_structure,
+                &mut active_combat,
+                &combat_results_table,
+                &combat_modifiers,
+                &selected_unit,
+                &entity_types,
+                &mut editor_state,
+                &unit_query,
+            );
         });
+
+    if switch_to_editor {
+        turn_state.is_active = false;
+        next_state.set(AppScreen::Editor);
+    }
 
     // -- About Panel --
     render_about_panel(ctx, &mut editor_state);
+}
+
+/// Renders the play mode file menu contents.
+/// Returns a list of [`PlayMenuAction`]s triggered by the user.
+pub(crate) fn render_play_file_menu(ui: &mut egui::Ui) -> Vec<PlayMenuAction> {
+    let mut actions = Vec::new();
+    if ui.button("New          Cmd+N").clicked() {
+        actions.push(PlayMenuAction::NewProject);
+        ui.close();
+    }
+    if ui.button("Open...      Cmd+O").clicked() {
+        actions.push(PlayMenuAction::OpenProject);
+        ui.close();
+    }
+    ui.separator();
+    if ui.button("Save         Cmd+S").clicked() {
+        actions.push(PlayMenuAction::Save);
+        ui.close();
+    }
+    if ui.button("Save As...   Cmd+Shift+S").clicked() {
+        actions.push(PlayMenuAction::SaveAs);
+        ui.close();
+    }
+    actions
+}
+
+/// Renders the play mode sidebar body: workspace header, editor toggle,
+/// turn tracker, and combat panel.
+///
+/// Returns `true` if the user clicked the "Editor" button to switch back
+/// to editor mode. The caller is responsible for performing the state
+/// transition so that ECS mutations happen outside the egui closure.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_play_sidebar(
+    ui: &mut egui::Ui,
+    workspace: &Workspace,
+    game_system: &GameSystem,
+    turn_state: &mut TurnState,
+    turn_structure: &TurnStructure,
+    active_combat: &mut ActiveCombat,
+    crt: &CombatResultsTable,
+    modifiers: &CombatModifierRegistry,
+    selected_unit: &SelectedUnit,
+    entity_types: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
+    unit_query: &Query<&EntityData, With<UnitInstance>>,
+) -> bool {
+    // -- Workspace Header --
+    render_workspace_header(ui, workspace, game_system);
+
+    // -- Back to Editor --
+    let mut switch_to_editor = false;
+    if ui
+        .button(
+            egui::RichText::new("\u{25A0} Editor")
+                .strong()
+                .color(BrandTheme::ACCENT_AMBER),
+        )
+        .clicked()
+    {
+        switch_to_editor = true;
+    }
+    ui.separator();
+
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        // -- Turn Tracker --
+        render_turn_tracker(ui, turn_state, turn_structure);
+
+        ui.separator();
+
+        // -- Combat Panel --
+        render_combat_panel(
+            ui,
+            active_combat,
+            crt,
+            modifiers,
+            selected_unit,
+            entity_types,
+            editor_state,
+            unit_query,
+        );
+    });
+
+    switch_to_editor
 }
 
 /// Renders the turn tracker section in the play panel.

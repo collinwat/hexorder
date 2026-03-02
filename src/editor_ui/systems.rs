@@ -345,55 +345,10 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 );
             }
             DockTab::Settings => {
-                ui.label(
-                    egui::RichText::new("Settings")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                );
-                ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Font size:");
-                    if ui.button(" \u{2212} ").clicked() && self.editor_state.font_size_base > 10.0
-                    {
-                        self.editor_state.font_size_base -= 1.0;
-                    }
-                    ui.monospace(format!("{}", self.editor_state.font_size_base as i32));
-                    if ui.button(" + ").clicked() && self.editor_state.font_size_base < 24.0 {
-                        self.editor_state.font_size_base += 1.0;
-                    }
-                });
-                ui.add_space(4.0);
-                // Theme selector
-                ui.horizontal(|ui| {
-                    ui.label("Theme:");
-                    egui::ComboBox::from_id_salt("theme_selector")
-                        .selected_text(&self.editor_state.active_theme_name)
-                        .show_ui(ui, |ui| {
-                            for name in &self.editor_state.theme_names {
-                                let selected = *name == self.editor_state.active_theme_name;
-                                if ui.selectable_label(selected, name).clicked() {
-                                    self.editor_state.active_theme_name.clone_from(name);
-                                }
-                            }
-                        });
-                });
+                render_settings_tab(ui, self.editor_state);
             }
             DockTab::Selection => {
-                ui.label(
-                    egui::RichText::new("Selection")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                );
-                ui.separator();
-                let count = self.multi.entities.len();
-                if count > 0 {
-                    ui.label(
-                        egui::RichText::new(format!("{count} tiles selected"))
-                            .color(BrandTheme::ACCENT_TEAL),
-                    );
-                } else {
-                    ui.label(egui::RichText::new("No selection").color(BrandTheme::TEXT_SECONDARY));
-                }
+                render_selection_tab(ui, self.multi.entities.len());
             }
             DockTab::Validation => {
                 render_validation_tab(ui, self.schema_validation);
@@ -405,53 +360,7 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
                 render_map_generator(ui, self.map_gen_params, self.is_generating, self.actions);
             }
             DockTab::Shortcuts => {
-                ui.label(
-                    egui::RichText::new("Keyboard Shortcuts")
-                        .strong()
-                        .color(BrandTheme::ACCENT_AMBER),
-                );
-                ui.separator();
-                if self.editor_state.shortcut_entries.is_empty() {
-                    ui.label(
-                        egui::RichText::new("No shortcuts loaded")
-                            .color(BrandTheme::TEXT_SECONDARY),
-                    );
-                } else {
-                    let mut current_category = "";
-                    for entry in &self.editor_state.shortcut_entries {
-                        if entry.category != current_category {
-                            if !current_category.is_empty() {
-                                ui.add_space(6.0);
-                            }
-                            ui.label(
-                                egui::RichText::new(&entry.category)
-                                    .small()
-                                    .color(BrandTheme::TEXT_SECONDARY),
-                            );
-                            ui.separator();
-                            current_category = &entry.category;
-                        }
-                        ui.horizontal(|ui| {
-                            ui.label(&entry.name);
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if entry.binding.is_empty() {
-                                        ui.label(
-                                            egui::RichText::new("—")
-                                                .color(BrandTheme::TEXT_SECONDARY),
-                                        );
-                                    } else {
-                                        ui.monospace(
-                                            egui::RichText::new(&entry.binding)
-                                                .color(BrandTheme::ACCENT_TEAL),
-                                        );
-                                    }
-                                },
-                            );
-                        });
-                    }
-                }
+                render_shortcuts_tab(ui, &self.editor_state.shortcut_entries);
             }
         }
     }
@@ -521,6 +430,171 @@ pub(crate) fn render_rules_tab_bar(ui: &mut egui::Ui, editor_state: &mut EditorS
         }
     });
     ui.separator();
+}
+
+/// Renders the Settings tab content (font size, theme selector).
+pub(crate) fn render_settings_tab(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+    ui.label(
+        egui::RichText::new("Settings")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label("Font size:");
+        if ui.button(" \u{2212} ").clicked() && editor_state.font_size_base > 10.0 {
+            editor_state.font_size_base -= 1.0;
+        }
+        ui.monospace(format!("{}", editor_state.font_size_base as i32));
+        if ui.button(" + ").clicked() && editor_state.font_size_base < 24.0 {
+            editor_state.font_size_base += 1.0;
+        }
+    });
+    ui.add_space(4.0);
+    // Theme selector
+    ui.horizontal(|ui| {
+        ui.label("Theme:");
+        egui::ComboBox::from_id_salt("theme_selector")
+            .selected_text(&editor_state.active_theme_name)
+            .show_ui(ui, |ui| {
+                for name in &editor_state.theme_names {
+                    let selected = *name == editor_state.active_theme_name;
+                    if ui.selectable_label(selected, name).clicked() {
+                        editor_state.active_theme_name.clone_from(name);
+                    }
+                }
+            });
+    });
+}
+
+/// Renders the Selection tab content (multi-selection summary).
+pub(crate) fn render_selection_tab(ui: &mut egui::Ui, selection_count: usize) {
+    ui.label(
+        egui::RichText::new("Selection")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.separator();
+    if selection_count > 0 {
+        ui.label(
+            egui::RichText::new(format!("{selection_count} tiles selected"))
+                .color(BrandTheme::ACCENT_TEAL),
+        );
+    } else {
+        ui.label(egui::RichText::new("No selection").color(BrandTheme::TEXT_SECONDARY));
+    }
+}
+
+/// Renders the Shortcuts tab content (keyboard shortcuts reference).
+pub(crate) fn render_shortcuts_tab(ui: &mut egui::Ui, entries: &[ShortcutDisplayEntry]) {
+    ui.label(
+        egui::RichText::new("Keyboard Shortcuts")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.separator();
+    if entries.is_empty() {
+        ui.label(egui::RichText::new("No shortcuts loaded").color(BrandTheme::TEXT_SECONDARY));
+    } else {
+        let mut current_category = "";
+        for entry in entries {
+            if entry.category != current_category {
+                if !current_category.is_empty() {
+                    ui.add_space(6.0);
+                }
+                ui.label(
+                    egui::RichText::new(&entry.category)
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                ui.separator();
+                current_category = &entry.category;
+            }
+            ui.horizontal(|ui| {
+                ui.label(&entry.name);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if entry.binding.is_empty() {
+                        ui.label(egui::RichText::new("\u{2014}").color(BrandTheme::TEXT_SECONDARY));
+                    } else {
+                        ui.monospace(
+                            egui::RichText::new(&entry.binding).color(BrandTheme::ACCENT_TEAL),
+                        );
+                    }
+                });
+            });
+        }
+    }
+}
+
+/// Renders the status bar content (tool label, workspace preset, selected hex).
+pub(crate) fn render_status_bar_content(
+    ui: &mut egui::Ui,
+    tool: EditorTool,
+    preset_label: &str,
+    selected_pos: Option<HexPosition>,
+) {
+    ui.horizontal_centered(|ui| {
+        // Left: current tool mode.
+        let tool_label = match tool {
+            EditorTool::Select => "Select",
+            EditorTool::Paint => "Paint",
+            EditorTool::Place => "Place",
+        };
+        ui.label(
+            egui::RichText::new(tool_label)
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+
+        ui.separator();
+
+        // Left: workspace preset.
+        ui.label(
+            egui::RichText::new(preset_label)
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+
+        // Right-aligned items.
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            // Selected hex coordinates.
+            if let Some(pos) = selected_pos {
+                ui.label(
+                    egui::RichText::new(format!("({}, {})", pos.q, pos.r))
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            }
+        });
+    });
+}
+
+/// Configures the `egui_dock::Style` to match the brand theme.
+pub(crate) fn configure_dock_style(base_style: &egui::Style) -> egui_dock::Style {
+    let mut style = egui_dock::Style::from_egui(base_style);
+    // Tab bar background.
+    style.tab_bar.bg_fill = BrandTheme::BG_DEEP;
+    style.tab_bar.hline_color = BrandTheme::BORDER_SUBTLE;
+    // Tab body background.
+    style.tab.tab_body.bg_fill = BrandTheme::BG_PANEL;
+    // Active/focused tab.
+    style.tab.active.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.active.bg_fill = BrandTheme::BG_PANEL;
+    style.tab.focused.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.focused.bg_fill = BrandTheme::BG_PANEL;
+    // Inactive tab.
+    style.tab.inactive.text_color = BrandTheme::TEXT_SECONDARY;
+    style.tab.inactive.bg_fill = BrandTheme::BG_DEEP;
+    // Hovered tab.
+    style.tab.hovered.text_color = BrandTheme::TEXT_PRIMARY;
+    style.tab.hovered.bg_fill = BrandTheme::BG_SURFACE;
+    // Separator (between dock zones).
+    style.separator.color_idle = BrandTheme::BORDER_SUBTLE;
+    style.separator.color_hovered = BrandTheme::ACCENT_TEAL;
+    style.separator.color_dragged = BrandTheme::ACCENT_TEAL;
+    // Overlay (drag-to-dock indicators).
+    style.overlay.selection_color = egui::Color32::from_rgba_premultiplied(0, 92, 128, 80);
+    style
 }
 
 /// Renders the Mechanic Reference panel — a browsable catalog organized by category.
@@ -853,43 +927,13 @@ pub fn editor_dock_system(
     });
 
     // Status bar at the bottom of the editor window.
+    let status_tool = *selection.editor_tool;
+    let status_preset = dock_layout.active_preset.to_string();
+    let status_pos = selection.selected_hex.position;
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(22.0)
         .show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                // Left: current tool mode.
-                let tool_label = match *selection.editor_tool {
-                    EditorTool::Select => "Select",
-                    EditorTool::Paint => "Paint",
-                    EditorTool::Place => "Place",
-                };
-                ui.label(
-                    egui::RichText::new(tool_label)
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-
-                ui.separator();
-
-                // Left: workspace preset.
-                ui.label(
-                    egui::RichText::new(dock_layout.active_preset.to_string())
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-
-                // Right-aligned items.
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Selected hex coordinates.
-                    if let Some(pos) = selection.selected_hex.position {
-                        ui.label(
-                            egui::RichText::new(format!("({}, {})", pos.q, pos.r))
-                                .small()
-                                .color(BrandTheme::TEXT_SECONDARY),
-                        );
-                    }
-                });
-            });
+            render_status_bar_content(ui, status_tool, &status_preset, status_pos);
         });
 
     // About panel (modal, renders over everything).
@@ -950,29 +994,7 @@ pub fn editor_dock_system(
     };
 
     // Configure dock area style to match brand theme.
-    let mut style = egui_dock::Style::from_egui(ctx.style().as_ref());
-    // Tab bar background.
-    style.tab_bar.bg_fill = BrandTheme::BG_DEEP;
-    style.tab_bar.hline_color = BrandTheme::BORDER_SUBTLE;
-    // Tab body background.
-    style.tab.tab_body.bg_fill = BrandTheme::BG_PANEL;
-    // Active/focused tab.
-    style.tab.active.text_color = BrandTheme::TEXT_PRIMARY;
-    style.tab.active.bg_fill = BrandTheme::BG_PANEL;
-    style.tab.focused.text_color = BrandTheme::TEXT_PRIMARY;
-    style.tab.focused.bg_fill = BrandTheme::BG_PANEL;
-    // Inactive tab.
-    style.tab.inactive.text_color = BrandTheme::TEXT_SECONDARY;
-    style.tab.inactive.bg_fill = BrandTheme::BG_DEEP;
-    // Hovered tab.
-    style.tab.hovered.text_color = BrandTheme::TEXT_PRIMARY;
-    style.tab.hovered.bg_fill = BrandTheme::BG_SURFACE;
-    // Separator (between dock zones).
-    style.separator.color_idle = BrandTheme::BORDER_SUBTLE;
-    style.separator.color_hovered = BrandTheme::ACCENT_TEAL;
-    style.separator.color_dragged = BrandTheme::ACCENT_TEAL;
-    // Overlay (drag-to-dock indicators).
-    style.overlay.selection_color = egui::Color32::from_rgba_premultiplied(0, 92, 128, 80);
+    let style = configure_dock_style(ctx.style().as_ref());
 
     DockArea::new(&mut dock_layout.dock_state)
         .style(style)

@@ -36,7 +36,8 @@ use hexorder_contracts::persistence::Workspace;
 use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::actions;
-use super::components::{EditorAction, EditorState, OntologyTab};
+use super::components::{BrandTheme, EditorAction, EditorState, OntologyTab, ShortcutDisplayEntry};
+use super::render_panels;
 use super::render_play;
 use super::render_rules;
 use super::systems;
@@ -10774,4 +10775,617 @@ fn concepts_binding_bind_entity_click() {
     // After binding, the editor state should be cleared
     assert!(h.state().0.binding_entity_type_id.is_none());
     assert!(h.state().0.binding_concept_role_id.is_none());
+}
+// ===========================================================================
+// Extracted pure-rendering function tests
+// ===========================================================================
+
+/// Helper: create a `ThemeDefinition` with distinct, deterministic values
+/// for asserting colour derivations.
+fn test_theme() -> hexorder_contracts::settings::ThemeDefinition {
+    hexorder_contracts::settings::ThemeDefinition {
+        name: "Test Theme".to_string(),
+        bg_deep: [10, 20, 30],
+        bg_panel: [40, 50, 60],
+        bg_surface: [70, 80, 90],
+        widget_inactive: [100, 110, 120],
+        widget_hovered: [130, 140, 150],
+        widget_active: [160, 170, 180],
+        accent_primary: [190, 200, 210],
+        accent_secondary: [220, 230, 240],
+        text_primary: [250, 250, 250],
+        text_secondary: [200, 200, 200],
+        border: [80, 80, 80],
+        danger: [255, 50, 50],
+        success: [50, 255, 50],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 1. render_settings_tab
+// ---------------------------------------------------------------------------
+
+/// Settings tab renders a "Settings" header and "Font size:" label.
+#[test]
+fn settings_tab_renders_header() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label("Settings");
+    harness.get_by_label("Font size:");
+}
+
+/// Clicking " + " increases `font_size_base` by 1.0.
+#[test]
+fn settings_tab_font_increase() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState {
+                font_size_base: 15.0,
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label(" + ").click();
+    harness.run();
+    assert!(
+        (harness.state().font_size_base - 16.0).abs() < f32::EPSILON,
+        "Expected 16.0, got {}",
+        harness.state().font_size_base
+    );
+}
+
+/// Clicking the minus button decreases `font_size_base` by 1.0.
+#[test]
+fn settings_tab_font_decrease() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState {
+                font_size_base: 15.0,
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label(" \u{2212} ").click();
+    harness.run();
+    assert!(
+        (harness.state().font_size_base - 14.0).abs() < f32::EPSILON,
+        "Expected 14.0, got {}",
+        harness.state().font_size_base
+    );
+}
+
+/// At minimum (10.0), clicking minus does nothing.
+#[test]
+fn settings_tab_font_min_clamp() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState {
+                font_size_base: 10.0,
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label(" \u{2212} ").click();
+    harness.run();
+    assert!(
+        (harness.state().font_size_base - 10.0).abs() < f32::EPSILON,
+        "Expected 10.0, got {}",
+        harness.state().font_size_base
+    );
+}
+
+/// At maximum (24.0), clicking " + " does nothing.
+#[test]
+fn settings_tab_font_max_clamp() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState {
+                font_size_base: 24.0,
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label(" + ").click();
+    harness.run();
+    assert!(
+        (harness.state().font_size_base - 24.0).abs() < f32::EPSILON,
+        "Expected 24.0, got {}",
+        harness.state().font_size_base
+    );
+}
+
+/// Theme `ComboBox` renders with the active theme name.
+#[test]
+fn settings_tab_theme_combobox() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                systems::render_settings_tab(ui, state);
+            },
+            EditorState {
+                theme_names: vec!["Dark".to_string(), "Light".to_string()],
+                active_theme_name: "Dark".to_string(),
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label("Theme:");
+    // The ComboBox should show the active theme name.
+    let cbs: Vec<_> = harness
+        .get_all_by(|n| n.role() == Role::ComboBox && n.value().as_deref() == Some("Dark"))
+        .collect();
+    assert!(
+        !cbs.is_empty(),
+        "ComboBox with value 'Dark' should be present"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 2. render_selection_tab
+// ---------------------------------------------------------------------------
+
+/// Selection tab with zero items shows "No selection".
+#[test]
+fn selection_tab_empty() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_selection_tab(ui, 0);
+    });
+    harness.get_by_label("No selection");
+}
+
+/// Selection tab with items shows count.
+#[test]
+fn selection_tab_with_items() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_selection_tab(ui, 5);
+    });
+    harness.get_by_label("5 tiles selected");
+}
+
+// ---------------------------------------------------------------------------
+// 3. render_shortcuts_tab
+// ---------------------------------------------------------------------------
+
+/// Shortcuts tab with no entries shows "No shortcuts loaded".
+#[test]
+fn shortcuts_tab_empty() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_shortcuts_tab(ui, &[]);
+    });
+    harness.get_by_label("No shortcuts loaded");
+}
+
+/// Shortcuts tab with entries shows category headers, names, and bindings.
+#[test]
+fn shortcuts_tab_with_entries() {
+    let entries = vec![
+        ShortcutDisplayEntry {
+            category: "Tools".to_string(),
+            name: "Select Tool".to_string(),
+            binding: "1".to_string(),
+        },
+        ShortcutDisplayEntry {
+            category: "Tools".to_string(),
+            name: "Paint Tool".to_string(),
+            binding: "2".to_string(),
+        },
+        ShortcutDisplayEntry {
+            category: "View".to_string(),
+            name: "Toggle Grid".to_string(),
+            binding: "G".to_string(),
+        },
+    ];
+    let harness = Harness::new_ui(|ui| {
+        systems::render_shortcuts_tab(ui, &entries);
+    });
+    // Category headers.
+    harness.get_by_label("Tools");
+    harness.get_by_label("View");
+    // Command names.
+    harness.get_by_label("Select Tool");
+    harness.get_by_label("Paint Tool");
+    harness.get_by_label("Toggle Grid");
+    // Bindings.
+    harness.get_by_label("1");
+    harness.get_by_label("2");
+    harness.get_by_label("G");
+}
+
+/// A shortcut entry with an empty binding shows the em-dash.
+#[test]
+fn shortcuts_tab_no_binding_shows_dash() {
+    let entries = vec![ShortcutDisplayEntry {
+        category: "Misc".to_string(),
+        name: "Hidden Command".to_string(),
+        binding: String::new(),
+    }];
+    let harness = Harness::new_ui(|ui| {
+        systems::render_shortcuts_tab(ui, &entries);
+    });
+    harness.get_by_label("Hidden Command");
+    harness.get_by_label("\u{2014}");
+}
+
+// ---------------------------------------------------------------------------
+// 4. render_status_bar_content
+// ---------------------------------------------------------------------------
+
+/// Status bar shows "Select" when the tool is Select.
+#[test]
+fn status_bar_select_tool() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_status_bar_content(ui, EditorTool::Select, "Default", None);
+    });
+    harness.get_by_label("Select");
+}
+
+/// Status bar shows "Paint" when the tool is Paint.
+#[test]
+fn status_bar_paint_tool() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_status_bar_content(ui, EditorTool::Paint, "Default", None);
+    });
+    harness.get_by_label("Paint");
+}
+
+/// Status bar shows hex coordinates when a position is provided.
+#[test]
+fn status_bar_with_hex_position() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_status_bar_content(
+            ui,
+            EditorTool::Select,
+            "Default",
+            Some(HexPosition { q: 3, r: -2 }),
+        );
+    });
+    harness.get_by_label("(3, -2)");
+}
+
+/// Status bar does not show coordinates when position is None.
+#[test]
+fn status_bar_no_hex_position() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_status_bar_content(ui, EditorTool::Select, "Default", None);
+    });
+    // Should not find any coordinate label.
+    let coords = harness.query_by_label("(");
+    assert!(coords.is_none(), "No coordinates should be shown");
+}
+
+/// Status bar shows the preset label.
+#[test]
+fn status_bar_preset_label() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_status_bar_content(ui, EditorTool::Select, "Map Editing", None);
+    });
+    harness.get_by_label("Map Editing");
+}
+
+// ---------------------------------------------------------------------------
+// 5. configure_dock_style
+// ---------------------------------------------------------------------------
+
+/// `configure_dock_style` applies brand palette colours to the dock style.
+#[test]
+fn dock_style_uses_brand_colors() {
+    let base = bevy_egui::egui::Style::default();
+    let style = systems::configure_dock_style(&base);
+    assert_eq!(style.tab_bar.bg_fill, BrandTheme::BG_DEEP);
+    assert_eq!(style.tab_bar.hline_color, BrandTheme::BORDER_SUBTLE);
+    assert_eq!(style.tab.tab_body.bg_fill, BrandTheme::BG_PANEL);
+    assert_eq!(style.tab.active.text_color, BrandTheme::TEXT_PRIMARY);
+    assert_eq!(style.tab.active.bg_fill, BrandTheme::BG_PANEL);
+    assert_eq!(style.tab.focused.text_color, BrandTheme::TEXT_PRIMARY);
+    assert_eq!(style.tab.focused.bg_fill, BrandTheme::BG_PANEL);
+    assert_eq!(style.tab.inactive.text_color, BrandTheme::TEXT_SECONDARY);
+    assert_eq!(style.tab.inactive.bg_fill, BrandTheme::BG_DEEP);
+    assert_eq!(style.tab.hovered.text_color, BrandTheme::TEXT_PRIMARY);
+    assert_eq!(style.tab.hovered.bg_fill, BrandTheme::BG_SURFACE);
+    assert_eq!(style.separator.color_idle, BrandTheme::BORDER_SUBTLE);
+    assert_eq!(style.separator.color_hovered, BrandTheme::ACCENT_TEAL);
+    assert_eq!(style.separator.color_dragged, BrandTheme::ACCENT_TEAL);
+}
+
+// ---------------------------------------------------------------------------
+// 6. build_theme_visuals
+// ---------------------------------------------------------------------------
+
+/// `build_theme_visuals` sets `panel_fill` from the theme's `bg_panel`.
+#[test]
+fn theme_visuals_sets_panel_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(visuals.panel_fill, render_panels::rgb(theme.bg_panel));
+}
+
+/// `build_theme_visuals` sets `selection.bg_fill` from `accent_primary`.
+#[test]
+fn theme_visuals_sets_selection() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.selection.bg_fill,
+        render_panels::rgb(theme.accent_primary)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 7. build_theme_text_styles
+// ---------------------------------------------------------------------------
+
+/// At default font size (15.0, scale 1.0), Body is 15pt.
+#[test]
+fn theme_text_styles_default_scale() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let body = styles
+        .get(&bevy_egui::egui::TextStyle::Body)
+        .expect("Body style should be present");
+    assert!(
+        (body.size - 15.0).abs() < f32::EPSILON,
+        "Body should be 15pt at default scale, got {}",
+        body.size
+    );
+}
+
+/// At font size 30.0 (scale 2.0), Body is 30pt and Heading is 40pt.
+#[test]
+fn theme_text_styles_scaled() {
+    let styles = render_panels::build_theme_text_styles(30.0);
+    let body = styles
+        .get(&bevy_egui::egui::TextStyle::Body)
+        .expect("Body style should be present");
+    assert!(
+        (body.size - 30.0).abs() < f32::EPSILON,
+        "Body should be 30pt at 2x scale, got {}",
+        body.size
+    );
+    let heading = styles
+        .get(&bevy_egui::egui::TextStyle::Heading)
+        .expect("Heading style should be present");
+    assert!(
+        (heading.size - 40.0).abs() < f32::EPSILON,
+        "Heading should be 40pt at 2x scale, got {}",
+        heading.size
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 8. render_launcher_content
+// ---------------------------------------------------------------------------
+
+/// Launcher shows "HEXORDER" and "Game System Design Tool".
+#[test]
+fn launcher_shows_title() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label("HEXORDER");
+    harness.get_by_label("Game System Design Tool");
+}
+
+/// Launcher shows "New Game System" and "Open..." buttons.
+#[test]
+fn launcher_shows_buttons() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label("New Game System");
+    harness.get_by_label("Open...");
+}
+
+/// Clicking "New Game System" sets `launcher_name_input_visible` to true.
+#[test]
+fn launcher_new_reveals_input() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    assert!(!harness.state().launcher_name_input_visible);
+    harness.get_by_label("New Game System").click();
+    harness.run();
+    assert!(
+        harness.state().launcher_name_input_visible,
+        "Clicking 'New Game System' should reveal name input"
+    );
+}
+
+/// Clicking "Open..." returns `LauncherAction::OpenProject`.
+/// Uses a `Vec` to accumulate actions across frames so the click-frame
+/// result is not overwritten by a subsequent no-op frame.
+#[test]
+fn launcher_open_returns_action() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, s: &mut (EditorState, Vec<render_panels::LauncherAction>)| {
+                if let Some(action) = render_panels::render_launcher_content(ui, &mut s.0) {
+                    s.1.push(action);
+                }
+            },
+            (
+                EditorState::default(),
+                Vec::<render_panels::LauncherAction>::new(),
+            ),
+        );
+    harness.get_by_label("Open...").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .1
+            .iter()
+            .any(|a| matches!(a, render_panels::LauncherAction::OpenProject)),
+        "Clicking 'Open...' should produce OpenProject, got {:?}",
+        harness.state().1
+    );
+}
+
+/// With name input visible and a project name filled in, clicking "Create"
+/// returns `LauncherAction::NewProject`.
+#[test]
+fn launcher_create_with_name() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, s: &mut (EditorState, Vec<render_panels::LauncherAction>)| {
+                if let Some(action) = render_panels::render_launcher_content(ui, &mut s.0) {
+                    s.1.push(action);
+                }
+            },
+            (
+                EditorState {
+                    launcher_name_input_visible: true,
+                    launcher_project_name: "Test Project".to_string(),
+                    ..EditorState::default()
+                },
+                Vec::<render_panels::LauncherAction>::new(),
+            ),
+        );
+    harness.get_by_label("Create").click();
+    harness.run();
+    assert!(
+        harness.state().1.iter().any(|a| matches!(
+            a,
+            render_panels::LauncherAction::NewProject(name) if name == "Test Project"
+        )),
+        "Clicking 'Create' with a name should produce NewProject, got {:?}",
+        harness.state().1
+    );
+}
+
+/// With name input visible, clicking "Cancel" hides it.
+#[test]
+fn launcher_cancel_hides_input() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState {
+                launcher_name_input_visible: true,
+                launcher_project_name: "Something".to_string(),
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label("Cancel").click();
+    harness.run();
+    assert!(
+        !harness.state().launcher_name_input_visible,
+        "Clicking 'Cancel' should hide name input"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 9. render_play_file_menu
+// ---------------------------------------------------------------------------
+
+/// Play file menu renders New, Open, Save, Save As buttons.
+#[test]
+fn play_file_menu_renders_items() {
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_play_file_menu(ui);
+    });
+    harness.get_by_label_contains("New");
+    harness.get_by_label_contains("Open...");
+    // Use the full label with shortcut key to disambiguate "Save" from "Save As...".
+    harness.get_by_label_contains("Save         Cmd+S");
+    harness.get_by_label_contains("Save As...");
+}
+
+// ---------------------------------------------------------------------------
+// 10. render_play_sidebar
+// ---------------------------------------------------------------------------
+
+/// Play sidebar renders the workspace header and the editor button.
+#[test]
+fn play_sidebar_renders_header() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Workspace {
+        name: "Test Campaign".to_string(),
+        ..Workspace::default()
+    });
+    app.insert_resource(GameSystem {
+        id: "test-id".to_string(),
+        version: "0.1.0".to_string(),
+    });
+    app.insert_resource(TurnState::default());
+    app.insert_resource(TurnStructure::default());
+    app.insert_resource(ActiveCombat::default());
+    app.insert_resource(CombatResultsTable::default());
+    app.insert_resource(CombatModifierRegistry::default());
+    app.insert_resource(SelectedUnit::default());
+    app.insert_resource(test_registry());
+    app.insert_resource(EditorState::default());
+
+    app.add_systems(
+        Update,
+        |workspace: Res<Workspace>,
+         game_system: Res<GameSystem>,
+         mut turn_state: ResMut<TurnState>,
+         turn_structure: Res<TurnStructure>,
+         mut active_combat: ResMut<ActiveCombat>,
+         crt: Res<CombatResultsTable>,
+         modifiers: Res<CombatModifierRegistry>,
+         selected_unit: Res<SelectedUnit>,
+         entity_types: Res<EntityTypeRegistry>,
+         mut editor_state: ResMut<EditorState>,
+         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
+            let harness = Harness::new_ui(|ui| {
+                render_play::render_play_sidebar(
+                    ui,
+                    &workspace,
+                    &game_system,
+                    &mut turn_state,
+                    &turn_structure,
+                    &mut active_combat,
+                    &crt,
+                    &modifiers,
+                    &selected_unit,
+                    &entity_types,
+                    &mut editor_state,
+                    &unit_query,
+                );
+            });
+            // Workspace name should appear in the header.
+            harness.get_by_label("Test Campaign");
+            // Editor button should be present.
+            harness.get_by_label_contains("Editor");
+        },
+    );
+    app.update();
 }
