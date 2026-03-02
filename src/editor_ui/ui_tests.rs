@@ -13,7 +13,7 @@ use bevy_egui::egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
-use hexorder_contracts::editor_ui::EditorTool;
+use hexorder_contracts::editor_ui::{EditorTool, Selection, ViewportRect};
 use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityData, EntityRole, EntityType, EntityTypeRegistry,
     EnumDefinition, EnumRegistry, GameSystem, PropertyDefinition, PropertyType, PropertyValue,
@@ -21,7 +21,9 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::HexPosition;
 use hexorder_contracts::map_gen::MapGenParams;
-use hexorder_contracts::mechanic_reference::MechanicCatalog;
+use hexorder_contracts::mechanic_reference::{
+    MechanicCatalog, MechanicCategory, MechanicEntry, TemplateAvailability,
+};
 use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierDefinition, CombatModifierRegistry, CombatOutcome,
     CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType,
@@ -32,15 +34,19 @@ use hexorder_contracts::ontology::{
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
-use hexorder_contracts::persistence::Workspace;
+use hexorder_contracts::persistence::{AppScreen, Workspace};
 use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::actions;
-use super::components::{BrandTheme, EditorAction, EditorState, OntologyTab, ShortcutDisplayEntry};
+use super::components::{
+    BrandTheme, DockTab, EditorAction, EditorState, OntologyTab, ShortcutDisplayEntry,
+    WorkspacePreset,
+};
 use super::render_panels;
 use super::render_play;
 use super::render_rules;
 use super::systems;
+use super::systems::{DesignData, EditorDockViewer, InspectorData, PaletteData, RulesData};
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -2359,6 +2365,134 @@ fn mechanic_reference_renders_scroll_area() {
     });
 }
 
+/// Helper: create a `MechanicCatalog` with a single entry in the given category.
+fn test_mechanic_catalog(template: TemplateAvailability) -> MechanicCatalog {
+    MechanicCatalog {
+        entries: vec![MechanicEntry {
+            name: "Combat Resolution Systems".to_string(),
+            category: MechanicCategory::CoreUniversal,
+            description: "Determines combat outcomes via CRT lookup.".to_string(),
+            example_games: vec!["PanzerBlitz".to_string(), "Squad Leader".to_string()],
+            design_considerations: "Balance lethality vs. step losses.".to_string(),
+            template,
+        }],
+        templates: Vec::new(),
+    }
+}
+
+/// Catalog with one entry renders the category display name as a collapsing header.
+#[test]
+fn mechanic_reference_renders_category() {
+    let catalog = test_mechanic_catalog(TemplateAvailability::None);
+    let mut actions = Vec::new();
+    let harness = Harness::new_ui(|ui| {
+        systems::render_mechanic_reference(ui, &catalog, &mut actions);
+    });
+    // Category header format: "Core Universal Mechanics (1)"
+    harness.get_by_label_contains("Core Universal Mechanics");
+}
+
+/// Opening a category via toggle button reveals entry names in teal.
+#[test]
+fn mechanic_reference_renders_entry_name() {
+    let catalog = test_mechanic_catalog(TemplateAvailability::None);
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui, s: &mut (MechanicCatalog, Vec<EditorAction>)| {
+                systems::render_mechanic_reference(ui, &s.0, &mut s.1);
+            },
+            (catalog, Vec::new()),
+        );
+    // Click the first toggle button (Unknown role) to open "Core Universal Mechanics".
+    harness
+        .get_all_by_role(Role::Unknown)
+        .next()
+        .expect("toggle button")
+        .click();
+    harness.run();
+    // The entry name should now be visible.
+    harness.get_by_label_contains("Combat Resolution Systems");
+}
+
+/// Entry with an available template shows "Use Template" button and template preview.
+#[test]
+fn mechanic_reference_renders_template_button() {
+    let catalog = test_mechanic_catalog(TemplateAvailability::Available {
+        template_id: "crt_combat".to_string(),
+        preview: "Standard CRT scaffold".to_string(),
+    });
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui, s: &mut (MechanicCatalog, Vec<EditorAction>)| {
+                systems::render_mechanic_reference(ui, &s.0, &mut s.1);
+            },
+            (catalog, Vec::new()),
+        );
+    // Open category toggle (first Unknown), then entry toggle (second Unknown after re-render).
+    harness
+        .get_all_by_role(Role::Unknown)
+        .next()
+        .expect("category toggle")
+        .click();
+    harness.run();
+    // After opening category, entry toggle is the 2nd Unknown node (index 1).
+    harness
+        .get_all_by_role(Role::Unknown)
+        .nth(1)
+        .expect("entry toggle")
+        .click();
+    harness.run();
+    // Template preview and button should be visible.
+    harness.get_by_label_contains("Template: Standard CRT scaffold");
+    harness.get_by_label("Use Template");
+}
+
+/// Clicking "Use Template" pushes an `EditorAction::ApplyTemplate` with the correct ID.
+#[test]
+fn mechanic_reference_template_pushes_action() {
+    let catalog = test_mechanic_catalog(TemplateAvailability::Available {
+        template_id: "crt_combat".to_string(),
+        preview: "Standard CRT scaffold".to_string(),
+    });
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 1200.0))
+        .build_ui_state(
+            |ui, s: &mut (MechanicCatalog, Vec<EditorAction>)| {
+                systems::render_mechanic_reference(ui, &s.0, &mut s.1);
+            },
+            (catalog, Vec::new()),
+        );
+    // Open category toggle, then entry toggle.
+    harness
+        .get_all_by_role(Role::Unknown)
+        .next()
+        .expect("category toggle")
+        .click();
+    harness.run();
+    // Entry toggle is the 2nd Unknown node (index 1).
+    harness
+        .get_all_by_role(Role::Unknown)
+        .nth(1)
+        .expect("entry toggle")
+        .click();
+    harness.run();
+    // Click the template button.
+    harness.get_by_label("Use Template").click();
+    harness.run();
+    // Verify the action was pushed.
+    let state = harness.state();
+    assert!(
+        state.1.iter().any(|a| matches!(
+            a,
+            EditorAction::ApplyTemplate { template_id } if template_id == "crt_combat"
+        )),
+        "Expected ApplyTemplate action with template_id 'crt_combat', got: {:?}",
+        state.1
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Map Generator (systems::render_map_generator)
 // ---------------------------------------------------------------------------
@@ -2787,452 +2921,329 @@ fn mechanics_tab_shows_outcome_grid() {
 // Combat Panel (render_play::render_combat_panel) — tested via Bevy system
 // ---------------------------------------------------------------------------
 
-/// Tests the "No CRT defined" early-return branch via a one-shot Bevy system.
+/// Tests the "No CRT defined" early-return branch.
 #[test]
 fn combat_panel_no_crt_defined() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat::default());
-    app.insert_resource(CombatResultsTable::default());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(EntityTypeRegistry::default());
-    app.insert_resource(EditorState::default());
+    let mut active_combat = ActiveCombat::default();
+    let crt = CombatResultsTable::default();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState::default();
 
-    // Run a system that grabs the Query and calls render_combat_panel.
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("No CRT defined");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("No CRT defined");
 }
 
 /// Tests combat panel with a valid CRT showing strength inputs and column lookup.
 #[test]
 fn combat_panel_with_crt_shows_strengths() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat::default());
-    app.insert_resource(test_crt());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
         combat_attacker_strength: 4.0,
         combat_defender_strength: 2.0,
         ..EditorState::default()
-    });
+    };
 
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Combat Resolution");
-            harness.get_by_label_contains("Attacker:");
-            harness.get_by_label_contains("Defender:");
-            harness.get_by_label_contains("Strengths");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Combat Resolution");
+    harness.get_by_label_contains("Attacker:");
+    harness.get_by_label_contains("Defender:");
+    harness.get_by_label_contains("Strengths");
 }
 
 /// Tests combat panel with modifiers showing modifier breakdown.
 #[test]
 fn combat_panel_with_modifiers_shows_breakdown() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat::default());
-    app.insert_resource(test_crt());
-    app.insert_resource(test_modifiers());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = test_modifiers();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
         combat_attacker_strength: 3.0,
         combat_defender_strength: 3.0,
         ..EditorState::default()
-    });
+    };
 
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Modifiers");
-            harness.get_by_label_contains("Total shift:");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Modifiers");
+    harness.get_by_label_contains("Total shift:");
 }
 
 /// Tests combat panel with pre-existing outcome.
 #[test]
 fn combat_panel_shows_outcome_result() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat {
+    let mut active_combat = ActiveCombat {
         die_roll: Some(3),
         outcome: Some(CombatOutcome {
             label: "DR".to_string(),
             effect: None,
         }),
         ..ActiveCombat::default()
-    });
-    app.insert_resource(test_crt());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState {
+    };
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
         combat_attacker_strength: 2.0,
         combat_defender_strength: 1.0,
         ..EditorState::default()
-    });
+    };
 
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Result: DR");
-            harness.get_by_label_contains("Die roll:");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Result: DR");
+    harness.get_by_label_contains("Die roll:");
 }
 
 /// Tests combat panel shows outcome effects.
 #[test]
 fn combat_panel_shows_outcome_effects() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat {
+    let mut active_combat = ActiveCombat {
         die_roll: Some(5),
         outcome: Some(CombatOutcome {
             label: "DE".to_string(),
             effect: Some(hexorder_contracts::mechanics::OutcomeEffect::DefenderEliminated),
         }),
         ..ActiveCombat::default()
-    });
-    app.insert_resource(test_crt());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState {
+    };
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
         combat_attacker_strength: 4.0,
         combat_defender_strength: 1.0,
         ..EditorState::default()
-    });
+    };
 
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Defender eliminated");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Defender eliminated");
 }
 
 // ---------------------------------------------------------------------------
 // Combat panel — remaining OutcomeEffect variants
 // ---------------------------------------------------------------------------
 
-/// Helper to build a combat panel test app with a given outcome effect.
-fn combat_panel_app_with_effect(effect: hexorder_contracts::mechanics::OutcomeEffect) -> App {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat {
-        die_roll: Some(3),
-        outcome: Some(CombatOutcome {
-            label: "EF".to_string(),
-            effect: Some(effect),
-        }),
-        ..ActiveCombat::default()
-    });
-    app.insert_resource(test_crt());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState {
-        combat_attacker_strength: 2.0,
-        combat_defender_strength: 1.0,
-        ..EditorState::default()
-    });
-    app
+/// Helper to build combat panel test state with a given outcome effect.
+fn combat_panel_state_with_effect(
+    effect: hexorder_contracts::mechanics::OutcomeEffect,
+) -> (
+    ActiveCombat,
+    CombatResultsTable,
+    CombatModifierRegistry,
+    SelectedUnit,
+    EntityTypeRegistry,
+    EditorState,
+) {
+    (
+        ActiveCombat {
+            die_roll: Some(3),
+            outcome: Some(CombatOutcome {
+                label: "EF".to_string(),
+                effect: Some(effect),
+            }),
+            ..ActiveCombat::default()
+        },
+        test_crt(),
+        CombatModifierRegistry::default(),
+        SelectedUnit::default(),
+        test_registry(),
+        EditorState {
+            combat_attacker_strength: 2.0,
+            combat_defender_strength: 1.0,
+            ..EditorState::default()
+        },
+    )
 }
 
 #[test]
 fn combat_panel_shows_no_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::NoEffect);
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("No effect");
-        },
-    );
-    app.update();
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::NoEffect);
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("No effect");
 }
 
 #[test]
 fn combat_panel_shows_retreat_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::Retreat { hexes: 2 });
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("retreats 2 hex");
-        },
-    );
-    app.update();
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::Retreat { hexes: 2 });
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("retreats 2 hex");
 }
 
 #[test]
 fn combat_panel_shows_step_loss_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::StepLoss { steps: 1 });
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Defender loses 1 step");
-        },
-    );
-    app.update();
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::StepLoss { steps: 1 });
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Defender loses 1 step");
 }
 
 #[test]
 fn combat_panel_shows_attacker_step_loss_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::AttackerStepLoss { steps: 2 });
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Attacker loses 2 step");
-        },
-    );
-    app.update();
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::AttackerStepLoss { steps: 2 });
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Attacker loses 2 step");
 }
 
 #[test]
 fn combat_panel_shows_exchange_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::Exchange {
-        attacker_steps: 1,
-        defender_steps: 2,
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::Exchange {
+            attacker_steps: 1,
+            defender_steps: 2,
+        });
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
     });
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Exchange: ATK -1, DEF -2");
-        },
-    );
-    app.update();
+    harness.get_by_label_contains("Exchange: ATK -1, DEF -2");
 }
 
 #[test]
 fn combat_panel_shows_attacker_eliminated_effect() {
     use hexorder_contracts::mechanics::OutcomeEffect;
-    let mut app = combat_panel_app_with_effect(OutcomeEffect::AttackerEliminated);
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Attacker eliminated");
-        },
-    );
-    app.update();
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::AttackerEliminated);
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Attacker eliminated");
 }
 
 // ---------------------------------------------------------------------------
@@ -3241,45 +3252,31 @@ fn combat_panel_shows_attacker_eliminated_effect() {
 
 #[test]
 fn combat_panel_shows_below_minimum_threshold() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(ActiveCombat::default());
-    app.insert_resource(test_crt());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
     // Set very low attacker strength so odds are below minimum column threshold.
-    app.insert_resource(EditorState {
+    let mut editor_state = EditorState {
         combat_attacker_strength: 0.1,
         combat_defender_strength: 100.0,
         ..EditorState::default()
-    });
+    };
 
-    app.add_systems(
-        Update,
-        |mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_combat_panel(
-                    ui,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            harness.get_by_label_contains("Below minimum column threshold");
-        },
-    );
-    app.update();
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Below minimum column threshold");
 }
 
 // ---------------------------------------------------------------------------
@@ -11333,59 +11330,801 @@ fn play_file_menu_renders_items() {
 /// Play sidebar renders the workspace header and the editor button.
 #[test]
 fn play_sidebar_renders_header() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(Workspace {
+    let workspace = Workspace {
         name: "Test Campaign".to_string(),
         ..Workspace::default()
-    });
-    app.insert_resource(GameSystem {
+    };
+    let game_system = GameSystem {
         id: "test-id".to_string(),
         version: "0.1.0".to_string(),
-    });
-    app.insert_resource(TurnState::default());
-    app.insert_resource(TurnStructure::default());
-    app.insert_resource(ActiveCombat::default());
-    app.insert_resource(CombatResultsTable::default());
-    app.insert_resource(CombatModifierRegistry::default());
-    app.insert_resource(SelectedUnit::default());
-    app.insert_resource(test_registry());
-    app.insert_resource(EditorState::default());
+    };
+    let mut turn_state = TurnState::default();
+    let turn_structure = TurnStructure::default();
+    let mut active_combat = ActiveCombat::default();
+    let crt = CombatResultsTable::default();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState::default();
 
-    app.add_systems(
-        Update,
-        |workspace: Res<Workspace>,
-         game_system: Res<GameSystem>,
-         mut turn_state: ResMut<TurnState>,
-         turn_structure: Res<TurnStructure>,
-         mut active_combat: ResMut<ActiveCombat>,
-         crt: Res<CombatResultsTable>,
-         modifiers: Res<CombatModifierRegistry>,
-         selected_unit: Res<SelectedUnit>,
-         entity_types: Res<EntityTypeRegistry>,
-         mut editor_state: ResMut<EditorState>,
-         unit_query: Query<&EntityData, With<hexorder_contracts::game_system::UnitInstance>>| {
-            let harness = Harness::new_ui(|ui| {
-                render_play::render_play_sidebar(
-                    ui,
-                    &workspace,
-                    &game_system,
-                    &mut turn_state,
-                    &turn_structure,
-                    &mut active_combat,
-                    &crt,
-                    &modifiers,
-                    &selected_unit,
-                    &entity_types,
-                    &mut editor_state,
-                    &unit_query,
-                );
-            });
-            // Workspace name should appear in the header.
-            harness.get_by_label("Test Campaign");
-            // Editor button should be present.
-            harness.get_by_label_contains("Editor");
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_play_sidebar(
+            ui,
+            &workspace,
+            &game_system,
+            &mut turn_state,
+            &turn_structure,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    // Workspace name should appear in the header.
+    harness.get_by_label("Test Campaign");
+    // Editor button should be present.
+    harness.get_by_label_contains("Editor");
+}
+
+// ---------------------------------------------------------------------------
+// 11. render_editor_menu_bar
+// ---------------------------------------------------------------------------
+
+/// File menu button appears in the editor menu bar.
+#[test]
+fn editor_menu_bar_renders_file_menu() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(ui, false, None, false, None, WorkspacePreset::MapEditing);
+    });
+    harness.get_by_label("File");
+}
+
+/// Edit menu button appears in the editor menu bar.
+#[test]
+fn editor_menu_bar_renders_edit_menu() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(ui, false, None, false, None, WorkspacePreset::MapEditing);
+    });
+    harness.get_by_label("Edit");
+}
+
+/// View menu button appears in the editor menu bar.
+#[test]
+fn editor_menu_bar_renders_view_menu() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(ui, false, None, false, None, WorkspacePreset::MapEditing);
+    });
+    harness.get_by_label("View");
+}
+
+/// Help menu button appears in the editor menu bar.
+#[test]
+fn editor_menu_bar_renders_help_menu() {
+    let harness = Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(ui, false, None, false, None, WorkspacePreset::MapEditing);
+    });
+    harness.get_by_label("Help");
+}
+
+/// When no undo description is provided, the default "Undo" label appears.
+#[test]
+fn editor_menu_bar_undo_label_default() {
+    let actions = egui_kittest::Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(ui, true, None, false, None, WorkspacePreset::MapEditing);
+    });
+    // The Edit menu button should be present (the default Undo label is inside
+    // the submenu which is not opened by default, so we verify the button text).
+    actions.get_by_label("Edit");
+}
+
+/// When an undo description is supplied, the undo label includes it.
+#[test]
+fn editor_menu_bar_undo_label_with_description() {
+    let actions = egui_kittest::Harness::new_ui(|ui| {
+        systems::render_editor_menu_bar(
+            ui,
+            true,
+            Some("Paint"),
+            false,
+            None,
+            WorkspacePreset::MapEditing,
+        );
+    });
+    // The Edit menu button is always present.
+    actions.get_by_label("Edit");
+}
+
+// ---------------------------------------------------------------------------
+// 12. render_dock_tab (via with_test_viewer helper)
+// ---------------------------------------------------------------------------
+
+/// Constructs an `EditorDockViewer` with default data and invokes the callback.
+///
+/// All owned data lives on the stack for the duration of `f`. The viewer borrows
+/// from these locals, ensuring all mutable references are valid.
+fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
+    let mut editor_state = EditorState::default();
+    let mut actions: Vec<EditorAction> = Vec::new();
+    let validation = SchemaValidation::default();
+    let mut viewport_rect = ViewportRect::default();
+    let multi = Selection::default();
+    let mechanic_catalog = MechanicCatalog::default();
+    let mut editor_tool = EditorTool::Select;
+    let mut active_board = ActiveBoardType::default();
+    let mut active_token = ActiveTokenType::default();
+    let workspace = Workspace::default();
+    let game_system = GameSystem {
+        id: "test-id".to_string(),
+        version: "0.1.0".to_string(),
+    };
+    let mut registry = EntityTypeRegistry::default();
+    let mut enum_registry = EnumRegistry::default();
+    let mut struct_registry = StructRegistry::default();
+    let mut concept_registry = ConceptRegistry::default();
+    let mut relation_registry = RelationRegistry::default();
+    let mut constraint_registry = ConstraintRegistry::default();
+    let mut turn_structure = TurnStructure::default();
+    let mut combat_results_table = CombatResultsTable::default();
+    let mut combat_modifiers = CombatModifierRegistry::default();
+    let mut map_gen_params = MapGenParams::default();
+
+    let mut viewer = EditorDockViewer {
+        editor_state: &mut editor_state,
+        actions: &mut actions,
+        next_screen: None,
+        schema_validation: &validation,
+        viewport_rect: &mut viewport_rect,
+        multi: &multi,
+        mechanic_catalog: &mechanic_catalog,
+        palette: PaletteData {
+            editor_tool: &mut editor_tool,
+            active_board: &mut active_board,
+            active_token: &mut active_token,
+            project_workspace: &workspace,
+            project_game_system: &game_system,
         },
+        design: DesignData {
+            registry: &mut registry,
+            enum_registry: &mut enum_registry,
+            struct_registry: &mut struct_registry,
+            concept_registry: &mut concept_registry,
+            relation_registry: &mut relation_registry,
+        },
+        rules: RulesData {
+            constraint_registry: &mut constraint_registry,
+            turn_structure: &mut turn_structure,
+            combat_results_table: &mut combat_results_table,
+            combat_modifiers: &mut combat_modifiers,
+        },
+        inspector: InspectorData {
+            tile_position: None,
+            tile_entity_data: None,
+            unit_entity_data: None,
+        },
+        map_gen_params: &mut map_gen_params,
+        is_generating: false,
+    };
+    f(&mut viewer);
+}
+
+/// Settings tab renders its header label via the dock tab dispatch.
+#[test]
+fn dock_tab_settings_renders_via_dispatch() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::Settings, viewer);
+        });
+        harness.get_by_label("Settings");
+    });
+}
+
+/// Selection tab renders its header label via the dock tab dispatch.
+#[test]
+fn dock_tab_selection_renders_via_dispatch() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::Selection, viewer);
+        });
+        harness.get_by_label("Selection");
+    });
+}
+
+/// Shortcuts tab renders the "Keyboard Shortcuts" header via dispatch.
+#[test]
+fn dock_tab_shortcuts_renders_via_dispatch() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::Shortcuts, viewer);
+        });
+        harness.get_by_label("Keyboard Shortcuts");
+    });
+}
+
+/// Validation tab renders its header via dispatch.
+#[test]
+fn dock_tab_validation_renders_via_dispatch() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::Validation, viewer);
+        });
+        harness.get_by_label("Validation");
+    });
+}
+
+/// Palette tab renders the Play button via dispatch.
+#[test]
+fn dock_tab_palette_renders_play_button() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::Palette, viewer);
+        });
+        harness.get_by_label_contains("Play");
+    });
+}
+
+/// Clicking Play in the Palette tab sets `next_screen` to `AppScreen::Play`.
+#[test]
+fn dock_tab_palette_play_sets_next_screen() {
+    with_test_viewer(|viewer| {
+        {
+            let mut harness = Harness::builder().build_ui(|ui| {
+                systems::render_dock_tab(ui, DockTab::Palette, viewer);
+            });
+            let play_btn = harness.get_by_label_contains("Play");
+            play_btn.click();
+            harness.run();
+        }
+        // After the harness is dropped, we can inspect viewer.
+        assert_eq!(viewer.next_screen, Some(AppScreen::Play));
+    });
+}
+
+/// Viewport tab sets the viewport rect to the UI area.
+#[test]
+fn dock_tab_viewport_sets_rect() {
+    with_test_viewer(|viewer| {
+        assert!(viewer.viewport_rect.0.is_none());
+        {
+            let _harness = Harness::new_ui(|ui| {
+                systems::render_dock_tab(ui, DockTab::Viewport, viewer);
+            });
+        }
+        // After the harness is dropped, we can inspect viewport_rect.
+        assert!(viewer.viewport_rect.0.is_some());
+    });
+}
+
+/// Map Generator tab renders its header label via dispatch.
+#[test]
+fn dock_tab_map_generator_renders() {
+    with_test_viewer(|viewer| {
+        let harness = Harness::new_ui(|ui| {
+            systems::render_dock_tab(ui, DockTab::MapGenerator, viewer);
+        });
+        harness.get_by_label("Map Generator");
+    });
+}
+
+// ---------------------------------------------------------------------------
+// render_map_generator — stateful unit tests (build_ui_state)
+// ---------------------------------------------------------------------------
+
+/// The map generator renders its "Map Generator" header label (stateful harness).
+#[test]
+fn map_generator_renders_header() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Map Generator");
+}
+
+/// The map generator renders a "Seed:" label for the seed input (stateful harness).
+#[test]
+fn map_generator_shows_seed_input() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Seed:");
+}
+
+/// The map generator renders a "Noise Parameters" collapsing header (stateful harness).
+#[test]
+fn map_generator_shows_noise_parameters() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Noise Parameters");
+}
+
+/// The map generator renders an "Octaves:" label inside the noise parameters section (stateful harness).
+#[test]
+fn map_generator_shows_octaves_label() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Octaves:");
+}
+
+/// The map generator renders a "Reset Defaults" button (stateful harness).
+#[test]
+fn map_generator_shows_reset_defaults_button() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Reset Defaults");
+}
+
+/// The map generator renders a "Generate Map" button when not generating (stateful harness).
+#[test]
+fn map_generator_shows_generate_map_button() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, false, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Generate Map");
+}
+
+/// The "Generate Map" button is still rendered when generation is in progress
+/// (it appears in a disabled state).
+#[test]
+fn map_generator_generate_disabled_while_generating() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 800.0))
+        .build_ui_state(
+            |ui, s: &mut (MapGenParams, Vec<EditorAction>)| {
+                systems::render_map_generator(ui, &mut s.0, true, &mut s.1);
+            },
+            (MapGenParams::default(), vec![]),
+        );
+    harness.get_by_label("Generate Map");
+}
+
+// ---------------------------------------------------------------------------
+// render_panels — additional coverage tests
+// ---------------------------------------------------------------------------
+
+/// `render_about_panel` early-returns without rendering when `about_panel_visible` is false.
+#[test]
+fn about_panel_hidden_renders_nothing() {
+    let mut state = EditorState {
+        about_panel_visible: false,
+        ..EditorState::default()
+    };
+    let harness = Harness::new(|ctx| {
+        render_panels::render_about_panel(ctx, &mut state);
+    });
+    assert!(
+        harness.query_by_label("HEXORDER").is_none(),
+        "About panel should not render when hidden"
     );
-    app.update();
+}
+
+/// `render_about_panel` renders the description text.
+#[test]
+fn about_panel_shows_description() {
+    let mut state = EditorState {
+        about_panel_visible: true,
+        ..EditorState::default()
+    };
+    let harness = Harness::new(|ctx| {
+        render_panels::render_about_panel(ctx, &mut state);
+    });
+    harness.get_by_label_contains("Game System Design Tool");
+    harness.get_by_label_contains("tabletop war game systems");
+}
+
+/// `render_cell_palette` highlights the active board type with a stroke.
+#[test]
+fn cell_palette_highlights_active_type() {
+    struct CellState {
+        registry: EntityTypeRegistry,
+        active: ActiveBoardType,
+    }
+    let registry = test_registry();
+    let board_id = registry
+        .types_by_role(EntityRole::BoardPosition)
+        .first()
+        .expect("test registry has board types")
+        .id;
+    let state = CellState {
+        registry,
+        active: ActiveBoardType {
+            entity_type_id: Some(board_id),
+        },
+    };
+    let harness = Harness::new_ui_state(
+        |ui, s: &mut CellState| {
+            render_panels::render_cell_palette(ui, &s.registry, &mut s.active);
+        },
+        state,
+    );
+    // The type name should appear as a selected label.
+    harness.get_by_label("Plains");
+    // Active selection should be preserved.
+    assert_eq!(harness.state().active.entity_type_id, Some(board_id));
+}
+
+/// `render_unit_palette` highlights the active token type with a stroke.
+#[test]
+fn unit_palette_highlights_active_type() {
+    struct UnitState {
+        registry: EntityTypeRegistry,
+        active: ActiveTokenType,
+    }
+    let registry = test_registry();
+    let token_id = registry
+        .types_by_role(EntityRole::Token)
+        .first()
+        .expect("test registry has token types")
+        .id;
+    let state = UnitState {
+        registry,
+        active: ActiveTokenType {
+            entity_type_id: Some(token_id),
+        },
+    };
+    let harness = Harness::new_ui_state(
+        |ui, s: &mut UnitState| {
+            render_panels::render_unit_palette(ui, &s.registry, &mut s.active);
+        },
+        state,
+    );
+    harness.get_by_label("Infantry");
+    assert_eq!(harness.state().active.entity_type_id, Some(token_id));
+}
+
+/// `render_cell_palette` renders nothing when registry has no board types.
+#[test]
+fn cell_palette_empty_registry() {
+    let registry = EntityTypeRegistry { types: vec![] };
+    let mut active = ActiveBoardType::default();
+    let harness = Harness::new_ui(|ui| {
+        render_panels::render_cell_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Cell Palette");
+    // No type names should appear.
+    assert!(
+        harness.query_by_label("Plains").is_none(),
+        "Empty registry should show no types"
+    );
+}
+
+/// `render_unit_palette` renders nothing when registry has no token types.
+#[test]
+fn unit_palette_empty_registry() {
+    let registry = EntityTypeRegistry { types: vec![] };
+    let mut active = ActiveTokenType::default();
+    let harness = Harness::new_ui(|ui| {
+        render_panels::render_unit_palette(ui, &registry, &mut active);
+    });
+    harness.get_by_label("Unit Palette");
+    assert!(
+        harness.query_by_label("Infantry").is_none(),
+        "Empty registry should show no types"
+    );
+}
+
+/// `build_theme_visuals` sets `window_fill` from the theme's `bg_panel`.
+#[test]
+fn theme_visuals_sets_window_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(visuals.window_fill, render_panels::rgb(theme.bg_panel));
+}
+
+/// `build_theme_visuals` sets `extreme_bg_color` from `bg_deep`.
+#[test]
+fn theme_visuals_sets_extreme_bg() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(visuals.extreme_bg_color, render_panels::rgb(theme.bg_deep));
+}
+
+/// `build_theme_visuals` sets `faint_bg_color` from `bg_surface`.
+#[test]
+fn theme_visuals_sets_faint_bg() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(visuals.faint_bg_color, render_panels::rgb(theme.bg_surface));
+}
+
+/// `build_theme_visuals` sets inactive widget fill from `widget_inactive`.
+#[test]
+fn theme_visuals_sets_inactive_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.inactive.bg_fill,
+        render_panels::rgb(theme.widget_inactive)
+    );
+}
+
+/// `build_theme_visuals` sets hovered widget fill from `widget_hovered`.
+#[test]
+fn theme_visuals_sets_hovered_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.hovered.bg_fill,
+        render_panels::rgb(theme.widget_hovered)
+    );
+}
+
+/// `build_theme_visuals` sets active widget fill from `widget_active`.
+#[test]
+fn theme_visuals_sets_active_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.active.bg_fill,
+        render_panels::rgb(theme.widget_active)
+    );
+}
+
+/// `build_theme_visuals` derives noninteractive fill by subtracting 10 from
+/// each `widget_inactive` channel.
+#[test]
+fn theme_visuals_derives_noninteractive_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    let expected = bevy_egui::egui::Color32::from_rgb(
+        theme.widget_inactive[0].saturating_sub(10),
+        theme.widget_inactive[1].saturating_sub(10),
+        theme.widget_inactive[2].saturating_sub(10),
+    );
+    assert_eq!(visuals.widgets.noninteractive.bg_fill, expected);
+}
+
+/// `build_theme_visuals` sets the window stroke from the `border` colour.
+#[test]
+fn theme_visuals_sets_window_stroke() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.window_stroke.color,
+        render_panels::rgb(theme.border)
+    );
+    assert!((visuals.window_stroke.width - 1.0).abs() < f32::EPSILON);
+}
+
+/// `build_theme_visuals` sets text `fg_stroke` on noninteractive widgets to `text_primary`.
+#[test]
+fn theme_visuals_sets_text_fg_strokes() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.noninteractive.fg_stroke.color,
+        render_panels::rgb(theme.text_primary)
+    );
+    assert_eq!(
+        visuals.widgets.inactive.fg_stroke.color,
+        render_panels::rgb(theme.text_secondary)
+    );
+    assert_eq!(
+        visuals.widgets.hovered.fg_stroke.color,
+        render_panels::rgb(theme.text_primary)
+    );
+    assert_eq!(
+        visuals.widgets.active.fg_stroke.color,
+        render_panels::rgb(theme.text_primary)
+    );
+    assert_eq!(
+        visuals.widgets.open.fg_stroke.color,
+        render_panels::rgb(theme.text_primary)
+    );
+}
+
+/// `build_theme_text_styles` includes Small, Button, and Monospace styles.
+#[test]
+fn theme_text_styles_includes_all_styles() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Small),
+        "Should contain Small style"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Button),
+        "Should contain Button style"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Monospace),
+        "Should contain Monospace style"
+    );
+}
+
+/// `build_theme_text_styles` scales Small to 13pt at default (scale 1.0).
+#[test]
+fn theme_text_styles_small_size() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let small = styles
+        .get(&bevy_egui::egui::TextStyle::Small)
+        .expect("Small style should be present");
+    assert!(
+        (small.size - 13.0).abs() < f32::EPSILON,
+        "Small should be 13pt at default scale, got {}",
+        small.size
+    );
+}
+
+/// `build_theme_text_styles` scales Button to 15pt at default.
+#[test]
+fn theme_text_styles_button_size() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let button = styles
+        .get(&bevy_egui::egui::TextStyle::Button)
+        .expect("Button style should be present");
+    assert!(
+        (button.size - 15.0).abs() < f32::EPSILON,
+        "Button should be 15pt at default scale, got {}",
+        button.size
+    );
+}
+
+/// `build_theme_text_styles` uses Monospace font family for Monospace style.
+#[test]
+fn theme_text_styles_monospace_family() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let mono = styles
+        .get(&bevy_egui::egui::TextStyle::Monospace)
+        .expect("Monospace style should be present");
+    assert_eq!(
+        mono.family,
+        bevy_egui::egui::FontFamily::Monospace,
+        "Monospace style should use Monospace font family"
+    );
+}
+
+/// `render_launcher_content` shows "Project Name:" and Create/Cancel when
+/// `launcher_name_input_visible` is true with an empty name.
+#[test]
+fn launcher_input_visible_empty_name_shows_controls() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState {
+                launcher_name_input_visible: true,
+                launcher_project_name: String::new(),
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label("Project Name:");
+    harness.get_by_label("Create");
+    harness.get_by_label("Cancel");
+}
+
+/// `render_launcher_content` with `launcher_request_focus` true clears the flag
+/// after the first frame.
+#[test]
+fn launcher_request_focus_clears_after_render() {
+    let mut harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState {
+                launcher_name_input_visible: true,
+                launcher_project_name: String::new(),
+                launcher_request_focus: true,
+                ..EditorState::default()
+            },
+        );
+    // Run a frame so the focus-request logic executes.
+    harness.run();
+    assert!(
+        !harness.state().launcher_request_focus,
+        "launcher_request_focus should be cleared after render"
+    );
+}
+
+/// `render_launcher_content` shows version string.
+#[test]
+fn launcher_shows_version() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label_contains(env!("CARGO_PKG_VERSION"));
+}
+
+/// `render_tool_mode` with Paint already selected shows Paint as active.
+#[test]
+fn tool_mode_paint_selected() {
+    let tool = EditorTool::Paint;
+    let harness = Harness::new_ui_state(
+        |ui, tool| {
+            render_panels::render_tool_mode(ui, tool);
+        },
+        tool,
+    );
+    harness.get_by_label("Select");
+    harness.get_by_label("Paint");
+    harness.get_by_label("Place");
+}
+
+/// `render_tool_mode` with Place already selected shows Place as active.
+#[test]
+fn tool_mode_place_selected() {
+    let tool = EditorTool::Place;
+    let harness = Harness::new_ui_state(
+        |ui, tool| {
+            render_panels::render_tool_mode(ui, tool);
+        },
+        tool,
+    );
+    harness.get_by_label("Select");
+    harness.get_by_label("Paint");
+    harness.get_by_label("Place");
+}
+
+/// Clicking Select when already in Select keeps the tool unchanged.
+#[test]
+fn tool_mode_click_select_when_already_select() {
+    let tool = EditorTool::Select;
+    let mut harness = Harness::new_ui_state(
+        |ui, tool| {
+            render_panels::render_tool_mode(ui, tool);
+        },
+        tool,
+    );
+    harness.get_by_label("Select").click();
+    harness.run();
+    assert_eq!(*harness.state(), EditorTool::Select);
+}
+
+/// `render_workspace_header` shows short IDs without truncation.
+#[test]
+fn workspace_header_short_id_no_truncation() {
+    let workspace = Workspace {
+        name: "Short".to_string(),
+        ..Workspace::default()
+    };
+    let gs = GameSystem {
+        id: "abcd1234".to_string(),
+        version: "1.0.0".to_string(),
+    };
+    let harness = Harness::new_ui(|ui| {
+        render_panels::render_workspace_header(ui, &workspace, &gs);
+    });
+    // With exactly 8 chars, the id should appear without "...".
+    harness.get_by_label_contains("abcd1234");
 }

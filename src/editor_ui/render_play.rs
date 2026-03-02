@@ -96,7 +96,7 @@ pub fn play_panel_system(
                 &selected_unit,
                 &entity_types,
                 &mut editor_state,
-                &unit_query,
+                &|e| unit_query.get(e).ok(),
             );
         });
 
@@ -140,7 +140,7 @@ pub(crate) fn render_play_file_menu(ui: &mut egui::Ui) -> Vec<PlayMenuAction> {
 /// to editor mode. The caller is responsible for performing the state
 /// transition so that ECS mutations happen outside the egui closure.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn render_play_sidebar(
+pub(crate) fn render_play_sidebar<'a>(
     ui: &mut egui::Ui,
     workspace: &Workspace,
     game_system: &GameSystem,
@@ -152,7 +152,7 @@ pub(crate) fn render_play_sidebar(
     selected_unit: &SelectedUnit,
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
-    unit_query: &Query<&EntityData, With<UnitInstance>>,
+    unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
 ) -> bool {
     // -- Workspace Header --
     render_workspace_header(ui, workspace, game_system);
@@ -186,7 +186,7 @@ pub(crate) fn render_play_sidebar(
             selected_unit,
             entity_types,
             editor_state,
-            unit_query,
+            unit_lookup,
         );
     });
 
@@ -293,7 +293,7 @@ pub(crate) fn render_turn_tracker(
 
 /// Renders the combat resolution panel in the play panel.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn render_combat_panel(
+pub(crate) fn render_combat_panel<'a>(
     ui: &mut egui::Ui,
     active_combat: &mut ActiveCombat,
     crt: &CombatResultsTable,
@@ -301,7 +301,7 @@ pub(crate) fn render_combat_panel(
     selected_unit: &SelectedUnit,
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
-    unit_query: &Query<&EntityData, With<UnitInstance>>,
+    unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
 ) {
     use hexorder_contracts::mechanics::{
         apply_column_shift, evaluate_modifiers_prioritized, find_crt_column, resolve_crt,
@@ -327,9 +327,7 @@ pub(crate) fn render_combat_panel(
     ui.horizontal(|ui| {
         ui.label("Attacker:");
         if let Some(atk) = active_combat.attacker {
-            let name = unit_query
-                .get(atk)
-                .ok()
+            let name = unit_lookup(atk)
                 .and_then(|ed| entity_types.get(ed.entity_type_id))
                 .map_or("(unknown)".to_string(), |et| et.name.clone());
             ui.label(
@@ -354,9 +352,7 @@ pub(crate) fn render_combat_panel(
     ui.horizontal(|ui| {
         ui.label("Defender:");
         if let Some(def) = active_combat.defender {
-            let name = unit_query
-                .get(def)
-                .ok()
+            let name = unit_lookup(def)
                 .and_then(|ed| entity_types.get(ed.entity_type_id))
                 .map_or("(unknown)".to_string(), |et| et.name.clone());
             ui.label(

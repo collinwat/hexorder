@@ -126,60 +126,266 @@ pub fn disable_egui_zoom_shortcuts(mut contexts: EguiContexts) {
 // ---------------------------------------------------------------------------
 
 /// Data for the Palette tab (tool selection, cell/unit palettes, project info).
-struct PaletteData<'a> {
-    editor_tool: &'a mut EditorTool,
-    active_board: &'a mut ActiveBoardType,
-    active_token: &'a mut ActiveTokenType,
-    project_workspace: &'a Workspace,
-    project_game_system: &'a GameSystem,
+pub(crate) struct PaletteData<'a> {
+    pub(crate) editor_tool: &'a mut EditorTool,
+    pub(crate) active_board: &'a mut ActiveBoardType,
+    pub(crate) active_token: &'a mut ActiveTokenType,
+    pub(crate) project_workspace: &'a Workspace,
+    pub(crate) project_game_system: &'a GameSystem,
 }
 
 /// Data for the Design tab (type editors, ontology sub-tabs).
-struct DesignData<'a> {
-    registry: &'a mut EntityTypeRegistry,
-    enum_registry: &'a mut EnumRegistry,
-    struct_registry: &'a mut StructRegistry,
-    concept_registry: &'a mut hexorder_contracts::ontology::ConceptRegistry,
-    relation_registry: &'a mut hexorder_contracts::ontology::RelationRegistry,
+pub(crate) struct DesignData<'a> {
+    pub(crate) registry: &'a mut EntityTypeRegistry,
+    pub(crate) enum_registry: &'a mut EnumRegistry,
+    pub(crate) struct_registry: &'a mut StructRegistry,
+    pub(crate) concept_registry: &'a mut hexorder_contracts::ontology::ConceptRegistry,
+    pub(crate) relation_registry: &'a mut hexorder_contracts::ontology::RelationRegistry,
 }
 
 /// Data for the Rules tab (constraints, validation, mechanics sub-tabs).
-struct RulesData<'a> {
-    constraint_registry: &'a mut hexorder_contracts::ontology::ConstraintRegistry,
-    turn_structure: &'a mut hexorder_contracts::mechanics::TurnStructure,
-    combat_results_table: &'a mut CombatResultsTable,
-    combat_modifiers: &'a mut hexorder_contracts::mechanics::CombatModifierRegistry,
+pub(crate) struct RulesData<'a> {
+    pub(crate) constraint_registry: &'a mut hexorder_contracts::ontology::ConstraintRegistry,
+    pub(crate) turn_structure: &'a mut hexorder_contracts::mechanics::TurnStructure,
+    pub(crate) combat_results_table: &'a mut CombatResultsTable,
+    pub(crate) combat_modifiers: &'a mut hexorder_contracts::mechanics::CombatModifierRegistry,
+}
+
+/// Actions returned by `render_editor_menu_bar` for deferred dispatch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EditorMenuAction {
+    NewProject,
+    OpenFile,
+    Save,
+    SaveAs,
+    ExportPdf,
+    CloseProject,
+    Undo,
+    Redo,
+    SwitchPreset(WorkspacePreset),
+    ShowAbout,
 }
 
 /// Data for the Inspector tab (selected tile/unit property editors).
-struct InspectorData<'a> {
-    tile_position: Option<HexPosition>,
-    tile_entity_data: Option<Mut<'a, EntityData>>,
-    unit_entity_data: Option<Mut<'a, EntityData>>,
+pub(crate) struct InspectorData<'a> {
+    pub(crate) tile_position: Option<HexPosition>,
+    pub(crate) tile_entity_data: Option<&'a mut EntityData>,
+    pub(crate) unit_entity_data: Option<&'a mut EntityData>,
 }
 
 /// Viewer context that borrows system resources for the duration of `DockArea::show()`.
 ///
 /// Fields are grouped by tab ownership. Cross-cutting fields (`editor_state`, `actions`)
 /// remain at the top level because they are shared across multiple tabs.
-struct EditorDockViewer<'a> {
+///
+/// All fields use plain Rust references (no Bevy `Mut`/`NextState` wrappers) so the
+/// struct can be constructed in unit tests without an ECS `World`.
+pub(crate) struct EditorDockViewer<'a> {
     // Cross-cutting (shared by multiple tabs)
-    editor_state: &'a mut EditorState,
-    actions: &'a mut Vec<EditorAction>,
-    next_state: &'a mut NextState<AppScreen>,
-    schema_validation: &'a SchemaValidation,
+    pub(crate) editor_state: &'a mut EditorState,
+    pub(crate) actions: &'a mut Vec<EditorAction>,
+    pub(crate) next_screen: Option<AppScreen>,
+    pub(crate) schema_validation: &'a SchemaValidation,
     // Single-tab fields
-    viewport_rect: &'a mut ViewportRect,
-    multi: &'a hexorder_contracts::editor_ui::Selection,
-    mechanic_catalog: &'a MechanicCatalog,
+    pub(crate) viewport_rect: &'a mut ViewportRect,
+    pub(crate) multi: &'a hexorder_contracts::editor_ui::Selection,
+    pub(crate) mechanic_catalog: &'a MechanicCatalog,
     // Tab-specific groups
-    palette: PaletteData<'a>,
-    design: DesignData<'a>,
-    rules: RulesData<'a>,
-    inspector: InspectorData<'a>,
+    pub(crate) palette: PaletteData<'a>,
+    pub(crate) design: DesignData<'a>,
+    pub(crate) rules: RulesData<'a>,
+    pub(crate) inspector: InspectorData<'a>,
     // Map generation
-    map_gen_params: &'a mut MapGenParams,
-    is_generating: bool,
+    pub(crate) map_gen_params: &'a mut MapGenParams,
+    pub(crate) is_generating: bool,
+}
+
+/// Renders the content for a single dock tab.
+///
+/// This is a free function (not a method on `EditorDockViewer`) so it can be called
+/// from unit tests without constructing a full `egui_dock::TabViewer` impl.  The
+/// viewer struct groups all the data needed; the function dispatches on the tab
+/// variant and delegates to the appropriate rendering helper.
+#[allow(clippy::too_many_lines)]
+pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut EditorDockViewer<'_>) {
+    match tab {
+        DockTab::Viewport => {
+            viewer.viewport_rect.0 = Some(ui.max_rect());
+        }
+        DockTab::Palette => {
+            render_workspace_header(
+                ui,
+                viewer.palette.project_workspace,
+                viewer.palette.project_game_system,
+            );
+            if viewer.editor_state.toolbar_visible {
+                render_tool_mode(ui, viewer.palette.editor_tool);
+            }
+            if ui
+                .button(
+                    egui::RichText::new("\u{25B6} Play")
+                        .strong()
+                        .color(BrandTheme::SUCCESS),
+                )
+                .on_hover_text("Enter play mode to test turns and combat")
+                .clicked()
+            {
+                viewer.next_screen = Some(AppScreen::Play);
+            }
+            ui.separator();
+            if *viewer.palette.editor_tool == EditorTool::Paint {
+                render_cell_palette(ui, viewer.design.registry, viewer.palette.active_board);
+            }
+            if *viewer.palette.editor_tool == EditorTool::Place {
+                render_unit_palette(ui, viewer.design.registry, viewer.palette.active_token);
+            }
+        }
+        DockTab::Design => {
+            render_design_tab_bar(ui, viewer.editor_state);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                match viewer.editor_state.active_tab {
+                    OntologyTab::Types => {
+                        render_entity_type_editor(
+                            ui,
+                            viewer.design.registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                            viewer.design.enum_registry,
+                            viewer.design.struct_registry,
+                        );
+                    }
+                    OntologyTab::Enums => {
+                        render_enums_tab(
+                            ui,
+                            viewer.design.enum_registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    OntologyTab::Structs => {
+                        render_structs_tab(
+                            ui,
+                            viewer.design.struct_registry,
+                            viewer.design.enum_registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    OntologyTab::Concepts => {
+                        render_concepts_tab(
+                            ui,
+                            viewer.design.concept_registry,
+                            viewer.design.registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    OntologyTab::Relations => {
+                        render_relations_tab(
+                            ui,
+                            viewer.design.relation_registry,
+                            viewer.design.concept_registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    // If user had a Rules sub-tab selected, show Types as fallback.
+                    _ => {
+                        viewer.editor_state.active_tab = OntologyTab::Types;
+                        render_entity_type_editor(
+                            ui,
+                            viewer.design.registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                            viewer.design.enum_registry,
+                            viewer.design.struct_registry,
+                        );
+                    }
+                }
+            });
+        }
+        DockTab::Rules => {
+            render_rules_tab_bar(ui, viewer.editor_state);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                match viewer.editor_state.active_tab {
+                    OntologyTab::Constraints => {
+                        render_constraints_tab(
+                            ui,
+                            viewer.rules.constraint_registry,
+                            viewer.design.concept_registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    OntologyTab::Validation => {
+                        render_validation_tab(ui, viewer.schema_validation);
+                    }
+                    OntologyTab::Mechanics => {
+                        render_mechanics_tab(
+                            ui,
+                            viewer.rules.turn_structure,
+                            viewer.rules.combat_results_table,
+                            viewer.rules.combat_modifiers,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                    // If user had a Design sub-tab selected, show Constraints as fallback.
+                    _ => {
+                        viewer.editor_state.active_tab = OntologyTab::Constraints;
+                        render_constraints_tab(
+                            ui,
+                            viewer.rules.constraint_registry,
+                            viewer.design.concept_registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                    }
+                }
+            });
+        }
+        DockTab::Inspector => {
+            render_inspector(
+                ui,
+                viewer.inspector.tile_position,
+                viewer.inspector.tile_entity_data.as_deref_mut(),
+                viewer.design.registry,
+                viewer.design.enum_registry,
+                viewer.design.struct_registry,
+            );
+            render_unit_inspector(
+                ui,
+                viewer.inspector.unit_entity_data.as_deref_mut(),
+                viewer.design.registry,
+                viewer.design.enum_registry,
+                viewer.design.struct_registry,
+                viewer.actions,
+            );
+        }
+        DockTab::Settings => {
+            render_settings_tab(ui, viewer.editor_state);
+        }
+        DockTab::Selection => {
+            render_selection_tab(ui, viewer.multi.entities.len());
+        }
+        DockTab::Validation => {
+            render_validation_tab(ui, viewer.schema_validation);
+        }
+        DockTab::MechanicReference => {
+            render_mechanic_reference(ui, viewer.mechanic_catalog, viewer.actions);
+        }
+        DockTab::MapGenerator => {
+            render_map_generator(
+                ui,
+                viewer.map_gen_params,
+                viewer.is_generating,
+                viewer.actions,
+            );
+        }
+        DockTab::Shortcuts => {
+            render_shortcuts_tab(ui, &viewer.editor_state.shortcut_entries);
+        }
+    }
 }
 
 impl egui_dock::TabViewer for EditorDockViewer<'_> {
@@ -190,179 +396,7 @@ impl egui_dock::TabViewer for EditorDockViewer<'_> {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut DockTab) {
-        match tab {
-            DockTab::Viewport => {
-                self.viewport_rect.0 = Some(ui.max_rect());
-            }
-            DockTab::Palette => {
-                render_workspace_header(
-                    ui,
-                    self.palette.project_workspace,
-                    self.palette.project_game_system,
-                );
-                if self.editor_state.toolbar_visible {
-                    render_tool_mode(ui, self.palette.editor_tool);
-                }
-                if ui
-                    .button(
-                        egui::RichText::new("\u{25B6} Play")
-                            .strong()
-                            .color(BrandTheme::SUCCESS),
-                    )
-                    .on_hover_text("Enter play mode to test turns and combat")
-                    .clicked()
-                {
-                    self.next_state.set(AppScreen::Play);
-                }
-                ui.separator();
-                if *self.palette.editor_tool == EditorTool::Paint {
-                    render_cell_palette(ui, self.design.registry, self.palette.active_board);
-                }
-                if *self.palette.editor_tool == EditorTool::Place {
-                    render_unit_palette(ui, self.design.registry, self.palette.active_token);
-                }
-            }
-            DockTab::Design => {
-                render_design_tab_bar(ui, self.editor_state);
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    match self.editor_state.active_tab {
-                        OntologyTab::Types => {
-                            render_entity_type_editor(
-                                ui,
-                                self.design.registry,
-                                self.editor_state,
-                                self.actions,
-                                self.design.enum_registry,
-                                self.design.struct_registry,
-                            );
-                        }
-                        OntologyTab::Enums => {
-                            render_enums_tab(
-                                ui,
-                                self.design.enum_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Structs => {
-                            render_structs_tab(
-                                ui,
-                                self.design.struct_registry,
-                                self.design.enum_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Concepts => {
-                            render_concepts_tab(
-                                ui,
-                                self.design.concept_registry,
-                                self.design.registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Relations => {
-                            render_relations_tab(
-                                ui,
-                                self.design.relation_registry,
-                                self.design.concept_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        // If user had a Rules sub-tab selected, show Types as fallback.
-                        _ => {
-                            self.editor_state.active_tab = OntologyTab::Types;
-                            render_entity_type_editor(
-                                ui,
-                                self.design.registry,
-                                self.editor_state,
-                                self.actions,
-                                self.design.enum_registry,
-                                self.design.struct_registry,
-                            );
-                        }
-                    }
-                });
-            }
-            DockTab::Rules => {
-                render_rules_tab_bar(ui, self.editor_state);
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    match self.editor_state.active_tab {
-                        OntologyTab::Constraints => {
-                            render_constraints_tab(
-                                ui,
-                                self.rules.constraint_registry,
-                                self.design.concept_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        OntologyTab::Validation => {
-                            render_validation_tab(ui, self.schema_validation);
-                        }
-                        OntologyTab::Mechanics => {
-                            render_mechanics_tab(
-                                ui,
-                                self.rules.turn_structure,
-                                self.rules.combat_results_table,
-                                self.rules.combat_modifiers,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                        // If user had a Design sub-tab selected, show Constraints as fallback.
-                        _ => {
-                            self.editor_state.active_tab = OntologyTab::Constraints;
-                            render_constraints_tab(
-                                ui,
-                                self.rules.constraint_registry,
-                                self.design.concept_registry,
-                                self.editor_state,
-                                self.actions,
-                            );
-                        }
-                    }
-                });
-            }
-            DockTab::Inspector => {
-                render_inspector(
-                    ui,
-                    self.inspector.tile_position,
-                    self.inspector.tile_entity_data.as_deref_mut(),
-                    self.design.registry,
-                    self.design.enum_registry,
-                    self.design.struct_registry,
-                );
-                render_unit_inspector(
-                    ui,
-                    self.inspector.unit_entity_data.as_deref_mut(),
-                    self.design.registry,
-                    self.design.enum_registry,
-                    self.design.struct_registry,
-                    self.actions,
-                );
-            }
-            DockTab::Settings => {
-                render_settings_tab(ui, self.editor_state);
-            }
-            DockTab::Selection => {
-                render_selection_tab(ui, self.multi.entities.len());
-            }
-            DockTab::Validation => {
-                render_validation_tab(ui, self.schema_validation);
-            }
-            DockTab::MechanicReference => {
-                render_mechanic_reference(ui, self.mechanic_catalog, self.actions);
-            }
-            DockTab::MapGenerator => {
-                render_map_generator(ui, self.map_gen_params, self.is_generating, self.actions);
-            }
-            DockTab::Shortcuts => {
-                render_shortcuts_tab(ui, &self.editor_state.shortcut_entries);
-            }
-        }
+        render_dock_tab(ui, *tab, self);
     }
 
     fn closeable(&mut self, tab: &mut DockTab) -> bool {
@@ -595,6 +629,96 @@ pub(crate) fn configure_dock_style(base_style: &egui::Style) -> egui_dock::Style
     // Overlay (drag-to-dock indicators).
     style.overlay.selection_color = egui::Color32::from_rgba_premultiplied(0, 92, 128, 80);
     style
+}
+
+/// Renders the editor menu bar (File, Edit, View, Help) and returns actions for
+/// deferred dispatch. Pure function — no ECS types.
+pub(crate) fn render_editor_menu_bar(
+    ui: &mut egui::Ui,
+    can_undo: bool,
+    undo_desc: Option<&str>,
+    can_redo: bool,
+    redo_desc: Option<&str>,
+    active_preset: WorkspacePreset,
+) -> Vec<EditorMenuAction> {
+    let mut actions = Vec::new();
+    egui::MenuBar::new().ui(ui, |ui| {
+        ui.menu_button("File", |ui| {
+            if ui.button("New          Cmd+N").clicked() {
+                actions.push(EditorMenuAction::NewProject);
+                ui.close();
+            }
+            if ui.button("Open...      Cmd+O").clicked() {
+                actions.push(EditorMenuAction::OpenFile);
+                ui.close();
+            }
+            ui.separator();
+            if ui.button("Save         Cmd+S").clicked() {
+                actions.push(EditorMenuAction::Save);
+                ui.close();
+            }
+            if ui.button("Save As...   Cmd+Shift+S").clicked() {
+                actions.push(EditorMenuAction::SaveAs);
+                ui.close();
+            }
+            ui.separator();
+            if ui.button("Export PDF   Cmd+Shift+E").clicked() {
+                actions.push(EditorMenuAction::ExportPdf);
+                ui.close();
+            }
+            ui.separator();
+            if ui.button("Close        Cmd+W").clicked() {
+                actions.push(EditorMenuAction::CloseProject);
+                ui.close();
+            }
+        });
+        ui.menu_button("Edit", |ui| {
+            let undo_label = undo_desc.map_or_else(
+                || "Undo         Cmd+Z".to_string(),
+                |desc| format!("Undo {desc:<5}Cmd+Z"),
+            );
+            let undo_btn = ui.add_enabled(can_undo, egui::Button::new(undo_label));
+            if undo_btn.clicked() {
+                actions.push(EditorMenuAction::Undo);
+                ui.close();
+            }
+            let redo_label = redo_desc.map_or_else(
+                || "Redo         Cmd+Shift+Z".to_string(),
+                |desc| format!("Redo {desc:<5}Cmd+Shift+Z"),
+            );
+            let redo_btn = ui.add_enabled(can_redo, egui::Button::new(redo_label));
+            if redo_btn.clicked() {
+                actions.push(EditorMenuAction::Redo);
+                ui.close();
+            }
+        });
+        ui.menu_button("View", |ui| {
+            ui.label(
+                egui::RichText::new("Workspace")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            for (preset, label) in [
+                (WorkspacePreset::MapEditing, "Map Editing      Cmd+1"),
+                (WorkspacePreset::UnitDesign, "Unit Design      Cmd+2"),
+                (WorkspacePreset::RuleAuthoring, "Rule Authoring   Cmd+3"),
+                (WorkspacePreset::Playtesting, "Playtesting      Cmd+4"),
+            ] {
+                let response = ui.selectable_label(active_preset == preset, label);
+                if response.clicked() {
+                    actions.push(EditorMenuAction::SwitchPreset(preset));
+                    ui.close();
+                }
+            }
+        });
+        ui.menu_button("Help", |ui| {
+            if ui.button("About Hexorder").clicked() {
+                actions.push(EditorMenuAction::ShowAbout);
+                ui.close();
+            }
+        });
+    });
+    actions
 }
 
 /// Renders the Mechanic Reference panel — a browsable catalog organized by category.
@@ -836,95 +960,58 @@ pub fn editor_dock_system(
     let is_generating = map_gen.generate.is_some();
 
     // Menu bar as native TopBottomPanel (above dock area).
-    egui::TopBottomPanel::top("editor_menu_bar").show(ctx, |ui| {
-        egui::MenuBar::new().ui(ui, |ui| {
-            ui.menu_button("File", |ui| {
-                if ui.button("New          Cmd+N").clicked() {
-                    commands.trigger(CloseProjectEvent);
-                    ui.close();
-                }
-                if ui.button("Open...      Cmd+O").clicked() {
-                    commands.trigger(LoadRequestEvent);
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Save         Cmd+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: false });
-                    ui.close();
-                }
-                if ui.button("Save As...   Cmd+Shift+S").clicked() {
-                    commands.trigger(SaveRequestEvent { save_as: true });
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Export PDF   Cmd+Shift+E").clicked() {
-                    commands.trigger(CommandExecutedEvent {
-                        command_id: CommandId("file.export_pnp"),
-                    });
-                    ui.close();
-                }
-                ui.separator();
-                if ui.button("Close        Cmd+W").clicked() {
-                    commands.trigger(CommandExecutedEvent {
-                        command_id: CommandId("mode.close"),
-                    });
-                    ui.close();
-                }
-            });
-            ui.menu_button("Edit", |ui| {
-                let undo_label = project.undo_stack.undo_description().map_or_else(
-                    || "Undo         Cmd+Z".to_string(),
-                    |desc| format!("Undo {desc:<5}Cmd+Z"),
-                );
-                let undo_btn =
-                    ui.add_enabled(project.undo_stack.can_undo(), egui::Button::new(undo_label));
-                if undo_btn.clicked() {
-                    commands.trigger(CommandExecutedEvent {
-                        command_id: CommandId("edit.undo"),
-                    });
-                    ui.close();
-                }
-                let redo_label = project.undo_stack.redo_description().map_or_else(
-                    || "Redo         Cmd+Shift+Z".to_string(),
-                    |desc| format!("Redo {desc:<5}Cmd+Shift+Z"),
-                );
-                let redo_btn =
-                    ui.add_enabled(project.undo_stack.can_redo(), egui::Button::new(redo_label));
-                if redo_btn.clicked() {
-                    commands.trigger(CommandExecutedEvent {
-                        command_id: CommandId("edit.redo"),
-                    });
-                    ui.close();
-                }
-            });
-            ui.menu_button("View", |ui| {
-                ui.label(
-                    egui::RichText::new("Workspace")
-                        .small()
-                        .color(BrandTheme::TEXT_SECONDARY),
-                );
-                let active = dock_layout.active_preset;
-                for (preset, label) in [
-                    (WorkspacePreset::MapEditing, "Map Editing      Cmd+1"),
-                    (WorkspacePreset::UnitDesign, "Unit Design      Cmd+2"),
-                    (WorkspacePreset::RuleAuthoring, "Rule Authoring   Cmd+3"),
-                    (WorkspacePreset::Playtesting, "Playtesting      Cmd+4"),
-                ] {
-                    let response = ui.selectable_label(active == preset, label);
-                    if response.clicked() {
-                        dock_layout.apply_preset(preset);
-                        ui.close();
-                    }
-                }
-            });
-            ui.menu_button("Help", |ui| {
-                if ui.button("About Hexorder").clicked() {
-                    editor_state.about_panel_visible = true;
-                    ui.close();
-                }
-            });
-        });
-    });
+    let menu_actions = egui::TopBottomPanel::top("editor_menu_bar")
+        .show(ctx, |ui| {
+            render_editor_menu_bar(
+                ui,
+                project.undo_stack.can_undo(),
+                project.undo_stack.undo_description().as_deref(),
+                project.undo_stack.can_redo(),
+                project.undo_stack.redo_description().as_deref(),
+                dock_layout.active_preset,
+            )
+        })
+        .inner;
+
+    // Dispatch menu actions to ECS commands.
+    for action in menu_actions {
+        match action {
+            EditorMenuAction::NewProject => commands.trigger(CloseProjectEvent),
+            EditorMenuAction::OpenFile => commands.trigger(LoadRequestEvent),
+            EditorMenuAction::Save => {
+                commands.trigger(SaveRequestEvent { save_as: false });
+            }
+            EditorMenuAction::SaveAs => {
+                commands.trigger(SaveRequestEvent { save_as: true });
+            }
+            EditorMenuAction::ExportPdf => {
+                commands.trigger(CommandExecutedEvent {
+                    command_id: CommandId("file.export_pnp"),
+                });
+            }
+            EditorMenuAction::CloseProject => {
+                commands.trigger(CommandExecutedEvent {
+                    command_id: CommandId("mode.close"),
+                });
+            }
+            EditorMenuAction::Undo => {
+                commands.trigger(CommandExecutedEvent {
+                    command_id: CommandId("edit.undo"),
+                });
+            }
+            EditorMenuAction::Redo => {
+                commands.trigger(CommandExecutedEvent {
+                    command_id: CommandId("edit.redo"),
+                });
+            }
+            EditorMenuAction::SwitchPreset(preset) => {
+                dock_layout.apply_preset(preset);
+            }
+            EditorMenuAction::ShowAbout => {
+                editor_state.about_panel_visible = true;
+            }
+        }
+    }
 
     // Status bar at the bottom of the editor window.
     let status_tool = *selection.editor_tool;
@@ -949,8 +1036,8 @@ pub fn editor_dock_system(
             .find(|(tp, _)| **tp == pos)
             .map(|(_, e)| e)
     });
-    let tile_entity_data = tile_entity.and_then(|e| tile_data_query.get_mut(e).ok());
-    let unit_entity_data = selection
+    let mut tile_entity_data = tile_entity.and_then(|e| tile_data_query.get_mut(e).ok());
+    let mut unit_entity_data = selection
         .selected_unit
         .entity
         .and_then(|e| unit_data_query.get_mut(e).ok());
@@ -959,7 +1046,7 @@ pub fn editor_dock_system(
     let mut viewer = EditorDockViewer {
         editor_state: &mut editor_state,
         actions: &mut actions,
-        next_state: &mut next_state,
+        next_screen: None,
         schema_validation: &validation,
         viewport_rect: &mut viewport_rect,
         multi: &selection.multi,
@@ -986,8 +1073,8 @@ pub fn editor_dock_system(
         },
         inspector: InspectorData {
             tile_position,
-            tile_entity_data,
-            unit_entity_data,
+            tile_entity_data: tile_entity_data.as_deref_mut(),
+            unit_entity_data: unit_entity_data.as_deref_mut(),
         },
         map_gen_params: &mut map_gen.params,
         is_generating,
@@ -1003,6 +1090,11 @@ pub fn editor_dock_system(
         .show_leaf_close_all_buttons(false)
         .show_leaf_collapse_buttons(false)
         .show(ctx, &mut viewer);
+
+    // Apply deferred screen transition (if the Play button was clicked).
+    if let Some(screen) = viewer.next_screen {
+        next_state.set(screen);
+    }
 
     // Apply deferred actions.
     apply_actions(
