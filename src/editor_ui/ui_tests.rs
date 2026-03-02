@@ -12128,3 +12128,1430 @@ fn workspace_header_short_id_no_truncation() {
     // With exactly 8 chars, the id should appear without "...".
     harness.get_by_label_contains("abcd1234");
 }
+
+// ---------------------------------------------------------------------------
+// ECS system tests for sync/restore functions (no egui needed)
+// ---------------------------------------------------------------------------
+
+use super::components::DockLayoutState;
+use hexorder_contracts::settings::{SettingsRegistry, ThemeDefinition, ThemeLibrary};
+use hexorder_contracts::shortcuts::{
+    CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
+};
+
+/// Creates a minimal `App` suitable for testing sync/restore systems that
+/// only need `Res`/`ResMut` parameters (no `EguiContexts`).
+fn sync_restore_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app
+}
+
+fn named_theme(name: &str) -> ThemeDefinition {
+    ThemeDefinition {
+        name: name.to_string(),
+        bg_deep: [0, 0, 0],
+        bg_panel: [20, 20, 20],
+        bg_surface: [30, 30, 30],
+        widget_inactive: [40, 40, 40],
+        widget_hovered: [50, 50, 50],
+        widget_active: [60, 60, 60],
+        accent_primary: [0, 128, 255],
+        accent_secondary: [255, 180, 0],
+        text_primary: [230, 230, 230],
+        text_secondary: [160, 160, 160],
+        border: [60, 60, 60],
+        danger: [220, 50, 50],
+        success: [50, 180, 50],
+    }
+}
+
+// -- sync_workspace_preset --
+
+#[test]
+fn sync_workspace_preset_copies_preset_to_workspace() {
+    let mut app = sync_restore_app();
+    let mut dock = DockLayoutState::default();
+    dock.apply_preset(WorkspacePreset::UnitDesign);
+    app.insert_resource(dock);
+    app.insert_resource(Workspace::default());
+    app.add_systems(Update, systems::sync_workspace_preset);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert_eq!(ws.workspace_preset, "unit_design");
+}
+
+#[test]
+fn sync_workspace_preset_noop_when_already_matches() {
+    let mut app = sync_restore_app();
+    // Both default to MapEditing / "map_editing"
+    let dock = DockLayoutState::default();
+    let workspace = Workspace {
+        workspace_preset: "map_editing".to_string(),
+        ..Workspace::default()
+    };
+    app.insert_resource(dock);
+    app.insert_resource(workspace);
+    app.add_systems(Update, systems::sync_workspace_preset);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert_eq!(ws.workspace_preset, "map_editing");
+}
+
+// -- restore_workspace_preset --
+
+#[test]
+fn restore_workspace_preset_applies_preset_from_settings() {
+    let mut app = sync_restore_app();
+    let settings = SettingsRegistry {
+        editor: hexorder_contracts::settings::EditorSettings {
+            workspace_preset: "playtesting".to_string(),
+            ..Default::default()
+        },
+        ..SettingsRegistry::default()
+    };
+    app.insert_resource(settings);
+    app.init_resource::<DockLayoutState>();
+    app.add_systems(Update, systems::restore_workspace_preset);
+    app.update();
+
+    let dock = app.world().resource::<DockLayoutState>();
+    assert_eq!(dock.active_preset, WorkspacePreset::Playtesting);
+}
+
+#[test]
+fn restore_workspace_preset_empty_string_early_return() {
+    let mut app = sync_restore_app();
+    let settings = SettingsRegistry::default(); // workspace_preset is empty
+    app.insert_resource(settings);
+    app.init_resource::<DockLayoutState>(); // default = MapEditing
+    app.add_systems(Update, systems::restore_workspace_preset);
+    app.update();
+
+    let dock = app.world().resource::<DockLayoutState>();
+    assert_eq!(dock.active_preset, WorkspacePreset::MapEditing);
+}
+
+#[test]
+fn restore_workspace_preset_noop_when_already_matches() {
+    let mut app = sync_restore_app();
+    let settings = SettingsRegistry {
+        editor: hexorder_contracts::settings::EditorSettings {
+            workspace_preset: "map_editing".to_string(),
+            ..Default::default()
+        },
+        ..SettingsRegistry::default()
+    };
+    app.insert_resource(settings);
+    // DockLayoutState defaults to MapEditing, which matches "map_editing"
+    app.init_resource::<DockLayoutState>();
+    app.add_systems(Update, systems::restore_workspace_preset);
+    app.update();
+
+    let dock = app.world().resource::<DockLayoutState>();
+    assert_eq!(dock.active_preset, WorkspacePreset::MapEditing);
+}
+
+// -- sync_font_size --
+
+#[test]
+fn sync_font_size_copies_editor_to_workspace() {
+    let mut app = sync_restore_app();
+    let editor = EditorState {
+        font_size_base: 18.0,
+        ..EditorState::default()
+    };
+    app.insert_resource(editor);
+    app.insert_resource(Workspace::default()); // font_size_base = 15.0
+    app.add_systems(Update, systems::sync_font_size);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert!((ws.font_size_base - 18.0).abs() < f32::EPSILON);
+}
+
+#[test]
+fn sync_font_size_noop_when_already_matches() {
+    let mut app = sync_restore_app();
+    let editor = EditorState::default(); // font_size_base = 15.0
+    let workspace = Workspace::default(); // font_size_base = 15.0
+    app.insert_resource(editor);
+    app.insert_resource(workspace);
+    app.add_systems(Update, systems::sync_font_size);
+    app.update();
+
+    let ws = app.world().resource::<Workspace>();
+    assert!((ws.font_size_base - 15.0).abs() < f32::EPSILON);
+}
+
+// -- restore_font_size --
+
+#[test]
+fn restore_font_size_copies_settings_to_editor() {
+    let mut app = sync_restore_app();
+    let settings = SettingsRegistry {
+        editor: hexorder_contracts::settings::EditorSettings {
+            font_size: 20.0,
+            ..Default::default()
+        },
+        ..SettingsRegistry::default()
+    };
+    app.insert_resource(settings);
+    app.insert_resource(EditorState::default()); // font_size_base = 15.0
+    app.add_systems(Update, systems::restore_font_size);
+    app.update();
+
+    let editor = app.world().resource::<EditorState>();
+    assert!((editor.font_size_base - 20.0).abs() < f32::EPSILON);
+}
+
+// -- restore_theme --
+
+#[test]
+fn restore_theme_populates_names_and_active() {
+    let mut app = sync_restore_app();
+    let settings = SettingsRegistry {
+        active_theme: "Dark".to_string(),
+        ..SettingsRegistry::default()
+    };
+    let library = ThemeLibrary {
+        themes: vec![named_theme("Brand"), named_theme("Dark")],
+    };
+    app.insert_resource(settings);
+    app.insert_resource(library);
+    app.insert_resource(EditorState::default());
+    app.add_systems(Update, systems::restore_theme);
+    app.update();
+
+    let editor = app.world().resource::<EditorState>();
+    assert_eq!(editor.theme_names, vec!["Brand", "Dark"]);
+    assert_eq!(editor.active_theme_name, "Dark");
+}
+
+// -- sync_theme --
+
+#[test]
+fn sync_theme_copies_editor_to_settings() {
+    let mut app = sync_restore_app();
+    let editor = EditorState {
+        active_theme_name: "Solarized".to_string(),
+        ..EditorState::default()
+    };
+    let settings = SettingsRegistry::default(); // active_theme = "brand"
+    app.insert_resource(editor);
+    app.insert_resource(settings);
+    app.add_systems(Update, systems::sync_theme);
+    app.update();
+
+    let s = app.world().resource::<SettingsRegistry>();
+    assert_eq!(s.active_theme, "Solarized");
+}
+
+#[test]
+fn sync_theme_noop_when_already_matches() {
+    let mut app = sync_restore_app();
+    let editor = EditorState {
+        active_theme_name: "brand".to_string(),
+        ..EditorState::default()
+    };
+    let settings = SettingsRegistry::default(); // active_theme = "brand"
+    app.insert_resource(editor);
+    app.insert_resource(settings);
+    app.add_systems(Update, systems::sync_theme);
+    app.update();
+
+    let s = app.world().resource::<SettingsRegistry>();
+    assert_eq!(s.active_theme, "brand");
+}
+
+// -- restore_shortcuts --
+
+#[test]
+fn restore_shortcuts_populates_entries_sorted_by_category() {
+    let mut app = sync_restore_app();
+    let mut registry = ShortcutRegistry::default();
+    // Register a View command first, then a File command.
+    // After restore, File should come before View due to category_order.
+    registry.register(CommandEntry {
+        id: CommandId("view.zoom"),
+        name: "Zoom".to_string(),
+        description: String::new(),
+        bindings: vec![KeyBinding::new(KeyCode::Equal, Modifiers::CMD)],
+        category: CommandCategory::View,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("file.save"),
+        name: "Save".to_string(),
+        description: String::new(),
+        bindings: vec![KeyBinding::new(KeyCode::KeyS, Modifiers::CMD)],
+        category: CommandCategory::File,
+        continuous: false,
+    });
+    app.insert_resource(registry);
+    app.insert_resource(EditorState::default());
+    app.add_systems(Update, systems::restore_shortcuts);
+    app.update();
+
+    let editor = app.world().resource::<EditorState>();
+    assert_eq!(editor.shortcut_entries.len(), 2);
+    // File (order 0) should be before View (order 2).
+    assert_eq!(editor.shortcut_entries[0].category, "File");
+    assert_eq!(editor.shortcut_entries[0].name, "Save");
+    assert_eq!(editor.shortcut_entries[1].category, "View");
+    assert_eq!(editor.shortcut_entries[1].name, "Zoom");
+}
+
+#[test]
+fn restore_shortcuts_multiple_bindings_joined() {
+    let mut app = sync_restore_app();
+    let mut registry = ShortcutRegistry::default();
+    registry.register(CommandEntry {
+        id: CommandId("file.save"),
+        name: "Save".to_string(),
+        description: String::new(),
+        bindings: vec![
+            KeyBinding::new(KeyCode::KeyS, Modifiers::CMD),
+            KeyBinding::new(KeyCode::KeyS, Modifiers::CMD_SHIFT),
+        ],
+        category: CommandCategory::File,
+        continuous: false,
+    });
+    app.insert_resource(registry);
+    app.insert_resource(EditorState::default());
+    app.add_systems(Update, systems::restore_shortcuts);
+    app.update();
+
+    let editor = app.world().resource::<EditorState>();
+    assert_eq!(editor.shortcut_entries.len(), 1);
+    // Two bindings should be joined with ", ".
+    assert!(editor.shortcut_entries[0].binding.contains(", "));
+}
+
+#[test]
+fn restore_shortcuts_empty_registry_produces_no_entries() {
+    let mut app = sync_restore_app();
+    let registry = ShortcutRegistry::default();
+    app.insert_resource(registry);
+    // Pre-populate to verify it gets replaced.
+    let editor = EditorState {
+        shortcut_entries: vec![ShortcutDisplayEntry {
+            category: "Old".to_string(),
+            name: "Old".to_string(),
+            binding: "Old".to_string(),
+        }],
+        ..EditorState::default()
+    };
+    app.insert_resource(editor);
+    app.add_systems(Update, systems::restore_shortcuts);
+    app.update();
+
+    let editor = app.world().resource::<EditorState>();
+    assert!(editor.shortcut_entries.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// build_theme_visuals — pure function coverage
+// ---------------------------------------------------------------------------
+
+/// `build_theme_visuals` maps `bg_panel` to `panel_fill`.
+#[test]
+fn build_theme_visuals_sets_panel_fill() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.panel_fill,
+        render_panels::rgb(theme.bg_panel),
+        "panel_fill should equal rgb(theme.bg_panel)"
+    );
+}
+
+/// `build_theme_visuals` maps widget inactive, hovered, and active fills.
+#[test]
+fn build_theme_visuals_sets_widget_fills() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.inactive.bg_fill,
+        render_panels::rgb(theme.widget_inactive),
+        "inactive bg_fill should match theme.widget_inactive"
+    );
+    assert_eq!(
+        visuals.widgets.hovered.bg_fill,
+        render_panels::rgb(theme.widget_hovered),
+        "hovered bg_fill should match theme.widget_hovered"
+    );
+    assert_eq!(
+        visuals.widgets.active.bg_fill,
+        render_panels::rgb(theme.widget_active),
+        "active bg_fill should match theme.widget_active"
+    );
+}
+
+/// Noninteractive fill is derived from `widget_inactive` minus 10 per channel.
+#[test]
+fn build_theme_visuals_noninteractive_darker() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    let expected = bevy_egui::egui::Color32::from_rgb(
+        theme.widget_inactive[0].saturating_sub(10),
+        theme.widget_inactive[1].saturating_sub(10),
+        theme.widget_inactive[2].saturating_sub(10),
+    );
+    assert_eq!(
+        visuals.widgets.noninteractive.bg_fill, expected,
+        "noninteractive fill should be widget_inactive minus 10 per channel"
+    );
+}
+
+/// `build_theme_visuals` sets `fg_stroke` colors for text visibility.
+#[test]
+fn build_theme_visuals_sets_text_strokes() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.widgets.noninteractive.fg_stroke.color,
+        render_panels::rgb(theme.text_primary),
+        "noninteractive fg_stroke should use text_primary"
+    );
+    assert_eq!(
+        visuals.widgets.inactive.fg_stroke.color,
+        render_panels::rgb(theme.text_secondary),
+        "inactive fg_stroke should use text_secondary"
+    );
+    assert_eq!(
+        visuals.widgets.hovered.fg_stroke.color,
+        render_panels::rgb(theme.text_primary),
+        "hovered fg_stroke should use text_primary"
+    );
+    assert_eq!(
+        visuals.widgets.active.fg_stroke.color,
+        render_panels::rgb(theme.text_primary),
+        "active fg_stroke should use text_primary"
+    );
+    assert_eq!(
+        visuals.widgets.open.fg_stroke.color,
+        render_panels::rgb(theme.text_primary),
+        "open fg_stroke should use text_primary"
+    );
+}
+
+/// `build_theme_visuals` maps `window_fill`, `extreme_bg_color`, `faint_bg_color`,
+/// selection, and `window_stroke` from the theme definition.
+#[test]
+fn build_theme_visuals_sets_remaining_fields() {
+    let theme = test_theme();
+    let visuals = render_panels::build_theme_visuals(&theme);
+    assert_eq!(
+        visuals.window_fill,
+        render_panels::rgb(theme.bg_panel),
+        "window_fill should equal rgb(theme.bg_panel)"
+    );
+    assert_eq!(
+        visuals.extreme_bg_color,
+        render_panels::rgb(theme.bg_deep),
+        "extreme_bg_color should equal rgb(theme.bg_deep)"
+    );
+    assert_eq!(
+        visuals.faint_bg_color,
+        render_panels::rgb(theme.bg_surface),
+        "faint_bg_color should equal rgb(theme.bg_surface)"
+    );
+    assert_eq!(
+        visuals.selection.bg_fill,
+        render_panels::rgb(theme.accent_primary),
+        "selection.bg_fill should equal rgb(theme.accent_primary)"
+    );
+    assert_eq!(
+        visuals.window_stroke,
+        bevy_egui::egui::Stroke::new(1.0, render_panels::rgb(theme.border)),
+        "window_stroke should use theme.border"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// build_theme_text_styles — pure function coverage
+// ---------------------------------------------------------------------------
+
+/// Default base size (15.0) produces scale=1.0: Body=15.0, Heading=20.0.
+#[test]
+fn build_theme_text_styles_default_scale() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let body = styles
+        .get(&bevy_egui::egui::TextStyle::Body)
+        .expect("Body style should exist");
+    let heading = styles
+        .get(&bevy_egui::egui::TextStyle::Heading)
+        .expect("Heading style should exist");
+    assert!(
+        (body.size - 15.0).abs() < f32::EPSILON,
+        "Body at scale 1.0 should be 15.0, got {}",
+        body.size
+    );
+    assert!(
+        (heading.size - 20.0).abs() < f32::EPSILON,
+        "Heading at scale 1.0 should be 20.0, got {}",
+        heading.size
+    );
+}
+
+/// Double base size (30.0) produces scale=2.0: Body=30.0, Heading=40.0.
+#[test]
+fn build_theme_text_styles_double_scale() {
+    let styles = render_panels::build_theme_text_styles(30.0);
+    let body = styles
+        .get(&bevy_egui::egui::TextStyle::Body)
+        .expect("Body style should exist");
+    let heading = styles
+        .get(&bevy_egui::egui::TextStyle::Heading)
+        .expect("Heading style should exist");
+    assert!(
+        (body.size - 30.0).abs() < f32::EPSILON,
+        "Body at scale 2.0 should be 30.0, got {}",
+        body.size
+    );
+    assert!(
+        (heading.size - 40.0).abs() < f32::EPSILON,
+        "Heading at scale 2.0 should be 40.0, got {}",
+        heading.size
+    );
+}
+
+/// All five standard egui text styles are present in the generated map.
+#[test]
+fn build_theme_text_styles_has_five_styles() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    assert_eq!(styles.len(), 5, "should have exactly 5 text styles");
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Heading),
+        "missing Heading"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Body),
+        "missing Body"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Small),
+        "missing Small"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Button),
+        "missing Button"
+    );
+    assert!(
+        styles.contains_key(&bevy_egui::egui::TextStyle::Monospace),
+        "missing Monospace"
+    );
+}
+
+/// Monospace style uses the `Monospace` font family, all others use `Proportional`.
+#[test]
+fn build_theme_text_styles_font_families() {
+    let styles = render_panels::build_theme_text_styles(15.0);
+    let mono = styles
+        .get(&bevy_egui::egui::TextStyle::Monospace)
+        .expect("Monospace style should exist");
+    assert_eq!(
+        mono.family,
+        bevy_egui::egui::FontFamily::Monospace,
+        "Monospace style should use Monospace family"
+    );
+    for (style, font_id) in &styles {
+        if *style != bevy_egui::egui::TextStyle::Monospace {
+            assert_eq!(
+                font_id.family,
+                bevy_egui::egui::FontFamily::Proportional,
+                "{style:?} should use Proportional family"
+            );
+        }
+    }
+}
+
+/// Small text style scales correctly (13.0 at scale 1.0, 26.0 at scale 2.0).
+#[test]
+fn build_theme_text_styles_small_scales() {
+    let styles_1x = render_panels::build_theme_text_styles(15.0);
+    let small_1x = styles_1x
+        .get(&bevy_egui::egui::TextStyle::Small)
+        .expect("Small style should exist");
+    assert!(
+        (small_1x.size - 13.0).abs() < f32::EPSILON,
+        "Small at scale 1.0 should be 13.0, got {}",
+        small_1x.size
+    );
+
+    let styles_2x = render_panels::build_theme_text_styles(30.0);
+    let small_2x = styles_2x
+        .get(&bevy_egui::egui::TextStyle::Small)
+        .expect("Small style should exist");
+    assert!(
+        (small_2x.size - 26.0).abs() < f32::EPSILON,
+        "Small at scale 2.0 should be 26.0, got {}",
+        small_2x.size
+    );
+}
+
+// ---------------------------------------------------------------------------
+// render_launcher_content — additional coverage
+// ---------------------------------------------------------------------------
+
+/// Default state shows both "New Game System" and "Open..." labels.
+#[test]
+fn launcher_content_shows_new_and_open_buttons() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label("New Game System");
+    harness.get_by_label("Open...");
+}
+
+/// When `launcher_name_input_visible` is true and a project name is set,
+/// "Create" and "Cancel" are both visible.
+#[test]
+fn launcher_content_name_input_shows_create_cancel() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState {
+                launcher_name_input_visible: true,
+                launcher_project_name: "My Project".to_string(),
+                ..EditorState::default()
+            },
+        );
+    harness.get_by_label("Create");
+    harness.get_by_label("Cancel");
+}
+
+/// Launcher renders the title "HEXORDER" and subtitle.
+#[test]
+fn launcher_content_shows_title_and_subtitle() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label("HEXORDER");
+    harness.get_by_label("Game System Design Tool");
+}
+
+/// Launcher renders the version string.
+#[test]
+fn launcher_content_shows_version() {
+    let harness = Harness::builder()
+        .with_size(bevy_egui::egui::vec2(400.0, 600.0))
+        .build_ui_state(
+            |ui, state: &mut EditorState| {
+                render_panels::render_launcher_content(ui, state);
+            },
+            EditorState::default(),
+        );
+    harness.get_by_label_contains(&format!("v{}", env!("CARGO_PKG_VERSION")));
+}
+
+// ---------------------------------------------------------------------------
+// render_play_file_menu -- return value and label tests
+// ---------------------------------------------------------------------------
+
+/// Play file menu returns empty actions on initial render (no click).
+#[test]
+fn play_file_menu_no_action_without_click() {
+    let harness = Harness::new_ui_state(
+        |ui, actions: &mut Vec<render_play::PlayMenuAction>| {
+            *actions = render_play::render_play_file_menu(ui);
+        },
+        Vec::new(),
+    );
+    assert!(
+        harness.state().is_empty(),
+        "Expected no actions when no button is clicked"
+    );
+}
+
+/// Play file menu renders all four buttons with keyboard shortcuts.
+#[test]
+fn play_file_menu_all_buttons_with_shortcuts() {
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_play_file_menu(ui);
+    });
+    harness.get_by_label_contains("Cmd+N");
+    harness.get_by_label_contains("Cmd+O");
+    harness.get_by_label_contains("Save As...");
+    harness.get_by_label_contains("Cmd+Shift+S");
+}
+
+/// `PlayMenuAction` enum derives Debug and Clone correctly.
+#[test]
+fn play_menu_action_debug_and_clone() {
+    let action = render_play::PlayMenuAction::NewProject;
+    assert_eq!(format!("{action:?}"), "NewProject");
+    let cloned = action;
+    assert_eq!(action, cloned);
+
+    assert_eq!(
+        format!("{:?}", render_play::PlayMenuAction::OpenProject),
+        "OpenProject"
+    );
+    assert_eq!(format!("{:?}", render_play::PlayMenuAction::Save), "Save");
+    assert_eq!(
+        format!("{:?}", render_play::PlayMenuAction::SaveAs),
+        "SaveAs"
+    );
+    assert_eq!(
+        format!("{:?}", render_play::PlayMenuAction::ShowAbout),
+        "ShowAbout"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// render_play_sidebar -- editor button and sidebar content
+// ---------------------------------------------------------------------------
+
+/// Play sidebar returns false for `switch_to_editor` on initial render (no click).
+#[test]
+fn play_sidebar_no_switch_without_click() {
+    struct SidebarState {
+        workspace: Workspace,
+        game_system: GameSystem,
+        turn_state: TurnState,
+        turn_structure: TurnStructure,
+        active_combat: ActiveCombat,
+        crt: CombatResultsTable,
+        modifiers: CombatModifierRegistry,
+        selected_unit: SelectedUnit,
+        entity_types: EntityTypeRegistry,
+        editor_state: EditorState,
+        switch_result: bool,
+    }
+
+    let state = SidebarState {
+        workspace: Workspace {
+            name: "No Click".to_string(),
+            ..Workspace::default()
+        },
+        game_system: GameSystem {
+            id: "no-click-id".to_string(),
+            version: "1.0".to_string(),
+        },
+        turn_state: TurnState::default(),
+        turn_structure: TurnStructure::default(),
+        active_combat: ActiveCombat::default(),
+        crt: CombatResultsTable::default(),
+        modifiers: CombatModifierRegistry::default(),
+        selected_unit: SelectedUnit::default(),
+        entity_types: EntityTypeRegistry::default(),
+        editor_state: EditorState::default(),
+        switch_result: false,
+    };
+
+    let harness = Harness::new_ui_state(
+        |ui, s: &mut SidebarState| {
+            s.switch_result = render_play::render_play_sidebar(
+                ui,
+                &s.workspace,
+                &s.game_system,
+                &mut s.turn_state,
+                &s.turn_structure,
+                &mut s.active_combat,
+                &s.crt,
+                &s.modifiers,
+                &s.selected_unit,
+                &s.entity_types,
+                &mut s.editor_state,
+                &|_| None,
+            );
+        },
+        state,
+    );
+
+    assert!(
+        !harness.state().switch_result,
+        "Expected switch_result to be false without clicking Editor"
+    );
+}
+
+/// Play sidebar shows the Editor button with the stop-square icon.
+#[test]
+fn play_sidebar_shows_editor_button_icon() {
+    let workspace = Workspace::default();
+    let game_system = GameSystem {
+        id: "icon-test".to_string(),
+        version: "1.0".to_string(),
+    };
+    let mut turn_state = TurnState::default();
+    let turn_structure = TurnStructure::default();
+    let mut active_combat = ActiveCombat::default();
+    let crt = CombatResultsTable::default();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState::default();
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_play_sidebar(
+            ui,
+            &workspace,
+            &game_system,
+            &mut turn_state,
+            &turn_structure,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("\u{25A0} Editor");
+}
+
+/// Play sidebar with phases renders turn tracker content within the sidebar.
+#[test]
+fn play_sidebar_with_phases_shows_turn_tracker() {
+    let workspace = Workspace {
+        name: "Phase Test".to_string(),
+        ..Workspace::default()
+    };
+    let game_system = GameSystem {
+        id: "phase-test".to_string(),
+        version: "2.0".to_string(),
+    };
+    let mut turn_state = TurnState::default();
+    let turn_structure = test_turn_structure();
+    let mut active_combat = ActiveCombat::default();
+    let crt = CombatResultsTable::default();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState::default();
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_play_sidebar(
+            ui,
+            &workspace,
+            &game_system,
+            &mut turn_state,
+            &turn_structure,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Turn Tracker");
+    harness.get_by_label_contains("Turn 1");
+}
+
+// ---------------------------------------------------------------------------
+// render_combat_panel -- odds display and combat resolution
+// ---------------------------------------------------------------------------
+
+/// Combat panel shows odds ratio when defender strength is positive.
+#[test]
+fn combat_panel_odds_display_with_positive_defender() {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState {
+        combat_attacker_strength: 6.0,
+        combat_defender_strength: 2.0,
+        ..EditorState::default()
+    };
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Odds: 3.00:1");
+}
+
+/// Combat panel shows attacker and defender labels when not set.
+#[test]
+fn combat_panel_shows_none_when_no_combatants() {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState::default();
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Attacker:");
+    harness.get_by_label_contains("Defender:");
+    // Both empty combatant slots render — verify at least one "None" label via query_all.
+    assert!(harness.get_all_by_label_contains("None").count() >= 2,);
+}
+
+/// Combat panel with modifiers shows final column after column shift.
+#[test]
+fn combat_panel_modifiers_show_final_column() {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = test_modifiers();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState {
+        combat_attacker_strength: 4.0,
+        combat_defender_strength: 2.0,
+        ..EditorState::default()
+    };
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Final column:");
+}
+
+/// Combat panel clear button resets state via actual render function.
+#[test]
+fn combat_panel_clear_via_render_function() {
+    struct CombatState {
+        active_combat: ActiveCombat,
+        crt: CombatResultsTable,
+        modifiers: CombatModifierRegistry,
+        selected_unit: SelectedUnit,
+        entity_types: EntityTypeRegistry,
+        editor_state: EditorState,
+    }
+
+    let state = CombatState {
+        active_combat: ActiveCombat {
+            die_roll: Some(4),
+            ..ActiveCombat::default()
+        },
+        crt: test_crt(),
+        modifiers: CombatModifierRegistry::default(),
+        selected_unit: SelectedUnit::default(),
+        entity_types: EntityTypeRegistry::default(),
+        editor_state: EditorState {
+            combat_attacker_strength: 3.0,
+            combat_defender_strength: 2.0,
+            ..EditorState::default()
+        },
+    };
+
+    let mut harness = Harness::new_ui_state(
+        |ui, s: &mut CombatState| {
+            render_play::render_combat_panel(
+                ui,
+                &mut s.active_combat,
+                &s.crt,
+                &s.modifiers,
+                &s.selected_unit,
+                &s.entity_types,
+                &mut s.editor_state,
+                &|_| None,
+            );
+        },
+        state,
+    );
+
+    harness.get_by_label("Clear Combat").click();
+    harness.run();
+    assert!(
+        harness.state().active_combat.die_roll.is_none(),
+        "Expected die_roll to be cleared after clicking Clear Combat"
+    );
+    assert_eq!(
+        harness.state().editor_state.combat_attacker_strength,
+        0.0,
+        "Expected attacker strength to be reset"
+    );
+    assert_eq!(
+        harness.state().editor_state.combat_defender_strength,
+        0.0,
+        "Expected defender strength to be reset"
+    );
+}
+
+/// Combat panel shows base column label when odds match a CRT column.
+#[test]
+fn combat_panel_shows_base_column_label() {
+    let mut active_combat = ActiveCombat::default();
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = EntityTypeRegistry::default();
+    let mut editor_state = EditorState {
+        combat_attacker_strength: 2.0,
+        combat_defender_strength: 2.0,
+        ..EditorState::default()
+    };
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Base column:");
+}
+
+// ---------------------------------------------------------------------------
+// Group 1: Editor Menu Bar Submenu Content (systems.rs:648-720)
+// ---------------------------------------------------------------------------
+
+/// Helper: builds a harness that tracks `EditorMenuAction`s from the editor
+/// menu bar. Actions are accumulated rather than overwritten so that the
+/// `CloseOnClick` popup behavior (which re-renders after closing the menu
+/// with an empty vector) does not erase captured actions.
+fn editor_menu_harness(
+    can_undo: bool,
+    undo_desc: Option<&'static str>,
+    can_redo: bool,
+    redo_desc: Option<&'static str>,
+    active_preset: WorkspacePreset,
+) -> Harness<'static, Vec<systems::EditorMenuAction>> {
+    Harness::new_ui_state(
+        move |ui, actions: &mut Vec<systems::EditorMenuAction>| {
+            let result = systems::render_editor_menu_bar(
+                ui,
+                can_undo,
+                undo_desc,
+                can_redo,
+                redo_desc,
+                active_preset,
+            );
+            if !result.is_empty() {
+                *actions = result;
+            }
+        },
+        Vec::new(),
+    )
+}
+
+/// File > New returns `EditorMenuAction::NewProject`.
+#[test]
+fn editor_menu_file_new_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Cmd+N").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::NewProject),
+        "Expected NewProject action after clicking New"
+    );
+}
+
+/// File > Open returns `EditorMenuAction::OpenFile`.
+#[test]
+fn editor_menu_file_open_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Cmd+O").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::OpenFile),
+        "Expected OpenFile action after clicking Open"
+    );
+}
+
+/// File > Save returns `EditorMenuAction::Save`.
+#[test]
+fn editor_menu_file_save_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Save         Cmd+S").click();
+    harness.run();
+    assert!(
+        harness.state().contains(&systems::EditorMenuAction::Save),
+        "Expected Save action after clicking Save"
+    );
+}
+
+/// File > Save As returns `EditorMenuAction::SaveAs`.
+#[test]
+fn editor_menu_file_save_as_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Cmd+Shift+S").click();
+    harness.run();
+    assert!(
+        harness.state().contains(&systems::EditorMenuAction::SaveAs),
+        "Expected SaveAs action after clicking Save As"
+    );
+}
+
+/// File > Export PDF returns `EditorMenuAction::ExportPdf`.
+#[test]
+fn editor_menu_file_export_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Export PDF").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::ExportPdf),
+        "Expected ExportPdf action after clicking Export PDF"
+    );
+}
+
+/// File > Close returns `EditorMenuAction::CloseProject`.
+#[test]
+fn editor_menu_file_close_returns_action() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label_contains("Close").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::CloseProject),
+        "Expected CloseProject action after clicking Close"
+    );
+}
+
+/// Edit > Undo (enabled) returns `EditorMenuAction::Undo`.
+#[test]
+fn editor_menu_edit_undo_enabled() {
+    let mut harness = editor_menu_harness(
+        true,
+        Some("paint"),
+        false,
+        None,
+        WorkspacePreset::MapEditing,
+    );
+    harness.get_by_label("Edit").click();
+    harness.run();
+    harness.get_by_label_contains("Undo").click();
+    harness.run();
+    assert!(
+        harness.state().contains(&systems::EditorMenuAction::Undo),
+        "Expected Undo action after clicking Undo"
+    );
+}
+
+/// Edit > Redo (enabled) returns `EditorMenuAction::Redo`.
+#[test]
+fn editor_menu_edit_redo_enabled() {
+    let mut harness = editor_menu_harness(
+        false,
+        None,
+        true,
+        Some("place"),
+        WorkspacePreset::MapEditing,
+    );
+    harness.get_by_label("Edit").click();
+    harness.run();
+    harness.get_by_label_contains("Redo").click();
+    harness.run();
+    assert!(
+        harness.state().contains(&systems::EditorMenuAction::Redo),
+        "Expected Redo action after clicking Redo"
+    );
+}
+
+/// View > Unit Design returns `EditorMenuAction::SwitchPreset(UnitDesign)`.
+#[test]
+fn editor_menu_view_switch_preset() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label_contains("Unit Design").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::SwitchPreset(
+                WorkspacePreset::UnitDesign
+            )),
+        "Expected SwitchPreset(UnitDesign) action after clicking Unit Design"
+    );
+}
+
+/// Help > About Hexorder returns `EditorMenuAction::ShowAbout`.
+#[test]
+fn editor_menu_help_about() {
+    let mut harness = editor_menu_harness(false, None, false, None, WorkspacePreset::MapEditing);
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("About Hexorder").click();
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .contains(&systems::EditorMenuAction::ShowAbout),
+        "Expected ShowAbout action after clicking About Hexorder"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Group 2: Combat Panel Result Display (render_play.rs:497-546)
+// ---------------------------------------------------------------------------
+
+/// Combat panel displays die roll value when `die_roll` is `Some`.
+#[test]
+fn combat_panel_shows_die_roll_when_set() {
+    let mut active_combat = ActiveCombat {
+        die_roll: Some(4),
+        ..ActiveCombat::default()
+    };
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
+        combat_attacker_strength: 2.0,
+        combat_defender_strength: 1.0,
+        ..EditorState::default()
+    };
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Die roll:");
+    harness.get_by_label("4");
+}
+
+/// Combat panel displays the outcome label when an outcome is set.
+#[test]
+fn combat_panel_shows_outcome_label() {
+    let mut active_combat = ActiveCombat {
+        die_roll: Some(3),
+        outcome: Some(CombatOutcome {
+            label: "NE".to_string(),
+            effect: None,
+        }),
+        ..ActiveCombat::default()
+    };
+    let crt = test_crt();
+    let modifiers = CombatModifierRegistry::default();
+    let selected_unit = SelectedUnit::default();
+    let entity_types = test_registry();
+    let mut editor_state = EditorState {
+        combat_attacker_strength: 2.0,
+        combat_defender_strength: 1.0,
+        ..EditorState::default()
+    };
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Result: NE");
+}
+
+/// Combat panel displays "No effect" for `OutcomeEffect::NoEffect`.
+#[test]
+fn combat_panel_shows_no_effect_text() {
+    use hexorder_contracts::mechanics::OutcomeEffect;
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::NoEffect);
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("No effect");
+    harness.get_by_label_contains("Result: EF");
+}
+
+/// Combat panel displays "Attacker eliminated" for `OutcomeEffect::AttackerEliminated`.
+#[test]
+fn combat_panel_shows_attacker_eliminated() {
+    use hexorder_contracts::mechanics::OutcomeEffect;
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::AttackerEliminated);
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Attacker eliminated");
+}
+
+/// Combat panel displays "Defender eliminated" for `OutcomeEffect::DefenderEliminated`.
+#[test]
+fn combat_panel_shows_defender_eliminated() {
+    use hexorder_contracts::mechanics::OutcomeEffect;
+    let (mut active_combat, crt, modifiers, selected_unit, entity_types, mut editor_state) =
+        combat_panel_state_with_effect(OutcomeEffect::DefenderEliminated);
+
+    let harness = Harness::new_ui(|ui| {
+        render_play::render_combat_panel(
+            ui,
+            &mut active_combat,
+            &crt,
+            &modifiers,
+            &selected_unit,
+            &entity_types,
+            &mut editor_state,
+            &|_| None,
+        );
+    });
+    harness.get_by_label_contains("Defender eliminated");
+}
+
+// ---------------------------------------------------------------------------
+// Group 3: Play File Menu Button Clicks (render_play.rs:118-132)
+// ---------------------------------------------------------------------------
+
+/// Clicking New in the play file menu returns `PlayMenuAction::NewProject`.
+#[test]
+fn play_file_menu_click_new() {
+    let mut harness = Harness::new_ui_state(
+        |ui, actions: &mut Vec<render_play::PlayMenuAction>| {
+            let result = render_play::render_play_file_menu(ui);
+            if !result.is_empty() {
+                *actions = result;
+            }
+        },
+        Vec::new(),
+    );
+    harness.get_by_label_contains("Cmd+N").click();
+    harness.run();
+    assert_eq!(
+        *harness.state(),
+        vec![render_play::PlayMenuAction::NewProject]
+    );
+}
+
+/// Clicking Open in the play file menu returns `PlayMenuAction::OpenProject`.
+#[test]
+fn play_file_menu_click_open() {
+    let mut harness = Harness::new_ui_state(
+        |ui, actions: &mut Vec<render_play::PlayMenuAction>| {
+            let result = render_play::render_play_file_menu(ui);
+            if !result.is_empty() {
+                *actions = result;
+            }
+        },
+        Vec::new(),
+    );
+    harness.get_by_label_contains("Cmd+O").click();
+    harness.run();
+    assert_eq!(
+        *harness.state(),
+        vec![render_play::PlayMenuAction::OpenProject]
+    );
+}
+
+/// Clicking Save in the play file menu returns `PlayMenuAction::Save`.
+#[test]
+fn play_file_menu_click_save() {
+    let mut harness = Harness::new_ui_state(
+        |ui, actions: &mut Vec<render_play::PlayMenuAction>| {
+            let result = render_play::render_play_file_menu(ui);
+            if !result.is_empty() {
+                *actions = result;
+            }
+        },
+        Vec::new(),
+    );
+    harness.get_by_label_contains("Save         Cmd+S").click();
+    harness.run();
+    assert_eq!(*harness.state(), vec![render_play::PlayMenuAction::Save]);
+}
+
+/// Clicking Save As in the play file menu returns `PlayMenuAction::SaveAs`.
+#[test]
+fn play_file_menu_click_save_as() {
+    let mut harness = Harness::new_ui_state(
+        |ui, actions: &mut Vec<render_play::PlayMenuAction>| {
+            let result = render_play::render_play_file_menu(ui);
+            if !result.is_empty() {
+                *actions = result;
+            }
+        },
+        Vec::new(),
+    );
+    harness.get_by_label_contains("Cmd+Shift+S").click();
+    harness.run();
+    assert_eq!(*harness.state(), vec![render_play::PlayMenuAction::SaveAs]);
+}
