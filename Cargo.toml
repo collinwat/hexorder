@@ -1,5 +1,6 @@
 [workspace]
-members = [ "crates/hexorder-contracts" ]
+members = [ "crates/hexorder-contracts", "crates/hexorder-sdk" ]
+default-members = [ "." ]
 
 [workspace.dependencies]
 bevy = { version = "0.18", default-features = false }
@@ -8,6 +9,8 @@ hexx = { version = "0.22", features = [ "algorithms" ] }
 ron = "0.12"
 serde = { version = "1", features = [ "derive" ] }
 uuid = { version = "1", features = [ "v4" ] }
+hexorder-contracts = { path = "crates/hexorder-contracts" }
+hexorder-sdk = { path = "crates/hexorder-sdk" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
@@ -56,7 +59,8 @@ inspector = [  ]
 macos-app = [  ]
 
 [dependencies]
-hexorder-contracts = { path = "crates/hexorder-contracts" }
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
 dirs = { version = "6", optional = true }
 bevy = { workspace = true, features = [
   "default_app",

@@ -436,7 +436,8 @@ Follow **conventional commit** practices. Every commit message **must** match th
 | Scope       | When to use                                                                                                   |
 | ----------- | ------------------------------------------------------------------------------------------------------------- |
 | Plugin name | Work within a single plugin (`unit`, `cell`, `hex_grid`, `camera`, `game_system`, `editor_ui`, `persistence`) |
-| `contracts` | Shared type definitions in `src/contracts/` or `docs/contracts/`                                              |
+| `contracts` | Shared type definitions in `crates/hexorder-contracts/` or `docs/contracts/`                                  |
+| `sdk`       | SDK infrastructure (`crates/hexorder-sdk/`)                                                                   |
 | `project`   | Cross-cutting changes (CLAUDE.md, coordination, git guide, build config)                                      |
 
 **Subject line rules**:

@@ -27,6 +27,7 @@ pub mod settings;
 pub mod shortcuts;
 #[allow(dead_code)]
 pub mod storage;
+pub mod system_sets;
 #[allow(dead_code)]
 pub mod undo_redo;
 #[allow(dead_code)]

@@ -1,5 +1,5 @@
 [package]
-name = "hexorder-contracts"
+name = "hexorder-sdk"
 version = "0.16.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
@@ -9,13 +9,7 @@ publish = false
 bevy = { workspace = true, default-features = false, features = [
   "bevy_state",
   "bevy_log",
-  "3d_bevy_render",
 ] }
-bevy_egui = { workspace = true }
-hexx = { workspace = true }
-ron = { workspace = true }
-serde = { workspace = true }
-uuid = { workspace = true }
 
 [lints]
 workspace = true
