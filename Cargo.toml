@@ -43,7 +43,7 @@ dbg_macro = "deny"
 
 [package]
 name = "hexorder"
-version = "0.15.0"
+version = "0.16.0-crate-extraction"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
