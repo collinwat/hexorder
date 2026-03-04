@@ -10,6 +10,7 @@ use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 use hexorder_contracts::undo_redo::UndoStack;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 mod systems;
 
@@ -31,6 +32,20 @@ impl Plugin for UndoRedoPlugin {
                 .resource_mut::<ShortcutRegistry>()
                 .into_inner(),
         );
+    }
+}
+
+impl HexorderPlugin for UndoRedoPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-undo-redo")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Undo/Redo"
+    }
+
+    fn build(&self, app: &mut App) {
+        Plugin::build(self, app);
     }
 }
 

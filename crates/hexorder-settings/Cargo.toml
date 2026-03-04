@@ -1,0 +1,29 @@
+[package]
+name = "hexorder-settings"
+version = "0.16.0"
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[features]
+macos-app = []
+
+[dependencies]
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+] }
+serde = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+] }
+tempfile = "3"
+
+[lints]
+workspace = true

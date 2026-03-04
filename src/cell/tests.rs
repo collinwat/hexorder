@@ -446,7 +446,7 @@ fn paint_then_undo_reverts_terrain() {
 
     app.add_observer(systems::paint_cell);
     app.init_resource::<ShortcutRegistry>();
-    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+    app.add_plugins(hexorder_undo_redo::UndoRedoPlugin);
 
     // Paint the tile.
     app.world_mut().commands().trigger(HexSelectedEvent {

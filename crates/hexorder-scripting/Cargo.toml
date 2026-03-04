@@ -1,0 +1,24 @@
+[package]
+name = "hexorder-scripting"
+version = "0.16.0"
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+] }
+mlua = { version = "0.11", features = ["luajit", "vendored"] }
+
+[dev-dependencies]
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+] }
+
+[lints]
+workspace = true

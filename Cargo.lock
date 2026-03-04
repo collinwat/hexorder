@@ -3591,12 +3591,16 @@ dependencies = [
  "dirs",
  "egui_dock",
  "egui_kittest",
+ "hexorder-camera",
  "hexorder-contracts",
+ "hexorder-export",
  "hexorder-map-gen",
  "hexorder-mechanic-ref",
+ "hexorder-scripting",
  "hexorder-sdk",
+ "hexorder-settings",
+ "hexorder-undo-redo",
  "hexx",
- "mlua",
  "noise",
  "printpdf",
  "rfd",
@@ -3609,6 +3613,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hexorder-camera"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "bevy_egui",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexx",
+]
+
+[[package]]
 name = "hexorder-contracts"
 version = "0.16.0"
 dependencies = [
@@ -3618,6 +3633,18 @@ dependencies = [
  "ron",
  "serde",
  "uuid",
+]
+
+[[package]]
+name = "hexorder-export"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexx",
+ "printpdf",
+ "rfd",
 ]
 
 [[package]]
@@ -3641,10 +3668,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "hexorder-scripting"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "mlua",
+]
+
+[[package]]
 name = "hexorder-sdk"
 version = "0.16.0"
 dependencies = [
  "bevy",
+]
+
+[[package]]
+name = "hexorder-settings"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "serde",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
+name = "hexorder-undo-redo"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ use hexorder_contracts::persistence::AppScreen;
 use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 mod components;
 mod systems;
@@ -73,6 +74,20 @@ impl Plugin for CameraPlugin {
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_observer(systems::handle_camera_command);
+    }
+}
+
+impl HexorderPlugin for CameraPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-camera")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Camera"
+    }
+
+    fn build(&self, app: &mut App) {
+        Plugin::build(self, app);
     }
 }
 

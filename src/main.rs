@@ -3,19 +3,14 @@ use bevy::winit::{UpdateMode, WinitSettings};
 
 mod macros;
 
-mod camera;
 mod cell;
 mod editor_ui;
-mod export;
 mod game_system;
 mod hex_grid;
 mod ontology;
 mod persistence;
 mod rules_engine;
-mod scripting;
-mod settings;
 mod shortcuts;
-mod undo_redo;
 mod unit;
 
 use hexorder_contracts::persistence::AppScreen;
@@ -41,19 +36,19 @@ fn main() {
         .init_state::<AppScreen>()
         .add_plugins(shortcuts::ShortcutsPlugin)
         .add_plugins(hex_grid::HexGridPlugin)
-        .add_plugins(camera::CameraPlugin)
+        .add_plugins(hexorder_camera::CameraPlugin)
         .add_plugins(game_system::GameSystemPlugin)
         .add_plugins(ontology::OntologyPlugin)
         .add_plugins(cell::CellPlugin)
         .add_plugins(unit::UnitPlugin)
         .add_plugins(rules_engine::RulesEnginePlugin)
-        .add_plugins(scripting::ScriptingPlugin)
+        .add_plugins(hexorder_scripting::ScriptingPlugin)
         .add_plugins(persistence::PersistencePlugin)
-        .add_plugins(undo_redo::UndoRedoPlugin)
+        .add_plugins(hexorder_undo_redo::UndoRedoPlugin)
         .add_plugins(hexorder_map_gen::MapGenPlugin)
         .add_plugins(hexorder_mechanic_ref::MechanicReferencePlugin)
-        .add_plugins(export::ExportPlugin)
-        .add_plugins(settings::SettingsPlugin)
+        .add_plugins(hexorder_export::ExportPlugin)
+        .add_plugins(hexorder_settings::SettingsPlugin)
         .add_plugins(editor_ui::EditorUiPlugin)
         .add_systems(Update, reveal_window)
         .run();

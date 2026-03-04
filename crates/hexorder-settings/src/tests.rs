@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::settings::SettingsLayers;
-use crate::settings::config::{
+use crate::SettingsLayers;
+use crate::config::{
     PartialEditorSettings, PartialSettings, brand_theme_definition, config_dir, config_path,
     load_settings_from_path, load_themes, load_themes_from_dir, load_user_settings, merge,
 };
@@ -507,7 +507,7 @@ fn settings_plugin_inserts_registry() {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_state::<AppScreen>();
-    app.add_plugins(crate::settings::SettingsPlugin);
+    app.add_plugins(crate::SettingsPlugin);
     app.update();
 
     assert!(
@@ -522,7 +522,7 @@ fn settings_plugin_inserts_layers() {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_state::<AppScreen>();
-    app.add_plugins(crate::settings::SettingsPlugin);
+    app.add_plugins(crate::SettingsPlugin);
     app.update();
 
     assert!(
@@ -537,7 +537,7 @@ fn settings_plugin_inserts_theme_library() {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_state::<AppScreen>();
-    app.add_plugins(crate::settings::SettingsPlugin);
+    app.add_plugins(crate::SettingsPlugin);
     app.update();
 
     let lib = app.world().resource::<ThemeLibrary>();
@@ -554,7 +554,7 @@ fn settings_plugin_registry_has_default_values() {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_state::<AppScreen>();
-    app.add_plugins(crate::settings::SettingsPlugin);
+    app.add_plugins(crate::SettingsPlugin);
     app.update();
 
     let reg = app.world().resource::<SettingsRegistry>();

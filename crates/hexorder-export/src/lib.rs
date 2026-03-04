@@ -13,6 +13,7 @@ use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition};
 use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 pub(crate) mod counter_sheet;
 pub(crate) mod hex_map;
@@ -149,6 +150,20 @@ impl Plugin for ExportPlugin {
 
         app.add_observer(systems::handle_export_command);
         app.add_systems(Update, systems::poll_pending_export);
+    }
+}
+
+impl HexorderPlugin for ExportPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-export")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Export"
+    }
+
+    fn build(&self, app: &mut App) {
+        Plugin::build(self, app);
     }
 }
 

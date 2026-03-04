@@ -1,0 +1,28 @@
+[package]
+name = "hexorder-export"
+version = "0.16.0"
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+hexx = { workspace = true }
+printpdf = "0.9"
+rfd = "0.15"
+
+[dev-dependencies]
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+
+[lints]
+workspace = true

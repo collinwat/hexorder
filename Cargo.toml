@@ -1,5 +1,5 @@
 [workspace]
-members = [ "crates/hexorder-contracts", "crates/hexorder-sdk", "crates/hexorder-map-gen", "crates/hexorder-mechanic-ref" ]
+members = [ "crates/hexorder-contracts", "crates/hexorder-sdk", "crates/hexorder-map-gen", "crates/hexorder-mechanic-ref", "crates/hexorder-camera", "crates/hexorder-export", "crates/hexorder-settings", "crates/hexorder-undo-redo", "crates/hexorder-scripting" ]
 default-members = [ "." ]
 
 [workspace.dependencies]
@@ -9,10 +9,15 @@ hexx = { version = "0.22", features = [ "algorithms" ] }
 ron = "0.12"
 serde = { version = "1", features = [ "derive" ] }
 uuid = { version = "1", features = [ "v4" ] }
+hexorder-camera = { path = "crates/hexorder-camera" }
 hexorder-contracts = { path = "crates/hexorder-contracts" }
+hexorder-export = { path = "crates/hexorder-export" }
 hexorder-map-gen = { path = "crates/hexorder-map-gen" }
 hexorder-mechanic-ref = { path = "crates/hexorder-mechanic-ref" }
+hexorder-scripting = { path = "crates/hexorder-scripting" }
 hexorder-sdk = { path = "crates/hexorder-sdk" }
+hexorder-settings = { path = "crates/hexorder-settings" }
+hexorder-undo-redo = { path = "crates/hexorder-undo-redo" }
 noise = "0.9"
 
 [workspace.lints.rust]
@@ -59,13 +64,18 @@ dev = [ "bevy/dynamic_linking" ]
 xdg = [ "dep:dirs" ]
 macos = [ "dep:dirs" ]
 inspector = [  ]
-macos-app = [  ]
+macos-app = [ "hexorder-settings/macos-app" ]
 
 [dependencies]
+hexorder-camera = { workspace = true }
 hexorder-contracts = { workspace = true }
+hexorder-export = { workspace = true }
 hexorder-map-gen = { workspace = true }
 hexorder-mechanic-ref = { workspace = true }
+hexorder-scripting = { workspace = true }
 hexorder-sdk = { workspace = true }
+hexorder-settings = { workspace = true }
+hexorder-undo-redo = { workspace = true }
 dirs = { version = "6", optional = true }
 bevy = { workspace = true, features = [
   "default_app",
@@ -80,7 +90,6 @@ bevy_egui = { workspace = true }
 egui_dock = { version = "0.18", features = [ "serde" ] }
 hexx = { workspace = true }
 noise = { workspace = true }
-mlua = { version = "0.11", features = [ "luajit", "vendored" ] }
 rfd = "0.15"
 ron = { workspace = true }
 serde = { workspace = true }

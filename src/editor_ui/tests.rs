@@ -274,7 +274,7 @@ fn observer_app_with_undo() -> App {
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
-    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+    app.add_plugins(hexorder_undo_redo::UndoRedoPlugin);
     app.add_observer(super::handle_editor_ui_command);
     app.add_observer(super::handle_toast_event);
     app.update();

@@ -457,7 +457,7 @@ fn place_then_undo_removes_unit() {
 
     app.add_observer(systems::handle_unit_placement);
     app.init_resource::<ShortcutRegistry>();
-    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+    app.add_plugins(hexorder_undo_redo::UndoRedoPlugin);
 
     // Place a unit.
     app.world_mut().commands().trigger(HexSelectedEvent {
@@ -506,7 +506,7 @@ fn place_undo_redo_restores_unit() {
 
     app.add_observer(systems::handle_unit_placement);
     app.init_resource::<ShortcutRegistry>();
-    app.add_plugins(crate::undo_redo::UndoRedoPlugin);
+    app.add_plugins(hexorder_undo_redo::UndoRedoPlugin);
 
     // Place a unit.
     app.world_mut().commands().trigger(HexSelectedEvent {

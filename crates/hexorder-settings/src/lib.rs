@@ -7,8 +7,9 @@ use bevy::prelude::*;
 
 use hexorder_contracts::persistence::AppScreen;
 use hexorder_contracts::settings::SettingsReady;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
-mod config;
+pub(crate) mod config;
 mod systems;
 
 #[cfg(test)]
@@ -53,5 +54,19 @@ impl Plugin for SettingsPlugin {
             systems::apply_project_layer.in_set(SettingsReady),
         );
         app.add_systems(OnExit(AppScreen::Editor), systems::clear_project_layer);
+    }
+}
+
+impl HexorderPlugin for SettingsPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-settings")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Settings"
+    }
+
+    fn build(&self, app: &mut App) {
+        Plugin::build(self, app);
     }
 }
