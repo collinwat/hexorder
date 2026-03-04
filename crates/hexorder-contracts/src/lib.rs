@@ -26,6 +26,8 @@ pub mod settings;
 #[allow(dead_code)]
 pub mod shortcuts;
 #[allow(dead_code)]
+pub mod simulation;
+#[allow(dead_code)]
 pub mod storage;
 pub mod system_sets;
 #[allow(dead_code)]
