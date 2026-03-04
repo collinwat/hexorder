@@ -29,6 +29,8 @@ hexorder-sdk = { path = "crates/hexorder-sdk" }
 hexorder-settings = { path = "crates/hexorder-settings" }
 hexorder-undo-redo = { path = "crates/hexorder-undo-redo" }
 noise = "0.9"
+rand = "0.9"
+rand_chacha = "0.9"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

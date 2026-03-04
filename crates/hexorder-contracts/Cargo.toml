@@ -16,6 +16,8 @@ hexx = { workspace = true }
 ron = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 
 [lints]
 workspace = true
