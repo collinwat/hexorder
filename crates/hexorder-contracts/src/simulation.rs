@@ -10,6 +10,8 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
+use crate::game_system::TypeId;
+
 // ---------------------------------------------------------------------------
 // Seeded RNG
 // ---------------------------------------------------------------------------
@@ -158,6 +160,187 @@ pub fn replay_from_seed(seed: u64, count: u64) -> Vec<u32> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// Table Resolution
+// ---------------------------------------------------------------------------
+
+/// How a resolution table column input is calculated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
+pub enum ColumnType {
+    /// Column threshold is compared against `input_a / input_b`.
+    Ratio,
+    /// Column threshold is compared against `input_a - input_b`.
+    Differential,
+    /// Column threshold is compared against `input_a` directly.
+    Direct,
+}
+
+/// A column header in a resolution table.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct TableColumn {
+    /// Display label (e.g., "3:1" or "+2").
+    pub label: String,
+    /// How the input value is calculated for comparison.
+    pub column_type: ColumnType,
+    /// Minimum input value to select this column.
+    pub threshold: f64,
+}
+
+/// A row header in a resolution table (die roll range).
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct TableRow {
+    /// Display label (e.g., "1-2").
+    pub label: String,
+    /// Minimum die value (inclusive) for this row.
+    pub value_min: u32,
+    /// Maximum die value (inclusive) for this row.
+    pub value_max: u32,
+}
+
+/// The result of a table lookup.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub enum TableResult {
+    /// A label-only outcome (e.g., "NE", "DR").
+    Text(String),
+    /// A numeric value (e.g., movement cost 2.0).
+    NumericValue(f64),
+    /// A modifier to a named property (e.g., morale -1).
+    PropertyModifier { property: String, delta: f64 },
+}
+
+/// A column shift modifier applied during table resolution.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct ColumnModifier {
+    /// Display name of the modifier.
+    pub name: String,
+    /// Signed column shift (positive = rightward, negative = leftward).
+    pub column_shift: i32,
+    /// Optional absolute cap on cumulative shift after this modifier.
+    pub cap: Option<i32>,
+    /// Priority for evaluation order (higher = evaluated first).
+    pub priority: u32,
+}
+
+/// A 2D resolution table: columns x rows -> outcomes.
+///
+/// Generalizes the CRT pattern to any 2D lookup: input determines
+/// the column, a die roll determines the row, and the intersection
+/// yields the result.
+#[derive(Resource, Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct ResolutionTable {
+    pub id: TypeId,
+    pub name: String,
+    pub columns: Vec<TableColumn>,
+    pub rows: Vec<TableRow>,
+    /// Outcome grid indexed as `outcomes[row][column]`.
+    pub outcomes: Vec<Vec<TableResult>>,
+}
+
+impl Default for ResolutionTable {
+    fn default() -> Self {
+        Self {
+            id: TypeId::new(),
+            name: "Resolution Table".to_string(),
+            columns: Vec::new(),
+            rows: Vec::new(),
+            outcomes: Vec::new(),
+        }
+    }
+}
+
+/// A 1D lookup table: input threshold -> result.
+///
+/// Entries are ordered by ascending threshold. The rightmost entry
+/// whose threshold the input meets or exceeds is selected.
+#[derive(Resource, Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct LookupTable {
+    pub id: TypeId,
+    pub name: String,
+    pub entries: Vec<LookupEntry>,
+}
+
+impl Default for LookupTable {
+    fn default() -> Self {
+        Self {
+            id: TypeId::new(),
+            name: "Lookup Table".to_string(),
+            entries: Vec::new(),
+        }
+    }
+}
+
+/// A single entry in a lookup table.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct LookupEntry {
+    /// Display label.
+    pub label: String,
+    /// Minimum input value to select this entry.
+    pub threshold: f64,
+    /// The result when this entry is selected.
+    pub result: TableResult,
+}
+
+/// Result of a full 2D table resolution.
+#[derive(Debug, Clone)]
+pub struct TableResolution {
+    pub column_index: usize,
+    pub row_index: usize,
+    pub column_label: String,
+    pub row_label: String,
+    pub result: TableResult,
+}
+
+// ---------------------------------------------------------------------------
+// Table Resolution Functions (stubs — implementations in next task)
+// ---------------------------------------------------------------------------
+
+/// Resolve a 1D lookup: find the rightmost entry whose threshold
+/// the input meets or exceeds.
+#[must_use]
+pub fn resolve_lookup(table: &LookupTable, input: f64) -> Option<usize> {
+    todo!()
+}
+
+/// Find the best matching column for the given inputs.
+/// Returns the index of the rightmost column whose threshold is met.
+#[must_use]
+pub fn find_table_column(input_a: f64, input_b: f64, columns: &[TableColumn]) -> Option<usize> {
+    todo!()
+}
+
+/// Find the row matching a given die roll value.
+#[must_use]
+pub fn find_table_row(roll: u32, rows: &[TableRow]) -> Option<usize> {
+    todo!()
+}
+
+/// Resolve a full 2D table lookup.
+#[must_use]
+pub fn resolve_table(
+    table: &ResolutionTable,
+    input_a: f64,
+    input_b: f64,
+    roll: u32,
+) -> Option<TableResolution> {
+    todo!()
+}
+
+/// Evaluate column modifiers in priority order (highest first).
+/// Returns final shift and display list.
+#[must_use]
+pub fn evaluate_column_modifiers(
+    modifiers: &[ColumnModifier],
+    column_count: usize,
+) -> (i32, Vec<(String, i32)>) {
+    todo!()
+}
+
+/// Apply a column shift to a base index, clamping to bounds.
+#[must_use]
+pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -> usize {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,5 +464,282 @@ mod tests {
         assert_eq!(rng.roll_log()[0].roll_index, 0);
         assert_eq!(rng.roll_log()[1].roll_index, 1);
         assert_eq!(rng.roll_log()[2].roll_index, 2);
+    }
+
+    // --- Table resolution tests ---
+
+    fn test_resolution_table() -> ResolutionTable {
+        ResolutionTable {
+            id: TypeId::new(),
+            name: "Test Table".to_string(),
+            columns: vec![
+                TableColumn {
+                    label: "1:2".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 0.5,
+                },
+                TableColumn {
+                    label: "1:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 1.0,
+                },
+                TableColumn {
+                    label: "2:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 2.0,
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    label: "1-2".to_string(),
+                    value_min: 1,
+                    value_max: 2,
+                },
+                TableRow {
+                    label: "3-4".to_string(),
+                    value_min: 3,
+                    value_max: 4,
+                },
+                TableRow {
+                    label: "5-6".to_string(),
+                    value_min: 5,
+                    value_max: 6,
+                },
+            ],
+            outcomes: vec![
+                vec![
+                    TableResult::Text("AE".to_string()),
+                    TableResult::Text("NE".to_string()),
+                    TableResult::Text("DR".to_string()),
+                ],
+                vec![
+                    TableResult::Text("NE".to_string()),
+                    TableResult::Text("DR".to_string()),
+                    TableResult::Text("DE".to_string()),
+                ],
+                vec![
+                    TableResult::NumericValue(1.0),
+                    TableResult::NumericValue(2.0),
+                    TableResult::NumericValue(3.0),
+                ],
+            ],
+        }
+    }
+
+    fn test_lookup_table() -> LookupTable {
+        LookupTable {
+            id: TypeId::new(),
+            name: "Movement Cost".to_string(),
+            entries: vec![
+                LookupEntry {
+                    label: "Open".to_string(),
+                    threshold: 0.0,
+                    result: TableResult::NumericValue(1.0),
+                },
+                LookupEntry {
+                    label: "Rough".to_string(),
+                    threshold: 2.0,
+                    result: TableResult::NumericValue(2.0),
+                },
+                LookupEntry {
+                    label: "Mountain".to_string(),
+                    threshold: 5.0,
+                    result: TableResult::NumericValue(3.0),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn resolve_lookup_selects_rightmost_match() {
+        let table = test_lookup_table();
+        let idx = resolve_lookup(&table, 3.0);
+        assert_eq!(idx, Some(1)); // Rough (threshold 2.0)
+    }
+
+    #[test]
+    fn resolve_lookup_exact_threshold() {
+        let table = test_lookup_table();
+        let idx = resolve_lookup(&table, 5.0);
+        assert_eq!(idx, Some(2)); // Mountain (threshold 5.0)
+    }
+
+    #[test]
+    fn resolve_lookup_below_all() {
+        let table = test_lookup_table();
+        let idx = resolve_lookup(&table, -1.0);
+        assert!(idx.is_none());
+    }
+
+    #[test]
+    fn find_table_column_ratio() {
+        let table = test_resolution_table();
+        // 6 / 2 = 3.0 -> meets 2:1 threshold
+        let col = find_table_column(6.0, 2.0, &table.columns);
+        assert_eq!(col, Some(2));
+    }
+
+    #[test]
+    fn find_table_column_differential() {
+        let columns = vec![TableColumn {
+            label: "+2".to_string(),
+            column_type: ColumnType::Differential,
+            threshold: 2.0,
+        }];
+        let col = find_table_column(5.0, 2.0, &columns);
+        assert_eq!(col, Some(0)); // 5-2=3 >= 2
+    }
+
+    #[test]
+    fn find_table_column_direct() {
+        let columns = vec![
+            TableColumn {
+                label: "Low".to_string(),
+                column_type: ColumnType::Direct,
+                threshold: 0.0,
+            },
+            TableColumn {
+                label: "High".to_string(),
+                column_type: ColumnType::Direct,
+                threshold: 10.0,
+            },
+        ];
+        let col = find_table_column(15.0, 999.0, &columns);
+        assert_eq!(col, Some(1)); // input_a=15 >= 10
+    }
+
+    #[test]
+    fn find_table_column_below_all() {
+        let table = test_resolution_table();
+        let col = find_table_column(1.0, 10.0, &table.columns);
+        assert!(col.is_none());
+    }
+
+    #[test]
+    fn find_table_row_matching() {
+        let table = test_resolution_table();
+        assert_eq!(find_table_row(1, &table.rows), Some(0));
+        assert_eq!(find_table_row(4, &table.rows), Some(1));
+        assert_eq!(find_table_row(6, &table.rows), Some(2));
+    }
+
+    #[test]
+    fn find_table_row_no_match() {
+        let table = test_resolution_table();
+        assert!(find_table_row(7, &table.rows).is_none());
+    }
+
+    #[test]
+    fn resolve_table_full() {
+        let table = test_resolution_table();
+        // 6/2=3:1 -> col 2; roll 3 -> row 1 -> "DE"
+        let result = resolve_table(&table, 6.0, 2.0, 3);
+        assert!(result.is_some());
+        let r = result.expect("result should be Some");
+        assert_eq!(r.column_index, 2);
+        assert_eq!(r.row_index, 1);
+        assert!(matches!(r.result, TableResult::Text(ref s) if s == "DE"));
+    }
+
+    #[test]
+    fn resolve_table_no_column() {
+        let table = test_resolution_table();
+        let result = resolve_table(&table, 1.0, 10.0, 3);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_table_no_row() {
+        let table = test_resolution_table();
+        let result = resolve_table(&table, 6.0, 2.0, 99);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_table_numeric_result() {
+        let table = test_resolution_table();
+        // 6/2=3:1 -> col 2; roll 5 -> row 2 -> NumericValue(3.0)
+        let r = resolve_table(&table, 6.0, 2.0, 5).expect("result should be Some");
+        assert!(matches!(r.result, TableResult::NumericValue(v) if (v - 3.0).abs() < f64::EPSILON));
+    }
+
+    #[test]
+    fn evaluate_column_modifiers_empty() {
+        let (total, display) = evaluate_column_modifiers(&[], 3);
+        assert_eq!(total, 0);
+        assert!(display.is_empty());
+    }
+
+    #[test]
+    fn evaluate_column_modifiers_with_cap() {
+        let mods = vec![ColumnModifier {
+            name: "Terrain".to_string(),
+            column_shift: -3,
+            priority: 10,
+            cap: Some(2),
+        }];
+        let (total, display) = evaluate_column_modifiers(&mods, 5);
+        assert_eq!(total, -2); // -3 clamped to [-2, 2]
+        assert_eq!(display.len(), 1);
+    }
+
+    #[test]
+    fn evaluate_column_modifiers_priority_order() {
+        let mods = vec![
+            ColumnModifier {
+                name: "Low".to_string(),
+                column_shift: 1,
+                priority: 1,
+                cap: None,
+            },
+            ColumnModifier {
+                name: "High".to_string(),
+                column_shift: 2,
+                priority: 10,
+                cap: None,
+            },
+        ];
+        let (total, display) = evaluate_column_modifiers(&mods, 10);
+        assert_eq!(total, 3);
+        assert_eq!(display[0].0, "High");
+        assert_eq!(display[1].0, "Low");
+    }
+
+    #[test]
+    fn apply_column_shift_basic() {
+        assert_eq!(apply_column_shift(1, 2, 5), 3);
+    }
+
+    #[test]
+    fn apply_column_shift_clamp_right() {
+        assert_eq!(apply_column_shift(3, 5, 5), 4);
+    }
+
+    #[test]
+    fn apply_column_shift_clamp_left() {
+        assert_eq!(apply_column_shift(1, -5, 5), 0);
+    }
+
+    #[test]
+    fn apply_column_shift_zero_columns() {
+        assert_eq!(apply_column_shift(0, 3, 0), 0);
+    }
+
+    #[test]
+    fn resolution_table_ron_round_trip() {
+        let table = test_resolution_table();
+        let ron_str = ron::to_string(&table).expect("serialize");
+        let deserialized: ResolutionTable = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.columns.len(), 3);
+        assert_eq!(deserialized.rows.len(), 3);
+        assert_eq!(deserialized.outcomes.len(), 3);
+    }
+
+    #[test]
+    fn lookup_table_ron_round_trip() {
+        let table = test_lookup_table();
+        let ron_str = ron::to_string(&table).expect("serialize");
+        let deserialized: LookupTable = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.entries.len(), 3);
     }
 }
