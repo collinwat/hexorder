@@ -101,12 +101,12 @@ a few days. Vertical integration, not horizontal layers. This surfaces unknowns 
 10. **Implement**: Write the plugin, systems, components in `src/<plugin_name>/`
 11. **Test**: Run `mise check` (or individually: `cargo test`, `cargo clippy --all-targets`); update
     spec success criteria. Run tests after each scope — do not batch tests across multiple scopes.
-12. **Abstraction check**: Does this implementation hardcode something that could be a trait or
-    interface? Would a small abstraction here prevent duplicate work in future scopes? If yes,
-    refactor before committing. Write a 1-2 sentence rationale in the scope completion comment
-    explaining the abstraction choice (even if the choice is "no abstraction needed"). If the scope
-    exceeds 500 lines changed, the rationale must explicitly address whether the right abstraction
-    was chosen.
+12. **Abstraction check** (required gate — do not commit without answering): Does this
+    implementation hardcode something that could be a trait or interface? Would a small abstraction
+    here prevent duplicate work in future scopes? If yes, refactor before committing. Write a 1-2
+    sentence rationale in the scope completion comment explaining the abstraction choice (even if
+    the choice is "no abstraction needed"). If the scope exceeds 500 lines changed, the rationale
+    must explicitly address whether the right abstraction was chosen.
 13. **Commit**: Follow the Pre-Commit Checklist in `docs/guides/git.md` — commit early and often on
     the feature branch
 14. **Reflect**: Post a scope completion comment on the pitch issue following the Reflection

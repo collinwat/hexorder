@@ -78,7 +78,8 @@ body:
       description: >-
         Numbered list of deliverable scopes for the build phase. Each item should be a concrete,
         independently completable piece of work. During the build, agents reference checklist items
-        by number in progress comments and include the commit SHA when a scope is done.
+        by number in progress comments and include the commit SHA and lines changed when a scope is
+        done. Tests must pass after each scope — do not batch tests across multiple scopes.
       placeholder: |
         - [ ] 1. <scope name> — <brief description>
         - [ ] 2. <scope name> — <brief description>
