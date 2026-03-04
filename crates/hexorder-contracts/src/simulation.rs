@@ -298,20 +298,44 @@ pub struct TableResolution {
 /// the input meets or exceeds.
 #[must_use]
 pub fn resolve_lookup(table: &LookupTable, input: f64) -> Option<usize> {
-    todo!()
+    let mut best: Option<usize> = None;
+    for (i, entry) in table.entries.iter().enumerate() {
+        if input >= entry.threshold {
+            best = Some(i);
+        }
+    }
+    best
 }
 
 /// Find the best matching column for the given inputs.
 /// Returns the index of the rightmost column whose threshold is met.
 #[must_use]
 pub fn find_table_column(input_a: f64, input_b: f64, columns: &[TableColumn]) -> Option<usize> {
-    todo!()
+    let mut best: Option<usize> = None;
+    for (i, col) in columns.iter().enumerate() {
+        let value = match col.column_type {
+            ColumnType::Ratio => {
+                if input_b <= 0.0 {
+                    f64::INFINITY
+                } else {
+                    input_a / input_b
+                }
+            }
+            ColumnType::Differential => input_a - input_b,
+            ColumnType::Direct => input_a,
+        };
+        if value >= col.threshold {
+            best = Some(i);
+        }
+    }
+    best
 }
 
 /// Find the row matching a given die roll value.
 #[must_use]
 pub fn find_table_row(roll: u32, rows: &[TableRow]) -> Option<usize> {
-    todo!()
+    rows.iter()
+        .position(|row| roll >= row.value_min && roll <= row.value_max)
 }
 
 /// Resolve a full 2D table lookup.
@@ -322,7 +346,20 @@ pub fn resolve_table(
     input_b: f64,
     roll: u32,
 ) -> Option<TableResolution> {
-    todo!()
+    let col_idx = find_table_column(input_a, input_b, &table.columns)?;
+    let row_idx = find_table_row(roll, &table.rows)?;
+    let result = table
+        .outcomes
+        .get(row_idx)
+        .and_then(|row| row.get(col_idx))?;
+
+    Some(TableResolution {
+        column_index: col_idx,
+        row_index: row_idx,
+        column_label: table.columns[col_idx].label.clone(),
+        row_label: table.rows[row_idx].label.clone(),
+        result: result.clone(),
+    })
 }
 
 /// Evaluate column modifiers in priority order (highest first).
@@ -332,13 +369,36 @@ pub fn evaluate_column_modifiers(
     modifiers: &[ColumnModifier],
     column_count: usize,
 ) -> (i32, Vec<(String, i32)>) {
-    todo!()
+    let mut sorted: Vec<&ColumnModifier> = modifiers.iter().collect();
+    sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+    let mut total_shift: i32 = 0;
+    let mut display: Vec<(String, i32)> = Vec::with_capacity(sorted.len());
+
+    for modifier in &sorted {
+        total_shift += modifier.column_shift;
+        if let Some(cap) = modifier.cap {
+            total_shift = total_shift.clamp(-cap, cap);
+        }
+        display.push((modifier.name.clone(), modifier.column_shift));
+    }
+
+    if column_count > 0 {
+        let max_shift = (column_count - 1) as i32;
+        total_shift = total_shift.clamp(-max_shift, max_shift);
+    }
+
+    (total_shift, display)
 }
 
 /// Apply a column shift to a base index, clamping to bounds.
 #[must_use]
 pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -> usize {
-    todo!()
+    if column_count == 0 {
+        return 0;
+    }
+    let shifted = base_column as i32 + shift;
+    shifted.clamp(0, (column_count - 1) as i32) as usize
 }
 
 #[cfg(test)]
