@@ -1,5 +1,5 @@
 [workspace]
-members = [ "crates/hexorder-contracts", "crates/hexorder-sdk", "crates/hexorder-map-gen" ]
+members = [ "crates/hexorder-contracts", "crates/hexorder-sdk", "crates/hexorder-map-gen", "crates/hexorder-mechanic-ref" ]
 default-members = [ "." ]
 
 [workspace.dependencies]
@@ -11,6 +11,7 @@ serde = { version = "1", features = [ "derive" ] }
 uuid = { version = "1", features = [ "v4" ] }
 hexorder-contracts = { path = "crates/hexorder-contracts" }
 hexorder-map-gen = { path = "crates/hexorder-map-gen" }
+hexorder-mechanic-ref = { path = "crates/hexorder-mechanic-ref" }
 hexorder-sdk = { path = "crates/hexorder-sdk" }
 noise = "0.9"
 
@@ -63,6 +64,7 @@ macos-app = [  ]
 [dependencies]
 hexorder-contracts = { workspace = true }
 hexorder-map-gen = { workspace = true }
+hexorder-mechanic-ref = { workspace = true }
 hexorder-sdk = { workspace = true }
 dirs = { version = "6", optional = true }
 bevy = { workspace = true, features = [

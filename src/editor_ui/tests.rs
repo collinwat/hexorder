@@ -1095,7 +1095,7 @@ fn apply_crt_combat_template_populates_registries() {
     // End-to-end test: applying the actual crt_combat template.
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(crate::mechanic_reference::MechanicReferencePlugin);
+    app.add_plugins(hexorder_mechanic_ref::MechanicReferencePlugin);
     app.init_resource::<EntityTypeRegistry>();
     app.init_resource::<EnumRegistry>();
     app.init_resource::<TurnStructure>();

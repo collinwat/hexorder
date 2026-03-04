@@ -3593,6 +3593,7 @@ dependencies = [
  "egui_kittest",
  "hexorder-contracts",
  "hexorder-map-gen",
+ "hexorder-mechanic-ref",
  "hexorder-sdk",
  "hexx",
  "mlua",
@@ -3628,6 +3629,15 @@ dependencies = [
  "hexorder-sdk",
  "hexx",
  "noise",
+]
+
+[[package]]
+name = "hexorder-mechanic-ref"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
 ]
 
 [[package]]
