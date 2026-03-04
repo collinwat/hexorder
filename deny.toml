@@ -33,6 +33,30 @@ exceptions = [
   { allow = [
     "LicenseRef-Proprietary",
   ], crate = "hexorder-contracts" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-sdk" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-map-gen" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-mechanic-ref" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-camera" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-export" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-settings" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-undo-redo" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-scripting" },
 ]
 
 [bans]

@@ -1,5 +1,15 @@
 [workspace]
-members = [ "crates/hexorder-contracts", "crates/hexorder-sdk", "crates/hexorder-map-gen", "crates/hexorder-mechanic-ref", "crates/hexorder-camera", "crates/hexorder-export", "crates/hexorder-settings", "crates/hexorder-undo-redo", "crates/hexorder-scripting" ]
+members = [
+  "crates/hexorder-contracts",
+  "crates/hexorder-sdk",
+  "crates/hexorder-map-gen",
+  "crates/hexorder-mechanic-ref",
+  "crates/hexorder-camera",
+  "crates/hexorder-export",
+  "crates/hexorder-settings",
+  "crates/hexorder-undo-redo",
+  "crates/hexorder-scripting",
+]
 default-members = [ "." ]
 
 [workspace.dependencies]

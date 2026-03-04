@@ -6,7 +6,7 @@ license = "LicenseRef-Proprietary"
 publish = false
 
 [features]
-macos-app = []
+macos-app = [  ]
 
 [dependencies]
 hexorder-contracts = { workspace = true }
