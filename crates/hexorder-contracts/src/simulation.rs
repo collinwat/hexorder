@@ -5,11 +5,10 @@
 //! resolution tables. These are generic simulation primitives per ADR-005.
 
 use bevy::prelude::*;
+use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
-
-use crate::game_system::TypeId;
 
 // ---------------------------------------------------------------------------
 // Seeded RNG
@@ -114,29 +113,49 @@ impl SimulationRng {
 // ---------------------------------------------------------------------------
 
 /// Roll a die of the given type, logging the result.
-/// Returns a value in the range \[1, die.sides()\].
+/// Returns a value in the range `[1, die.sides()]`.
 #[must_use]
 pub fn roll_die(rng: &mut SimulationRng, die: DieType, context: &str) -> u32 {
-    todo!()
+    let sides = die.sides();
+    let result = rng.rng.random_range(1..=sides);
+    let record = RollRecord {
+        roll_index: rng.next_roll_index,
+        die_type: die,
+        result,
+        context: context.to_string(),
+    };
+    rng.roll_log.push(record);
+    rng.next_roll_index += 1;
+    result
 }
 
-/// Roll a value in the inclusive range \[min, max\], logging the result.
+/// Roll a value in the inclusive range `[min, max]`, logging the result.
 /// Uses `DieType::Custom` with `max - min + 1` sides.
 #[must_use]
 pub fn roll_range(rng: &mut SimulationRng, min: u32, max: u32, context: &str) -> u32 {
-    todo!()
+    let sides = max - min + 1;
+    let die = DieType::Custom { sides };
+    let raw = roll_die(rng, die, context);
+    // roll_die returns [1, sides], shift to [min, max]
+    raw - 1 + min
 }
 
 /// Reset the RNG with a new seed, clearing the roll log.
 pub fn reset_rng(rng: &mut SimulationRng, seed: u64) {
-    todo!()
+    rng.seed = seed;
+    rng.rng = ChaCha8Rng::seed_from_u64(seed);
+    rng.roll_log.clear();
+    rng.next_roll_index = 0;
 }
 
 /// Replay rolls from a seed — returns the first `count` d6 results.
 /// Useful for verifying deterministic replay.
 #[must_use]
 pub fn replay_from_seed(seed: u64, count: u64) -> Vec<u32> {
-    todo!()
+    let mut rng = SimulationRng::new(seed);
+    (0..count)
+        .map(|_| roll_die(&mut rng, DieType::D6, ""))
+        .collect()
 }
 
 #[cfg(test)]
@@ -208,7 +227,7 @@ mod tests {
     #[test]
     fn reset_rng_clears_log_and_reseeds() {
         let mut rng = SimulationRng::new(42);
-        roll_die(&mut rng, DieType::D6, "before");
+        let _ = roll_die(&mut rng, DieType::D6, "before");
         assert_eq!(rng.roll_count(), 1);
 
         reset_rng(&mut rng, 99);
@@ -256,9 +275,9 @@ mod tests {
     #[test]
     fn roll_log_index_increments() {
         let mut rng = SimulationRng::new(42);
-        roll_die(&mut rng, DieType::D6, "first");
-        roll_die(&mut rng, DieType::D10, "second");
-        roll_die(&mut rng, DieType::D100, "third");
+        let _ = roll_die(&mut rng, DieType::D6, "first");
+        let _ = roll_die(&mut rng, DieType::D10, "second");
+        let _ = roll_die(&mut rng, DieType::D100, "third");
         assert_eq!(rng.roll_log()[0].roll_index, 0);
         assert_eq!(rng.roll_log()[1].roll_index, 1);
         assert_eq!(rng.roll_log()[2].roll_index, 2);
