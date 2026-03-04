@@ -3592,6 +3592,7 @@ dependencies = [
  "egui_dock",
  "egui_kittest",
  "hexorder-contracts",
+ "hexorder-map-gen",
  "hexorder-sdk",
  "hexx",
  "mlua",
@@ -3616,6 +3617,17 @@ dependencies = [
  "ron",
  "serde",
  "uuid",
+]
+
+[[package]]
+name = "hexorder-map-gen"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexx",
+ "noise",
 ]
 
 [[package]]

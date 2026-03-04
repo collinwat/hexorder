@@ -27,7 +27,7 @@ pub trait HexorderPlugin: Send + Sync + 'static {
     fn id(&self) -> PluginId;
 
     /// Human-readable display name.
-    fn plugin_name(&self) -> &str;
+    fn plugin_name(&self) -> &'static str;
 
     /// Wire this plugin's systems, resources, and events into the app.
     fn build(&self, app: &mut App);
@@ -60,7 +60,7 @@ mod tests {
         fn id(&self) -> PluginId {
             PluginId("test-plugin")
         }
-        fn plugin_name(&self) -> &str {
+        fn plugin_name(&self) -> &'static str {
             "Test Plugin"
         }
         fn build(&self, _app: &mut App) {}

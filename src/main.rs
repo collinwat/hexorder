@@ -9,7 +9,6 @@ mod editor_ui;
 mod export;
 mod game_system;
 mod hex_grid;
-mod map_gen;
 mod mechanic_reference;
 mod ontology;
 mod persistence;
@@ -52,7 +51,7 @@ fn main() {
         .add_plugins(scripting::ScriptingPlugin)
         .add_plugins(persistence::PersistencePlugin)
         .add_plugins(undo_redo::UndoRedoPlugin)
-        .add_plugins(map_gen::MapGenPlugin)
+        .add_plugins(hexorder_map_gen::MapGenPlugin)
         .add_plugins(mechanic_reference::MechanicReferencePlugin)
         .add_plugins(export::ExportPlugin)
         .add_plugins(settings::SettingsPlugin)

@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use hexorder_contracts::map_gen::MapGenParams;
 use hexorder_contracts::persistence::AppScreen;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 mod biome;
 mod components;
@@ -28,5 +29,19 @@ impl Plugin for MapGenPlugin {
                 Update,
                 systems::run_generation.run_if(in_state(AppScreen::Editor)),
             );
+    }
+}
+
+impl HexorderPlugin for MapGenPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-map-gen")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Map Generation"
+    }
+
+    fn build(&self, app: &mut App) {
+        Plugin::build(self, app);
     }
 }
