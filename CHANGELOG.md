@@ -5,6 +5,28 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] — 2026-03-05
+
+### Added
+
+- add ADR-005 simulation primitives (project)
+- add ADR-005 simulation primitives and ToV roadmap (project)
+- create hexorder-sdk crate and workspace foundation (sdk)
+- strengthen abstraction check to required gate (project)
+- add system-sets contract spec (contracts)
+
+### Changed
+
+- set up feature branch (project)
+- extract hexorder-map-gen into standalone crate (map_gen)
+- extract into standalone crate (mechanic_reference)
+- extract 5 plugins into standalone crates (project)
+- bump version to 0.16.0 (project)
+
+### Fixed
+
+- add cargo-deny license exceptions for extracted crates (project)
+
 ## [0.15.0] — 2026-03-02
 
 ### Added
@@ -61,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - raise coverage threshold from 40% to 90% (project)
 - remove transient plan documents from coverage cycle (project)
 - strip pre-release suffix for 0.15.0 (project)
+- bump version to 0.15.0 (project)
 
 ### Fixed
 

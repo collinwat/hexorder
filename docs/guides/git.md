@@ -731,6 +731,10 @@ begins.
 | 0.10.0  | `0.10.0` | `v0.10.0` | Sharpen the Tools        |
 | 0.11.0  | `0.11.0` | `v0.11.0` | Sharpen & Rearchitect    |
 | 0.12.0  | `0.12.0` | `v0.12.0` | Deliver & Polish         |
+| 0.13.0  | `0.13.0` | `v0.13.0` | Contracts Foundation     |
+| 0.14.0  | `0.14.0` | `v0.14.0` | Simulation Primitives    |
+| 0.15.0  | `0.15.0` | `v0.15.0` | Design & Plan            |
+| 0.16.0  | `0.16.0` | `v0.16.0` | Crate Extraction         |
 
 To determine the next version for a merge:
 
