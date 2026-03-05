@@ -5,6 +5,26 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.1] — 2026-03-05
+
+### Added
+
+- add failing tests for simulation RNG types (contracts)
+- implement seeded RNG with deterministic replay (contracts)
+- add failing tests for table resolution types (contracts)
+- implement table resolution with 1D lookup and 2D grid (contracts)
+- add simulation contract spec (contracts)
+- add plugin with RNG resource and observers (simulation)
+- add RNG + table resolution integration tests (simulation)
+- add plugin spec and initial log (simulation)
+
+### Changed
+
+- set up feature branch (simulation)
+- add rand and rand_chacha workspace dependencies (contracts)
+- remove transient plan documents (project)
+- bump version to 0.16.1 (project)
+
 ## [0.16.0] — 2026-03-05
 
 ### Added
