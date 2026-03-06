@@ -5,6 +5,14 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] — 2026-03-06
+
+### Changed
+
+- set up feature branch (contracts)
+- delegate CRT types to generic ResolutionTable (contracts)
+- bump version to 0.17.0 (project)
+
 ## [0.16.1] — 2026-03-05
 
 ### Added
