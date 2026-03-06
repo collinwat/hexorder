@@ -6,8 +6,8 @@ license = "LicenseRef-Proprietary"
 publish = false
 
 [features]
-xdg = ["dep:dirs"]
-macos = ["dep:dirs"]
+xdg = [ "dep:dirs" ]
+macos = [ "dep:dirs" ]
 
 [dependencies]
 hexorder-contracts = { workspace = true }

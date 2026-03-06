@@ -57,6 +57,21 @@ exceptions = [
   { allow = [
     "LicenseRef-Proprietary",
   ], crate = "hexorder-scripting" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-simulation" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-cell" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-unit" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-persistence" },
+  { allow = [
+    "LicenseRef-Proprietary",
+  ], crate = "hexorder-rules-engine" },
 ]
 
 [bans]
