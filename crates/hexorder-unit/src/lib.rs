@@ -7,6 +7,7 @@
 use bevy::prelude::*;
 
 use hexorder_contracts::persistence::AppScreen;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 mod components;
 mod systems;
@@ -18,7 +19,15 @@ mod tests;
 #[derive(Debug)]
 pub struct UnitPlugin;
 
-impl Plugin for UnitPlugin {
+impl HexorderPlugin for UnitPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-unit")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Unit"
+    }
+
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppScreen::Editor), systems::setup_unit_visuals)
             .add_systems(
@@ -34,5 +43,11 @@ impl Plugin for UnitPlugin {
             )
             .add_observer(systems::handle_unit_placement)
             .add_observer(systems::handle_unit_interaction);
+    }
+}
+
+impl Plugin for UnitPlugin {
+    fn build(&self, app: &mut App) {
+        HexorderPlugin::build(self, app);
     }
 }

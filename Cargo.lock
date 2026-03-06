@@ -3654,6 +3654,7 @@ dependencies = [
  "hexorder-settings",
  "hexorder-simulation",
  "hexorder-undo-redo",
+ "hexorder-unit",
  "hexx",
  "noise",
  "printpdf",
@@ -3778,6 +3779,17 @@ dependencies = [
  "bevy",
  "hexorder-contracts",
  "hexorder-sdk",
+]
+
+[[package]]
+name = "hexorder-unit"
+version = "0.18.0-wave3-extraction"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexorder-undo-redo",
+ "hexx",
 ]
 
 [[package]]

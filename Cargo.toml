@@ -11,6 +11,7 @@ members = [
   "crates/hexorder-scripting",
   "crates/hexorder-simulation",
   "crates/hexorder-cell",
+  "crates/hexorder-unit",
 ]
 default-members = [ "." ]
 
@@ -32,6 +33,7 @@ hexorder-sdk = { path = "crates/hexorder-sdk" }
 hexorder-settings = { path = "crates/hexorder-settings" }
 hexorder-simulation = { path = "crates/hexorder-simulation" }
 hexorder-undo-redo = { path = "crates/hexorder-undo-redo" }
+hexorder-unit = { path = "crates/hexorder-unit" }
 noise = "0.9"
 rand = "0.9"
 rand_chacha = "0.9"
@@ -94,6 +96,7 @@ hexorder-sdk = { workspace = true }
 hexorder-settings = { workspace = true }
 hexorder-simulation = { workspace = true }
 hexorder-undo-redo = { workspace = true }
+hexorder-unit = { workspace = true }
 dirs = { version = "6", optional = true }
 bevy = { workspace = true, features = [
   "default_app",

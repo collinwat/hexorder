@@ -10,7 +10,6 @@ mod ontology;
 mod persistence;
 mod rules_engine;
 mod shortcuts;
-mod unit;
 
 use hexorder_contracts::persistence::AppScreen;
 
@@ -39,7 +38,7 @@ fn main() {
         .add_plugins(game_system::GameSystemPlugin)
         .add_plugins(ontology::OntologyPlugin)
         .add_plugins(hexorder_cell::CellPlugin)
-        .add_plugins(unit::UnitPlugin)
+        .add_plugins(hexorder_unit::UnitPlugin)
         .add_plugins(rules_engine::RulesEnginePlugin)
         .add_plugins(hexorder_simulation::SimulationPlugin)
         .add_plugins(hexorder_scripting::ScriptingPlugin)
@@ -202,7 +201,7 @@ mod integration_tests {
         app.add_plugins(crate::game_system::GameSystemPlugin);
         app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
         app.add_plugins(hexorder_cell::CellPlugin);
-        app.add_plugins(crate::unit::UnitPlugin);
+        app.add_plugins(hexorder_unit::UnitPlugin);
         app
     }
 
