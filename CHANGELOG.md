@@ -5,6 +5,23 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] — 2026-03-06
+
+### Changed
+
+- set up feature branch (project)
+- extract to hexorder-simulation crate (simulation)
+- extract to hexorder-cell crate (cell)
+- extract to hexorder-unit crate (unit)
+- extract to hexorder-persistence crate (persistence)
+- extract to hexorder-rules-engine crate (rules_engine)
+- add new crates to deny.toml license exceptions (project)
+- bump version to 0.18.0 (project)
+
+### Fixed
+
+- replace in-tree plugin deps in tests (persistence)
+
 ## [0.17.0] — 2026-03-06
 
 ### Changed
@@ -12,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - set up feature branch (contracts)
 - delegate CRT types to generic ResolutionTable (contracts)
 - bump version to 0.17.0 (project)
+- update changelog for 0.17.0 (project)
 
 ## [0.16.1] — 2026-03-05
 
