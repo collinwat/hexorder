@@ -26,8 +26,7 @@ use hexorder_contracts::mechanic_reference::{
 };
 use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierDefinition, CombatModifierRegistry, CombatOutcome,
-    CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType,
-    PlayerOrder, TurnState, TurnStructure,
+    CombatResultsTable, ModifierSource, Phase, PhaseType, PlayerOrder, TurnState, TurnStructure,
 };
 use hexorder_contracts::ontology::{
     CompareOp, Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -35,6 +34,7 @@ use hexorder_contracts::ontology::{
     RelationTrigger,
 };
 use hexorder_contracts::persistence::{AppScreen, Workspace};
+use hexorder_contracts::simulation::{ColumnType, ResolutionTable, TableColumn, TableRow};
 use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::actions;
@@ -229,30 +229,35 @@ fn test_crt() -> CombatResultsTable {
     CombatResultsTable {
         id: TypeId::new(),
         name: "Standard CRT".to_string(),
-        columns: vec![
-            CrtColumn {
-                label: "1:2".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 0.5,
-            },
-            CrtColumn {
-                label: "1:1".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 1.0,
-            },
-        ],
-        rows: vec![
-            CrtRow {
-                label: "1".to_string(),
-                die_value_min: 1,
-                die_value_max: 2,
-            },
-            CrtRow {
-                label: "2".to_string(),
-                die_value_min: 3,
-                die_value_max: 4,
-            },
-        ],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![
+                TableColumn {
+                    label: "1:2".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 0.5,
+                },
+                TableColumn {
+                    label: "1:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 1.0,
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    label: "1".to_string(),
+                    value_min: 1,
+                    value_max: 2,
+                },
+                TableRow {
+                    label: "2".to_string(),
+                    value_min: 3,
+                    value_max: 4,
+                },
+            ],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![
             vec![
                 CombatOutcome {
@@ -2862,16 +2867,21 @@ fn mechanics_tab_shows_differential_column() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Diff CRT".to_string(),
-        columns: vec![CrtColumn {
-            label: "-3".to_string(),
-            column_type: CrtColumnType::Differential,
-            threshold: -3.0,
-        }],
-        rows: vec![CrtRow {
-            label: "1".to_string(),
-            die_value_min: 1,
-            die_value_max: 3,
-        }],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![TableColumn {
+                label: "-3".to_string(),
+                column_type: ColumnType::Differential,
+                threshold: -3.0,
+            }],
+            rows: vec![TableRow {
+                label: "1".to_string(),
+                value_min: 1,
+                value_max: 3,
+            }],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![vec![CombatOutcome {
             label: "NE".to_string(),
             effect: None,
@@ -4628,12 +4638,17 @@ fn mechanics_tab_differential_crt_column_label() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Test CRT".to_string(),
-        columns: vec![CrtColumn {
-            label: "Diff1".to_string(),
-            column_type: CrtColumnType::Differential,
-            threshold: 2.0,
-        }],
-        rows: vec![],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![TableColumn {
+                label: "Diff1".to_string(),
+                column_type: ColumnType::Differential,
+                threshold: 2.0,
+            }],
+            rows: vec![],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![],
         combat_concept_id: None,
     };
@@ -4747,8 +4762,13 @@ fn mechanics_tab_empty_crt_hides_outcome_grid() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Empty CRT".to_string(),
-        columns: vec![],
-        rows: vec![],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![],
+            rows: vec![],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![],
         combat_concept_id: None,
     };
@@ -5465,12 +5485,17 @@ fn mechanics_tab_crt_only_rows_no_outcome_grid() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Rows Only".to_string(),
-        columns: vec![],
-        rows: vec![CrtRow {
-            label: "1".to_string(),
-            die_value_min: 1,
-            die_value_max: 3,
-        }],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![],
+            rows: vec![TableRow {
+                label: "1".to_string(),
+                value_min: 1,
+                value_max: 3,
+            }],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![],
         combat_concept_id: None,
     };
@@ -5497,12 +5522,17 @@ fn mechanics_tab_crt_only_cols_no_outcome_grid() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Cols Only".to_string(),
-        columns: vec![CrtColumn {
-            label: "1:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
-            threshold: 1.0,
-        }],
-        rows: vec![],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![TableColumn {
+                label: "1:1".to_string(),
+                column_type: ColumnType::Ratio,
+                threshold: 1.0,
+            }],
+            rows: vec![],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![],
         combat_concept_id: None,
     };
@@ -6623,12 +6653,17 @@ fn mechanics_tab_crt_differential_column() {
     let crt = CombatResultsTable {
         id: TypeId::new(),
         name: "Diff CRT".to_string(),
-        columns: vec![CrtColumn {
-            label: "D+2".to_string(),
-            column_type: CrtColumnType::Differential,
-            threshold: 2.0,
-        }],
-        rows: vec![],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![TableColumn {
+                label: "D+2".to_string(),
+                column_type: ColumnType::Differential,
+                threshold: 2.0,
+            }],
+            rows: vec![],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![],
         combat_concept_id: None,
     };
@@ -9983,12 +10018,17 @@ fn mechanics_remove_crt_row_click() {
         CombatResultsTable {
             id: TypeId::new(),
             name: "Test CRT".to_string(),
-            columns: vec![],
-            rows: vec![hexorder_contracts::mechanics::CrtRow {
-                label: "1".to_string(),
-                die_value_min: 1,
-                die_value_max: 2,
-            }],
+            table: ResolutionTable {
+                id: TypeId::new(),
+                name: "CRT Lookup".to_string(),
+                columns: vec![],
+                rows: vec![TableRow {
+                    label: "1".to_string(),
+                    value_min: 1,
+                    value_max: 2,
+                }],
+                outcomes: Vec::new(),
+            },
             outcomes: vec![],
             combat_concept_id: None,
         },
@@ -10047,8 +10087,13 @@ fn mechanics_remove_modifier_click() {
         CombatResultsTable {
             id: TypeId::new(),
             name: "CRT".to_string(),
-            columns: vec![],
-            rows: vec![],
+            table: ResolutionTable {
+                id: TypeId::new(),
+                name: "CRT Lookup".to_string(),
+                columns: vec![],
+                rows: vec![],
+                outcomes: Vec::new(),
+            },
             outcomes: vec![],
             combat_concept_id: None,
         },

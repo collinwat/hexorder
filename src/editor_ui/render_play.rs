@@ -303,8 +303,9 @@ pub(crate) fn render_combat_panel<'a>(
     editor_state: &mut EditorState,
     unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
 ) {
-    use hexorder_contracts::mechanics::{
-        apply_column_shift, evaluate_modifiers_prioritized, find_crt_column, resolve_crt,
+    use hexorder_contracts::mechanics::resolve_crt;
+    use hexorder_contracts::simulation::{
+        ColumnModifier, apply_column_shift, evaluate_column_modifiers, find_table_column,
     };
 
     ui.label(
@@ -314,7 +315,7 @@ pub(crate) fn render_combat_panel<'a>(
     );
     ui.add_space(4.0);
 
-    if crt.columns.is_empty() || crt.rows.is_empty() {
+    if crt.table.columns.is_empty() || crt.table.rows.is_empty() {
         ui.label(
             egui::RichText::new("No CRT defined. Set up columns and rows in the Mechanics tab.")
                 .small()
@@ -397,12 +398,12 @@ pub(crate) fn render_combat_panel<'a>(
     }
 
     // -- Column lookup --
-    let base_column = find_crt_column(atk_str, def_str, &crt.columns);
+    let base_column = find_table_column(atk_str, def_str, &crt.table.columns);
     if let Some(col_idx) = base_column {
         ui.label(
             egui::RichText::new(format!(
                 "Base column: {} ({})",
-                crt.columns[col_idx].label, col_idx
+                crt.table.columns[col_idx].label, col_idx
             ))
             .small()
             .color(BrandTheme::TEXT_PRIMARY),
@@ -423,8 +424,18 @@ pub(crate) fn render_combat_panel<'a>(
                 .small()
                 .color(BrandTheme::TEXT_SECONDARY),
         );
+        let column_modifiers: Vec<ColumnModifier> = modifiers
+            .modifiers
+            .iter()
+            .map(|m| ColumnModifier {
+                name: m.name.clone(),
+                column_shift: m.column_shift,
+                cap: m.cap,
+                priority: m.priority.max(0) as u32,
+            })
+            .collect();
         let (total_shift, modifier_display) =
-            evaluate_modifiers_prioritized(&modifiers.modifiers, crt.columns.len());
+            evaluate_column_modifiers(&column_modifiers, crt.table.columns.len());
         for (name, shift) in &modifier_display {
             let sign = if *shift >= 0 { "+" } else { "" };
             ui.label(
@@ -442,13 +453,13 @@ pub(crate) fn render_combat_panel<'a>(
 
         // Show final column after shift.
         if let Some(base_col) = base_column {
-            let final_col = apply_column_shift(base_col, total_shift, crt.columns.len());
+            let final_col = apply_column_shift(base_col, total_shift, crt.table.columns.len());
             active_combat.resolved_column = Some(final_col);
             active_combat.total_shift = total_shift;
             ui.label(
                 egui::RichText::new(format!(
                     "Final column: {} ({})",
-                    crt.columns[final_col].label, final_col
+                    crt.table.columns[final_col].label, final_col
                 ))
                 .small()
                 .strong()
@@ -478,7 +489,7 @@ pub(crate) fn render_combat_panel<'a>(
             if let Some(resolution) = resolve_crt(crt, atk_str, def_str, roll) {
                 // Apply column shift to get the actual outcome.
                 let shifted_col =
-                    apply_column_shift(resolution.column_index, shift, crt.columns.len());
+                    apply_column_shift(resolution.column_index, shift, crt.table.columns.len());
                 if let Some(row_outcomes) = crt.outcomes.get(resolution.row_index)
                     && let Some(outcome) = row_outcomes.get(shifted_col)
                 {

@@ -7,9 +7,10 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::HexPosition;
 use hexorder_contracts::mechanics::{
-    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
-    PlayerOrder, TurnStructure,
+    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
+    TurnStructure,
 };
+use hexorder_contracts::simulation::ColumnType;
 use hexorder_contracts::validation::SchemaValidation;
 
 use super::actions::{bevy_color_to_egui, egui_color_to_bevy};
@@ -202,14 +203,14 @@ pub(crate) fn render_mechanics_tab(
 
     // Column headers.
     ui.label(
-        egui::RichText::new(format!("Columns ({})", crt.columns.len()))
+        egui::RichText::new(format!("Columns ({})", crt.table.columns.len()))
             .color(BrandTheme::TEXT_SECONDARY),
     );
-    for (i, col) in crt.columns.iter().enumerate() {
+    for (i, col) in crt.table.columns.iter().enumerate() {
         ui.horizontal(|ui| {
             let type_label = match col.column_type {
-                CrtColumnType::OddsRatio => "ratio",
-                CrtColumnType::Differential => "diff",
+                ColumnType::Ratio | ColumnType::Direct => "ratio",
+                ColumnType::Differential => "diff",
             };
             ui.label(
                 egui::RichText::new(&col.label)
@@ -253,8 +254,8 @@ pub(crate) fn render_mechanics_tab(
                 .parse::<f64>()
                 .unwrap_or(0.0);
             let column_type = match editor_state.new_crt_col_type_index {
-                1 => CrtColumnType::Differential,
-                _ => CrtColumnType::OddsRatio,
+                1 => ColumnType::Differential,
+                _ => ColumnType::Ratio,
             };
             actions.push(EditorAction::AddCrtColumn {
                 label: editor_state.new_crt_col_label.trim().to_string(),
@@ -270,9 +271,10 @@ pub(crate) fn render_mechanics_tab(
 
     // Row headers.
     ui.label(
-        egui::RichText::new(format!("Rows ({})", crt.rows.len())).color(BrandTheme::TEXT_SECONDARY),
+        egui::RichText::new(format!("Rows ({})", crt.table.rows.len()))
+            .color(BrandTheme::TEXT_SECONDARY),
     );
-    for (i, row) in crt.rows.iter().enumerate() {
+    for (i, row) in crt.table.rows.iter().enumerate() {
         ui.horizontal(|ui| {
             ui.label(
                 egui::RichText::new(&row.label)
@@ -280,7 +282,7 @@ pub(crate) fn render_mechanics_tab(
                     .color(BrandTheme::TEXT_PRIMARY),
             );
             ui.label(
-                egui::RichText::new(format!("(die {}-{})", row.die_value_min, row.die_value_max))
+                egui::RichText::new(format!("(die {}-{})", row.value_min, row.value_max))
                     .small()
                     .color(BrandTheme::TEXT_TERTIARY),
             );
@@ -332,10 +334,10 @@ pub(crate) fn render_mechanics_tab(
     ui.add_space(4.0);
 
     // Outcome grid (editable).
-    if !crt.columns.is_empty() && !crt.rows.is_empty() {
+    if !crt.table.columns.is_empty() && !crt.table.rows.is_empty() {
         // Sync edit buffer when CRT dimensions change.
-        let num_rows = crt.rows.len();
-        let num_cols = crt.columns.len();
+        let num_rows = crt.table.rows.len();
+        let num_cols = crt.table.columns.len();
         if editor_state.crt_outcome_labels.len() != num_rows
             || editor_state
                 .crt_outcome_labels
@@ -366,7 +368,7 @@ pub(crate) fn render_mechanics_tab(
             .show(ui, |ui| {
                 // Header row.
                 ui.label("");
-                for col in &crt.columns {
+                for col in &crt.table.columns {
                     ui.label(
                         egui::RichText::new(&col.label)
                             .small()
@@ -377,7 +379,7 @@ pub(crate) fn render_mechanics_tab(
                 ui.end_row();
 
                 // Data rows with editable cells.
-                for (ri, row) in crt.rows.iter().enumerate() {
+                for (ri, row) in crt.table.rows.iter().enumerate() {
                     ui.label(
                         egui::RichText::new(&row.label)
                             .small()

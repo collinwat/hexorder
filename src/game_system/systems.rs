@@ -7,9 +7,9 @@ use hexorder_contracts::game_system::{
     PropertyDefinition, PropertyType, PropertyValue, TypeId,
 };
 use hexorder_contracts::mechanics::{
-    CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow, OutcomeEffect, Phase,
-    PhaseType, PlayerOrder, TurnStructure,
+    CombatOutcome, CombatResultsTable, OutcomeEffect, Phase, PhaseType, PlayerOrder, TurnStructure,
 };
+use hexorder_contracts::simulation::{ColumnType, ResolutionTable, TableColumn, TableRow};
 
 /// Creates a new `GameSystem` resource with a fresh UUID and default version.
 pub fn create_game_system() -> GameSystem {
@@ -174,48 +174,48 @@ pub fn create_default_turn_structure() -> TurnStructure {
 /// Outcomes populated with classic wargame results.
 pub fn create_default_crt() -> CombatResultsTable {
     let columns = vec![
-        CrtColumn {
+        TableColumn {
             label: "1:2".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 0.5,
         },
-        CrtColumn {
+        TableColumn {
             label: "1:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 1.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "2:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 2.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "3:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 3.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "4:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 4.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "5:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 5.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "6:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 6.0,
         },
     ];
 
-    let rows: Vec<CrtRow> = (1..=6)
-        .map(|i| CrtRow {
+    let rows: Vec<TableRow> = (1..=6)
+        .map(|i| TableRow {
             label: i.to_string(),
-            die_value_min: i,
-            die_value_max: i,
+            value_min: i,
+            value_max: i,
         })
         .collect();
 
@@ -240,8 +240,13 @@ pub fn create_default_crt() -> CombatResultsTable {
     CombatResultsTable {
         id: TypeId::new(),
         name: "Combat Results Table".to_string(),
-        columns,
-        rows,
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns,
+            rows,
+            outcomes: Vec::new(),
+        },
         outcomes,
         combat_concept_id: None,
     }

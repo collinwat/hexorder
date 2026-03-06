@@ -69,14 +69,14 @@ use hexorder_contracts::game_system::{
 use hexorder_contracts::hex_grid::SelectedHex;
 use hexorder_contracts::map_gen;
 use hexorder_contracts::mechanics::{
-    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
-    TurnStructure,
+    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, TurnStructure,
 };
 use hexorder_contracts::ontology::{
     ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
     RelationTrigger,
 };
 use hexorder_contracts::persistence::Workspace;
+use hexorder_contracts::simulation::ColumnType;
 
 /// Deferred actions to apply after the egui closure completes.
 /// Avoids side effects inside the closure (multi-pass safe).
@@ -196,7 +196,7 @@ pub(crate) enum EditorAction {
     },
     AddCrtColumn {
         label: String,
-        column_type: CrtColumnType,
+        column_type: ColumnType,
         threshold: f64,
     },
     RemoveCrtColumn {

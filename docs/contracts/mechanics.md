@@ -73,35 +73,11 @@ pub struct TurnState {
 
 ### Combat Results Table
 
+The CRT delegates its column/row structure to `ResolutionTable` from the `simulation` contract (see
+`docs/contracts/simulation.md`). Column types (`ColumnType`), column headers (`TableColumn`), and
+row headers (`TableRow`) are defined there. The CRT adds domain-specific outcome semantics.
+
 ```rust
-/// How a CRT column is calculated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CrtColumnType {
-    /// Attacker:defender strength ratios (e.g., 1:2, 1:1, 2:1, 3:1).
-    OddsRatio,
-    /// Attacker - defender strength differentials (e.g., -3, -2, ..., +3).
-    Differential,
-}
-
-/// A single column header in the CRT. Each column carries its own column type,
-/// allowing ratio and differential columns to coexist in a single CRT.
-#[derive(Debug, Clone)]
-pub struct CrtColumn {
-    pub label: String,
-    pub column_type: CrtColumnType,
-    /// For OddsRatio: minimum ratio (e.g., 3.0 for "3:1").
-    /// For Differential: minimum differential (e.g., 2.0 for "+2").
-    pub threshold: f64,
-}
-
-/// A single row header in the CRT (die roll result). Fully designer-defined.
-#[derive(Debug, Clone)]
-pub struct CrtRow {
-    pub label: String,
-    pub die_value_min: u32,
-    pub die_value_max: u32,
-}
-
 /// A structured effect that can be partially automated.
 #[derive(Debug, Clone)]
 pub enum OutcomeEffect {
@@ -121,14 +97,14 @@ pub struct CombatOutcome {
     pub effect: Option<OutcomeEffect>,
 }
 
-/// The Combat Results Table: a 2D grid of combat outcomes.
+/// The Combat Results Table: wraps a generic ResolutionTable with combat outcomes.
 #[derive(Resource, Debug, Clone, Default)]
 pub struct CombatResultsTable {
     pub id: TypeId,
     pub name: String,
-    pub columns: Vec<CrtColumn>,
-    pub rows: Vec<CrtRow>,
-    /// Indexed as [row_index][column_index].
+    /// Generic 2D table structure (columns + rows).
+    pub table: ResolutionTable,
+    /// Domain-specific outcomes indexed as [row_index][column_index].
     pub outcomes: Vec<Vec<CombatOutcome>>,
     /// Reference to the Combat concept in the ontology.
     pub combat_concept_id: Option<TypeId>,
@@ -210,7 +186,9 @@ pub struct CombatResolvedEvent {
 
 ### CRT Resolution Functions
 
-Pure functions on contract types, usable by any plugin.
+Pure functions on contract types. Column/row lookup and modifier evaluation are delegated to the
+generic functions in the `simulation` contract (`find_table_column`, `find_table_row`,
+`evaluate_column_modifiers`, `apply_column_shift`). The CRT layer adds outcome retrieval.
 
 ```rust
 /// Result of a full CRT resolution.
@@ -222,43 +200,33 @@ pub struct CrtResolution {
     pub outcome: CombatOutcome,
 }
 
-/// Calculates attacker:defender odds ratio. Returns f64::INFINITY if defender is 0.
-pub fn calculate_odds_ratio(attacker_strength: f64, defender_strength: f64) -> f64;
-
-/// Calculates attacker - defender differential.
-pub fn calculate_differential(attacker_strength: f64, defender_strength: f64) -> f64;
-
-/// Finds the rightmost CRT column whose threshold is met. Returns None if below all.
-pub fn find_crt_column(atk: f64, def: f64, columns: &[CrtColumn]) -> Option<usize>;
-
-/// Finds the CRT row matching a die roll value. Returns None if no row matches.
-pub fn find_crt_row(die_roll: u32, rows: &[CrtRow]) -> Option<usize>;
-
-/// Full CRT resolution: column lookup + row lookup + outcome retrieval.
+/// Full CRT resolution: delegates column/row lookup to simulation primitives,
+/// then retrieves the domain-specific combat outcome.
 pub fn resolve_crt(crt: &CombatResultsTable, atk: f64, def: f64, die_roll: u32)
     -> Option<CrtResolution>;
-
-/// Evaluates modifiers by descending priority, returns (total_shift, display_list).
-pub fn evaluate_modifiers_prioritized(modifiers: &[CombatModifierDefinition], col_count: usize)
-    -> (i32, Vec<(String, i32)>);
-
-/// Applies a column shift to a base index, clamping to [0, col_count-1].
-pub fn apply_column_shift(base_column: usize, shift: i32, col_count: usize) -> usize;
 ```
+
+**Removed functions** (now in `simulation` contract as generic equivalents):
+
+- `calculate_odds_ratio` / `calculate_differential` — inlined at call sites or use column thresholds
+- `find_crt_column` → `simulation::find_table_column`
+- `find_crt_row` → `simulation::find_table_row`
+- `evaluate_modifiers_prioritized` → `simulation::evaluate_column_modifiers`
+- `apply_column_shift` → `simulation::apply_column_shift`
 
 ## Invariants
 
 - `TurnStructure` is inserted at startup; may be empty or contain a default phase sequence
 - `TurnState` is runtime-only (not persisted); reset when entering Play mode
-- `CombatResultsTable.outcomes` dimensions must match `[rows.len()][columns.len()]`
-- `CrtColumn` entries should be ordered by ascending threshold
-- `CrtRow` entries should have non-overlapping `die_value_min..=die_value_max` ranges
+- `CombatResultsTable.outcomes` dimensions must match `[table.rows.len()][table.columns.len()]`
+- Column/row ordering invariants are inherited from the `simulation` contract's `ResolutionTable`
 - `ActiveCombat` is runtime-only (not persisted); cleared when exiting Play mode
 - `CombatModifierRegistry` modifiers are evaluated in priority order (highest first)
 - Column shifts are clamped to `[0, columns.len() - 1]` after all modifiers applied
 
 ## Changelog
 
-| Date       | Change             | Reason                               |
-| ---------- | ------------------ | ------------------------------------ |
-| 2026-02-16 | Initial definition | 0.9.0 Core mechanic primitives (#77) |
+| Date       | Change                           | Reason                               |
+| ---------- | -------------------------------- | ------------------------------------ |
+| 2026-03-05 | CRT → ResolutionTable delegation | 0.17.0 CRT migration (#225)          |
+| 2026-02-16 | Initial definition               | 0.9.0 Core mechanic primitives (#77) |

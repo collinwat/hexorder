@@ -835,9 +835,9 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::mechanic_reference::{ScaffoldAction, ScaffoldRecipe};
 use hexorder_contracts::mechanics::{
-    CombatModifierRegistry, CombatResultsTable, CrtColumnType, ModifierSource, PhaseType,
-    TurnStructure,
+    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, TurnStructure,
 };
+use hexorder_contracts::simulation::ColumnType;
 
 #[test]
 fn apply_scaffold_creates_entity_types() {
@@ -973,9 +973,9 @@ fn apply_scaffold_adds_crt_structure() {
         &mut modifiers,
     );
 
-    assert_eq!(crt.columns.len(), 2);
-    assert_eq!(crt.columns[0].column_type, CrtColumnType::OddsRatio);
-    assert_eq!(crt.rows.len(), 1);
+    assert_eq!(crt.table.columns.len(), 2);
+    assert_eq!(crt.table.columns[0].column_type, ColumnType::Ratio);
+    assert_eq!(crt.table.rows.len(), 1);
     assert_eq!(crt.outcomes[0][0].label, "NE");
     assert_eq!(crt.outcomes[0][1].label, "DR");
 }
@@ -1130,10 +1130,13 @@ fn apply_crt_combat_template_populates_registries() {
 
     // CRT combat template should create columns, rows, and outcomes.
     assert!(
-        !crt.columns.is_empty(),
+        !crt.table.columns.is_empty(),
         "CRT combat template should add columns"
     );
-    assert!(!crt.rows.is_empty(), "CRT combat template should add rows");
+    assert!(
+        !crt.table.rows.is_empty(),
+        "CRT combat template should add rows"
+    );
     assert!(
         !crt.outcomes.is_empty(),
         "CRT combat template should set outcomes"
@@ -3258,17 +3261,18 @@ fn apply_actions_set_player_order_and_phases() {
 
 #[test]
 fn apply_actions_crt_columns_and_rows() {
-    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+    use hexorder_contracts::mechanics::CombatResultsTable;
+    use hexorder_contracts::simulation::ColumnType;
 
     let app = actions_app(vec![
         super::components::EditorAction::AddCrtColumn {
             label: "1:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 1.0,
         },
         super::components::EditorAction::AddCrtColumn {
             label: "2:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 2.0,
         },
         super::components::EditorAction::AddCrtRow {
@@ -3279,8 +3283,8 @@ fn apply_actions_crt_columns_and_rows() {
     ]);
 
     let crt = app.world().resource::<CombatResultsTable>();
-    assert_eq!(crt.columns.len(), 2);
-    assert_eq!(crt.rows.len(), 1);
+    assert_eq!(crt.table.columns.len(), 2);
+    assert_eq!(crt.table.rows.len(), 1);
     // Row should have default outcomes matching column count.
     assert_eq!(crt.outcomes.len(), 1);
     assert_eq!(crt.outcomes[0].len(), 2);
@@ -3295,7 +3299,7 @@ fn apply_actions_crt_columns_and_rows() {
     app.update();
 
     let crt = app.world().resource::<CombatResultsTable>();
-    assert_eq!(crt.columns.len(), 1);
+    assert_eq!(crt.table.columns.len(), 1);
     assert_eq!(crt.outcomes[0].len(), 1);
 
     // Remove the row.
@@ -3306,18 +3310,19 @@ fn apply_actions_crt_columns_and_rows() {
     app.update();
 
     let crt = app.world().resource::<CombatResultsTable>();
-    assert!(crt.rows.is_empty());
+    assert!(crt.table.rows.is_empty());
     assert!(crt.outcomes.is_empty());
 }
 
 #[test]
 fn apply_actions_set_crt_outcome() {
-    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+    use hexorder_contracts::mechanics::CombatResultsTable;
+    use hexorder_contracts::simulation::ColumnType;
 
     let app = actions_app(vec![
         super::components::EditorAction::AddCrtColumn {
             label: "1:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 1.0,
         },
         super::components::EditorAction::AddCrtRow {
@@ -3591,7 +3596,8 @@ fn apply_actions_add_property_map_value_types() {
 #[test]
 fn apply_scaffold_adds_differential_column() {
     use hexorder_contracts::mechanic_reference::ScaffoldAction;
-    use hexorder_contracts::mechanics::{CombatResultsTable, CrtColumnType};
+    use hexorder_contracts::mechanics::CombatResultsTable;
+    use hexorder_contracts::simulation::ColumnType;
 
     let mut registry = EntityTypeRegistry::default();
     let mut enum_registry = EnumRegistry::default();
@@ -3616,10 +3622,10 @@ fn apply_scaffold_adds_differential_column() {
         &mut crt,
         &mut modifiers,
     );
-    assert_eq!(crt.columns.len(), 1);
+    assert_eq!(crt.table.columns.len(), 1);
     assert!(matches!(
-        crt.columns[0].column_type,
-        CrtColumnType::Differential
+        crt.table.columns[0].column_type,
+        ColumnType::Differential
     ));
 }
 
@@ -3789,7 +3795,7 @@ fn apply_actions_remove_crt_column_out_of_bounds_is_noop() {
         index: 999,
     }]);
     let crt = app.world().resource::<CombatResultsTable>();
-    assert!(crt.columns.is_empty(), "CRT should be unchanged");
+    assert!(crt.table.columns.is_empty(), "CRT should be unchanged");
 }
 
 #[test]
@@ -3800,7 +3806,7 @@ fn apply_actions_remove_crt_row_out_of_bounds_is_noop() {
         index: 999,
     }]);
     let crt = app.world().resource::<CombatResultsTable>();
-    assert!(crt.rows.is_empty(), "CRT should be unchanged");
+    assert!(crt.table.rows.is_empty(), "CRT should be unchanged");
 }
 
 // ===========================================================================

@@ -488,10 +488,9 @@ fn property_value_as_i64(value: &PropertyValue) -> Option<i64> {
     }
 }
 
-// Combat resolution functions (calculate_odds_ratio, find_crt_column, resolve_crt,
-// evaluate_modifiers_prioritized, apply_column_shift, etc.) live in
-// `hexorder_contracts::mechanics` — they are pure functions on contract types, usable
-// by any plugin without a boundary violation.
+// Combat resolution: `resolve_crt` lives in `hexorder_contracts::mechanics` and delegates
+// to generic table functions in `hexorder_contracts::simulation` (find_table_column,
+// find_table_row, evaluate_column_modifiers, apply_column_shift).
 
 // ---------------------------------------------------------------------------
 // Phase Advancement (0.9.0)

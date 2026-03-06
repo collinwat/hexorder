@@ -11,13 +11,14 @@ use hexorder_contracts::game_system::{
 use hexorder_contracts::map_gen::GenerateMap;
 use hexorder_contracts::mechanic_reference::{MechanicCatalog, ScaffoldAction};
 use hexorder_contracts::mechanics::{
-    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable, CrtColumn,
-    CrtColumnType, CrtRow, ModifierSource, Phase, PhaseType, TurnStructure,
+    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable,
+    ModifierSource, Phase, PhaseType, TurnStructure,
 };
 use hexorder_contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
     ConstraintRegistry, ModifyOperation, Relation, RelationEffect, RelationRegistry,
 };
+use hexorder_contracts::simulation::{ColumnType, TableColumn, TableRow};
 
 use super::components::{BrandTheme, EditorAction, EditorState};
 
@@ -396,7 +397,7 @@ pub(super) fn apply_actions(
                 column_type,
                 threshold,
             } => {
-                combat_results_table.columns.push(CrtColumn {
+                combat_results_table.table.columns.push(TableColumn {
                     label,
                     column_type,
                     threshold,
@@ -410,8 +411,8 @@ pub(super) fn apply_actions(
                 }
             }
             EditorAction::RemoveCrtColumn { index } => {
-                if index < combat_results_table.columns.len() {
-                    combat_results_table.columns.remove(index);
+                if index < combat_results_table.table.columns.len() {
+                    combat_results_table.table.columns.remove(index);
                     for row_outcomes in &mut combat_results_table.outcomes {
                         if index < row_outcomes.len() {
                             row_outcomes.remove(index);
@@ -424,13 +425,13 @@ pub(super) fn apply_actions(
                 die_min,
                 die_max,
             } => {
-                combat_results_table.rows.push(CrtRow {
+                combat_results_table.table.rows.push(TableRow {
                     label,
-                    die_value_min: die_min,
-                    die_value_max: die_max,
+                    value_min: die_min,
+                    value_max: die_max,
                 });
                 // Add a row of default outcomes.
-                let num_cols = combat_results_table.columns.len();
+                let num_cols = combat_results_table.table.columns.len();
                 combat_results_table.outcomes.push(
                     (0..num_cols)
                         .map(|_| CombatOutcome {
@@ -441,8 +442,8 @@ pub(super) fn apply_actions(
                 );
             }
             EditorAction::RemoveCrtRow { index } => {
-                if index < combat_results_table.rows.len() {
-                    combat_results_table.rows.remove(index);
+                if index < combat_results_table.table.rows.len() {
+                    combat_results_table.table.rows.remove(index);
                     if index < combat_results_table.outcomes.len() {
                         combat_results_table.outcomes.remove(index);
                     }
@@ -554,10 +555,10 @@ pub(super) fn apply_scaffold_recipe(
                 threshold,
             } => {
                 let col_type = match column_type.as_str() {
-                    "Differential" => CrtColumnType::Differential,
-                    _ => CrtColumnType::OddsRatio,
+                    "Differential" => ColumnType::Differential,
+                    _ => ColumnType::Ratio,
                 };
-                combat_results_table.columns.push(CrtColumn {
+                combat_results_table.table.columns.push(TableColumn {
                     label: label.clone(),
                     column_type: col_type,
                     threshold: *threshold,
@@ -574,12 +575,12 @@ pub(super) fn apply_scaffold_recipe(
                 die_min,
                 die_max,
             } => {
-                combat_results_table.rows.push(CrtRow {
+                combat_results_table.table.rows.push(TableRow {
                     label: label.clone(),
-                    die_value_min: *die_min,
-                    die_value_max: *die_max,
+                    value_min: *die_min,
+                    value_max: *die_max,
                 });
-                let num_cols = combat_results_table.columns.len();
+                let num_cols = combat_results_table.table.columns.len();
                 combat_results_table.outcomes.push(
                     (0..num_cols)
                         .map(|_| CombatOutcome {

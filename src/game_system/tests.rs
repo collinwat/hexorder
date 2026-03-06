@@ -475,9 +475,13 @@ fn combat_results_table_has_seven_columns() {
         .get_resource::<CombatResultsTable>()
         .expect("CombatResultsTable should exist");
 
-    assert_eq!(crt.columns.len(), 7, "Default CRT should have 7 columns");
-    assert_eq!(crt.columns[0].label, "1:2");
-    assert_eq!(crt.columns[6].label, "6:1");
+    assert_eq!(
+        crt.table.columns.len(),
+        7,
+        "Default CRT should have 7 columns"
+    );
+    assert_eq!(crt.table.columns[0].label, "1:2");
+    assert_eq!(crt.table.columns[6].label, "6:1");
 }
 
 #[test]
@@ -490,7 +494,7 @@ fn combat_results_table_has_six_rows() {
         .get_resource::<CombatResultsTable>()
         .expect("CombatResultsTable should exist");
 
-    assert_eq!(crt.rows.len(), 6, "Default CRT should have 6 rows");
+    assert_eq!(crt.table.rows.len(), 6, "Default CRT should have 6 rows");
     assert_eq!(crt.outcomes.len(), 6, "Outcomes should have 6 rows");
     for row in &crt.outcomes {
         assert_eq!(row.len(), 7, "Each outcome row should have 7 columns");

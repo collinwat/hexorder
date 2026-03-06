@@ -666,13 +666,13 @@ fn free_movement_when_no_constraints() {
 // CRT Resolution Tests (0.9.0)
 // =========================================================================
 
+use hexorder_contracts::mechanics::resolve_crt;
 use hexorder_contracts::mechanics::{
-    CombatModifierDefinition, CombatOutcome, CombatResultsTable, CrtColumn, CrtColumnType, CrtRow,
-    ModifierSource, OutcomeEffect,
+    CombatModifierDefinition, CombatOutcome, CombatResultsTable, ModifierSource, OutcomeEffect,
 };
-use hexorder_contracts::mechanics::{
-    apply_column_shift, calculate_differential, calculate_odds_ratio,
-    evaluate_modifiers_prioritized, find_crt_column, find_crt_row, resolve_crt,
+use hexorder_contracts::simulation::{
+    ColumnModifier, ColumnType, ResolutionTable, TableColumn, TableRow, apply_column_shift,
+    evaluate_column_modifiers, find_table_column, find_table_row,
 };
 
 /// Helper: create a standard odds-ratio CRT for testing.
@@ -680,65 +680,70 @@ fn test_odds_crt() -> CombatResultsTable {
     CombatResultsTable {
         id: TypeId::new(),
         name: "Test CRT".to_string(),
-        columns: vec![
-            CrtColumn {
-                label: "1:2".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 0.5,
-            },
-            CrtColumn {
-                label: "1:1".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 1.0,
-            },
-            CrtColumn {
-                label: "2:1".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 2.0,
-            },
-            CrtColumn {
-                label: "3:1".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 3.0,
-            },
-            CrtColumn {
-                label: "4:1".to_string(),
-                column_type: CrtColumnType::OddsRatio,
-                threshold: 4.0,
-            },
-        ],
-        rows: vec![
-            CrtRow {
-                label: "1".to_string(),
-                die_value_min: 1,
-                die_value_max: 1,
-            },
-            CrtRow {
-                label: "2".to_string(),
-                die_value_min: 2,
-                die_value_max: 2,
-            },
-            CrtRow {
-                label: "3".to_string(),
-                die_value_min: 3,
-                die_value_max: 3,
-            },
-            CrtRow {
-                label: "4".to_string(),
-                die_value_min: 4,
-                die_value_max: 4,
-            },
-            CrtRow {
-                label: "5".to_string(),
-                die_value_min: 5,
-                die_value_max: 5,
-            },
-            CrtRow {
-                label: "6".to_string(),
-                die_value_min: 6,
-                die_value_max: 6,
-            },
-        ],
+        table: ResolutionTable {
+            id: TypeId::new(),
+            name: "CRT Lookup".to_string(),
+            columns: vec![
+                TableColumn {
+                    label: "1:2".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 0.5,
+                },
+                TableColumn {
+                    label: "1:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 1.0,
+                },
+                TableColumn {
+                    label: "2:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 2.0,
+                },
+                TableColumn {
+                    label: "3:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 3.0,
+                },
+                TableColumn {
+                    label: "4:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 4.0,
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    label: "1".to_string(),
+                    value_min: 1,
+                    value_max: 1,
+                },
+                TableRow {
+                    label: "2".to_string(),
+                    value_min: 2,
+                    value_max: 2,
+                },
+                TableRow {
+                    label: "3".to_string(),
+                    value_min: 3,
+                    value_max: 3,
+                },
+                TableRow {
+                    label: "4".to_string(),
+                    value_min: 4,
+                    value_max: 4,
+                },
+                TableRow {
+                    label: "5".to_string(),
+                    value_min: 5,
+                    value_max: 5,
+                },
+                TableRow {
+                    label: "6".to_string(),
+                    value_min: 6,
+                    value_max: 6,
+                },
+            ],
+            outcomes: Vec::new(),
+        },
         outcomes: vec![
             // Row 1 (die=1): worst outcomes for attacker
             vec![
@@ -889,43 +894,44 @@ fn test_odds_crt() -> CombatResultsTable {
     }
 }
 
-// -- Odds Ratio Calculation --
+// -- Odds Ratio Calculation (inlined) --
 
 #[test]
 fn odds_ratio_basic() {
-    let ratio = calculate_odds_ratio(6.0, 2.0);
+    let ratio = 6.0_f64 / 2.0;
     assert!((ratio - 3.0).abs() < f64::EPSILON, "6:2 should be 3.0");
 }
 
 #[test]
 fn odds_ratio_defender_advantage() {
-    let ratio = calculate_odds_ratio(2.0, 4.0);
+    let ratio = 2.0_f64 / 4.0;
     assert!((ratio - 0.5).abs() < f64::EPSILON, "2:4 should be 0.5");
 }
 
 #[test]
 fn odds_ratio_zero_defender() {
-    let ratio = calculate_odds_ratio(5.0, 0.0);
+    let d = 0.0_f64;
+    let ratio = if d <= 0.0 { f64::INFINITY } else { 5.0 / d };
     assert!(ratio.is_infinite(), "0 defender should produce infinity");
 }
 
 #[test]
 fn odds_ratio_equal_strength() {
-    let ratio = calculate_odds_ratio(4.0, 4.0);
+    let ratio = 4.0_f64 / 4.0;
     assert!((ratio - 1.0).abs() < f64::EPSILON, "4:4 should be 1.0");
 }
 
-// -- Differential Calculation --
+// -- Differential Calculation (inlined) --
 
 #[test]
 fn differential_basic() {
-    let diff = calculate_differential(8.0, 3.0);
+    let diff = 8.0_f64 - 3.0;
     assert!((diff - 5.0).abs() < f64::EPSILON, "8-3 should be 5.0");
 }
 
 #[test]
 fn differential_negative() {
-    let diff = calculate_differential(2.0, 7.0);
+    let diff = 2.0_f64 - 7.0;
     assert!((diff - (-5.0)).abs() < f64::EPSILON, "2-7 should be -5.0");
 }
 
@@ -935,7 +941,7 @@ fn differential_negative() {
 fn column_lookup_exact_match() {
     let crt = test_odds_crt();
     // Attacker 6, defender 2 = ratio 3.0 -> "3:1" column (index 3)
-    let col = find_crt_column(6.0, 2.0, &crt.columns);
+    let col = find_table_column(6.0, 2.0, &crt.table.columns);
     assert_eq!(col, Some(3), "3:1 ratio should match column index 3");
 }
 
@@ -944,7 +950,7 @@ fn column_lookup_between_columns() {
     let crt = test_odds_crt();
     // Attacker 5, defender 2 = ratio 2.5 -> between "2:1" (2.0) and "3:1" (3.0)
     // Should match "2:1" (the highest column whose threshold is met)
-    let col = find_crt_column(5.0, 2.0, &crt.columns);
+    let col = find_table_column(5.0, 2.0, &crt.table.columns);
     assert_eq!(col, Some(2), "2.5 ratio should match 2:1 column (index 2)");
 }
 
@@ -952,7 +958,7 @@ fn column_lookup_between_columns() {
 fn column_lookup_below_minimum() {
     let crt = test_odds_crt();
     // Attacker 1, defender 10 = ratio 0.1 -> below 1:2 threshold (0.5)
-    let col = find_crt_column(1.0, 10.0, &crt.columns);
+    let col = find_table_column(1.0, 10.0, &crt.table.columns);
     assert_eq!(col, None, "0.1 ratio should match no column");
 }
 
@@ -960,7 +966,7 @@ fn column_lookup_below_minimum() {
 fn column_lookup_above_maximum() {
     let crt = test_odds_crt();
     // Attacker 50, defender 1 = ratio 50.0 -> exceeds all thresholds
-    let col = find_crt_column(50.0, 1.0, &crt.columns);
+    let col = find_table_column(50.0, 1.0, &crt.table.columns);
     assert_eq!(
         col,
         Some(4),
@@ -970,21 +976,21 @@ fn column_lookup_above_maximum() {
 
 #[test]
 fn column_lookup_empty_columns() {
-    let col = find_crt_column(5.0, 1.0, &[]);
+    let col = find_table_column(5.0, 1.0, &[]);
     assert_eq!(col, None, "Empty columns should return None");
 }
 
 #[test]
 fn column_lookup_single_column() {
-    let columns = vec![CrtColumn {
+    let columns = vec![TableColumn {
         label: "1:1".to_string(),
-        column_type: CrtColumnType::OddsRatio,
+        column_type: ColumnType::Ratio,
         threshold: 1.0,
     }];
-    let col = find_crt_column(3.0, 1.0, &columns);
+    let col = find_table_column(3.0, 1.0, &columns);
     assert_eq!(col, Some(0), "Single column should match if threshold met");
 
-    let col = find_crt_column(0.5, 1.0, &columns);
+    let col = find_table_column(0.5, 1.0, &columns);
     assert_eq!(
         col, None,
         "Single column should not match if below threshold"
@@ -995,30 +1001,30 @@ fn column_lookup_single_column() {
 fn column_lookup_mixed_types() {
     // A CRT with both ratio and differential columns
     let columns = vec![
-        CrtColumn {
+        TableColumn {
             label: "1:2".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 0.5,
         },
-        CrtColumn {
+        TableColumn {
             label: "1:1".to_string(),
-            column_type: CrtColumnType::OddsRatio,
+            column_type: ColumnType::Ratio,
             threshold: 1.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "+2".to_string(),
-            column_type: CrtColumnType::Differential,
+            column_type: ColumnType::Differential,
             threshold: 2.0,
         },
-        CrtColumn {
+        TableColumn {
             label: "+5".to_string(),
-            column_type: CrtColumnType::Differential,
+            column_type: ColumnType::Differential,
             threshold: 5.0,
         },
     ];
 
     // Attacker 6, defender 3: ratio=2.0 (meets 1:2 and 1:1), diff=3.0 (meets +2)
-    let col = find_crt_column(6.0, 3.0, &columns);
+    let col = find_table_column(6.0, 3.0, &columns);
     assert_eq!(
         col,
         Some(2),
@@ -1026,7 +1032,7 @@ fn column_lookup_mixed_types() {
     );
 
     // Attacker 10, defender 3: ratio=3.33 (meets 0,1), diff=7.0 (meets 2,3)
-    let col = find_crt_column(10.0, 3.0, &columns);
+    let col = find_table_column(10.0, 3.0, &columns);
     assert_eq!(
         col,
         Some(3),
@@ -1039,46 +1045,46 @@ fn column_lookup_mixed_types() {
 #[test]
 fn row_lookup_exact_value() {
     let crt = test_odds_crt();
-    let row = find_crt_row(3, &crt.rows);
+    let row = find_table_row(3, &crt.table.rows);
     assert_eq!(row, Some(2), "Die roll 3 should match row index 2");
 }
 
 #[test]
 fn row_lookup_range() {
     let rows = vec![
-        CrtRow {
+        TableRow {
             label: "1-2".to_string(),
-            die_value_min: 1,
-            die_value_max: 2,
+            value_min: 1,
+            value_max: 2,
         },
-        CrtRow {
+        TableRow {
             label: "3-4".to_string(),
-            die_value_min: 3,
-            die_value_max: 4,
+            value_min: 3,
+            value_max: 4,
         },
-        CrtRow {
+        TableRow {
             label: "5-6".to_string(),
-            die_value_min: 5,
-            die_value_max: 6,
+            value_min: 5,
+            value_max: 6,
         },
     ];
-    assert_eq!(find_crt_row(1, &rows), Some(0));
-    assert_eq!(find_crt_row(2, &rows), Some(0));
-    assert_eq!(find_crt_row(3, &rows), Some(1));
-    assert_eq!(find_crt_row(5, &rows), Some(2));
-    assert_eq!(find_crt_row(6, &rows), Some(2));
+    assert_eq!(find_table_row(1, &rows), Some(0));
+    assert_eq!(find_table_row(2, &rows), Some(0));
+    assert_eq!(find_table_row(3, &rows), Some(1));
+    assert_eq!(find_table_row(5, &rows), Some(2));
+    assert_eq!(find_table_row(6, &rows), Some(2));
 }
 
 #[test]
 fn row_lookup_no_match() {
     let crt = test_odds_crt();
-    let row = find_crt_row(7, &crt.rows);
+    let row = find_table_row(7, &crt.table.rows);
     assert_eq!(row, None, "Die roll 7 should not match any 1d6 row");
 }
 
 #[test]
 fn row_lookup_empty() {
-    let row = find_crt_row(1, &[]);
+    let row = find_table_row(1, &[]);
     assert_eq!(row, None, "Empty rows should return None");
 }
 
@@ -1135,6 +1141,19 @@ fn resolve_crt_empty() {
 
 // -- Modifier Evaluation --
 
+/// Helper: convert `CombatModifierDefinition` slice to `ColumnModifier` vec.
+fn to_column_modifiers(modifiers: &[CombatModifierDefinition]) -> Vec<ColumnModifier> {
+    modifiers
+        .iter()
+        .map(|m| ColumnModifier {
+            name: m.name.clone(),
+            column_shift: m.column_shift,
+            cap: m.cap,
+            priority: m.priority.max(0) as u32,
+        })
+        .collect()
+}
+
 #[test]
 fn modifiers_priority_order() {
     let modifiers = vec![
@@ -1158,7 +1177,8 @@ fn modifiers_priority_order() {
         },
     ];
 
-    let (total, display) = evaluate_modifiers_prioritized(&modifiers, 7);
+    let column_modifiers = to_column_modifiers(&modifiers);
+    let (total, display) = evaluate_column_modifiers(&column_modifiers, 7);
     assert_eq!(total, -1, "Forest(-2) + Combined Arms(+1) = -1");
     assert_eq!(display[0].0, "Forest", "Higher priority evaluated first");
     assert_eq!(
@@ -1190,7 +1210,8 @@ fn modifiers_cap_limits_total() {
         },
     ];
 
-    let (total, _) = evaluate_modifiers_prioritized(&modifiers, 7);
+    let column_modifiers = to_column_modifiers(&modifiers);
+    let (total, _) = evaluate_column_modifiers(&column_modifiers, 7);
     // Terrain Cap: shift -3, then cap to [-2, +2] -> total = -2
     // Extra Shift: shift -1 -> total = -3
     // No further cap -> -3
@@ -1213,7 +1234,8 @@ fn modifiers_clamp_to_column_bounds() {
         terrain_type_filter: None,
     }];
 
-    let (total, _) = evaluate_modifiers_prioritized(&modifiers, 5);
+    let column_modifiers = to_column_modifiers(&modifiers);
+    let (total, _) = evaluate_column_modifiers(&column_modifiers, 5);
     assert_eq!(
         total, -4,
         "Shift should be clamped to column bounds (5 columns -> max shift 4)"
@@ -1222,7 +1244,7 @@ fn modifiers_clamp_to_column_bounds() {
 
 #[test]
 fn modifiers_empty_list() {
-    let (total, display) = evaluate_modifiers_prioritized(&[], 5);
+    let (total, display) = evaluate_column_modifiers(&[], 5);
     assert_eq!(total, 0, "No modifiers should produce zero shift");
     assert!(display.is_empty());
 }

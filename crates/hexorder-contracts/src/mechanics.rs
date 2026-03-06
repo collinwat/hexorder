@@ -2,13 +2,14 @@
 //! Shared mechanics types. See `docs/contracts/mechanics.md`.
 //!
 //! Defines turn structure, combat resolution (CRT), combat modifiers,
-//! and combat execution state. These are the core wargame mechanic
-//! primitives for 0.9.0.
+//! and combat execution state. Table lookup is delegated to the generic
+//! `ResolutionTable` primitives in `simulation.rs` (ADR-005).
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::game_system::TypeId;
+use crate::simulation::{ResolutionTable, find_table_column, find_table_row};
 
 // ---------------------------------------------------------------------------
 // Turn Structure
@@ -80,43 +81,6 @@ pub struct TurnState {
 // Combat Results Table
 // ---------------------------------------------------------------------------
 
-/// How a CRT column is calculated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
-pub enum CrtColumnType {
-    /// Columns represent attacker:defender strength ratios (e.g., 1:2, 1:1, 2:1).
-    OddsRatio,
-    /// Columns represent attacker - defender strength differentials (e.g., -3, +2).
-    Differential,
-}
-
-/// A single column header in the CRT.
-/// Each column carries its own column type, allowing ratio and differential
-/// columns to coexist in a single CRT.
-#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
-pub struct CrtColumn {
-    /// Display label (e.g., "3:1" or "+2").
-    pub label: String,
-    /// Whether this column uses odds ratio or differential calculation.
-    pub column_type: CrtColumnType,
-    /// For `OddsRatio`: the minimum ratio as a float (e.g., 3.0 for "3:1").
-    /// For `Differential`: the minimum differential (e.g., 2.0 for "+2").
-    /// Columns are ordered left to right by ascending threshold.
-    pub threshold: f64,
-}
-
-/// A single row header in the CRT (die roll result).
-/// Fully designer-defined — no auto-generation from dice config.
-#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
-pub struct CrtRow {
-    /// Display label (e.g., "1", "2", "3-4").
-    pub label: String,
-    /// The minimum die roll value this row matches.
-    pub die_value_min: u32,
-    /// The maximum die roll value this row matches (inclusive).
-    /// For a single value, same as `die_value_min`.
-    pub die_value_max: u32,
-}
-
 /// A structured effect that can be partially automated.
 /// When present, the system highlights valid actions for designer confirmation.
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
@@ -149,18 +113,19 @@ pub struct CombatOutcome {
     pub effect: Option<OutcomeEffect>,
 }
 
-/// The Combat Results Table: a 2D grid of combat outcomes.
+/// The Combat Results Table: domain-specific wrapper around a `ResolutionTable`.
 ///
-/// Column types are per-column (mixed ratio/differential in one CRT).
-/// Rows are fully custom (no auto-generation from dice config).
-/// Strength comes from concept binding (ontology integration).
+/// The `table` field holds the generic column/row structure for lookup.
+/// The `outcomes` field holds combat-specific results (a parallel grid).
+/// Resolution uses generic `find_table_column` + `find_table_row` to get
+/// indices, then looks up `outcomes[row][col]` for the combat result.
 #[derive(Resource, Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct CombatResultsTable {
     pub id: TypeId,
     pub name: String,
-    pub columns: Vec<CrtColumn>,
-    pub rows: Vec<CrtRow>,
-    /// Outcome grid indexed as `[row_index][column_index]`.
+    /// Generic table structure providing columns and rows for lookup.
+    pub table: ResolutionTable,
+    /// Combat outcome grid indexed as `outcomes[row_index][column_index]`.
     pub outcomes: Vec<Vec<CombatOutcome>>,
     /// Reference to the Combat concept in the ontology.
     pub combat_concept_id: Option<TypeId>,
@@ -171,8 +136,13 @@ impl Default for CombatResultsTable {
         Self {
             id: TypeId::new(),
             name: "Combat Results Table".to_string(),
-            columns: Vec::new(),
-            rows: Vec::new(),
+            table: ResolutionTable {
+                id: TypeId::new(),
+                name: "CRT Lookup".to_string(),
+                columns: Vec::new(),
+                rows: Vec::new(),
+                outcomes: Vec::new(),
+            },
             outcomes: Vec::new(),
             combat_concept_id: None,
         }
@@ -288,68 +258,10 @@ pub struct CrtResolution {
     pub outcome: CombatOutcome,
 }
 
-/// Calculates the odds ratio of attacker to defender strength.
-/// Returns the ratio as a float (e.g., 3.0 for a 3:1 advantage).
-/// Returns `f64::INFINITY` if defender strength is zero.
-#[must_use]
-pub fn calculate_odds_ratio(attacker_strength: f64, defender_strength: f64) -> f64 {
-    if defender_strength <= 0.0 {
-        return f64::INFINITY;
-    }
-    attacker_strength / defender_strength
-}
-
-/// Calculates the differential of attacker minus defender strength.
-#[must_use]
-pub fn calculate_differential(attacker_strength: f64, defender_strength: f64) -> f64 {
-    attacker_strength - defender_strength
-}
-
-/// Finds the best matching CRT column for the given attacker and defender strengths.
+/// Resolves a complete CRT lookup by delegating to generic table functions.
 ///
-/// Each column carries its own `column_type` (ratio or differential), so the
-/// lookup calculates the appropriate value per column. Columns are assumed to
-/// be ordered by ascending threshold. The function returns the index of the
-/// rightmost column whose threshold the calculated value meets or exceeds.
-///
-/// Returns `None` if the CRT has no columns or the calculated value is below
-/// all thresholds.
-#[must_use]
-pub fn find_crt_column(
-    attacker_strength: f64,
-    defender_strength: f64,
-    columns: &[CrtColumn],
-) -> Option<usize> {
-    let mut best_index: Option<usize> = None;
-
-    for (i, col) in columns.iter().enumerate() {
-        let value = match col.column_type {
-            CrtColumnType::OddsRatio => calculate_odds_ratio(attacker_strength, defender_strength),
-            CrtColumnType::Differential => {
-                calculate_differential(attacker_strength, defender_strength)
-            }
-        };
-
-        if value >= col.threshold {
-            best_index = Some(i);
-        }
-    }
-
-    best_index
-}
-
-/// Finds the CRT row matching a given die roll value.
-///
-/// Searches rows for one whose `[die_value_min, die_value_max]` range
-/// includes the given roll. Returns `None` if no row matches.
-#[must_use]
-pub fn find_crt_row(die_roll: u32, rows: &[CrtRow]) -> Option<usize> {
-    rows.iter()
-        .position(|row| die_roll >= row.die_value_min && die_roll <= row.die_value_max)
-}
-
-/// Resolves a complete CRT lookup: given attacker/defender strengths and a die
-/// roll, returns the column index, row index, and outcome label.
+/// Uses `find_table_column` for column lookup and `find_table_row` for row
+/// lookup, then maps the intersection to a domain-specific `CombatOutcome`.
 ///
 /// Returns `None` if the column or row cannot be resolved, or if the outcome
 /// grid doesn't have the expected dimensions.
@@ -360,110 +272,68 @@ pub fn resolve_crt(
     defender_strength: f64,
     die_roll: u32,
 ) -> Option<CrtResolution> {
-    let col_idx = find_crt_column(attacker_strength, defender_strength, &crt.columns)?;
-    let row_idx = find_crt_row(die_roll, &crt.rows)?;
+    let col_idx = find_table_column(attacker_strength, defender_strength, &crt.table.columns)?;
+    let row_idx = find_table_row(die_roll, &crt.table.rows)?;
 
     let outcome = crt.outcomes.get(row_idx).and_then(|row| row.get(col_idx))?;
 
     Some(CrtResolution {
         column_index: col_idx,
         row_index: row_idx,
-        column_label: crt.columns[col_idx].label.clone(),
-        row_label: crt.rows[row_idx].label.clone(),
+        column_label: crt.table.columns[col_idx].label.clone(),
+        row_label: crt.table.rows[row_idx].label.clone(),
         outcome: outcome.clone(),
     })
-}
-
-/// Evaluates combat modifiers in priority order (highest first).
-///
-/// Each modifier's column shift is added to a running total. If the modifier
-/// has a cap, the running total is clamped to `[-cap, +cap]` after addition.
-/// The final total is clamped to the given column bounds.
-///
-/// Returns the final column shift and a display list of `(name, shift)` pairs
-/// in evaluation order (highest priority first).
-#[must_use]
-pub fn evaluate_modifiers_prioritized(
-    modifiers: &[CombatModifierDefinition],
-    column_count: usize,
-) -> (i32, Vec<(String, i32)>) {
-    let mut sorted: Vec<&CombatModifierDefinition> = modifiers.iter().collect();
-    sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
-
-    let mut total_shift: i32 = 0;
-    let mut display: Vec<(String, i32)> = Vec::with_capacity(sorted.len());
-
-    for modifier in &sorted {
-        total_shift += modifier.column_shift;
-
-        if let Some(cap) = modifier.cap {
-            total_shift = total_shift.clamp(-cap, cap);
-        }
-
-        display.push((modifier.name.clone(), modifier.column_shift));
-    }
-
-    // Clamp to column bounds.
-    if column_count > 0 {
-        let max_shift = (column_count - 1) as i32;
-        total_shift = total_shift.clamp(-max_shift, max_shift);
-    }
-
-    (total_shift, display)
-}
-
-/// Applies a column shift to a base column index, clamping to bounds.
-#[must_use]
-pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -> usize {
-    if column_count == 0 {
-        return 0;
-    }
-    let shifted = base_column as i32 + shift;
-    shifted.clamp(0, (column_count - 1) as i32) as usize
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::simulation::{ColumnType, TableColumn, TableRow};
 
     fn test_crt() -> CombatResultsTable {
         CombatResultsTable {
             id: TypeId::new(),
             name: "Test CRT".to_string(),
-            columns: vec![
-                CrtColumn {
-                    label: "1:2".to_string(),
-                    column_type: CrtColumnType::OddsRatio,
-                    threshold: 0.5,
-                },
-                CrtColumn {
-                    label: "1:1".to_string(),
-                    column_type: CrtColumnType::OddsRatio,
-                    threshold: 1.0,
-                },
-                CrtColumn {
-                    label: "2:1".to_string(),
-                    column_type: CrtColumnType::OddsRatio,
-                    threshold: 2.0,
-                },
-            ],
-            rows: vec![
-                CrtRow {
-                    label: "1-2".to_string(),
-                    die_value_min: 1,
-                    die_value_max: 2,
-                },
-                CrtRow {
-                    label: "3-4".to_string(),
-                    die_value_min: 3,
-                    die_value_max: 4,
-                },
-                CrtRow {
-                    label: "5-6".to_string(),
-                    die_value_min: 5,
-                    die_value_max: 6,
-                },
-            ],
+            table: ResolutionTable {
+                id: TypeId::new(),
+                name: "Test CRT Lookup".to_string(),
+                columns: vec![
+                    TableColumn {
+                        label: "1:2".to_string(),
+                        column_type: ColumnType::Ratio,
+                        threshold: 0.5,
+                    },
+                    TableColumn {
+                        label: "1:1".to_string(),
+                        column_type: ColumnType::Ratio,
+                        threshold: 1.0,
+                    },
+                    TableColumn {
+                        label: "2:1".to_string(),
+                        column_type: ColumnType::Ratio,
+                        threshold: 2.0,
+                    },
+                ],
+                rows: vec![
+                    TableRow {
+                        label: "1-2".to_string(),
+                        value_min: 1,
+                        value_max: 2,
+                    },
+                    TableRow {
+                        label: "3-4".to_string(),
+                        value_min: 3,
+                        value_max: 4,
+                    },
+                    TableRow {
+                        label: "5-6".to_string(),
+                        value_min: 5,
+                        value_max: 6,
+                    },
+                ],
+                outcomes: Vec::new(),
+            },
             outcomes: vec![
                 vec![
                     CombatOutcome {
@@ -516,71 +386,6 @@ mod tests {
     }
 
     #[test]
-    fn calculate_odds_ratio_normal() {
-        let ratio = calculate_odds_ratio(6.0, 2.0);
-        assert!((ratio - 3.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn calculate_odds_ratio_zero_defender() {
-        let ratio = calculate_odds_ratio(5.0, 0.0);
-        assert!(ratio.is_infinite());
-    }
-
-    #[test]
-    fn calculate_differential_normal() {
-        let diff = calculate_differential(8.0, 3.0);
-        assert!((diff - 5.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn find_crt_column_matching() {
-        let crt = test_crt();
-        // 6 vs 2 = 3:1 ratio → should match column 2 (threshold 2.0).
-        let col = find_crt_column(6.0, 2.0, &crt.columns);
-        assert_eq!(col, Some(2));
-    }
-
-    #[test]
-    fn find_crt_column_below_all_thresholds() {
-        let crt = test_crt();
-        // 1 vs 10 = 0.1:1 ratio → below minimum 0.5 threshold.
-        let col = find_crt_column(1.0, 10.0, &crt.columns);
-        assert!(col.is_none());
-    }
-
-    #[test]
-    fn find_crt_column_empty_columns() {
-        let col = find_crt_column(5.0, 1.0, &[]);
-        assert!(col.is_none());
-    }
-
-    #[test]
-    fn find_crt_column_differential() {
-        let columns = vec![CrtColumn {
-            label: "+2".to_string(),
-            column_type: CrtColumnType::Differential,
-            threshold: 2.0,
-        }];
-        let col = find_crt_column(5.0, 2.0, &columns);
-        assert_eq!(col, Some(0)); // 5-2=3 >= 2
-    }
-
-    #[test]
-    fn find_crt_row_matching() {
-        let crt = test_crt();
-        assert_eq!(find_crt_row(1, &crt.rows), Some(0));
-        assert_eq!(find_crt_row(4, &crt.rows), Some(1));
-        assert_eq!(find_crt_row(6, &crt.rows), Some(2));
-    }
-
-    #[test]
-    fn find_crt_row_no_match() {
-        let crt = test_crt();
-        assert!(find_crt_row(7, &crt.rows).is_none());
-    }
-
-    #[test]
     fn resolve_crt_full() {
         let crt = test_crt();
         // 6 vs 2 = 3:1 → column 2; die roll 3 → row 1 → "DE"
@@ -607,78 +412,6 @@ mod tests {
     }
 
     #[test]
-    fn evaluate_modifiers_empty() {
-        let (total, display) = evaluate_modifiers_prioritized(&[], 3);
-        assert_eq!(total, 0);
-        assert!(display.is_empty());
-    }
-
-    #[test]
-    fn evaluate_modifiers_with_cap() {
-        let mods = vec![CombatModifierDefinition {
-            id: TypeId::new(),
-            name: "Terrain".to_string(),
-            source: ModifierSource::DefenderTerrain,
-            column_shift: -3,
-            priority: 10,
-            cap: Some(2),
-            terrain_type_filter: None,
-        }];
-        let (total, display) = evaluate_modifiers_prioritized(&mods, 5);
-        assert_eq!(total, -2); // -3 clamped to [-2, 2]
-        assert_eq!(display.len(), 1);
-    }
-
-    #[test]
-    fn evaluate_modifiers_priority_order() {
-        let mods = vec![
-            CombatModifierDefinition {
-                id: TypeId::new(),
-                name: "Low".to_string(),
-                source: ModifierSource::Custom("low".to_string()),
-                column_shift: 1,
-                priority: 1,
-                cap: None,
-                terrain_type_filter: None,
-            },
-            CombatModifierDefinition {
-                id: TypeId::new(),
-                name: "High".to_string(),
-                source: ModifierSource::Custom("high".to_string()),
-                column_shift: 2,
-                priority: 10,
-                cap: None,
-                terrain_type_filter: None,
-            },
-        ];
-        let (total, display) = evaluate_modifiers_prioritized(&mods, 10);
-        assert_eq!(total, 3);
-        // High priority should be displayed first.
-        assert_eq!(display[0].0, "High");
-        assert_eq!(display[1].0, "Low");
-    }
-
-    #[test]
-    fn apply_column_shift_positive() {
-        assert_eq!(apply_column_shift(1, 2, 5), 3);
-    }
-
-    #[test]
-    fn apply_column_shift_clamp_right() {
-        assert_eq!(apply_column_shift(3, 5, 5), 4);
-    }
-
-    #[test]
-    fn apply_column_shift_clamp_left() {
-        assert_eq!(apply_column_shift(1, -5, 5), 0);
-    }
-
-    #[test]
-    fn apply_column_shift_zero_columns() {
-        assert_eq!(apply_column_shift(0, 3, 0), 0);
-    }
-
-    #[test]
     fn turn_structure_default() {
         let ts = TurnStructure::default();
         assert!(ts.phases.is_empty());
@@ -689,8 +422,8 @@ mod tests {
     fn combat_results_table_default() {
         let crt = CombatResultsTable::default();
         assert_eq!(crt.name, "Combat Results Table");
-        assert!(crt.columns.is_empty());
-        assert!(crt.rows.is_empty());
+        assert!(crt.table.columns.is_empty());
+        assert!(crt.table.rows.is_empty());
         assert!(crt.outcomes.is_empty());
     }
 
@@ -732,23 +465,8 @@ mod tests {
         let crt = test_crt();
         let ron_str = ron::to_string(&crt).expect("serialize");
         let deserialized: CombatResultsTable = ron::from_str(&ron_str).expect("deserialize");
-        assert_eq!(deserialized.columns.len(), 3);
-        assert_eq!(deserialized.rows.len(), 3);
+        assert_eq!(deserialized.table.columns.len(), 3);
+        assert_eq!(deserialized.table.rows.len(), 3);
         assert_eq!(deserialized.outcomes.len(), 3);
-    }
-
-    #[test]
-    fn evaluate_modifiers_clamps_to_column_bounds() {
-        let mods = vec![CombatModifierDefinition {
-            id: TypeId::new(),
-            name: "Huge".to_string(),
-            source: ModifierSource::Custom("big".to_string()),
-            column_shift: 100,
-            priority: 1,
-            cap: None,
-            terrain_type_filter: None,
-        }];
-        let (total, _) = evaluate_modifiers_prioritized(&mods, 5);
-        assert_eq!(total, 4); // clamped to max_shift = column_count - 1
     }
 }
