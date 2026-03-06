@@ -76,7 +76,7 @@ dbg_macro = "deny"
 
 [package]
 name = "hexorder"
-version = "0.18.0"
+version = "0.19.0-spatial-rules"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
