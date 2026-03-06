@@ -8,7 +8,7 @@ use hexorder_contracts::game_system::{
     EntityData, EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType,
     PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::hex_grid::{HexEdgeRegistry, HexGridConfig, HexPosition, HexTile};
 use hexorder_contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
     ModifyOperation, PropertyBinding, Relation, RelationEffect, RelationRegistry, RelationTrigger,
@@ -35,6 +35,7 @@ fn test_app() -> App {
     app.init_resource::<ConceptRegistry>();
     app.init_resource::<RelationRegistry>();
     app.init_resource::<ConstraintRegistry>();
+    app.init_resource::<HexEdgeRegistry>();
     app.add_plugins(super::RulesEnginePlugin);
     app
 }
@@ -3261,5 +3262,262 @@ fn multiply_operation_is_noop_in_step() {
     assert!(
         !valid_moves.valid_positions.is_empty(),
         "Multiply operation should be a no-op in step evaluation"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Edge crossing cost tests (0.19.0)
+// ---------------------------------------------------------------------------
+
+use hexorder_contracts::hex_grid::{EdgeFeature, HexEdge};
+
+/// Edge feature with a "cost" property adds to movement cost when crossing.
+#[test]
+fn edge_crossing_cost_reduces_budget() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Add a "River" edge type with cost 2.
+    let river_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: river_type_id,
+            name: "River".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.2, 0.4, 0.8),
+            properties: vec![PropertyDefinition {
+                id: TypeId::new(),
+                name: "cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(2),
+            }],
+        });
+    }
+
+    // Place a river edge between (0,0) and (1,0).
+    let edge =
+        HexEdge::between(HexPosition::new(0, 0), HexPosition::new(1, 0)).expect("adjacent hexes");
+    app.world_mut().resource_mut::<HexEdgeRegistry>().insert(
+        edge,
+        EdgeFeature {
+            type_name: "River".to_string(),
+        },
+    );
+
+    // Spawn unit at (0,0) with budget 4, terrain cost 1.
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(4));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // Moving to (1,0): terrain cost 1 + river crossing cost 2 = 3 total.
+    // Budget 4 - 3 = 1 remaining. So (1,0) should still be reachable.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Position (1,0) should be reachable (cost 3 <= budget 4)"
+    );
+
+    // Moving from (1,0) onward: remaining budget = 1. Terrain cost = 1.
+    // (2,0) should be reachable (cost 1, remaining 0) if no river edge there.
+    // But (2,-1) should also be at cost 1 from (1,0).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, -1)),
+        "Position (2,-1) should be reachable from (1,0) with remaining budget"
+    );
+}
+
+/// Edge with cost high enough to block movement entirely.
+/// Walls surround a hex on ALL edges so no path can bypass the cost.
+#[test]
+fn edge_crossing_cost_blocks_when_exceeds_budget() {
+    let mut app = test_app();
+    // Budget 2, terrain cost 1 — unit can normally reach 2 hexes.
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Place a very expensive edge type.
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: TypeId::new(),
+            name: "Wall".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::srgb(0.5, 0.5, 0.5),
+            properties: vec![PropertyDefinition {
+                id: TypeId::new(),
+                name: "cost".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(10),
+            }],
+        });
+    }
+
+    // Wall ALL edges of hex (2,0) — no way to enter without paying 10+1.
+    let target = HexPosition::new(2, 0);
+    let target_hex = target.to_hex();
+    {
+        let mut edge_reg = app.world_mut().resource_mut::<HexEdgeRegistry>();
+        for neighbor_hex in target_hex.all_neighbors() {
+            let neighbor_pos = HexPosition::from_hex(neighbor_hex);
+            if let Some(edge) = HexEdge::between(target, neighbor_pos) {
+                edge_reg.insert(
+                    edge,
+                    EdgeFeature {
+                        type_name: "Wall".to_string(),
+                    },
+                );
+            }
+        }
+    }
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // Cost to enter (2,0) from any direction: terrain 1 + wall 10 = 11.
+    // Budget is only 2, so (2,0) should not be reachable regardless of path.
+    assert!(
+        !valid_moves.valid_positions.contains(&target),
+        "Position (2,0) should not be reachable through walled edges"
+    );
+
+    // (1,0) has no wall edges, so it should be reachable (cost 1).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Position (1,0) without wall edges should be reachable"
+    );
+}
+
+/// Edge with no "cost" property defaults to +1 crossing cost.
+#[test]
+fn edge_without_cost_property_defaults_to_one() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 2, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Edge type with no "cost" property.
+    let marker_type_id = TypeId::new();
+    {
+        let mut registry = app.world_mut().resource_mut::<EntityTypeRegistry>();
+        registry.types.push(EntityType {
+            id: marker_type_id,
+            name: "Marker".to_string(),
+            role: EntityRole::BoardPosition,
+            color: bevy::color::Color::WHITE,
+            properties: vec![],
+        });
+    }
+
+    let edge =
+        HexEdge::between(HexPosition::new(0, 0), HexPosition::new(1, 0)).expect("adjacent hexes");
+    app.world_mut().resource_mut::<HexEdgeRegistry>().insert(
+        edge,
+        EdgeFeature {
+            type_name: "Marker".to_string(),
+        },
+    );
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(2));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // Cost to (1,0): terrain 1 + edge default 1 = 2. Budget 2. Exactly fits.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Position (1,0) should be reachable (terrain 1 + default edge 1 = budget 2)"
+    );
+}
+
+/// No edge features means BFS uses terrain cost only (backward compatible).
+#[test]
+fn no_edge_features_means_terrain_cost_only() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 3, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // No edge features added — registry is empty.
+    assert!(
+        app.world().resource::<HexEdgeRegistry>().is_empty(),
+        "Edge registry should be empty by default"
+    );
+
+    let mut unit_props = HashMap::new();
+    unit_props.insert(setup.budget_prop_id, PropertyValue::Int(3));
+    let unit_entity = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: unit_props,
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit_entity);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // With budget 3 and terrain cost 1, unit can reach 3 hexes away.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Without edge features, movement should work as before"
+    );
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, 0)),
+        "Without edge features, 2 hexes away should be reachable"
+    );
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0)),
+        "Without edge features, 3 hexes away should be reachable"
     );
 }

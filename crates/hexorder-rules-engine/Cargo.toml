@@ -13,6 +13,7 @@ bevy = { workspace = true, default-features = false, features = [
   "bevy_log",
 ] }
 hexx = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 bevy = { workspace = true, default-features = false, features = [

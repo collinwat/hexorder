@@ -8,8 +8,8 @@ use hexx::shapes;
 use hexorder_contracts::editor_ui::{EditorTool, PaintPreview, Selection};
 use hexorder_contracts::game_system::{SelectedUnit, UnitInstance};
 use hexorder_contracts::hex_grid::{
-    HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
-    SelectedHex, TileBaseMaterial,
+    HexEdgeRegistry, HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay,
+    MoveOverlayState, SelectedHex, TileBaseMaterial,
 };
 use hexorder_contracts::validation::ValidMoveSet;
 
@@ -556,6 +556,74 @@ pub fn draw_los_ray(
         let b = config.layout.hex_to_world_pos(window[1].to_hex());
         gizmos.line(Vec3::new(a.x, 0.03, a.y), Vec3::new(b.x, 0.03, b.y), color);
     }
+}
+
+/// Draws colored line segments on hex boundaries where edge features exist.
+///
+/// For each edge in the `HexEdgeRegistry`, computes the two world-space
+/// endpoints of the shared hex boundary and draws a gizmo line. The color
+/// is derived from the entity type's color in the registry (falling back
+/// to cyan if the type is not found).
+pub fn draw_edge_features(
+    edge_registry: Res<HexEdgeRegistry>,
+    config: Res<HexGridConfig>,
+    entity_types: Res<hexorder_contracts::game_system::EntityTypeRegistry>,
+    mut gizmos: Gizmos,
+) {
+    if edge_registry.is_empty() {
+        return;
+    }
+
+    let hex_size = config.layout.scale.x.max(config.layout.scale.y);
+
+    for (edge, feature) in edge_registry.iter() {
+        let color = entity_types
+            .types
+            .iter()
+            .find(|t| t.name == feature.type_name)
+            .map_or(Color::srgb(0.0, 0.8, 0.8), |et| et.color);
+
+        let (start, end) = edge_boundary_world_positions(edge, &config, hex_size);
+        gizmos.line(start, end, color);
+    }
+}
+
+/// Computes the two world-space 3D endpoints of a hex edge boundary.
+///
+/// Each hex has 6 vertices. The shared edge between two adjacent hexes
+/// is defined by two consecutive vertices of the origin hex on the side
+/// facing the neighbor. We compute these from the hex center + vertex offsets.
+fn edge_boundary_world_positions(
+    edge: &hexorder_contracts::hex_grid::HexEdge,
+    config: &HexGridConfig,
+    hex_size: f32,
+) -> (Vec3, Vec3) {
+    let center_2d = config.layout.hex_to_world_pos(edge.origin.to_hex());
+    let dir = edge.direction as usize;
+
+    // Vertex angles for a pointy-top hexagon. Vertex 0 is at the top (π/2),
+    // going clockwise. The edge at direction `d` spans vertices d and d+1.
+    let angle_a = std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * dir as f32 / 6.0;
+    let angle_b =
+        std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * ((dir + 1) % 6) as f32 / 6.0;
+
+    let (sin_a, cos_a) = angle_a.sin_cos();
+    let (sin_b, cos_b) = angle_b.sin_cos();
+
+    // Vertex positions are in the XZ ground plane (Y = slight offset above ground).
+    let y = 0.04; // Above overlays
+    let start = Vec3::new(
+        center_2d.x + hex_size * cos_a,
+        y,
+        center_2d.y + hex_size * sin_a,
+    );
+    let end = Vec3::new(
+        center_2d.x + hex_size * cos_b,
+        y,
+        center_2d.y + hex_size * sin_b,
+    );
+
+    (start, end)
 }
 
 #[cfg(test)]

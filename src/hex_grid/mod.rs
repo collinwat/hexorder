@@ -45,6 +45,7 @@ impl Plugin for HexGridPlugin {
                     systems::update_indicators,
                     systems::sync_multi_select_indicators,
                     systems::sync_move_overlays,
+                    systems::draw_edge_features,
                     systems::draw_los_ray,
                 )
                     .chain()

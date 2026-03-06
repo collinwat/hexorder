@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::hex_grid::{HexEdge, HexEdgeRegistry, HexGridConfig, HexPosition, HexTile};
 use hexorder_contracts::ontology::{
     ConceptBinding, ConceptRegistry, ConstraintExpr, ConstraintRegistry, ModifyOperation,
     RelationEffect, RelationRegistry, RelationTrigger,
@@ -30,6 +30,7 @@ pub fn compute_valid_moves(
     constraints: Res<ConstraintRegistry>,
     entity_types: Res<EntityTypeRegistry>,
     grid_config: Res<HexGridConfig>,
+    edge_registry: Res<HexEdgeRegistry>,
     mut valid_moves: ResMut<ValidMoveSet>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
     tiles: Query<(&HexPosition, &EntityData), (With<HexTile>, Without<UnitInstance>)>,
@@ -39,6 +40,7 @@ pub fn compute_valid_moves(
         && !concepts.is_changed()
         && !relations.is_changed()
         && !constraints.is_changed()
+        && !edge_registry.is_changed()
     {
         return;
     }
@@ -101,6 +103,7 @@ pub fn compute_valid_moves(
         on_enter_relations: &on_enter_relations,
         concepts: &concepts,
         entity_types: &entity_types,
+        edge_registry: &edge_registry,
     };
 
     // BFS with budget tracking.
@@ -126,7 +129,8 @@ pub fn compute_valid_moves(
 
             let tile_data = tile_lookup.get(&neighbor_pos).copied();
 
-            let step_result = evaluate_step(&ctx, tile_data, remaining_budget, neighbor_pos);
+            let step_result =
+                evaluate_step(&ctx, tile_data, remaining_budget, current_pos, neighbor_pos);
 
             match step_result {
                 StepResult::Valid { new_budget } => {
@@ -165,6 +169,7 @@ struct StepContext<'a> {
     on_enter_relations: &'a [&'a hexorder_contracts::ontology::Relation],
     concepts: &'a ConceptRegistry,
     entity_types: &'a EntityTypeRegistry,
+    edge_registry: &'a HexEdgeRegistry,
 }
 
 /// Result of evaluating a single BFS step into a neighbor hex.
@@ -271,15 +276,41 @@ fn determine_budget(
 
 /// Evaluates a single step of the BFS: checks whether the unit can enter
 /// `target_pos` given the tile at that position and the applicable relations.
+/// Also checks edge annotations on the boundary between `from_pos` and `target_pos`.
 fn evaluate_step(
     ctx: &StepContext<'_>,
     tile_data: Option<&EntityData>,
     remaining_budget: i64,
+    from_pos: HexPosition,
     target_pos: HexPosition,
 ) -> StepResult {
     let mut blocked_reasons: Vec<ValidationResult> = Vec::new();
     let mut cost: i64 = 0;
     let mut has_block = false;
+
+    // Check edge annotations on the boundary being crossed.
+    if let Some(edge) = HexEdge::between(from_pos, target_pos)
+        && let Some(feature) = ctx.edge_registry.get(&edge)
+    {
+        let edge_cost = resolve_edge_cost(feature, ctx.entity_types);
+        cost += edge_cost;
+        if remaining_budget - cost < 0 {
+            let unit_type_name = ctx
+                .entity_types
+                .get(ctx.unit_data.entity_type_id)
+                .map_or("Unit", |et| et.name.as_str());
+            blocked_reasons.push(ValidationResult {
+                constraint_id: TypeId(uuid::Uuid::nil()),
+                constraint_name: format!("{} crossing", feature.type_name),
+                satisfied: false,
+                explanation: format!(
+                    "{unit_type_name} cannot reach ({}, {}): edge crossing cost {cost} exceeds budget of {remaining_budget}",
+                    target_pos.q,
+                    target_pos.r,
+                ),
+            });
+        }
+    }
 
     for relation in ctx.on_enter_relations {
         // Find unit bindings matching the subject role of this relation.
@@ -486,6 +517,31 @@ fn property_value_as_i64(value: &PropertyValue) -> Option<i64> {
         PropertyValue::Float(v) => Some(*v as i64),
         _ => None,
     }
+}
+
+/// Resolves the movement cost of crossing a hex edge with the given feature.
+///
+/// Looks up the feature's `type_name` in the entity type registry. If the
+/// entity type has a property named "cost", its default value is used as the
+/// crossing cost. Otherwise the edge adds +1 cost (non-zero so it always
+/// affects movement).
+fn resolve_edge_cost(
+    feature: &hexorder_contracts::hex_grid::EdgeFeature,
+    entity_types: &EntityTypeRegistry,
+) -> i64 {
+    let Some(entity_type) = entity_types
+        .types
+        .iter()
+        .find(|t| t.name == feature.type_name)
+    else {
+        return 1;
+    };
+    entity_type
+        .properties
+        .iter()
+        .find(|p| p.name == "cost")
+        .and_then(|p| property_value_as_i64(&p.default_value))
+        .unwrap_or(1)
 }
 
 // Combat resolution: `resolve_crt` lives in `hexorder_contracts::mechanics` and delegates
