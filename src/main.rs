@@ -11,7 +11,6 @@ mod ontology;
 mod persistence;
 mod rules_engine;
 mod shortcuts;
-mod simulation;
 mod unit;
 
 use hexorder_contracts::persistence::AppScreen;
@@ -43,7 +42,7 @@ fn main() {
         .add_plugins(cell::CellPlugin)
         .add_plugins(unit::UnitPlugin)
         .add_plugins(rules_engine::RulesEnginePlugin)
-        .add_plugins(simulation::SimulationPlugin)
+        .add_plugins(hexorder_simulation::SimulationPlugin)
         .add_plugins(hexorder_scripting::ScriptingPlugin)
         .add_plugins(persistence::PersistencePlugin)
         .add_plugins(hexorder_undo_redo::UndoRedoPlugin)

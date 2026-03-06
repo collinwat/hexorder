@@ -6,8 +6,9 @@
 
 use bevy::prelude::*;
 use hexorder_contracts::simulation::SimulationRng;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
-mod events;
+pub mod events;
 mod systems;
 
 #[cfg(test)]
@@ -18,10 +19,24 @@ mod tests;
 #[derive(Debug)]
 pub struct SimulationPlugin;
 
-impl Plugin for SimulationPlugin {
+impl HexorderPlugin for SimulationPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-simulation")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Simulation"
+    }
+
     fn build(&self, app: &mut App) {
         app.insert_resource(SimulationRng::new_random());
         app.add_observer(systems::on_die_rolled);
         app.add_observer(systems::on_table_resolved);
+    }
+}
+
+impl Plugin for SimulationPlugin {
+    fn build(&self, app: &mut App) {
+        HexorderPlugin::build(self, app);
     }
 }

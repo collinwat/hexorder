@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::events::{DieRolled, TableResolved};
+use crate::events::{DieRolled, TableResolved};
 
 /// Observer: log die roll events (future: update UI).
 pub fn on_die_rolled(_trigger: On<DieRolled>) {
