@@ -23,8 +23,36 @@ fn test_app() -> App {
     app.insert_state(AppScreen::Editor);
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
-    app.add_plugins(crate::game_system::GameSystemPlugin);
-    app.add_plugins(crate::ontology::OntologyPlugin);
+    // Inline the resources that GameSystemPlugin and OntologyPlugin provide,
+    // since those plugins live in the root crate (circular dep not possible).
+    app.insert_resource(hexorder_contracts::defaults::create_enum_registry());
+    app.insert_resource(hexorder_contracts::game_system::StructRegistry::default());
+    let registry = hexorder_contracts::defaults::create_entity_type_registry();
+    let first_board_id = registry
+        .first_by_role(hexorder_contracts::game_system::EntityRole::BoardPosition)
+        .map(|t| t.id);
+    let first_token_id = registry
+        .first_by_role(hexorder_contracts::game_system::EntityRole::Token)
+        .map(|t| t.id);
+    app.insert_resource(hexorder_contracts::defaults::create_game_system());
+    app.insert_resource(registry);
+    app.insert_resource(hexorder_contracts::game_system::ActiveBoardType {
+        entity_type_id: first_board_id,
+    });
+    app.insert_resource(hexorder_contracts::game_system::ActiveTokenType {
+        entity_type_id: first_token_id,
+    });
+    app.insert_resource(hexorder_contracts::game_system::SelectedUnit::default());
+    app.insert_resource(hexorder_contracts::defaults::create_default_turn_structure());
+    app.insert_resource(hexorder_contracts::mechanics::TurnState::default());
+    app.insert_resource(hexorder_contracts::defaults::create_default_crt());
+    app.insert_resource(CombatModifierRegistry::default());
+    app.insert_resource(hexorder_contracts::mechanics::ActiveCombat::default());
+    // Ontology registries
+    app.init_resource::<hexorder_contracts::ontology::ConceptRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::RelationRegistry>();
+    app.init_resource::<hexorder_contracts::ontology::ConstraintRegistry>();
+    app.init_resource::<hexorder_contracts::validation::SchemaValidation>();
     // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
     app.add_plugins(crate::PersistencePlugin);
