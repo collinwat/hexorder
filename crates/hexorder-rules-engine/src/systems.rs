@@ -503,7 +503,7 @@ use hexorder_contracts::mechanics::{PhaseAdvancedEvent, TurnState, TurnStructure
 /// Returns `Some(PhaseAdvancedEvent)` with the new phase info, or `None` if
 /// the turn structure has no phases.
 #[allow(dead_code)]
-pub(crate) fn advance_phase(
+pub fn advance_phase(
     state: &mut TurnState,
     structure: &TurnStructure,
 ) -> Option<PhaseAdvancedEvent> {
@@ -538,7 +538,7 @@ pub(crate) fn advance_phase(
 ///
 /// Returns `Some(PhaseAdvancedEvent)` for the first phase, or `None` if no phases.
 #[allow(dead_code)]
-pub(crate) fn start_turn_sequence(
+pub fn start_turn_sequence(
     state: &mut TurnState,
     structure: &TurnStructure,
 ) -> Option<PhaseAdvancedEvent> {

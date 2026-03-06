@@ -7,7 +7,6 @@ mod editor_ui;
 mod game_system;
 mod hex_grid;
 mod ontology;
-mod rules_engine;
 mod shortcuts;
 
 use hexorder_contracts::persistence::AppScreen;
@@ -38,7 +37,7 @@ fn main() {
         .add_plugins(ontology::OntologyPlugin)
         .add_plugins(hexorder_cell::CellPlugin)
         .add_plugins(hexorder_unit::UnitPlugin)
-        .add_plugins(rules_engine::RulesEnginePlugin)
+        .add_plugins(hexorder_rules_engine::RulesEnginePlugin)
         .add_plugins(hexorder_simulation::SimulationPlugin)
         .add_plugins(hexorder_scripting::ScriptingPlugin)
         .add_plugins(hexorder_persistence::PersistencePlugin)

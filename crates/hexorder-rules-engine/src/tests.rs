@@ -1285,8 +1285,8 @@ fn apply_shift_zero_columns() {
 // Phase Advancement Tests (0.9.0)
 // =========================================================================
 
-use crate::rules_engine::systems::advance_phase;
-use crate::rules_engine::systems::start_turn_sequence;
+use crate::systems::advance_phase;
+use crate::systems::start_turn_sequence;
 use hexorder_contracts::mechanics::PlayerOrder;
 use hexorder_contracts::mechanics::{Phase, PhaseType, TurnState, TurnStructure};
 
