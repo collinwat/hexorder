@@ -3636,7 +3636,7 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hexorder"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "bevy_egui",
@@ -3682,7 +3682,7 @@ dependencies = [
 
 [[package]]
 name = "hexorder-cell"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "hexorder-contracts",
@@ -3738,7 +3738,7 @@ dependencies = [
 
 [[package]]
 name = "hexorder-persistence"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "dirs",
@@ -3753,7 +3753,7 @@ dependencies = [
 
 [[package]]
 name = "hexorder-rules-engine"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "hexorder-contracts",
@@ -3792,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "hexorder-simulation"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "hexorder-contracts",
@@ -3810,7 +3810,7 @@ dependencies = [
 
 [[package]]
 name = "hexorder-unit"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 dependencies = [
  "bevy",
  "hexorder-contracts",

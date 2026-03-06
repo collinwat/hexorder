@@ -1,6 +1,6 @@
 [package]
 name = "hexorder-unit"
-version = "0.18.0-wave3-extraction"
+version = "0.18.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
