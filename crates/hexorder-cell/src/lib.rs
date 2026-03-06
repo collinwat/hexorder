@@ -8,6 +8,7 @@ use bevy::prelude::*;
 
 use hexorder_contracts::editor_ui::PaintPreview;
 use hexorder_contracts::persistence::AppScreen;
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 mod components;
 mod systems;
@@ -19,7 +20,15 @@ mod tests;
 #[derive(Debug)]
 pub struct CellPlugin;
 
-impl Plugin for CellPlugin {
+impl HexorderPlugin for CellPlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-cell")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Cell"
+    }
+
     fn build(&self, app: &mut App) {
         app.init_resource::<PaintPreview>()
             .add_systems(OnEnter(AppScreen::Editor), systems::setup_cell_materials)
@@ -35,5 +44,11 @@ impl Plugin for CellPlugin {
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_observer(systems::paint_cell);
+    }
+}
+
+impl Plugin for CellPlugin {
+    fn build(&self, app: &mut App) {
+        HexorderPlugin::build(self, app);
     }
 }

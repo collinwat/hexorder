@@ -3,7 +3,6 @@ use bevy::winit::{UpdateMode, WinitSettings};
 
 mod macros;
 
-mod cell;
 mod editor_ui;
 mod game_system;
 mod hex_grid;
@@ -39,7 +38,7 @@ fn main() {
         .add_plugins(hexorder_camera::CameraPlugin)
         .add_plugins(game_system::GameSystemPlugin)
         .add_plugins(ontology::OntologyPlugin)
-        .add_plugins(cell::CellPlugin)
+        .add_plugins(hexorder_cell::CellPlugin)
         .add_plugins(unit::UnitPlugin)
         .add_plugins(rules_engine::RulesEnginePlugin)
         .add_plugins(hexorder_simulation::SimulationPlugin)
@@ -202,7 +201,7 @@ mod integration_tests {
         });
         app.add_plugins(crate::game_system::GameSystemPlugin);
         app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
-        app.add_plugins(crate::cell::CellPlugin);
+        app.add_plugins(hexorder_cell::CellPlugin);
         app.add_plugins(crate::unit::UnitPlugin);
         app
     }

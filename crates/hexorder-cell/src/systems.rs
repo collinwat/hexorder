@@ -11,7 +11,7 @@ use hexorder_contracts::game_system::{
 use hexorder_contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
 use hexorder_contracts::undo_redo::{SetTerrainCommand, UndoStack};
 
-use super::components::CellMaterials;
+use crate::components::CellMaterials;
 
 /// Creates material handles for each `BoardPosition` entity type in the registry
 /// and stores them in the `CellMaterials` resource.

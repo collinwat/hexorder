@@ -1,0 +1,26 @@
+[package]
+name = "hexorder-cell"
+version = "0.18.0-wave3-extraction"
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+
+[dev-dependencies]
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+hexorder-undo-redo = { workspace = true }
+
+[lints]
+workspace = true

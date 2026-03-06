@@ -3644,6 +3644,7 @@ dependencies = [
  "egui_dock",
  "egui_kittest",
  "hexorder-camera",
+ "hexorder-cell",
  "hexorder-contracts",
  "hexorder-export",
  "hexorder-map-gen",
@@ -3674,6 +3675,16 @@ dependencies = [
  "hexorder-contracts",
  "hexorder-sdk",
  "hexx",
+]
+
+[[package]]
+name = "hexorder-cell"
+version = "0.18.0-wave3-extraction"
+dependencies = [
+ "bevy",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexorder-undo-redo",
 ]
 
 [[package]]

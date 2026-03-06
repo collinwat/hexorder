@@ -10,6 +10,7 @@ members = [
   "crates/hexorder-undo-redo",
   "crates/hexorder-scripting",
   "crates/hexorder-simulation",
+  "crates/hexorder-cell",
 ]
 default-members = [ "." ]
 
@@ -21,6 +22,7 @@ ron = "0.12"
 serde = { version = "1", features = [ "derive" ] }
 uuid = { version = "1", features = [ "v4" ] }
 hexorder-camera = { path = "crates/hexorder-camera" }
+hexorder-cell = { path = "crates/hexorder-cell" }
 hexorder-contracts = { path = "crates/hexorder-contracts" }
 hexorder-export = { path = "crates/hexorder-export" }
 hexorder-map-gen = { path = "crates/hexorder-map-gen" }
@@ -82,6 +84,7 @@ macos-app = [ "hexorder-settings/macos-app" ]
 
 [dependencies]
 hexorder-camera = { workspace = true }
+hexorder-cell = { workspace = true }
 hexorder-contracts = { workspace = true }
 hexorder-export = { workspace = true }
 hexorder-map-gen = { workspace = true }
