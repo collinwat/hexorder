@@ -14,6 +14,7 @@ use hexorder_contracts::shortcuts::{
     CommandCategory, CommandEntry, CommandId, KeyBinding, Modifiers, ShortcutRegistry,
 };
 use hexorder_contracts::storage::{Storage, StorageConfig};
+use hexorder_sdk::{HexorderPlugin, PluginId};
 
 pub(crate) mod async_dialog;
 pub(crate) mod storage;
@@ -26,7 +27,15 @@ mod tests;
 #[derive(Debug)]
 pub struct PersistencePlugin;
 
-impl Plugin for PersistencePlugin {
+impl HexorderPlugin for PersistencePlugin {
+    fn id(&self) -> PluginId {
+        PluginId("hexorder-persistence")
+    }
+
+    fn plugin_name(&self) -> &'static str {
+        "Persistence"
+    }
+
     fn build(&self, app: &mut App) {
         // Use pre-inserted config if the caller provided one,
         // otherwise resolve from compile-time feature flags.
@@ -62,6 +71,12 @@ impl Plugin for PersistencePlugin {
         app.add_observer(systems::handle_dialog_completed);
         app.add_observer(systems::handle_file_command);
         app.add_systems(OnExit(AppScreen::Editor), systems::cleanup_editor_entities);
+    }
+}
+
+impl Plugin for PersistencePlugin {
+    fn build(&self, app: &mut App) {
+        HexorderPlugin::build(self, app);
     }
 }
 

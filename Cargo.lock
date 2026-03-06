@@ -3649,6 +3649,7 @@ dependencies = [
  "hexorder-export",
  "hexorder-map-gen",
  "hexorder-mechanic-ref",
+ "hexorder-persistence",
  "hexorder-scripting",
  "hexorder-sdk",
  "hexorder-settings",
@@ -3732,6 +3733,21 @@ dependencies = [
  "bevy",
  "hexorder-contracts",
  "hexorder-sdk",
+]
+
+[[package]]
+name = "hexorder-persistence"
+version = "0.18.0-wave3-extraction"
+dependencies = [
+ "bevy",
+ "dirs",
+ "hexorder-contracts",
+ "hexorder-sdk",
+ "hexx",
+ "rfd",
+ "ron",
+ "serde",
+ "tempfile",
 ]
 
 [[package]]

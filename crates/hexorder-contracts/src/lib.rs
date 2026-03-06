@@ -6,6 +6,8 @@
 //! since not all types are used by all plugins at every point in development.
 
 #[allow(dead_code)]
+pub mod defaults;
+#[allow(dead_code)]
 pub mod editor_ui;
 #[allow(dead_code)]
 pub mod game_system;

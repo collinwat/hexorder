@@ -27,7 +27,7 @@ fn test_app() -> App {
     app.add_plugins(crate::ontology::OntologyPlugin);
     // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
-    app.add_plugins(crate::persistence::PersistencePlugin);
+    app.add_plugins(crate::PersistencePlugin);
     app
 }
 
@@ -416,7 +416,7 @@ fn load_from_path_overwrites_registries() {
 /// `dispatch_dialog_result` executes pending action on confirm No (skip save).
 #[test]
 fn dispatch_confirm_no_executes_pending_action() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let mut app = test_app();
     app.insert_resource(HexGridConfig {
@@ -450,7 +450,7 @@ fn dispatch_confirm_no_executes_pending_action() {
 /// `dispatch_dialog_result` does nothing on confirm Cancel.
 #[test]
 fn dispatch_confirm_cancel_does_nothing() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let mut app = test_app();
     app.insert_resource(HexGridConfig {
@@ -686,7 +686,7 @@ fn save_to_path_marks_undo_stack_clean() {
 /// Confirm Yes with existing path saves and executes pending action.
 #[test]
 fn dispatch_confirm_yes_with_path_saves_then_executes() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -721,7 +721,7 @@ fn dispatch_confirm_yes_with_path_saves_then_executes() {
 /// Save file dialog with picked path saves the file.
 #[test]
 fn dispatch_save_file_picked_saves() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let mut app = test_app_with_grid();
 
@@ -746,7 +746,7 @@ fn dispatch_save_file_picked_saves() {
 /// Save file dialog with chained action executes after save.
 #[test]
 fn dispatch_save_file_with_chained_action() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -775,7 +775,7 @@ fn dispatch_save_file_with_chained_action() {
 /// Save/Open file dialog cancelled (None) does nothing.
 #[test]
 fn dispatch_file_dialog_cancelled_does_nothing() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -806,7 +806,7 @@ fn dispatch_file_dialog_cancelled_does_nothing() {
 /// Open file dialog with picked path loads the file.
 #[test]
 fn dispatch_open_file_loads() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::storage::Storage;
 
     let mut app = test_app_with_grid();
@@ -837,7 +837,7 @@ fn dispatch_open_file_loads() {
 /// Unhandled dialog combination logs warning but does not panic.
 #[test]
 fn dispatch_unhandled_combination_logs_warning() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let mut app = test_app_with_grid();
 
@@ -1120,7 +1120,7 @@ fn sync_window_title_noop_when_title_matches() {
 /// `AsyncDialogTask` debug impl works.
 #[test]
 fn async_dialog_task_debug_impl() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let future: DialogFuture = Box::pin(std::future::pending());
     let task = AsyncDialogTask {
@@ -1135,7 +1135,7 @@ fn async_dialog_task_debug_impl() {
 /// `DialogKind` variants debug correctly.
 #[test]
 fn dialog_kind_debug_variants() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let save = DialogKind::SaveFile { then: None };
     assert!(format!("{save:?}").contains("SaveFile"));
@@ -1152,7 +1152,7 @@ fn dialog_kind_debug_variants() {
 /// `PendingAction` variants debug correctly.
 #[test]
 fn pending_action_debug_variants() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let load = PendingAction::Load;
     assert!(format!("{load:?}").contains("Load"));
@@ -1169,7 +1169,7 @@ fn pending_action_debug_variants() {
 /// `DialogResult::Confirmed` debug works.
 #[test]
 fn dialog_result_confirmed_debug() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let result = DialogResult::Confirmed(ConfirmChoice::Yes);
     let debug = format!("{result:?}");
@@ -1180,7 +1180,7 @@ fn dialog_result_confirmed_debug() {
 /// `DialogCompleted` debug works.
 #[test]
 fn dialog_completed_debug() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let completed = DialogCompleted {
         kind: DialogKind::OpenFile,
@@ -1288,7 +1288,7 @@ fn save_to_path_captures_tiles_and_units() {
 /// Confirm Yes save failure aborts the chain (does not execute pending action).
 #[test]
 fn dispatch_confirm_yes_save_failure_aborts_chain() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -1349,7 +1349,7 @@ fn handle_save_request_saves_directly_with_existing_path() {
 /// `handle_save_request` is a no-op when a dialog is already open.
 #[test]
 fn handle_save_request_noop_when_dialog_open() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1408,7 +1408,7 @@ fn handle_new_project_resets_when_not_dirty() {
 /// `handle_new_project` is a no-op when a dialog is already open.
 #[test]
 fn handle_new_project_noop_when_dialog_open() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{NewProjectEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1462,7 +1462,7 @@ fn handle_close_project_closes_when_not_dirty() {
 /// `handle_close_project` is a no-op when a dialog is already open.
 #[test]
 fn handle_close_project_noop_when_dialog_open() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{CloseProjectEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1493,7 +1493,7 @@ fn handle_close_project_noop_when_dialog_open() {
 /// `handle_load_request` is a no-op when a dialog is already open.
 #[test]
 fn handle_load_request_noop_when_dialog_open() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::LoadRequestEvent;
 
     let mut app = test_app_with_grid();
@@ -1522,7 +1522,7 @@ fn handle_load_request_noop_when_dialog_open() {
 /// `handle_dialog_completed` dispatches the dialog result through the world.
 #[test]
 fn handle_dialog_completed_dispatches_to_world() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -1557,7 +1557,7 @@ fn handle_dialog_completed_dispatches_to_world() {
 /// `reset_to_new_project` clears the undo stack when present.
 #[test]
 fn reset_to_new_project_clears_undo_stack() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::undo_redo::UndoStack;
 
     let mut app = test_app_with_grid();
@@ -1595,7 +1595,7 @@ fn reset_to_new_project_clears_undo_stack() {
 /// `close_project` clears the undo stack when present.
 #[test]
 fn close_project_clears_undo_stack() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::undo_redo::UndoStack;
 
     let mut app = test_app_with_grid();
@@ -1634,7 +1634,7 @@ fn close_project_clears_undo_stack() {
 /// `execute_pending_action(Load)` spawns an open-file dialog.
 #[test]
 fn execute_pending_action_load_spawns_open_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
 
     let mut app = test_app_with_grid();
 
@@ -1662,7 +1662,7 @@ fn execute_pending_action_load_spawns_open_dialog() {
 /// Confirm Yes without existing path spawns a save-as dialog with chained action.
 #[test]
 fn dispatch_confirm_yes_without_path_spawns_save_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::Workspace;
 
     let mut app = test_app_with_grid();
@@ -1698,7 +1698,7 @@ fn dispatch_confirm_yes_without_path_spawns_save_dialog() {
 /// `handle_load_request` spawns an open-file dialog when workspace is not dirty.
 #[test]
 fn handle_load_request_not_dirty_spawns_open_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{LoadRequestEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1721,7 +1721,7 @@ fn handle_load_request_not_dirty_spawns_open_dialog() {
 /// `handle_load_request` spawns a confirm dialog when workspace is dirty.
 #[test]
 fn handle_load_request_dirty_spawns_confirm_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{LoadRequestEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1749,7 +1749,7 @@ fn handle_load_request_dirty_spawns_confirm_dialog() {
 /// `handle_new_project` spawns a confirm dialog when workspace is dirty.
 #[test]
 fn handle_new_project_dirty_spawns_confirm_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{NewProjectEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1779,7 +1779,7 @@ fn handle_new_project_dirty_spawns_confirm_dialog() {
 /// `handle_close_project` spawns a confirm dialog when workspace is dirty.
 #[test]
 fn handle_close_project_dirty_spawns_confirm_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{CloseProjectEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1807,7 +1807,7 @@ fn handle_close_project_dirty_spawns_confirm_dialog() {
 /// `handle_save_request` spawns a save dialog when `save_as` is true.
 #[test]
 fn handle_save_request_save_as_spawns_save_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
 
     let mut app = test_app_with_grid();
@@ -1835,7 +1835,7 @@ fn handle_save_request_save_as_spawns_save_dialog() {
 /// `handle_save_request` spawns a save dialog when workspace has no file path.
 #[test]
 fn handle_save_request_no_path_spawns_save_dialog() {
-    use crate::persistence::async_dialog::*;
+    use crate::async_dialog::*;
     use hexorder_contracts::persistence::{SaveRequestEvent, Workspace};
 
     let mut app = test_app_with_grid();

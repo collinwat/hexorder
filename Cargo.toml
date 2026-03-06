@@ -12,6 +12,7 @@ members = [
   "crates/hexorder-simulation",
   "crates/hexorder-cell",
   "crates/hexorder-unit",
+  "crates/hexorder-persistence",
 ]
 default-members = [ "." ]
 
@@ -28,6 +29,7 @@ hexorder-contracts = { path = "crates/hexorder-contracts" }
 hexorder-export = { path = "crates/hexorder-export" }
 hexorder-map-gen = { path = "crates/hexorder-map-gen" }
 hexorder-mechanic-ref = { path = "crates/hexorder-mechanic-ref" }
+hexorder-persistence = { path = "crates/hexorder-persistence" }
 hexorder-scripting = { path = "crates/hexorder-scripting" }
 hexorder-sdk = { path = "crates/hexorder-sdk" }
 hexorder-settings = { path = "crates/hexorder-settings" }
@@ -91,6 +93,7 @@ hexorder-contracts = { workspace = true }
 hexorder-export = { workspace = true }
 hexorder-map-gen = { workspace = true }
 hexorder-mechanic-ref = { workspace = true }
+hexorder-persistence = { workspace = true }
 hexorder-scripting = { workspace = true }
 hexorder-sdk = { workspace = true }
 hexorder-settings = { workspace = true }

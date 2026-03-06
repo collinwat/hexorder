@@ -1,0 +1,35 @@
+[package]
+name = "hexorder-persistence"
+version = "0.18.0-wave3-extraction"
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[features]
+xdg = ["dep:dirs"]
+macos = ["dep:dirs"]
+
+[dependencies]
+hexorder-contracts = { workspace = true }
+hexorder-sdk = { workspace = true }
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+dirs = { version = "6", optional = true }
+rfd = "0.15"
+ron = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+bevy = { workspace = true, default-features = false, features = [
+  "bevy_state",
+  "bevy_log",
+  "3d_bevy_render",
+] }
+hexx = { workspace = true }
+tempfile = "3"
+
+[lints]
+workspace = true

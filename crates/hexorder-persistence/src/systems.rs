@@ -247,9 +247,10 @@ pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool 
 
 /// Reset all registries and derived state to factory defaults using world access.
 fn reset_all_registries_world(world: &mut World) {
-    *world.resource_mut::<GameSystem>() = crate::game_system::create_game_system();
-    *world.resource_mut::<EntityTypeRegistry>() = crate::game_system::create_entity_type_registry();
-    *world.resource_mut::<EnumRegistry>() = crate::game_system::create_enum_registry();
+    *world.resource_mut::<GameSystem>() = hexorder_contracts::defaults::create_game_system();
+    *world.resource_mut::<EntityTypeRegistry>() =
+        hexorder_contracts::defaults::create_entity_type_registry();
+    *world.resource_mut::<EnumRegistry>() = hexorder_contracts::defaults::create_enum_registry();
     *world.resource_mut::<StructRegistry>() = StructRegistry::default();
     *world.resource_mut::<ConceptRegistry>() = ConceptRegistry::default();
     *world.resource_mut::<RelationRegistry>() = RelationRegistry::default();
@@ -263,8 +264,10 @@ fn reset_to_new_project(name: &str, world: &mut World) {
     reset_all_registries_world(world);
 
     // Reset mechanics to factory defaults.
-    *world.resource_mut::<TurnStructure>() = crate::game_system::create_default_turn_structure();
-    *world.resource_mut::<CombatResultsTable>() = crate::game_system::create_default_crt();
+    *world.resource_mut::<TurnStructure>() =
+        hexorder_contracts::defaults::create_default_turn_structure();
+    *world.resource_mut::<CombatResultsTable>() =
+        hexorder_contracts::defaults::create_default_crt();
     *world.resource_mut::<CombatModifierRegistry>() = CombatModifierRegistry::default();
     *world.resource_mut::<TurnState>() = TurnState::default();
     *world.resource_mut::<ActiveCombat>() = ActiveCombat::default();
