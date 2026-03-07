@@ -386,6 +386,51 @@ impl StackingRule {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Movement Cost Matrix
+// ---------------------------------------------------------------------------
+
+/// A 2D lookup for movement costs: (terrain entity type, classification value) → cost.
+///
+/// Allows different unit classifications (e.g., Foot, Wheeled, Tracked) to pay
+/// different costs for the same terrain type. When no matrix entry exists for a
+/// given combination, the BFS falls back to the terrain's single-dimension cost
+/// from the ontology relation.
+///
+/// `classification_property_id` identifies which enum property on unit entity
+/// types provides the classification value for the lookup.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
+pub struct MovementCostMatrix {
+    /// The enum property ID on unit types that provides the classification key.
+    /// If `None`, the matrix is inactive and the BFS uses standard costs.
+    pub classification_property_id: Option<TypeId>,
+    /// Cost entries: (terrain_type_id, classification_enum_value) → movement cost.
+    pub entries: HashMap<(TypeId, String), i64>,
+}
+
+impl MovementCostMatrix {
+    /// Returns true if the matrix is active (has a classification property set).
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.classification_property_id.is_some()
+    }
+
+    /// Looks up the movement cost for a terrain type and classification value.
+    /// Returns `None` if no entry exists (caller should fall back to default cost).
+    #[must_use]
+    pub fn get_cost(&self, terrain_type_id: TypeId, classification: &str) -> Option<i64> {
+        self.entries
+            .get(&(terrain_type_id, classification.to_string()))
+            .copied()
+    }
+
+    /// Sets the movement cost for a terrain type and classification value.
+    pub fn set_cost(&mut self, terrain_type_id: TypeId, classification: String, cost: i64) {
+        self.entries.insert((terrain_type_id, classification), cost);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -801,5 +846,51 @@ mod tests {
         };
         assert!(!rule.is_exempt(normal_id));
         assert!(rule.would_exceed(normal_id, 1));
+    }
+
+    // -----------------------------------------------------------------------
+    // MovementCostMatrix tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn movement_cost_matrix_default_is_inactive() {
+        let matrix = MovementCostMatrix::default();
+        assert!(!matrix.is_active());
+    }
+
+    #[test]
+    fn movement_cost_matrix_active_when_property_set() {
+        let matrix = MovementCostMatrix {
+            classification_property_id: Some(TypeId::new()),
+            entries: HashMap::new(),
+        };
+        assert!(matrix.is_active());
+    }
+
+    #[test]
+    fn movement_cost_matrix_set_and_get() {
+        let mut matrix = MovementCostMatrix::default();
+        let terrain_id = TypeId::new();
+        matrix.set_cost(terrain_id, "Foot".to_string(), 2);
+        matrix.set_cost(terrain_id, "Wheeled".to_string(), 4);
+
+        assert_eq!(matrix.get_cost(terrain_id, "Foot"), Some(2));
+        assert_eq!(matrix.get_cost(terrain_id, "Wheeled"), Some(4));
+    }
+
+    #[test]
+    fn movement_cost_matrix_returns_none_for_missing_entry() {
+        let matrix = MovementCostMatrix::default();
+        let terrain_id = TypeId::new();
+        assert_eq!(matrix.get_cost(terrain_id, "Foot"), None);
+    }
+
+    #[test]
+    fn movement_cost_matrix_overwrites_existing_entry() {
+        let mut matrix = MovementCostMatrix::default();
+        let terrain_id = TypeId::new();
+        matrix.set_cost(terrain_id, "Foot".to_string(), 2);
+        matrix.set_cost(terrain_id, "Foot".to_string(), 5);
+        assert_eq!(matrix.get_cost(terrain_id, "Foot"), Some(5));
     }
 }
