@@ -393,6 +393,8 @@ pub struct EditorState {
     pub new_influence_range: u32,
     /// Movement cost modifier for new influence rule.
     pub new_influence_cost: i32,
+    /// Selected entity type index for stacking exempt picker.
+    pub new_stacking_exempt_idx: Option<usize>,
 
     // -- About panel --
     /// Whether the About panel is visible.
@@ -476,6 +478,7 @@ impl Default for EditorState {
             new_influence_type_idx: None,
             new_influence_range: 1,
             new_influence_cost: 1,
+            new_stacking_exempt_idx: None,
             about_panel_visible: false,
         }
     }
@@ -529,6 +532,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) combat_modifiers: ResMut<'w, CombatModifierRegistry>,
     pub(super) mechanic_catalog: Res<'w, hexorder_contracts::mechanic_reference::MechanicCatalog>,
     pub(super) influence_rules: ResMut<'w, hexorder_contracts::hex_grid::InfluenceRuleRegistry>,
+    pub(super) stacking_rule: ResMut<'w, hexorder_contracts::hex_grid::StackingRule>,
 }
 
 /// Bundled system parameter for ontology-related resources.

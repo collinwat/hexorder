@@ -11515,6 +11515,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
     let mut combat_results_table = CombatResultsTable::default();
     let mut combat_modifiers = CombatModifierRegistry::default();
     let mut influence_rules = hexorder_contracts::hex_grid::InfluenceRuleRegistry::default();
+    let mut stacking_rule = hexorder_contracts::hex_grid::StackingRule::default();
     let mut map_gen_params = MapGenParams::default();
 
     let mut viewer = EditorDockViewer {
@@ -11546,6 +11547,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
             combat_results_table: &mut combat_results_table,
             combat_modifiers: &mut combat_modifiers,
             influence_rules: &mut influence_rules,
+            stacking_rule: &mut stacking_rule,
         },
         inspector: InspectorData {
             tile_position: None,

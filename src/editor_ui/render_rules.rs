@@ -6,7 +6,9 @@ use hexorder_contracts::game_system::TypeId;
 use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, PropertyType, PropertyValue, StructRegistry,
 };
-use hexorder_contracts::hex_grid::{HexPosition, InfluenceRule, InfluenceRuleRegistry};
+use hexorder_contracts::hex_grid::{
+    HexPosition, InfluenceRule, InfluenceRuleRegistry, StackingRule,
+};
 use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
     TurnStructure,
@@ -601,6 +603,114 @@ pub(crate) fn render_influence_rules(
                 cost_modifier: i64::from(editor_state.new_influence_cost),
             });
             editor_state.new_influence_type_idx = None;
+        }
+    }
+}
+
+/// Renders the stacking constraint editor.
+pub(crate) fn render_stacking_rule(
+    ui: &mut egui::Ui,
+    stacking_rule: &mut StackingRule,
+    entity_types: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
+) {
+    ui.label(
+        egui::RichText::new("Stacking Constraint")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    ui.horizontal(|ui| {
+        ui.label("Max units per hex:");
+        let mut max = stacking_rule.max_units as i32;
+        if ui
+            .add(egui::DragValue::new(&mut max).range(0..=20).speed(0.1))
+            .changed()
+        {
+            stacking_rule.max_units = max.max(0) as u32;
+        }
+        if stacking_rule.max_units == 0 {
+            ui.label(
+                egui::RichText::new("(unlimited)")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+        }
+    });
+
+    if stacking_rule.is_active() {
+        // Show exempt types.
+        if !stacking_rule.exempt_type_ids.is_empty() {
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new("Exempt types:")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            let mut remove_idx = None;
+            for (i, type_id) in stacking_rule.exempt_type_ids.iter().enumerate() {
+                let name = entity_types
+                    .get(*type_id)
+                    .map_or("Unknown", |et| et.name.as_str());
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(name)
+                            .small()
+                            .color(BrandTheme::TEXT_PRIMARY),
+                    );
+                    if ui
+                        .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                        .clicked()
+                    {
+                        remove_idx = Some(i);
+                    }
+                });
+            }
+            if let Some(idx) = remove_idx {
+                stacking_rule.exempt_type_ids.remove(idx);
+            }
+        }
+
+        // Add exempt type picker.
+        let token_types: Vec<_> = entity_types
+            .types
+            .iter()
+            .filter(|et| {
+                et.role == hexorder_contracts::game_system::EntityRole::Token
+                    && !stacking_rule.exempt_type_ids.contains(&et.id)
+            })
+            .collect();
+
+        if !token_types.is_empty() {
+            ui.horizontal(|ui| {
+                let selected_name = editor_state
+                    .new_stacking_exempt_idx
+                    .and_then(|idx| token_types.get(idx))
+                    .map_or("Select...", |et| et.name.as_str());
+                egui::ComboBox::from_id_salt("stacking_exempt_picker")
+                    .selected_text(selected_name)
+                    .show_ui(ui, |ui| {
+                        for (idx, et) in token_types.iter().enumerate() {
+                            if ui
+                                .selectable_label(
+                                    editor_state.new_stacking_exempt_idx == Some(idx),
+                                    &et.name,
+                                )
+                                .clicked()
+                            {
+                                editor_state.new_stacking_exempt_idx = Some(idx);
+                            }
+                        }
+                    });
+                if ui.button("Add Exempt").clicked()
+                    && let Some(idx) = editor_state.new_stacking_exempt_idx
+                    && let Some(et) = token_types.get(idx)
+                {
+                    stacking_rule.exempt_type_ids.push(et.id);
+                    editor_state.new_stacking_exempt_idx = None;
+                }
+            });
         }
     }
 }

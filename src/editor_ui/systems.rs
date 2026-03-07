@@ -51,7 +51,7 @@ pub(super) use super::render_panels::{
     render_unit_palette, render_workspace_header,
 };
 pub(super) use super::render_rules::{
-    render_influence_rules, render_mechanics_tab, render_validation_tab,
+    render_influence_rules, render_mechanics_tab, render_stacking_rule, render_validation_tab,
 };
 
 // Public systems re-exported for plugin registration in mod.rs.
@@ -153,6 +153,7 @@ pub(crate) struct RulesData<'a> {
     pub(crate) combat_results_table: &'a mut CombatResultsTable,
     pub(crate) combat_modifiers: &'a mut hexorder_contracts::mechanics::CombatModifierRegistry,
     pub(crate) influence_rules: &'a mut hexorder_contracts::hex_grid::InfluenceRuleRegistry,
+    pub(crate) stacking_rule: &'a mut hexorder_contracts::hex_grid::StackingRule,
 }
 
 /// Actions returned by `render_editor_menu_bar` for deferred dispatch.
@@ -340,6 +341,13 @@ pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut Edit
                         render_influence_rules(
                             ui,
                             viewer.rules.influence_rules,
+                            viewer.design.registry,
+                            viewer.editor_state,
+                        );
+                        ui.add_space(12.0);
+                        render_stacking_rule(
+                            ui,
+                            viewer.rules.stacking_rule,
                             viewer.design.registry,
                             viewer.editor_state,
                         );
@@ -1087,6 +1095,7 @@ pub fn editor_dock_system(
             combat_results_table: &mut mechanics.combat_results_table,
             combat_modifiers: &mut mechanics.combat_modifiers,
             influence_rules: &mut mechanics.influence_rules,
+            stacking_rule: &mut mechanics.stacking_rule,
         },
         inspector: InspectorData {
             tile_position,
