@@ -27,6 +27,7 @@ fn test_app() -> App {
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<UndoStack>();
+    app.init_resource::<hexorder_contracts::hex_grid::StackingRule>();
     app
 }
 
