@@ -49,7 +49,7 @@ impl Plugin for HexGridPlugin {
                     systems::draw_los_ray,
                 )
                     .chain()
-                    .run_if(in_state(AppScreen::Editor)),
+                    .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_systems(
                 OnExit(AppScreen::Editor),
