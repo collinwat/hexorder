@@ -7,7 +7,7 @@ use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, PropertyType, PropertyValue, StructRegistry,
 };
 use hexorder_contracts::hex_grid::{
-    HexPosition, InfluenceRule, InfluenceRuleRegistry, StackingRule,
+    HexPosition, InfluenceRule, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
@@ -713,6 +713,132 @@ pub(crate) fn render_stacking_rule(
             });
         }
     }
+}
+
+/// Renders the movement cost matrix section in the Mechanics tab.
+///
+/// Shows a classification property picker (enum properties on Token types),
+/// then a 2D matrix grid: rows = BoardPosition entity types (terrain),
+/// columns = enum option values. Each cell is a DragValue for the cost.
+pub(crate) fn render_movement_cost_matrix(
+    ui: &mut egui::Ui,
+    matrix: &mut MovementCostMatrix,
+    registry: &EntityTypeRegistry,
+    enum_registry: &EnumRegistry,
+) {
+    ui.heading("Movement Cost Matrix");
+    ui.separator();
+
+    // Collect all enum properties from Token types for the classification picker.
+    let enum_props: Vec<(TypeId, String, TypeId)> = registry
+        .types
+        .iter()
+        .filter(|t| t.role == hexorder_contracts::game_system::EntityRole::Token)
+        .flat_map(|t| {
+            t.properties.iter().filter_map(|p| {
+                if let PropertyType::Enum(enum_id) = &p.property_type {
+                    Some((p.id, p.name.clone(), *enum_id))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    if enum_props.is_empty() {
+        ui.label("No enum properties on Token types. Add an enum property (e.g., \"Movement Mode\") to enable the matrix.");
+        return;
+    }
+
+    // Classification property picker.
+    let current_label = matrix
+        .classification_property_id
+        .and_then(|id| enum_props.iter().find(|(pid, _, _)| *pid == id))
+        .map_or("(none — matrix inactive)", |(_, name, _)| name.as_str());
+
+    ui.horizontal(|ui| {
+        ui.label("Classification:");
+        egui::ComboBox::from_id_salt("mcm_classification")
+            .selected_text(current_label)
+            .show_ui(ui, |ui| {
+                if ui
+                    .selectable_label(
+                        matrix.classification_property_id.is_none(),
+                        "(none — matrix inactive)",
+                    )
+                    .clicked()
+                {
+                    matrix.classification_property_id = None;
+                }
+                for (prop_id, name, _) in &enum_props {
+                    if ui
+                        .selectable_label(matrix.classification_property_id == Some(*prop_id), name)
+                        .clicked()
+                    {
+                        matrix.classification_property_id = Some(*prop_id);
+                    }
+                }
+            });
+    });
+
+    // If no classification selected, stop here.
+    let Some(prop_id) = matrix.classification_property_id else {
+        return;
+    };
+
+    // Find the enum definition for the selected property.
+    let Some((_, _, enum_id)) = enum_props.iter().find(|(pid, _, _)| *pid == prop_id) else {
+        return;
+    };
+    let Some(enum_def) = enum_registry.definitions.get(enum_id) else {
+        ui.label("Enum definition not found.");
+        return;
+    };
+
+    if enum_def.options.is_empty() {
+        ui.label("Enum has no options defined.");
+        return;
+    }
+
+    // Collect terrain types (BoardPosition role).
+    let terrain_types: Vec<(TypeId, &str)> = registry
+        .types
+        .iter()
+        .filter(|t| t.role == hexorder_contracts::game_system::EntityRole::BoardPosition)
+        .map(|t| (t.id, t.name.as_str()))
+        .collect();
+
+    if terrain_types.is_empty() {
+        ui.label("No terrain types defined.");
+        return;
+    }
+
+    // Render the matrix as a grid.
+    ui.add_space(4.0);
+    egui::Grid::new("movement_cost_matrix_grid")
+        .striped(true)
+        .show(ui, |ui| {
+            // Header row: empty corner + classification options.
+            ui.label("");
+            for option in &enum_def.options {
+                ui.label(option);
+            }
+            ui.end_row();
+
+            // Data rows: terrain type name + cost cells.
+            for (terrain_id, terrain_name) in &terrain_types {
+                ui.label(*terrain_name);
+                for option in &enum_def.options {
+                    let current = matrix.get_cost(*terrain_id, option).unwrap_or(0);
+                    let mut val = current;
+                    let response = ui.add(egui::DragValue::new(&mut val).range(0..=99).speed(0.1));
+                    if response.changed() {
+                        matrix.set_cost(*terrain_id, option.clone(), val);
+                    }
+                }
+                ui.end_row();
+            }
+        });
 }
 
 /// Renders the tile inspector panel inside the Inspector dock tab.

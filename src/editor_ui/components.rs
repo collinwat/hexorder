@@ -533,6 +533,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) mechanic_catalog: Res<'w, hexorder_contracts::mechanic_reference::MechanicCatalog>,
     pub(super) influence_rules: ResMut<'w, hexorder_contracts::hex_grid::InfluenceRuleRegistry>,
     pub(super) stacking_rule: ResMut<'w, hexorder_contracts::hex_grid::StackingRule>,
+    pub(super) movement_cost_matrix: ResMut<'w, hexorder_contracts::hex_grid::MovementCostMatrix>,
 }
 
 /// Bundled system parameter for ontology-related resources.
