@@ -1422,4 +1422,249 @@ mod tests {
         assert_eq!(deserialized.steps.len(), 1);
         assert_eq!(deserialized.max_depth, 5);
     }
+
+    // --- Integration canary: ToV-like 3-phase turn with dice → CRT → morale chain ---
+
+    #[test]
+    fn canary_three_phase_turn_with_chained_resolution() {
+        use crate::mechanics::{
+            Phase, PhaseAction, PhaseType, PlayerOrder, TurnState, TurnStructure,
+            execute_phase_action, is_phase_action_legal,
+        };
+
+        // 1. Define a 3-phase turn structure: Movement → Combat → Supply.
+        let turn_structure = TurnStructure {
+            phases: vec![
+                Phase {
+                    id: TypeId::new(),
+                    name: "Movement".to_string(),
+                    phase_type: PhaseType::Movement,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Combat".to_string(),
+                    phase_type: PhaseType::Combat,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Supply".to_string(),
+                    phase_type: PhaseType::Admin,
+                    description: String::new(),
+                },
+            ],
+            player_order: PlayerOrder::Alternating,
+        };
+
+        let mut turn_state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        // 2. Create a CRT (attack strength vs defense strength).
+        let crt = ResolutionTable {
+            id: TypeId::new(),
+            name: "Combat Results".to_string(),
+            columns: vec![
+                TableColumn {
+                    label: "1:2".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 0.5,
+                },
+                TableColumn {
+                    label: "1:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 1.0,
+                },
+                TableColumn {
+                    label: "2:1".to_string(),
+                    column_type: ColumnType::Ratio,
+                    threshold: 2.0,
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    label: "1-2".to_string(),
+                    value_min: 1,
+                    value_max: 2,
+                },
+                TableRow {
+                    label: "3-4".to_string(),
+                    value_min: 3,
+                    value_max: 4,
+                },
+                TableRow {
+                    label: "5-6".to_string(),
+                    value_min: 5,
+                    value_max: 6,
+                },
+            ],
+            outcomes: vec![
+                // Row 0 (roll 1-2): all return numeric damage values
+                vec![
+                    TableResult::NumericValue(0.0),
+                    TableResult::NumericValue(1.0),
+                    TableResult::NumericValue(2.0),
+                ],
+                // Row 1 (roll 3-4)
+                vec![
+                    TableResult::NumericValue(1.0),
+                    TableResult::NumericValue(2.0),
+                    TableResult::NumericValue(3.0),
+                ],
+                // Row 2 (roll 5-6)
+                vec![
+                    TableResult::NumericValue(2.0),
+                    TableResult::NumericValue(3.0),
+                    TableResult::NumericValue(4.0),
+                ],
+            ],
+        };
+
+        // 3. Create a morale lookup table: damage threshold → morale effect.
+        let morale_table = ResolutionTable {
+            id: TypeId::new(),
+            name: "Morale Check".to_string(),
+            columns: vec![
+                TableColumn {
+                    label: "Low".to_string(),
+                    column_type: ColumnType::Direct,
+                    threshold: 0.0,
+                },
+                TableColumn {
+                    label: "Med".to_string(),
+                    column_type: ColumnType::Direct,
+                    threshold: 2.0,
+                },
+                TableColumn {
+                    label: "High".to_string(),
+                    column_type: ColumnType::Direct,
+                    threshold: 3.0,
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    label: "1-3".to_string(),
+                    value_min: 1,
+                    value_max: 3,
+                },
+                TableRow {
+                    label: "4-6".to_string(),
+                    value_min: 4,
+                    value_max: 6,
+                },
+            ],
+            outcomes: vec![
+                vec![
+                    TableResult::NumericValue(0.0),
+                    TableResult::NumericValue(-1.0),
+                    TableResult::NumericValue(-2.0),
+                ],
+                vec![
+                    TableResult::NumericValue(0.0),
+                    TableResult::NumericValue(0.0),
+                    TableResult::NumericValue(-1.0),
+                ],
+            ],
+        };
+
+        // 4. Build the chain: CRT → Morale.
+        let mut tables = HashMap::new();
+        tables.insert(crt.id, crt.clone());
+        tables.insert(morale_table.id, morale_table.clone());
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "Combat → Morale".to_string(),
+            steps: vec![
+                ChainStep {
+                    table_id: crt.id,
+                    input_a_key: "atk_str".to_string(),
+                    input_b_key: "def_str".to_string(),
+                    roll_source: ChainRollSource::Pool(DicePool::single(6)),
+                    output_key: "damage".to_string(),
+                },
+                ChainStep {
+                    table_id: morale_table.id,
+                    input_a_key: "damage".to_string(),
+                    input_b_key: "unused".to_string(),
+                    roll_source: ChainRollSource::Pool(DicePool::single(6)),
+                    output_key: "morale_shift".to_string(),
+                },
+            ],
+            max_depth: 10,
+        };
+
+        // 5. Seed the RNG for deterministic replay.
+        let mut rng = SimulationRng::new(42);
+
+        // === Phase 1: Movement ===
+        assert_eq!(turn_state.current_phase_index, 0);
+        assert!(is_phase_action_legal(
+            PhaseAction::Advance,
+            &turn_state,
+            &turn_structure
+        ));
+
+        // Advance to Combat phase.
+        let transition =
+            execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert!(transition.is_some());
+        assert_eq!(turn_state.current_phase_index, 1);
+        assert!(!transition.as_ref().expect("t").turn_changed);
+
+        // === Phase 2: Combat ===
+        // Set up initial context with combat strengths.
+        let mut initial_context = HashMap::new();
+        initial_context.insert("atk_str".to_string(), 8.0);
+        initial_context.insert("def_str".to_string(), 3.0);
+
+        // Resolve the chain.
+        let chain_result = resolve_chain(&chain, &initial_context, &tables, &mut rng);
+
+        // Verify: 2 steps resolved, RNG was used (2 dice rolls).
+        assert_eq!(chain_result.step_log.len(), 2);
+        assert!(chain_result.step_log[0].resolution.is_some());
+        assert_eq!(chain_result.step_log[0].table_name, "Combat Results");
+        assert!(rng.roll_count() >= 2); // At least 2 die rolls (one per step)
+
+        // Verify damage was computed and fed into morale.
+        let damage = chain_result.values.get("damage");
+        assert!(damage.is_some(), "CRT should produce numeric damage");
+
+        // Morale shift may or may not have a numeric result depending on the
+        // specific CRT outcome, but the step should have resolved.
+        assert!(chain_result.step_log[1].resolution.is_some());
+        assert_eq!(chain_result.step_log[1].table_name, "Morale Check");
+
+        // Advance to Supply phase.
+        let transition =
+            execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert!(transition.is_some());
+        assert_eq!(turn_state.current_phase_index, 2);
+
+        // === Phase 3: Supply ===
+        // Advance past the last phase — should wrap to turn 2, phase 0.
+        let transition =
+            execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        let t = transition.expect("should advance");
+        assert!(t.turn_changed);
+        assert_eq!(turn_state.turn_number, 2);
+        assert_eq!(turn_state.current_phase_index, 0);
+
+        // 6. Verify deterministic replay: same seed produces same results.
+        let mut rng2 = SimulationRng::new(42);
+        let chain_result_2 = resolve_chain(&chain, &initial_context, &tables, &mut rng2);
+        assert_eq!(
+            chain_result.values.get("damage"),
+            chain_result_2.values.get("damage")
+        );
+        assert_eq!(
+            chain_result.values.get("morale_shift"),
+            chain_result_2.values.get("morale_shift")
+        );
+    }
 }

@@ -759,7 +759,7 @@ mod tests {
     fn influence_map_default_is_empty() {
         let map = InfluenceMap::default();
         assert!(map.is_empty());
-        assert!(map.get(&HexPosition::new(0, 0)).is_none());
+        assert!(map.get(HexPosition::new(0, 0)).is_none());
     }
 
     #[test]
