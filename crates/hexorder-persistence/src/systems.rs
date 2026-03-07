@@ -591,9 +591,13 @@ pub fn handle_file_command(
     }
 }
 
-/// Despawns all editor-spawned entities on `OnExit(AppScreen::Editor)`.
-/// Ensures a clean slate when returning to the launcher or re-entering the editor.
+/// Despawns all editor-spawned entities when returning to the launcher.
+/// Ensures a clean slate when re-entering the editor for a new project.
 /// The camera is NOT despawned — it is a global entity spawned at `Startup`.
+///
+/// Registered on `OnEnter(Launcher)` rather than `OnExit(Editor)` so that
+/// entities survive the Editor → Play transition (Play mode needs the hex
+/// grid and units for the 3D viewport).
 pub fn cleanup_editor_entities(
     mut commands: Commands,
     tiles: Query<Entity, With<HexTile>>,

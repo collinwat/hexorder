@@ -70,7 +70,10 @@ impl HexorderPlugin for PersistencePlugin {
         app.add_observer(systems::handle_close_project);
         app.add_observer(systems::handle_dialog_completed);
         app.add_observer(systems::handle_file_command);
-        app.add_systems(OnExit(AppScreen::Editor), systems::cleanup_editor_entities);
+        app.add_systems(
+            OnEnter(AppScreen::Launcher),
+            systems::cleanup_editor_entities,
+        );
     }
 }
 

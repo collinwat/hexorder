@@ -211,7 +211,7 @@ const APPROVED_RGB: &[(u8, u8, u8)] = &[
     (80, 152, 80),  // #509850 — success green (SUCCESS)
 ];
 
-const APPROVED_NAMED: &[&str] = &[];
+const APPROVED_NAMED: &[&str] = &["Color32::TRANSPARENT"];
 
 /// Scans `.rs` files in `editor_dir` for color literals and returns
 /// violations where a color is not in the approved brand palette.

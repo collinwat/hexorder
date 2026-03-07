@@ -126,10 +126,11 @@ pub fn play_panel_system(
         next_state.set(AppScreen::Editor);
     }
 
-    // Claim the remaining space with a transparent panel so egui doesn't
-    // paint its default background over the 3D viewport.
+    // Claim the remaining space as a transparent CentralPanel so the Bevy
+    // 3D scene renders through. egui_dock does this in Editor mode; in Play
+    // mode we must do it manually.
     egui::CentralPanel::default()
-        .frame(egui::Frame::NONE)
+        .frame(egui::Frame::NONE.fill(egui::Color32::TRANSPARENT))
         .show(ctx, |_| {});
 
     // -- About Panel --
