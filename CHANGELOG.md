@@ -5,6 +5,39 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.0] — 2026-03-07
+
+### Added
+
+- integrate edge annotations into BFS movement cost (rules_engine)
+- add EdgePaint tool with two-click edge interaction (hex_grid)
+- save and restore edge features in project files (persistence)
+- add spatial influence types (contracts)
+- integrate spatial influence into BFS (rules_engine)
+- persist influence rules in game system file (persistence)
+- add influence rules editor panel (editor_ui)
+- add StackingRule type for hex capacity limits (contracts)
+- integrate stacking constraint into BFS movement (rules_engine)
+- persist stacking rule and enforce on placement (persistence)
+- add stacking rule configuration panel (editor_ui)
+- add StackingRule to hex-grid contract spec (contracts)
+- add MovementCostMatrix type (contracts)
+- integrate movement cost matrix into BFS (rules_engine)
+- persist movement cost matrix (persistence)
+- add movement cost matrix editor panel (editor_ui)
+- add MovementCostMatrix to hex-grid spec (contracts)
+- add canary validation for all spatial primitives (rules_engine)
+
+### Changed
+
+- set up feature branch for 0.19.0-spatial-rules (project)
+- bump version to 0.19.0 (project)
+
+### Fixed
+
+- init StackingRule in test_app for coverage (unit)
+- work around macOS 26 Metal malloc crash in debug builds (project)
+
 ## [0.18.0] — 2026-03-06
 
 ### Changed
@@ -17,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - extract to hexorder-rules-engine crate (rules_engine)
 - add new crates to deny.toml license exceptions (project)
 - bump version to 0.18.0 (project)
+- update changelog for 0.18.0 (project)
 
 ### Fixed
 
