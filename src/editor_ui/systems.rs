@@ -605,6 +605,7 @@ pub(crate) fn render_status_bar_content(
             EditorTool::Paint => "Paint",
             EditorTool::Place => "Place",
             EditorTool::EdgePaint => "Edge Paint",
+            EditorTool::CombatSelect => "Combat Select",
         };
         ui.label(
             egui::RichText::new(tool_label)

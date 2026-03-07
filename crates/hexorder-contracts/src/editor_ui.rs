@@ -17,6 +17,9 @@ pub enum EditorTool {
     /// First click selects a hex, second click on an adjacent hex assigns
     /// the active edge feature type to the shared boundary.
     EdgePaint,
+    /// Two-click combat selection: first click assigns attacker, second
+    /// click assigns defender. Only active during Combat phases.
+    CombatSelect,
 }
 
 /// Holds the material handle for the currently active paint color.

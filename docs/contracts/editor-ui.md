@@ -38,6 +38,8 @@ pub enum EditorTool {
     Place,
     /// Two-click edge paint: first click selects hex, second click on adjacent hex assigns/removes edge feature.
     EdgePaint,
+    /// Two-click combat selection: first click assigns attacker, second click assigns defender. Only active during Combat phases.
+    CombatSelect,
 }
 ```
 
@@ -171,3 +173,4 @@ pub enum ToastKind {
 | 2026-02-18 | Added Selection resource                                | Multi-selection for bulk operations (Shift+click, Cmd+A)              |
 | 2026-02-21 | Added ViewportRect resource and pointer_over_ui_panel   | Dockable panels input passthrough (DockArea covers full window)       |
 | 2026-03-06 | Added EdgePaint variant, SelectedEdge, ActiveEdgeType   | Two-click edge annotation tool for spatial rules                      |
+| 2026-03-07 | Added CombatSelect variant                              | Click-to-assign attacker/defender in Combat phase (#235)              |

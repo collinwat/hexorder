@@ -10,6 +10,7 @@ use hexorder_contracts::game_system::{
     UnitInstance, UnitPlacedEvent,
 };
 use hexorder_contracts::hex_grid::{HexGridConfig, HexMoveEvent, HexPosition, HexSelectedEvent};
+use hexorder_contracts::mechanics::ActiveCombat;
 use hexorder_contracts::undo_redo::{PlaceUnitCommand, UndoStack};
 use hexorder_contracts::validation::ValidMoveSet;
 
@@ -227,6 +228,56 @@ pub fn handle_unit_interaction(
 
         selected_unit.entity = None;
     }
+}
+
+/// Handles combat selection in `CombatSelect` tool mode.
+///
+/// First click on a unit assigns it as **attacker**; second click assigns
+/// **defender**. Clicking the same unit twice deselects it. Resetting
+/// either combatant clears the resolution state.
+pub fn handle_combat_select(
+    trigger: On<HexSelectedEvent>,
+    tool: Res<EditorTool>,
+    mut active_combat: ResMut<ActiveCombat>,
+    units: Query<(Entity, &HexPosition), With<UnitInstance>>,
+) {
+    if *tool != EditorTool::CombatSelect {
+        return;
+    }
+
+    let clicked_pos = trigger.event().position;
+
+    let unit_at_pos = units
+        .iter()
+        .find(|(_, pos)| **pos == clicked_pos)
+        .map(|(e, _)| e);
+
+    let Some(entity) = unit_at_pos else {
+        return; // Clicked empty hex — ignore.
+    };
+
+    if active_combat.attacker == Some(entity) {
+        // Clicked current attacker → deselect.
+        active_combat.attacker = None;
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    } else if active_combat.defender == Some(entity) {
+        // Clicked current defender → deselect.
+        active_combat.defender = None;
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    } else if active_combat.attacker.is_none() {
+        // No attacker yet → assign.
+        active_combat.attacker = Some(entity);
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    } else if active_combat.defender.is_none() {
+        // Attacker set, no defender → assign.
+        active_combat.defender = Some(entity);
+        active_combat.die_roll = None;
+        active_combat.outcome = None;
+    }
+    // Both already set — ignore (deselect first to reassign).
 }
 
 // ---------------------------------------------------------------------------

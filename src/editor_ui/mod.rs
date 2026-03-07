@@ -191,6 +191,7 @@ fn handle_editor_ui_command(
         "tool.paint" => *tool = EditorTool::Paint,
         "tool.place" => *tool = EditorTool::Place,
         "tool.edge_paint" => *tool = EditorTool::EdgePaint,
+        "tool.combat_select" => *tool = EditorTool::CombatSelect,
         "mode.editor" => next_state.set(AppScreen::Editor),
         "mode.close" => commands.trigger(CloseProjectEvent),
         "edit.delete" => {
@@ -342,6 +343,14 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         name: "Edge Paint Tool".to_string(),
         description: "Switch to edge paint mode".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::Digit4, Modifiers::NONE)],
+        category: CommandCategory::Tool,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("tool.combat_select"),
+        name: "Combat Select Tool".to_string(),
+        description: "Click units to assign attacker/defender".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit5, Modifiers::NONE)],
         category: CommandCategory::Tool,
         continuous: false,
     });

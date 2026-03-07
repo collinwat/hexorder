@@ -465,6 +465,13 @@ pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) 
         {
             *editor_tool = EditorTool::EdgePaint;
         }
+        if ui
+            .selectable_label(*editor_tool == EditorTool::CombatSelect, "Combat")
+            .on_hover_text("Click units to assign attacker/defender (5)")
+            .clicked()
+        {
+            *editor_tool = EditorTool::CombatSelect;
+        }
     });
     ui.separator();
 }

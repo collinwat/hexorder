@@ -42,7 +42,8 @@ impl HexorderPlugin for UnitPlugin {
                     .run_if(in_state(AppScreen::Editor).or(in_state(AppScreen::Play))),
             )
             .add_observer(systems::handle_unit_placement)
-            .add_observer(systems::handle_unit_interaction);
+            .add_observer(systems::handle_unit_interaction)
+            .add_observer(systems::handle_combat_select);
     }
 }
 

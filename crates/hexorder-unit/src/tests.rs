@@ -980,3 +980,132 @@ fn assign_unit_visuals_adds_mesh_to_bare_units() {
         "Unit should have MeshMaterial3d after assign_unit_visuals"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CombatSelect tool mode tests
+// ---------------------------------------------------------------------------
+
+use hexorder_contracts::mechanics::ActiveCombat;
+
+/// Helper: set up an app with CombatSelect tool, two placed units, and the observer.
+fn combat_select_app() -> (App, Entity, Entity) {
+    let mut app = test_app();
+    setup_unit_resources(&mut app);
+    app.update();
+
+    app.world_mut().insert_resource(EditorTool::CombatSelect);
+    app.world_mut().insert_resource(ActiveCombat::default());
+    app.add_observer(systems::handle_combat_select);
+
+    // Spawn two units at different positions.
+    let registry = app.world().resource::<EntityTypeRegistry>();
+    let type_id = registry.types_by_role(EntityRole::Token)[0].id;
+
+    let attacker = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(0, 0),
+            EntityData {
+                entity_type_id: type_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+    let defender = app
+        .world_mut()
+        .spawn((
+            UnitInstance,
+            HexPosition::new(1, 0),
+            EntityData {
+                entity_type_id: type_id,
+                properties: HashMap::new(),
+            },
+            Transform::default(),
+        ))
+        .id();
+
+    (app, attacker, defender)
+}
+
+#[test]
+fn combat_select_first_click_sets_attacker() {
+    let (mut app, attacker, _) = combat_select_app();
+
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let combat = app.world().resource::<ActiveCombat>();
+    assert_eq!(combat.attacker, Some(attacker));
+    assert_eq!(combat.defender, None);
+}
+
+#[test]
+fn combat_select_second_click_sets_defender() {
+    let (mut app, attacker, defender) = combat_select_app();
+
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(1, 0),
+    });
+    app.update();
+
+    let combat = app.world().resource::<ActiveCombat>();
+    assert_eq!(combat.attacker, Some(attacker));
+    assert_eq!(combat.defender, Some(defender));
+}
+
+#[test]
+fn combat_select_click_attacker_again_deselects() {
+    let (mut app, _, _) = combat_select_app();
+
+    // Set attacker.
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    // Click attacker again → deselect.
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let combat = app.world().resource::<ActiveCombat>();
+    assert_eq!(combat.attacker, None);
+}
+
+#[test]
+fn combat_select_empty_hex_ignored() {
+    let (mut app, _, _) = combat_select_app();
+
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(3, 3),
+    });
+    app.update();
+
+    let combat = app.world().resource::<ActiveCombat>();
+    assert_eq!(combat.attacker, None);
+    assert_eq!(combat.defender, None);
+}
+
+#[test]
+fn combat_select_wrong_tool_ignored() {
+    let (mut app, _, _) = combat_select_app();
+    app.world_mut().insert_resource(EditorTool::Select);
+
+    app.world_mut().trigger(HexSelectedEvent {
+        position: HexPosition::new(0, 0),
+    });
+    app.update();
+
+    let combat = app.world().resource::<ActiveCombat>();
+    assert_eq!(combat.attacker, None);
+}
