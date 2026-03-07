@@ -9,7 +9,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{
     HexEdge, HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceEntry, InfluenceMap,
-    InfluenceRuleRegistry,
+    InfluenceRuleRegistry, StackingRule,
 };
 use hexorder_contracts::ontology::{
     ConceptBinding, ConceptRegistry, ConstraintExpr, ConstraintRegistry, ModifyOperation,
@@ -35,6 +35,7 @@ pub fn compute_valid_moves(
     grid_config: Res<HexGridConfig>,
     edge_registry: Res<HexEdgeRegistry>,
     influence_rules: Res<InfluenceRuleRegistry>,
+    stacking_rule: Res<StackingRule>,
     mut influence_map: ResMut<InfluenceMap>,
     mut valid_moves: ResMut<ValidMoveSet>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
@@ -47,6 +48,7 @@ pub fn compute_valid_moves(
         && !constraints.is_changed()
         && !edge_registry.is_changed()
         && !influence_rules.is_changed()
+        && !stacking_rule.is_changed()
     {
         return;
     }
@@ -70,6 +72,19 @@ pub fn compute_valid_moves(
     // Build a spatial lookup for tiles.
     let tile_lookup: HashMap<HexPosition, &EntityData> =
         tiles.iter().map(|(pos, data)| (*pos, data)).collect();
+
+    // Build unit count lookup (non-exempt units per hex) for stacking checks.
+    let unit_counts: HashMap<HexPosition, u32> = if stacking_rule.is_active() {
+        let mut counts: HashMap<HexPosition, u32> = HashMap::new();
+        for (pos, data) in units.iter() {
+            if !stacking_rule.is_exempt(data.entity_type_id) {
+                *counts.entry(*pos).or_insert(0) += 1;
+            }
+        }
+        counts
+    } else {
+        HashMap::new()
+    };
 
     let map_radius = grid_config.map_radius;
 
@@ -121,6 +136,8 @@ pub fn compute_valid_moves(
         edge_registry: &edge_registry,
         influence_map: &influence_map,
         unit_pos: *unit_pos,
+        stacking_rule: &stacking_rule,
+        unit_counts: &unit_counts,
     };
 
     // BFS with budget tracking.
@@ -190,6 +207,8 @@ struct StepContext<'a> {
     influence_map: &'a InfluenceMap,
     /// Position of the moving unit (to exclude self-influence).
     unit_pos: HexPosition,
+    stacking_rule: &'a StackingRule,
+    unit_counts: &'a HashMap<HexPosition, u32>,
 }
 
 /// Result of evaluating a single BFS step into a neighbor hex.
@@ -404,6 +423,26 @@ fn evaluate_step(
                     ),
                 });
             }
+        }
+    }
+
+    // Check stacking constraint on the target hex.
+    if ctx.stacking_rule.is_active() {
+        let current_count = ctx.unit_counts.get(&target_pos).copied().unwrap_or(0);
+        if ctx
+            .stacking_rule
+            .would_exceed(ctx.unit_data.entity_type_id, current_count)
+        {
+            has_block = true;
+            blocked_reasons.push(ValidationResult {
+                constraint_id: TypeId(uuid::Uuid::nil()),
+                constraint_name: "Stacking limit".to_string(),
+                satisfied: false,
+                explanation: format!(
+                    "Hex ({}, {}) has {current_count}/{} units",
+                    target_pos.q, target_pos.r, ctx.stacking_rule.max_units,
+                ),
+            });
         }
     }
 

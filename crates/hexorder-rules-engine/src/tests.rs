@@ -10,7 +10,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{
     HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceMap, InfluenceRule,
-    InfluenceRuleRegistry,
+    InfluenceRuleRegistry, StackingRule,
 };
 use hexorder_contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
@@ -3776,5 +3776,209 @@ fn influence_map_is_computed() {
     assert!(
         influence_map.get(&HexPosition::new(2, 0)).is_none(),
         "(2,0) should not be influenced — out of range"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Stacking constraint tests
+// ---------------------------------------------------------------------------
+
+/// When a stacking limit is active and a hex is at capacity,
+/// that hex should be blocked as a move destination.
+#[test]
+fn stacking_blocks_movement_to_full_hex() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Set stacking limit to 1.
+    app.insert_resource(StackingRule {
+        max_units: 1,
+        exempt_type_ids: Vec::new(),
+    });
+
+    // Place a blocking unit at (1, 0).
+    spawn_unit(
+        &mut app,
+        1,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+
+    // Place the selected unit at origin.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // (1, 0) is at capacity — should be blocked.
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "(1,0) should be blocked by stacking limit"
+    );
+    assert!(
+        valid_moves
+            .blocked_explanations
+            .contains_key(&HexPosition::new(1, 0)),
+        "should have blocked explanation for (1,0)"
+    );
+}
+
+/// When no stacking rule is active, movement is not restricted by unit count.
+#[test]
+fn no_stacking_rule_allows_all_movement() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Default stacking rule (inactive, max_units=0).
+
+    // Place a unit at (1, 0).
+    spawn_unit(
+        &mut app,
+        1,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+
+    // Place the selected unit at origin.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // No stacking rule — (1, 0) should be valid.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "(1,0) should be reachable with no stacking limit"
+    );
+}
+
+/// Exempt types can move to a full hex.
+#[test]
+fn stacking_exempt_type_can_enter_full_hex() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let exempt_type_id = TypeId::new();
+    app.insert_resource(StackingRule {
+        max_units: 1,
+        exempt_type_ids: vec![exempt_type_id],
+    });
+
+    // Register the exempt type.
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .push(hexorder_contracts::game_system::EntityType {
+            id: exempt_type_id,
+            name: "Marker".to_string(),
+            role: hexorder_contracts::game_system::EntityRole::Token,
+            color: bevy::color::Color::WHITE,
+            properties: vec![hexorder_contracts::game_system::PropertyDefinition {
+                id: setup.budget_prop_id,
+                name: "MP".to_string(),
+                property_type: hexorder_contracts::game_system::PropertyType::Int,
+                default_value: PropertyValue::Int(0),
+            }],
+        });
+
+    // Bind exempt type to the motion concept.
+    app.world_mut()
+        .resource_mut::<ConceptRegistry>()
+        .bindings
+        .push(hexorder_contracts::ontology::ConceptBinding {
+            id: TypeId::new(),
+            entity_type_id: exempt_type_id,
+            concept_id: setup.concept_id,
+            concept_role_id: setup.traveler_role_id,
+            property_bindings: Vec::new(),
+        });
+
+    // Place a normal unit at (1, 0) to fill it.
+    spawn_unit(
+        &mut app,
+        1,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+
+    // Place an exempt unit at origin.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: exempt_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Exempt type should be able to enter the full hex.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "(1,0) should be reachable for exempt type despite stacking limit"
     );
 }
