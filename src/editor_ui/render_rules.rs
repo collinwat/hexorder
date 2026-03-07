@@ -13,7 +13,7 @@ use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
     TurnStructure,
 };
-use hexorder_contracts::simulation::ColumnType;
+use hexorder_contracts::simulation::{ColumnType, find_table_column, find_table_row};
 use hexorder_contracts::validation::SchemaValidation;
 
 use super::actions::{bevy_color_to_egui, egui_color_to_bevy};
@@ -336,7 +336,7 @@ pub(crate) fn render_mechanics_tab(
 
     ui.add_space(4.0);
 
-    // Outcome grid (editable).
+    // Outcome grid (editable) with live preview.
     if !crt.table.columns.is_empty() && !crt.table.rows.is_empty() {
         // Sync edit buffer when CRT dimensions change.
         let num_rows = crt.table.rows.len();
@@ -366,36 +366,60 @@ pub(crate) fn render_mechanics_tab(
                 .small()
                 .color(BrandTheme::TEXT_SECONDARY),
         );
+
+        // Live preview: resolve test inputs to column/row.
+        let preview_col = find_table_column(
+            editor_state.table_test_input_a,
+            editor_state.table_test_input_b,
+            &crt.table.columns,
+        );
+        let preview_row = find_table_row(editor_state.table_test_die_roll, &crt.table.rows);
+
         egui::Grid::new("crt_outcome_grid")
             .striped(true)
             .show(ui, |ui| {
                 // Header row.
                 ui.label("");
-                for col in &crt.table.columns {
+                for (ci, col) in crt.table.columns.iter().enumerate() {
+                    let is_highlight_col = preview_col == Some(ci);
+                    let color = if is_highlight_col {
+                        BrandTheme::ACCENT_AMBER
+                    } else {
+                        BrandTheme::ACCENT_TEAL
+                    };
                     ui.label(
                         egui::RichText::new(&col.label)
                             .small()
                             .strong()
-                            .color(BrandTheme::ACCENT_TEAL),
+                            .color(color),
                     );
                 }
                 ui.end_row();
 
                 // Data rows with editable cells.
                 for (ri, row) in crt.table.rows.iter().enumerate() {
+                    let is_highlight_row = preview_row == Some(ri);
+                    let row_color = if is_highlight_row {
+                        BrandTheme::ACCENT_AMBER
+                    } else {
+                        BrandTheme::ACCENT_TEAL
+                    };
                     ui.label(
                         egui::RichText::new(&row.label)
                             .small()
                             .strong()
-                            .color(BrandTheme::ACCENT_TEAL),
+                            .color(row_color),
                     );
                     for ci in 0..num_cols {
+                        let is_resolved_cell = preview_col == Some(ci) && preview_row == Some(ri);
                         let cell = &mut editor_state.crt_outcome_labels[ri][ci];
-                        let response = ui.add(
-                            egui::TextEdit::singleline(cell)
-                                .desired_width(28.0)
-                                .font(egui::TextStyle::Small),
-                        );
+                        let mut text_edit = egui::TextEdit::singleline(cell)
+                            .desired_width(28.0)
+                            .font(egui::TextStyle::Small);
+                        if is_resolved_cell {
+                            text_edit = text_edit.text_color(BrandTheme::ACCENT_AMBER);
+                        }
+                        let response = ui.add(text_edit);
                         if response.lost_focus() || response.changed() {
                             actions.push(EditorAction::SetCrtOutcome {
                                 row: ri,
@@ -407,6 +431,47 @@ pub(crate) fn render_mechanics_tab(
                     ui.end_row();
                 }
             });
+
+        // Test inputs for live preview.
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new("Live Preview")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("A:").small());
+            ui.add(
+                egui::DragValue::new(&mut editor_state.table_test_input_a)
+                    .range(0.0..=9999.0)
+                    .speed(0.5),
+            );
+            ui.label(egui::RichText::new("B:").small());
+            ui.add(
+                egui::DragValue::new(&mut editor_state.table_test_input_b)
+                    .range(0.0..=9999.0)
+                    .speed(0.5),
+            );
+            ui.label(egui::RichText::new("Die:").small());
+            ui.add(egui::DragValue::new(&mut editor_state.table_test_die_roll).range(1..=100));
+        });
+        // Show resolved result.
+        if let (Some(ci), Some(ri)) = (preview_col, preview_row) {
+            let result_label = crt
+                .outcomes
+                .get(ri)
+                .and_then(|r| r.get(ci))
+                .map_or("--", |o| o.label.as_str());
+            ui.label(
+                egui::RichText::new(format!(
+                    "→ {} [{}] × [{}] = {}",
+                    "Result:", crt.table.columns[ci].label, crt.table.rows[ri].label, result_label
+                ))
+                .small()
+                .strong()
+                .color(BrandTheme::ACCENT_AMBER),
+            );
+        }
     }
 
     ui.separator();

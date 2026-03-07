@@ -360,6 +360,14 @@ pub struct EditorState {
     /// Re-synced from `CombatResultsTable` when dimensions change.
     pub crt_outcome_labels: Vec<Vec<String>>,
 
+    // -- Table editor live preview --
+    /// Test input A for table resolution preview.
+    pub table_test_input_a: f64,
+    /// Test input B for table resolution preview.
+    pub table_test_input_b: f64,
+    /// Test die roll for table resolution preview.
+    pub table_test_die_roll: u32,
+
     // Constraint editor
     pub new_constraint_name: String,
     pub new_constraint_description: String,
@@ -479,6 +487,9 @@ impl Default for EditorState {
             new_modifier_shift: 0,
             new_modifier_priority: 0,
             crt_outcome_labels: Vec::new(),
+            table_test_input_a: 0.0,
+            table_test_input_b: 0.0,
+            table_test_die_roll: 1,
             new_constraint_name: String::new(),
             new_constraint_description: String::new(),
             new_constraint_concept_index: 0,
