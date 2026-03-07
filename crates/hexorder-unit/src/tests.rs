@@ -993,6 +993,12 @@ fn combat_select_app() -> (App, Entity, Entity) {
     setup_unit_resources(&mut app);
     app.update();
 
+    // Combat select only works in Play mode.
+    app.world_mut()
+        .resource_mut::<NextState<AppScreen>>()
+        .set(AppScreen::Play);
+    app.update();
+
     app.world_mut().insert_resource(EditorTool::CombatSelect);
     app.world_mut().insert_resource(ActiveCombat::default());
     app.add_observer(systems::handle_combat_select);
