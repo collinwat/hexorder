@@ -8,7 +8,10 @@ use hexorder_contracts::game_system::{
     EntityData, EntityRole, EntityType, EntityTypeRegistry, PropertyDefinition, PropertyType,
     PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use hexorder_contracts::hex_grid::{HexEdgeRegistry, HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::hex_grid::{
+    HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceMap, InfluenceRule,
+    InfluenceRuleRegistry,
+};
 use hexorder_contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
     ModifyOperation, PropertyBinding, Relation, RelationEffect, RelationRegistry, RelationTrigger,
@@ -3519,5 +3522,259 @@ fn no_edge_features_means_terrain_cost_only() {
             .valid_positions
             .contains(&HexPosition::new(3, 0)),
         "Without edge features, 3 hexes away should be reachable"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Spatial Influence Tests
+// ---------------------------------------------------------------------------
+
+/// Place an enemy unit with an influence rule (range 1, cost +2).
+/// The selected unit entering hexes adjacent to the enemy should pay extra.
+#[test]
+fn influence_increases_movement_cost() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 6, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Define an "enemy" entity type that projects influence.
+    let enemy_type_id = TypeId::new();
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .push(EntityType {
+            id: enemy_type_id,
+            name: "Enemy".to_string(),
+            role: EntityRole::Token,
+            color: bevy::color::Color::srgb(1.0, 0.0, 0.0),
+            properties: Vec::new(),
+        });
+
+    // Add influence rule: enemy projects +2 cost into adjacent hexes.
+    let rule_id = TypeId::new();
+    app.insert_resource(InfluenceRuleRegistry {
+        rules: vec![InfluenceRule {
+            id: rule_id,
+            entity_type_id: enemy_type_id,
+            range: 1,
+            cost_modifier: 2,
+        }],
+    });
+
+    // Place enemy at (2, 0).
+    spawn_unit(
+        &mut app,
+        2,
+        0,
+        EntityData {
+            entity_type_id: enemy_type_id,
+            properties: HashMap::new(),
+        },
+    );
+
+    // Place our unit at (0, 0) with budget 6, terrain cost 1.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(6));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // (1, 0) is adjacent to the enemy at (2, 0), so entering costs 1 (terrain) + 2 (influence) = 3.
+    // From (0,0) with budget 6: after entering (1,0) we have 6-3=3 remaining.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Should still be reachable but with higher cost"
+    );
+
+    // (3, 0) is also adjacent to enemy (2,0), costs 1+2=3 to enter.
+    // Path (0,0)→(1,0)→(2,0)→(3,0): cost 3+1+3=7 > 6, so (3,0) should NOT be reachable
+    // via the direct path. But (2,0) is also adjacent to enemy, costs 1+2=3 from (1,0) leaving 0.
+    // So (2,0) is reachable but with 0 budget, meaning (3,0) is not.
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0)),
+        "Should not be reachable: influence + terrain cost exceeds budget"
+    );
+}
+
+/// Without influence rules, movement is unaffected (backward compatibility).
+#[test]
+fn no_influence_rules_means_normal_movement() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // No influence rules (default empty).
+    app.insert_resource(InfluenceRuleRegistry::default());
+
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // With budget 4 and terrain cost 1, should reach 4 hexes out.
+    // But map_radius is 3, so we can reach up to 3 hexes.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0))
+    );
+}
+
+/// Unit should not be affected by its own influence projection.
+#[test]
+fn self_influence_is_excluded() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Make the unit's own type project influence.
+    let rule_id = TypeId::new();
+    app.insert_resource(InfluenceRuleRegistry {
+        rules: vec![InfluenceRule {
+            id: rule_id,
+            entity_type_id: setup.unit_type_id,
+            range: 1,
+            cost_modifier: 10,
+        }],
+    });
+
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // Adjacent hex (1,0) has influence from our own unit at (0,0).
+    // Self-influence should be excluded, so cost is just terrain (1).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Self-influence should not apply — adjacent hex should be reachable"
+    );
+    // Should still reach 3 hexes with budget 4.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0))
+    );
+}
+
+/// Influence map is populated as a resource after BFS computation.
+#[test]
+fn influence_map_is_computed() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let enemy_type_id = TypeId::new();
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .push(EntityType {
+            id: enemy_type_id,
+            name: "Enemy".to_string(),
+            role: EntityRole::Token,
+            color: bevy::color::Color::srgb(1.0, 0.0, 0.0),
+            properties: Vec::new(),
+        });
+
+    app.insert_resource(InfluenceRuleRegistry {
+        rules: vec![InfluenceRule {
+            id: TypeId::new(),
+            entity_type_id: enemy_type_id,
+            range: 1,
+            cost_modifier: 3,
+        }],
+    });
+
+    // Place enemy at (0, 0).
+    spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: enemy_type_id,
+            properties: HashMap::new(),
+        },
+    );
+
+    // Place our unit at (2, 0).
+    let unit = spawn_unit(
+        &mut app,
+        2,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+    let influence_map = app.world().resource::<InfluenceMap>();
+
+    // Enemy at (0,0) with range 1 should influence all 6 adjacent hexes.
+    assert!(
+        !influence_map.is_empty(),
+        "Influence map should be populated"
+    );
+    assert!(
+        influence_map.get(&HexPosition::new(1, 0)).is_some(),
+        "(1,0) should be influenced by enemy at (0,0)"
+    );
+    assert!(
+        influence_map.get(&HexPosition::new(0, 1)).is_some(),
+        "(0,1) should be influenced by enemy at (0,0)"
+    );
+    // (2,0) is 2 steps away — should NOT be influenced with range 1.
+    assert!(
+        influence_map.get(&HexPosition::new(2, 0)).is_none(),
+        "(2,0) should not be influenced — out of range"
     );
 }

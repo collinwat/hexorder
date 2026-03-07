@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 use hexorder_sdk::{HexorderPlugin, PluginId};
 
+use hexorder_contracts::hex_grid::{InfluenceMap, InfluenceRuleRegistry};
 use hexorder_contracts::persistence::AppScreen;
 use hexorder_contracts::validation::ValidMoveSet;
 
@@ -30,6 +31,8 @@ impl HexorderPlugin for RulesEnginePlugin {
 
     fn build(&self, app: &mut App) {
         app.init_resource::<ValidMoveSet>();
+        app.init_resource::<InfluenceRuleRegistry>();
+        app.init_resource::<InfluenceMap>();
         app.add_systems(
             Update,
             systems::compute_valid_moves.run_if(in_state(AppScreen::Editor)),

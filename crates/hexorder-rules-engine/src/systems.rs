@@ -7,7 +7,10 @@ use bevy::prelude::*;
 use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, PropertyValue, SelectedUnit, TypeId, UnitInstance,
 };
-use hexorder_contracts::hex_grid::{HexEdge, HexEdgeRegistry, HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::hex_grid::{
+    HexEdge, HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceEntry, InfluenceMap,
+    InfluenceRuleRegistry,
+};
 use hexorder_contracts::ontology::{
     ConceptBinding, ConceptRegistry, ConstraintExpr, ConstraintRegistry, ModifyOperation,
     RelationEffect, RelationRegistry, RelationTrigger,
@@ -31,6 +34,8 @@ pub fn compute_valid_moves(
     entity_types: Res<EntityTypeRegistry>,
     grid_config: Res<HexGridConfig>,
     edge_registry: Res<HexEdgeRegistry>,
+    influence_rules: Res<InfluenceRuleRegistry>,
+    mut influence_map: ResMut<InfluenceMap>,
     mut valid_moves: ResMut<ValidMoveSet>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
     tiles: Query<(&HexPosition, &EntityData), (With<HexTile>, Without<UnitInstance>)>,
@@ -41,6 +46,7 @@ pub fn compute_valid_moves(
         && !relations.is_changed()
         && !constraints.is_changed()
         && !edge_registry.is_changed()
+        && !influence_rules.is_changed()
     {
         return;
     }
@@ -66,6 +72,15 @@ pub fn compute_valid_moves(
         tiles.iter().map(|(pos, data)| (*pos, data)).collect();
 
     let map_radius = grid_config.map_radius;
+
+    // Compute influence map from all units and influence rules.
+    compute_influence_map(
+        &influence_rules,
+        &units,
+        *unit_pos,
+        map_radius,
+        &mut influence_map,
+    );
 
     // Collect OnEnter relations.
     let on_enter_relations: Vec<_> = relations
@@ -104,6 +119,8 @@ pub fn compute_valid_moves(
         concepts: &concepts,
         entity_types: &entity_types,
         edge_registry: &edge_registry,
+        influence_map: &influence_map,
+        unit_pos: *unit_pos,
     };
 
     // BFS with budget tracking.
@@ -170,6 +187,9 @@ struct StepContext<'a> {
     concepts: &'a ConceptRegistry,
     entity_types: &'a EntityTypeRegistry,
     edge_registry: &'a HexEdgeRegistry,
+    influence_map: &'a InfluenceMap,
+    /// Position of the moving unit (to exclude self-influence).
+    unit_pos: HexPosition,
 }
 
 /// Result of evaluating a single BFS step into a neighbor hex.
@@ -211,6 +231,52 @@ fn is_within_bounds(pos: HexPosition, map_radius: u32) -> bool {
     let r = pos.r.unsigned_abs();
     let s = (pos.q + pos.r).unsigned_abs();
     q.max(r).max(s) <= map_radius
+}
+
+/// Computes the influence map from all placed units and the influence rule registry.
+///
+/// For each unit on the board, checks if its entity type has an influence rule.
+/// If so, projects influence into all hexes within the rule's range. The
+/// selected unit's position is excluded so it doesn't influence itself.
+fn compute_influence_map(
+    rules: &InfluenceRuleRegistry,
+    units: &Query<(&HexPosition, &EntityData), With<UnitInstance>>,
+    _selected_unit_pos: HexPosition,
+    map_radius: u32,
+    influence_map: &mut InfluenceMap,
+) {
+    influence_map.clear();
+
+    if rules.rules.is_empty() {
+        return;
+    }
+
+    for (unit_pos, unit_data) in units.iter() {
+        for rule in &rules.rules {
+            if unit_data.entity_type_id != rule.entity_type_id {
+                continue;
+            }
+            // Project influence to all hexes within range.
+            let center = unit_pos.to_hex();
+            for ring in 1..=rule.range {
+                for hex in center.ring(ring) {
+                    let pos = HexPosition::from_hex(hex);
+                    if !is_within_bounds(pos, map_radius) {
+                        continue;
+                    }
+                    influence_map
+                        .influenced
+                        .entry(pos)
+                        .or_default()
+                        .push(InfluenceEntry {
+                            source_pos: *unit_pos,
+                            rule_id: rule.id,
+                            cost_modifier: rule.cost_modifier,
+                        });
+                }
+            }
+        }
+    }
 }
 
 /// Determines the initial movement budget for a unit based on its concept
@@ -309,6 +375,35 @@ fn evaluate_step(
                     target_pos.r,
                 ),
             });
+        }
+    }
+
+    // Check spatial influence on the target hex.
+    if let Some(entries) = ctx.influence_map.get(&target_pos) {
+        for entry in entries {
+            // Don't apply influence from the moving unit's own position.
+            if entry.source_pos == ctx.unit_pos {
+                continue;
+            }
+            cost += entry.cost_modifier;
+        }
+        if remaining_budget - cost < 0 && !entries.is_empty() {
+            let total_influence: i64 = entries
+                .iter()
+                .filter(|e| e.source_pos != ctx.unit_pos)
+                .map(|e| e.cost_modifier)
+                .sum();
+            if total_influence > 0 {
+                blocked_reasons.push(ValidationResult {
+                    constraint_id: TypeId(uuid::Uuid::nil()),
+                    constraint_name: "Spatial influence".to_string(),
+                    satisfied: false,
+                    explanation: format!(
+                        "Cannot reach ({}, {}): influence cost +{total_influence} exceeds remaining budget of {remaining_budget}",
+                        target_pos.q, target_pos.r,
+                    ),
+                });
+            }
         }
     }
 
