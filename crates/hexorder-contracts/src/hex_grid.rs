@@ -342,6 +342,50 @@ impl InfluenceMap {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Stacking Constraint
+// ---------------------------------------------------------------------------
+
+/// A game system rule limiting how many units can occupy a single hex.
+///
+/// When `max_units` is 0, stacking is unlimited. Entity types listed in
+/// `exempt_type_ids` do not count toward the limit and can always be placed.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
+pub struct StackingRule {
+    /// Maximum number of non-exempt units per hex. 0 means unlimited.
+    pub max_units: u32,
+    /// Entity type IDs that are exempt from the stacking limit.
+    pub exempt_type_ids: Vec<TypeId>,
+}
+
+impl StackingRule {
+    /// Returns true if the stacking limit is active (non-zero).
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.max_units > 0
+    }
+
+    /// Returns true if the given entity type is exempt from stacking.
+    #[must_use]
+    pub fn is_exempt(&self, type_id: TypeId) -> bool {
+        self.exempt_type_ids.contains(&type_id)
+    }
+
+    /// Checks whether placing one more unit of the given type at a hex
+    /// with `current_count` non-exempt units would exceed the limit.
+    #[must_use]
+    pub fn would_exceed(&self, type_id: TypeId, current_non_exempt: u32) -> bool {
+        if !self.is_active() {
+            return false;
+        }
+        if self.is_exempt(type_id) {
+            return false;
+        }
+        current_non_exempt >= self.max_units
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -702,5 +746,60 @@ mod tests {
         assert!(!map.is_empty());
         map.clear();
         assert!(map.is_empty());
+    }
+
+    // -- Stacking Rule tests --
+
+    #[test]
+    fn stacking_rule_default_is_inactive() {
+        let rule = StackingRule::default();
+        assert!(!rule.is_active());
+        assert!(!rule.would_exceed(TypeId::new(), 100));
+    }
+
+    #[test]
+    fn stacking_rule_active_when_nonzero() {
+        let rule = StackingRule {
+            max_units: 2,
+            exempt_type_ids: Vec::new(),
+        };
+        assert!(rule.is_active());
+    }
+
+    #[test]
+    fn stacking_rule_blocks_when_at_capacity() {
+        let rule = StackingRule {
+            max_units: 2,
+            exempt_type_ids: Vec::new(),
+        };
+        let unit_type = TypeId::new();
+        assert!(!rule.would_exceed(unit_type, 0));
+        assert!(!rule.would_exceed(unit_type, 1));
+        assert!(rule.would_exceed(unit_type, 2));
+        assert!(rule.would_exceed(unit_type, 5));
+    }
+
+    #[test]
+    fn stacking_rule_exempt_type_never_blocked() {
+        let exempt_id = TypeId::new();
+        let rule = StackingRule {
+            max_units: 1,
+            exempt_type_ids: vec![exempt_id],
+        };
+        assert!(rule.is_exempt(exempt_id));
+        assert!(!rule.would_exceed(exempt_id, 1));
+        assert!(!rule.would_exceed(exempt_id, 100));
+    }
+
+    #[test]
+    fn stacking_rule_non_exempt_blocked_at_capacity() {
+        let exempt_id = TypeId::new();
+        let normal_id = TypeId::new();
+        let rule = StackingRule {
+            max_units: 1,
+            exempt_type_ids: vec![exempt_id],
+        };
+        assert!(!rule.is_exempt(normal_id));
+        assert!(rule.would_exceed(normal_id, 1));
     }
 }
