@@ -76,7 +76,7 @@ dbg_macro = "deny"
 
 [package]
 name = "hexorder"
-version = "0.20.0-simulation-runtime"
+version = "0.20.0"
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
