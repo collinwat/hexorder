@@ -5,6 +5,28 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.20.0] — 2026-03-07
+
+### Added
+
+- add hex-ci skill for GitHub Actions triage (project)
+- add dice pool with seeded rolling and editor panel (simulation)
+- add resolution chain types and runtime (simulation)
+- add phase sequencer with action legality and turn bar (simulation)
+- add canary integration test for simulation runtime (contracts)
+- gate combat resolution by phase type (editor_ui)
+- add TableResult::numeric_value to simulation spec (contracts)
+
+### Changed
+
+- set up feature branch (simulation)
+- bump version to 0.20.0 (project)
+
+### Fixed
+
+- make check:unwrap task POSIX-compatible (project)
+- resolve clippy pedantic warnings (contracts)
+
 ## [0.19.0] — 2026-03-07
 
 ### Added
@@ -32,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - set up feature branch for 0.19.0-spatial-rules (project)
 - bump version to 0.19.0 (project)
+- update changelog for 0.19.0 (project)
 
 ### Fixed
 
