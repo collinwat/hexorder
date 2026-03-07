@@ -222,6 +222,48 @@ pub fn resolve_crt(crt: &CombatResultsTable, atk: f64, def: f64, die_roll: u32)
     -> Option<CrtResolution>;
 ```
 
+### Post-Resolution Movement
+
+```rust
+/// What happens to combatants after resolution completes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PostResolutionAction {
+    /// Attacker advances into the defender's hex.
+    Advance,
+    /// Defender retreats away from the attacker.
+    Retreat,
+    /// No movement — units stay in place.
+    Hold,
+}
+
+/// A rule that triggers post-resolution movement based on the combat outcome.
+#[derive(Debug, Clone)]
+pub struct PostResolutionRule {
+    pub action: PostResolutionAction,
+    /// Which OutcomeEffect variants trigger this rule. Empty means "always".
+    pub trigger_effects: Vec<String>,
+    /// Maximum movement range in hexes (for Retreat).
+    pub movement_range: u32,
+}
+
+/// The pending movement resulting from post-resolution rule evaluation.
+#[derive(Debug, Clone)]
+pub struct PendingMovement {
+    pub entity: Entity,
+    pub action: PostResolutionAction,
+    pub movement_range: u32,
+}
+
+/// Evaluate post-resolution rules against a combat outcome.
+/// Returns pending movements for the attacker, defender, or both.
+pub fn evaluate_post_resolution(
+    rules: &[PostResolutionRule],
+    outcome: &CombatOutcome,
+    attacker: Entity,
+    defender: Entity,
+) -> Vec<PendingMovement>;
+```
+
 ### Phase Sequencer Functions
 
 ```rust
@@ -261,6 +303,7 @@ pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> 
 
 | Date       | Change                            | Reason                               |
 | ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Post-resolution movement types    | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Phase sequencer types + functions | 0.20.0 Simulation runtime (#234)     |
 | 2026-03-05 | CRT → ResolutionTable delegation  | 0.17.0 CRT migration (#225)          |
 | 2026-02-16 | Initial definition                | 0.9.0 Core mechanic primitives (#77) |

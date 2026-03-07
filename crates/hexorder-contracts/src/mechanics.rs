@@ -271,6 +271,93 @@ pub struct CombatResolvedEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Post-Resolution Movement
+// ---------------------------------------------------------------------------
+
+/// What happens to combatants after resolution completes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum PostResolutionAction {
+    /// Attacker advances into the defender's hex.
+    Advance,
+    /// Defender retreats away from the attacker.
+    Retreat,
+    /// No movement — units stay in place.
+    Hold,
+}
+
+/// A rule that triggers post-resolution movement based on the combat outcome.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct PostResolutionRule {
+    /// The action to execute.
+    pub action: PostResolutionAction,
+    /// Which `OutcomeEffect` variants trigger this rule. Empty means "always".
+    pub trigger_effects: Vec<String>,
+    /// Maximum movement range in hexes (for Retreat).
+    pub movement_range: u32,
+}
+
+/// The pending movement resulting from post-resolution rule evaluation.
+#[derive(Debug, Clone)]
+pub struct PendingMovement {
+    /// The entity that moves.
+    pub entity: Entity,
+    /// The action type.
+    pub action: PostResolutionAction,
+    /// Maximum range in hexes.
+    pub movement_range: u32,
+}
+
+/// Evaluate post-resolution rules against a combat outcome.
+///
+/// Returns pending movements for the attacker, defender, or both.
+/// The caller is responsible for executing the movement (via BFS).
+#[must_use]
+pub fn evaluate_post_resolution(
+    rules: &[PostResolutionRule],
+    outcome: &CombatOutcome,
+    attacker: Entity,
+    defender: Entity,
+) -> Vec<PendingMovement> {
+    let mut pending = Vec::new();
+    let effect_label = outcome
+        .effect
+        .as_ref()
+        .map(|e| format!("{e:?}"))
+        .unwrap_or_default();
+
+    for rule in rules {
+        let triggers = !rule.trigger_effects.is_empty()
+            && !rule
+                .trigger_effects
+                .iter()
+                .any(|t| effect_label.contains(t));
+        if triggers {
+            continue;
+        }
+
+        match rule.action {
+            PostResolutionAction::Advance => {
+                pending.push(PendingMovement {
+                    entity: attacker,
+                    action: PostResolutionAction::Advance,
+                    movement_range: 1,
+                });
+            }
+            PostResolutionAction::Retreat => {
+                pending.push(PendingMovement {
+                    entity: defender,
+                    action: PostResolutionAction::Retreat,
+                    movement_range: rule.movement_range,
+                });
+            }
+            PostResolutionAction::Hold => {}
+        }
+    }
+
+    pending
+}
+
+// ---------------------------------------------------------------------------
 // CRT Resolution Helpers
 // ---------------------------------------------------------------------------
 
@@ -778,5 +865,122 @@ mod tests {
         };
 
         assert!(current_phase(&state, &structure).is_none());
+    }
+
+    // --- Post-resolution movement tests ---
+
+    fn retreat_outcome() -> CombatOutcome {
+        CombatOutcome {
+            label: "DR".to_string(),
+            effect: Some(OutcomeEffect::Retreat { hexes: 2 }),
+        }
+    }
+
+    fn no_effect_outcome() -> CombatOutcome {
+        CombatOutcome {
+            label: "NE".to_string(),
+            effect: Some(OutcomeEffect::NoEffect),
+        }
+    }
+
+    #[test]
+    fn post_resolution_advance_produces_attacker_movement() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Advance,
+            trigger_effects: vec![],
+            movement_range: 1,
+        }];
+
+        let pending = evaluate_post_resolution(&rules, &retreat_outcome(), attacker, defender);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].action, PostResolutionAction::Advance);
+        assert_eq!(pending[0].movement_range, 1);
+    }
+
+    #[test]
+    fn post_resolution_retreat_produces_defender_movement() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Retreat,
+            trigger_effects: vec![],
+            movement_range: 3,
+        }];
+
+        let pending = evaluate_post_resolution(&rules, &retreat_outcome(), attacker, defender);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].action, PostResolutionAction::Retreat);
+        assert_eq!(pending[0].movement_range, 3);
+    }
+
+    #[test]
+    fn post_resolution_hold_produces_no_movement() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Hold,
+            trigger_effects: vec![],
+            movement_range: 0,
+        }];
+
+        let pending = evaluate_post_resolution(&rules, &retreat_outcome(), attacker, defender);
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn post_resolution_trigger_filter_skips_non_matching() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Advance,
+            trigger_effects: vec!["DefenderEliminated".to_string()],
+            movement_range: 1,
+        }];
+
+        // Outcome is Retreat, not DefenderEliminated — rule should NOT fire
+        let pending = evaluate_post_resolution(&rules, &retreat_outcome(), attacker, defender);
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn post_resolution_trigger_filter_matches() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Advance,
+            trigger_effects: vec!["Retreat".to_string()],
+            movement_range: 1,
+        }];
+
+        // Outcome has Retreat effect — rule should fire
+        let pending = evaluate_post_resolution(&rules, &retreat_outcome(), attacker, defender);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].action, PostResolutionAction::Advance);
+    }
+
+    #[test]
+    fn post_resolution_empty_rules_produce_nothing() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+
+        let pending = evaluate_post_resolution(&[], &retreat_outcome(), attacker, defender);
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn post_resolution_no_effect_outcome_with_empty_triggers() {
+        let attacker = Entity::PLACEHOLDER;
+        let defender = Entity::PLACEHOLDER;
+        let rules = vec![PostResolutionRule {
+            action: PostResolutionAction::Advance,
+            trigger_effects: vec![],
+            movement_range: 1,
+        }];
+
+        // Empty trigger_effects means "always fire"
+        let pending = evaluate_post_resolution(&rules, &no_effect_outcome(), attacker, defender);
+        assert_eq!(pending.len(), 1);
     }
 }
