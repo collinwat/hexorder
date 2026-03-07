@@ -152,6 +152,11 @@ impl Plugin for EditorUiPlugin {
                 .run_if(in_state(AppScreen::Play)),
         );
 
+        // Set CombatSelect as the active tool when entering Play mode.
+        app.add_systems(OnEnter(AppScreen::Play), |mut tool: ResMut<EditorTool>| {
+            *tool = EditorTool::CombatSelect;
+        });
+
         app.add_observer(handle_editor_ui_command);
         app.add_observer(handle_toast_event);
 

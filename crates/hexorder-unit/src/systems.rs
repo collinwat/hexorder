@@ -11,6 +11,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{HexGridConfig, HexMoveEvent, HexPosition, HexSelectedEvent};
 use hexorder_contracts::mechanics::ActiveCombat;
+use hexorder_contracts::persistence::AppScreen;
 use hexorder_contracts::undo_redo::{PlaceUnitCommand, UndoStack};
 use hexorder_contracts::validation::ValidMoveSet;
 
@@ -57,6 +58,7 @@ pub fn setup_unit_visuals(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_unit_placement(
     trigger: On<HexSelectedEvent>,
+    screen: Res<State<AppScreen>>,
     tool: Res<EditorTool>,
     active_unit: Res<ActiveTokenType>,
     registry: Res<EntityTypeRegistry>,
@@ -68,6 +70,9 @@ pub fn handle_unit_placement(
     mut undo_stack: ResMut<UndoStack>,
     mut commands: Commands,
 ) {
+    if *screen.get() != AppScreen::Editor {
+        return;
+    }
     if *tool != EditorTool::Place {
         return;
     }
@@ -163,6 +168,7 @@ pub fn handle_unit_placement(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_unit_interaction(
     trigger: On<HexSelectedEvent>,
+    screen: Res<State<AppScreen>>,
     tool: Res<EditorTool>,
     mut selected_unit: ResMut<SelectedUnit>,
     valid_moves: Option<Res<ValidMoveSet>>,
@@ -170,6 +176,9 @@ pub fn handle_unit_interaction(
     mut units: Query<(Entity, &mut HexPosition, &mut Transform), With<UnitInstance>>,
     mut commands: Commands,
 ) {
+    if *screen.get() != AppScreen::Editor {
+        return;
+    }
     if *tool != EditorTool::Select {
         return;
     }
@@ -237,10 +246,14 @@ pub fn handle_unit_interaction(
 /// either combatant clears the resolution state.
 pub fn handle_combat_select(
     trigger: On<HexSelectedEvent>,
+    screen: Res<State<AppScreen>>,
     tool: Res<EditorTool>,
     mut active_combat: ResMut<ActiveCombat>,
     units: Query<(Entity, &HexPosition), With<UnitInstance>>,
 ) {
+    if *screen.get() != AppScreen::Play {
+        return;
+    }
     if *tool != EditorTool::CombatSelect {
         return;
     }

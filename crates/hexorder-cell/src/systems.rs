@@ -9,6 +9,7 @@ use hexorder_contracts::game_system::{
     ActiveBoardType, EntityData, EntityRole, EntityTypeRegistry, PropertyValue,
 };
 use hexorder_contracts::hex_grid::{HexPosition, HexSelectedEvent, HexTile, TileBaseMaterial};
+use hexorder_contracts::persistence::AppScreen;
 use hexorder_contracts::undo_redo::{SetTerrainCommand, UndoStack};
 
 use crate::components::CellMaterials;
@@ -64,14 +65,19 @@ pub fn assign_default_cell_data(
 /// Observer callback: when a hex tile is selected (clicked), paint the active
 /// board type onto that tile if the editor is in Paint mode.
 /// Records a `SetTerrainCommand` on the undo stack for reversibility.
+#[allow(clippy::too_many_arguments)]
 pub fn paint_cell(
     trigger: On<HexSelectedEvent>,
+    screen: Res<State<AppScreen>>,
     tool: Res<EditorTool>,
     active: Res<ActiveBoardType>,
     registry: Res<EntityTypeRegistry>,
     mut undo_stack: ResMut<UndoStack>,
     mut tiles: Query<(Entity, &HexPosition, &mut EntityData), With<HexTile>>,
 ) {
+    if *screen.get() != AppScreen::Editor {
+        return;
+    }
     if *tool != EditorTool::Paint {
         return;
     }
