@@ -9,7 +9,8 @@ use hexorder_contracts::game_system::{
     GameSystem, PropertyType, PropertyValue, SelectedUnit, StructRegistry, TypeId,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseType, TurnState, TurnStructure,
+    ActiveCombat, AreaMarkerRegistry, CombatModifierRegistry, CombatResultsTable, PhaseType,
+    TurnState, TurnStructure,
 };
 use hexorder_contracts::persistence::AppScreen;
 
@@ -530,4 +531,20 @@ fn active_combat_defaults_to_none() {
     assert!(ac.attacker.is_none());
     assert!(ac.defender.is_none());
     assert!(ac.outcome.is_none());
+}
+
+#[test]
+fn area_marker_registry_defaults_empty() {
+    let mut app = test_app();
+    app.update();
+
+    let reg = app
+        .world()
+        .get_resource::<AreaMarkerRegistry>()
+        .expect("AreaMarkerRegistry should exist");
+
+    assert!(
+        reg.markers.is_empty(),
+        "Default area marker registry should be empty"
+    );
 }

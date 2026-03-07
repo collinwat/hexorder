@@ -25,8 +25,9 @@ use hexorder_contracts::mechanic_reference::{
     MechanicCatalog, MechanicCategory, MechanicEntry, TemplateAvailability,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierDefinition, CombatModifierRegistry, CombatOutcome,
-    CombatResultsTable, ModifierSource, Phase, PhaseType, PlayerOrder, TurnState, TurnStructure,
+    ActiveCombat, AreaMarkerRegistry, CombatModifierDefinition, CombatModifierRegistry,
+    CombatOutcome, CombatResultsTable, ModifierSource, Phase, PhaseType, PlayerOrder, TurnState,
+    TurnStructure,
 };
 use hexorder_contracts::ontology::{
     CompareOp, Concept, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -2952,6 +2953,8 @@ fn combat_panel_no_crt_defined() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -2982,6 +2985,8 @@ fn combat_panel_with_crt_shows_strengths() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3015,6 +3020,8 @@ fn combat_panel_with_modifiers_shows_breakdown() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3053,6 +3060,8 @@ fn combat_panel_shows_outcome_result() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3091,6 +3100,8 @@ fn combat_panel_shows_outcome_effects() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3149,6 +3160,8 @@ fn combat_panel_shows_no_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3171,6 +3184,8 @@ fn combat_panel_shows_retreat_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3193,6 +3208,8 @@ fn combat_panel_shows_step_loss_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3215,6 +3232,8 @@ fn combat_panel_shows_attacker_step_loss_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3240,6 +3259,8 @@ fn combat_panel_shows_exchange_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3262,6 +3283,8 @@ fn combat_panel_shows_attacker_eliminated_effect() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -3296,6 +3319,8 @@ fn combat_panel_shows_below_minimum_threshold() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -11436,6 +11461,8 @@ fn play_sidebar_renders_header() {
             &entity_types,
             &mut editor_state,
             &mut sim_rng,
+            &mut AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
         );
     });
@@ -12956,6 +12983,8 @@ fn play_sidebar_no_switch_without_click() {
                 &s.entity_types,
                 &mut s.editor_state,
                 &mut s.sim_rng,
+                &mut AreaMarkerRegistry::default(),
+                &|_| None,
                 &|_| None,
             );
         },
@@ -13000,6 +13029,8 @@ fn play_sidebar_shows_editor_button_icon() {
             &entity_types,
             &mut editor_state,
             &mut sim_rng,
+            &mut AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
         );
     });
@@ -13041,6 +13072,8 @@ fn play_sidebar_with_phases_shows_turn_tracker() {
             &entity_types,
             &mut editor_state,
             &mut sim_rng,
+            &mut AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
         );
     });
@@ -13075,6 +13108,8 @@ fn combat_panel_odds_display_with_positive_defender() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13101,6 +13136,8 @@ fn combat_panel_shows_none_when_no_combatants() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13134,6 +13171,8 @@ fn combat_panel_modifiers_show_final_column() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13179,6 +13218,8 @@ fn combat_panel_clear_via_render_function() {
                 &s.selected_unit,
                 &s.entity_types,
                 &mut s.editor_state,
+                &AreaMarkerRegistry::default(),
+                &|_| None,
                 &|_| None,
                 true,
             );
@@ -13227,6 +13268,8 @@ fn combat_panel_shows_base_column_label() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13463,6 +13506,8 @@ fn combat_panel_shows_die_roll_when_set() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13501,6 +13546,8 @@ fn combat_panel_shows_outcome_label() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13524,6 +13571,8 @@ fn combat_panel_shows_no_effect_text() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13548,6 +13597,8 @@ fn combat_panel_shows_attacker_eliminated() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );
@@ -13571,6 +13622,8 @@ fn combat_panel_shows_defender_eliminated() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &AreaMarkerRegistry::default(),
+            &|_| None,
             &|_| None,
             true,
         );

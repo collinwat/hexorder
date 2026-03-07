@@ -9,7 +9,9 @@ use bevy::prelude::*;
 use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit, StructRegistry,
 };
-use hexorder_contracts::mechanics::{ActiveCombat, CombatModifierRegistry, TurnState};
+use hexorder_contracts::mechanics::{
+    ActiveCombat, AreaMarkerRegistry, CombatModifierRegistry, TurnState,
+};
 
 mod systems;
 
@@ -48,5 +50,6 @@ impl Plugin for GameSystemPlugin {
         app.insert_resource(systems::create_default_crt());
         app.insert_resource(CombatModifierRegistry::default());
         app.insert_resource(ActiveCombat::default());
+        app.insert_resource(AreaMarkerRegistry::default());
     }
 }

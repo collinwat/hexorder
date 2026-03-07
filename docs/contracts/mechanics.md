@@ -17,7 +17,7 @@ turns are structured and how combat is resolved.
 ## Producers
 
 - `game_system` — inserts `TurnStructure`, `TurnState`, `CombatResultsTable`,
-  `CombatModifierRegistry`, `ActiveCombat` resources at startup
+  `CombatModifierRegistry`, `ActiveCombat`, `AreaMarkerRegistry` resources at startup
 
 ## Types
 
@@ -264,6 +264,57 @@ pub fn evaluate_post_resolution(
 ) -> Vec<PendingMovement>;
 ```
 
+### Area-Effect Modifiers
+
+```rust
+/// How long an area marker remains active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarkerDuration {
+    Permanent,
+    PerTurn { turns_remaining: u32 },
+    UntilRemoved,
+}
+
+/// An effect applied to hexes within a marker's radius.
+#[derive(Debug, Clone)]
+pub enum AreaEffect {
+    ColumnShift { shift: i32 },
+    CostModifier { extra_cost: i64 },
+    ActionRestriction { restriction: String },
+}
+
+/// A spatial marker that applies effects to hexes within a radius.
+#[derive(Debug, Clone)]
+pub struct AreaMarker {
+    pub marker_type: String,
+    pub center: HexPosition,
+    pub radius: u32,
+    pub effects: Vec<AreaEffect>,
+    pub duration: MarkerDuration,
+}
+
+/// Registry of active area markers on the board.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct AreaMarkerRegistry {
+    pub markers: Vec<AreaMarker>,
+}
+
+/// Collect all column shifts from area markers affecting a position.
+pub fn collect_area_column_shifts(
+    registry: &AreaMarkerRegistry, position: HexPosition,
+) -> i32;
+
+/// Collect extra movement cost from area markers for a position.
+pub fn collect_area_cost_modifiers(
+    registry: &AreaMarkerRegistry, position: HexPosition,
+) -> i64;
+
+/// Check if a specific action restriction applies at a position.
+pub fn is_action_restricted(
+    registry: &AreaMarkerRegistry, position: HexPosition, restriction_name: &str,
+) -> bool;
+```
+
 ### Phase Sequencer Functions
 
 ```rust
@@ -298,11 +349,15 @@ pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> 
 - `ActiveCombat` is runtime-only (not persisted); cleared when exiting Play mode
 - `CombatModifierRegistry` modifiers are evaluated in priority order (highest first)
 - Column shifts are clamped to `[0, columns.len() - 1]` after all modifiers applied
+- `AreaMarkerRegistry` is inserted at startup; starts empty
+- Area effects stack additively — multiple markers affecting the same hex sum their shifts/costs
+- `collect_area_column_shifts` / `collect_area_cost_modifiers` use `hex_distance` for radius check
 
 ## Changelog
 
 | Date       | Change                            | Reason                               |
 | ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Area-effect modifier types        | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Post-resolution movement types    | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Phase sequencer types + functions | 0.20.0 Simulation runtime (#234)     |
 | 2026-03-05 | CRT → ResolutionTable delegation  | 0.17.0 CRT migration (#225)          |

@@ -479,6 +479,121 @@ pub fn current_phase<'a>(
     turn_structure.phases.get(turn_state.current_phase_index)
 }
 
+// ---------------------------------------------------------------------------
+// Area-Effect Modifiers
+// ---------------------------------------------------------------------------
+
+/// How long an area marker remains active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum MarkerDuration {
+    /// Stays until explicitly removed.
+    Permanent,
+    /// Expires after N turns.
+    PerTurn { turns_remaining: u32 },
+    /// Active until a game condition removes it.
+    UntilRemoved,
+}
+
+/// An effect applied to hexes within a marker's radius.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub enum AreaEffect {
+    /// Shift the CRT column during resolution for combatants in the area.
+    ColumnShift { shift: i32 },
+    /// Add extra movement cost for units entering hexes in the area.
+    CostModifier { extra_cost: i64 },
+    /// Restrict a category of actions within the area (e.g., `"no_retreat"`).
+    ActionRestriction { restriction: String },
+}
+
+/// A spatial marker that applies effects to hexes within a radius.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct AreaMarker {
+    /// Designer-defined marker type name (e.g., "Bombardment Zone").
+    pub marker_type: String,
+    /// Center hex of the affected area.
+    pub center: crate::hex_grid::HexPosition,
+    /// Radius in hexes (0 = center hex only).
+    pub radius: u32,
+    /// Effects applied to hexes within the radius.
+    pub effects: Vec<AreaEffect>,
+    /// How long this marker remains active.
+    pub duration: MarkerDuration,
+}
+
+/// Registry of active area markers on the board.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct AreaMarkerRegistry {
+    pub markers: Vec<AreaMarker>,
+}
+
+/// Collect all column shifts from area markers that affect a given hex position.
+///
+/// Returns the total additive column shift from all markers whose area
+/// contains the given position.
+#[must_use]
+pub fn collect_area_column_shifts(
+    registry: &AreaMarkerRegistry,
+    position: crate::hex_grid::HexPosition,
+) -> i32 {
+    let mut total_shift = 0;
+    for marker in &registry.markers {
+        let distance = crate::hex_grid::hex_distance(marker.center, position);
+        if distance <= marker.radius {
+            for effect in &marker.effects {
+                if let AreaEffect::ColumnShift { shift } = effect {
+                    total_shift += shift;
+                }
+            }
+        }
+    }
+    total_shift
+}
+
+/// Collect the extra movement cost from area markers for a given hex position.
+///
+/// Returns the total additive cost modifier from all markers whose area
+/// contains the given position.
+#[must_use]
+pub fn collect_area_cost_modifiers(
+    registry: &AreaMarkerRegistry,
+    position: crate::hex_grid::HexPosition,
+) -> i64 {
+    let mut total_cost = 0;
+    for marker in &registry.markers {
+        let distance = crate::hex_grid::hex_distance(marker.center, position);
+        if distance <= marker.radius {
+            for effect in &marker.effects {
+                if let AreaEffect::CostModifier { extra_cost } = effect {
+                    total_cost += extra_cost;
+                }
+            }
+        }
+    }
+    total_cost
+}
+
+/// Check if a specific action restriction applies at a position.
+#[must_use]
+pub fn is_action_restricted(
+    registry: &AreaMarkerRegistry,
+    position: crate::hex_grid::HexPosition,
+    restriction_name: &str,
+) -> bool {
+    for marker in &registry.markers {
+        let distance = crate::hex_grid::hex_distance(marker.center, position);
+        if distance <= marker.radius {
+            for effect in &marker.effects {
+                if let AreaEffect::ActionRestriction { restriction } = effect
+                    && restriction == restriction_name
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -982,5 +1097,147 @@ mod tests {
         // Empty trigger_effects means "always fire"
         let pending = evaluate_post_resolution(&rules, &no_effect_outcome(), attacker, defender);
         assert_eq!(pending.len(), 1);
+    }
+
+    // --- Area-effect modifier tests ---
+
+    use crate::hex_grid::HexPosition;
+
+    fn test_registry() -> AreaMarkerRegistry {
+        AreaMarkerRegistry {
+            markers: vec![AreaMarker {
+                marker_type: "Bombardment Zone".to_string(),
+                center: HexPosition::new(0, 0),
+                radius: 2,
+                effects: vec![
+                    AreaEffect::ColumnShift { shift: -1 },
+                    AreaEffect::CostModifier { extra_cost: 2 },
+                    AreaEffect::ActionRestriction {
+                        restriction: "no_retreat".to_string(),
+                    },
+                ],
+                duration: MarkerDuration::Permanent,
+            }],
+        }
+    }
+
+    #[test]
+    fn area_column_shift_inside_radius() {
+        let registry = test_registry();
+        let shift = collect_area_column_shifts(&registry, HexPosition::new(1, 0));
+        assert_eq!(shift, -1);
+    }
+
+    #[test]
+    fn area_column_shift_at_center() {
+        let registry = test_registry();
+        let shift = collect_area_column_shifts(&registry, HexPosition::new(0, 0));
+        assert_eq!(shift, -1);
+    }
+
+    #[test]
+    fn area_column_shift_outside_radius() {
+        let registry = test_registry();
+        let shift = collect_area_column_shifts(&registry, HexPosition::new(3, 0));
+        assert_eq!(shift, 0);
+    }
+
+    #[test]
+    fn area_cost_modifier_inside_radius() {
+        let registry = test_registry();
+        let cost = collect_area_cost_modifiers(&registry, HexPosition::new(0, 1));
+        assert_eq!(cost, 2);
+    }
+
+    #[test]
+    fn area_cost_modifier_outside_radius() {
+        let registry = test_registry();
+        let cost = collect_area_cost_modifiers(&registry, HexPosition::new(5, 5));
+        assert_eq!(cost, 0);
+    }
+
+    #[test]
+    fn area_action_restriction_matches() {
+        let registry = test_registry();
+        assert!(is_action_restricted(
+            &registry,
+            HexPosition::new(0, 0),
+            "no_retreat"
+        ));
+    }
+
+    #[test]
+    fn area_action_restriction_no_match() {
+        let registry = test_registry();
+        assert!(!is_action_restricted(
+            &registry,
+            HexPosition::new(0, 0),
+            "no_advance"
+        ));
+    }
+
+    #[test]
+    fn area_action_restriction_outside_radius() {
+        let registry = test_registry();
+        assert!(!is_action_restricted(
+            &registry,
+            HexPosition::new(10, 10),
+            "no_retreat"
+        ));
+    }
+
+    #[test]
+    fn area_multiple_markers_stack_additively() {
+        let registry = AreaMarkerRegistry {
+            markers: vec![
+                AreaMarker {
+                    marker_type: "Zone A".to_string(),
+                    center: HexPosition::new(0, 0),
+                    radius: 1,
+                    effects: vec![AreaEffect::ColumnShift { shift: -1 }],
+                    duration: MarkerDuration::Permanent,
+                },
+                AreaMarker {
+                    marker_type: "Zone B".to_string(),
+                    center: HexPosition::new(1, 0),
+                    radius: 1,
+                    effects: vec![AreaEffect::ColumnShift { shift: -2 }],
+                    duration: MarkerDuration::PerTurn { turns_remaining: 3 },
+                },
+            ],
+        };
+        // HexPosition(0,0) is in both zones
+        let shift = collect_area_column_shifts(&registry, HexPosition::new(0, 0));
+        assert_eq!(shift, -3);
+    }
+
+    #[test]
+    fn area_empty_registry_returns_defaults() {
+        let registry = AreaMarkerRegistry::default();
+        assert_eq!(
+            collect_area_column_shifts(&registry, HexPosition::new(0, 0)),
+            0
+        );
+        assert_eq!(
+            collect_area_cost_modifiers(&registry, HexPosition::new(0, 0)),
+            0
+        );
+        assert!(!is_action_restricted(
+            &registry,
+            HexPosition::new(0, 0),
+            "anything"
+        ));
+    }
+
+    #[test]
+    fn marker_duration_variants_debug() {
+        let durations = [
+            MarkerDuration::Permanent,
+            MarkerDuration::PerTurn { turns_remaining: 5 },
+            MarkerDuration::UntilRemoved,
+        ];
+        for d in &durations {
+            assert!(!format!("{d:?}").is_empty());
+        }
     }
 }

@@ -7,9 +7,10 @@ use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, GameSystem, SelectedUnit, UnitInstance,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseAction, PhaseType,
-    PostResolutionAction, PostResolutionRule, TurnState, TurnStructure, evaluate_post_resolution,
-    execute_phase_action, is_phase_action_legal,
+    ActiveCombat, AreaEffect, AreaMarker, AreaMarkerRegistry, CombatModifierRegistry,
+    CombatResultsTable, MarkerDuration, PhaseAction, PhaseType, PostResolutionAction,
+    PostResolutionRule, TurnState, TurnStructure, collect_area_column_shifts,
+    evaluate_post_resolution, execute_phase_action, is_phase_action_legal,
 };
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
@@ -55,7 +56,14 @@ pub fn play_panel_system(
     entity_types: Res<EntityTypeRegistry>,
     mut editor_state: ResMut<EditorState>,
     mut sim_rng: ResMut<SimulationRng>,
-    unit_query: Query<&EntityData, With<UnitInstance>>,
+    mut area_markers: ResMut<AreaMarkerRegistry>,
+    unit_query: Query<
+        (
+            &EntityData,
+            Option<&hexorder_contracts::hex_grid::HexPosition>,
+        ),
+        With<UnitInstance>,
+    >,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -106,7 +114,9 @@ pub fn play_panel_system(
                 &entity_types,
                 &mut editor_state,
                 &mut sim_rng,
-                &|e| unit_query.get(e).ok(),
+                &mut area_markers,
+                &|e| unit_query.get(e).ok().map(|(ed, _)| ed),
+                &|e| unit_query.get(e).ok().and_then(|(_, pos)| pos),
             );
         });
 
@@ -163,7 +173,9 @@ pub(crate) fn render_play_sidebar<'a>(
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
     sim_rng: &mut SimulationRng,
+    area_markers: &mut AreaMarkerRegistry,
     unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
+    position_lookup: &dyn Fn(Entity) -> Option<&'a hexorder_contracts::hex_grid::HexPosition>,
 ) -> bool {
     // -- Workspace Header --
     render_workspace_header(ui, workspace, game_system);
@@ -211,9 +223,16 @@ pub(crate) fn render_play_sidebar<'a>(
             selected_unit,
             entity_types,
             editor_state,
+            area_markers,
             unit_lookup,
+            position_lookup,
             in_combat_phase,
         );
+
+        ui.separator();
+
+        // -- Area Markers Panel --
+        render_area_markers_panel(ui, area_markers);
     });
 
     switch_to_editor
@@ -620,7 +639,9 @@ pub(crate) fn render_combat_panel<'a>(
     selected_unit: &SelectedUnit,
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
+    area_markers: &AreaMarkerRegistry,
     unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
+    position_lookup: &dyn Fn(Entity) -> Option<&'a hexorder_contracts::hex_grid::HexPosition>,
     in_combat_phase: bool,
 ) {
     use hexorder_contracts::mechanics::resolve_crt;
@@ -791,6 +812,36 @@ pub(crate) fn render_combat_panel<'a>(
         active_combat.total_shift = 0;
     }
 
+    // -- Area marker column shifts --
+    if let Some(def_entity) = active_combat.defender
+        && let Some(&def_pos) = position_lookup(def_entity)
+    {
+        let area_shift = collect_area_column_shifts(area_markers, def_pos);
+        if area_shift != 0 {
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(format!("Area modifier: {area_shift:+} (defender hex)"))
+                    .small()
+                    .color(BrandTheme::ACCENT_TEAL),
+            );
+            let combined = active_combat.total_shift + area_shift;
+            active_combat.total_shift = combined;
+            if let Some(base_col) = base_column {
+                let final_col = apply_column_shift(base_col, combined, crt.table.columns.len());
+                active_combat.resolved_column = Some(final_col);
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Adjusted column: {} ({})",
+                        crt.table.columns[final_col].label, final_col
+                    ))
+                    .small()
+                    .strong()
+                    .color(BrandTheme::ACCENT_TEAL),
+                );
+            }
+        }
+    }
+
     ui.add_space(8.0);
 
     // -- Die Roll --
@@ -925,6 +976,94 @@ pub(crate) fn render_combat_panel<'a>(
         *active_combat = ActiveCombat::default();
         editor_state.combat_attacker_strength = 0.0;
         editor_state.combat_defender_strength = 0.0;
+    }
+}
+
+/// Renders the area markers panel: list active markers, add/remove.
+pub(crate) fn render_area_markers_panel(ui: &mut egui::Ui, area_markers: &mut AreaMarkerRegistry) {
+    ui.label(
+        egui::RichText::new("Area Markers")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    if area_markers.markers.is_empty() {
+        ui.label(
+            egui::RichText::new("No active markers.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    } else {
+        let mut to_remove = None;
+        for (i, marker) in area_markers.markers.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(&marker.marker_type)
+                        .strong()
+                        .color(BrandTheme::TEXT_PRIMARY),
+                );
+                ui.label(
+                    egui::RichText::new(format!(
+                        "({},{}) r={}",
+                        marker.center.q, marker.center.r, marker.radius
+                    ))
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+                );
+                if ui.small_button("\u{2716}").clicked() {
+                    to_remove = Some(i);
+                }
+            });
+
+            for effect in &marker.effects {
+                let effect_text = match effect {
+                    AreaEffect::ColumnShift { shift } => format!("Column shift: {shift:+}"),
+                    AreaEffect::CostModifier { extra_cost } => {
+                        format!("Movement cost: +{extra_cost}")
+                    }
+                    AreaEffect::ActionRestriction { restriction } => {
+                        format!("Restriction: {restriction}")
+                    }
+                };
+                ui.label(
+                    egui::RichText::new(format!("  {effect_text}"))
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            }
+
+            let duration_text = match marker.duration {
+                MarkerDuration::Permanent => "Permanent".to_string(),
+                MarkerDuration::PerTurn { turns_remaining } => {
+                    format!("{turns_remaining} turn(s) left")
+                }
+                MarkerDuration::UntilRemoved => "Until removed".to_string(),
+            };
+            ui.label(
+                egui::RichText::new(format!("  Duration: {duration_text}"))
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+
+            ui.add_space(2.0);
+        }
+
+        if let Some(idx) = to_remove {
+            area_markers.markers.remove(idx);
+        }
+    }
+
+    ui.add_space(4.0);
+
+    if ui.button("+ Add Marker").clicked() {
+        area_markers.markers.push(AreaMarker {
+            marker_type: "New Marker".to_string(),
+            center: hexorder_contracts::hex_grid::HexPosition::new(0, 0),
+            radius: 1,
+            effects: vec![AreaEffect::ColumnShift { shift: -1 }],
+            duration: MarkerDuration::Permanent,
+        });
     }
 }
 
