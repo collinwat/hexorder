@@ -144,7 +144,12 @@ impl Plugin for EditorUiPlugin {
         // Play panel shown only in Play state.
         app.add_systems(
             EguiPrimaryContextPass,
-            systems::play_panel_system.run_if(in_state(AppScreen::Play)),
+            (
+                systems::play_panel_system,
+                render_play::update_play_viewport_margins,
+            )
+                .chain()
+                .run_if(in_state(AppScreen::Play)),
         );
 
         app.add_observer(handle_editor_ui_command);

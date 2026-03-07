@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
+use hexorder_contracts::editor_ui::ViewportMargins;
 use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, GameSystem, SelectedUnit, UnitInstance,
 };
@@ -125,8 +126,33 @@ pub fn play_panel_system(
         next_state.set(AppScreen::Editor);
     }
 
+    // Claim the remaining space with a transparent panel so egui doesn't
+    // paint its default background over the 3D viewport.
+    egui::CentralPanel::default()
+        .frame(egui::Frame::NONE)
+        .show(ctx, |_| {});
+
     // -- About Panel --
     render_about_panel(ctx, &mut editor_state);
+}
+
+/// Updates viewport margins in Play mode so the camera knows where the 3D
+/// viewport is (to the right of the play sidebar). Must run after
+/// `play_panel_system` so egui has laid out the side panel.
+pub fn update_play_viewport_margins(
+    mut contexts: EguiContexts,
+    mut margins: ResMut<ViewportMargins>,
+) {
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
+    let screen = ctx.input(egui::InputState::viewport_rect);
+    let available = ctx.available_rect();
+
+    margins.left = available.left();
+    margins.top = available.top();
+    margins.right = screen.right() - available.right();
+    margins.bottom = screen.bottom() - available.bottom();
 }
 
 /// Renders the play mode file menu contents.
