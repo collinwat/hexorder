@@ -5,7 +5,9 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use hexx::shapes;
 
-use hexorder_contracts::editor_ui::{EditorTool, PaintPreview, Selection};
+use hexorder_contracts::editor_ui::{
+    ActiveEdgeType, EditorTool, PaintPreview, SelectedEdge, Selection,
+};
 use hexorder_contracts::game_system::{SelectedUnit, UnitInstance};
 use hexorder_contracts::hex_grid::{
     HexEdgeRegistry, HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay,
@@ -167,8 +169,12 @@ pub fn handle_click(
     mouse_motion: Res<AccumulatedMouseMotion>,
     keyboard: Res<ButtonInput<KeyCode>>,
     hovered: Res<HoveredHex>,
+    tool: Res<EditorTool>,
     mut selected: ResMut<SelectedHex>,
     mut selection: ResMut<Selection>,
+    mut selected_edge: ResMut<SelectedEdge>,
+    active_edge: Res<ActiveEdgeType>,
+    mut edge_registry: ResMut<HexEdgeRegistry>,
     tile_query: Query<(Entity, &HexPosition), With<HexTile>>,
     mut commands: Commands,
     mut drag_acc: Local<f32>,
@@ -194,6 +200,12 @@ pub fn handle_click(
         return;
     };
 
+    // Edge paint mode: two-click flow.
+    if *tool == EditorTool::EdgePaint {
+        handle_edge_paint_click(pos, &mut selected_edge, &active_edge, &mut edge_registry);
+        return;
+    }
+
     let shift_held = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
 
     if shift_held {
@@ -212,6 +224,43 @@ pub fn handle_click(
             selected.position = Some(pos);
             commands.trigger(HexSelectedEvent { position: pos });
         }
+    }
+}
+
+/// Handles a click in Edge Paint mode using the two-click flow:
+/// 1. First click: store the hex as `first_hex`.
+/// 2. Second click on an adjacent hex: assign/remove the edge feature.
+fn handle_edge_paint_click(
+    pos: HexPosition,
+    selected_edge: &mut SelectedEdge,
+    active_edge: &ActiveEdgeType,
+    edge_registry: &mut HexEdgeRegistry,
+) {
+    use hexorder_contracts::hex_grid::{EdgeFeature, HexEdge};
+
+    if let Some(first) = selected_edge.first_hex {
+        // Second click — try to form an edge.
+        if let Some(edge) = HexEdge::between(first, pos) {
+            if let Some(type_name) = &active_edge.type_name {
+                // Paint: assign the active edge type.
+                edge_registry.insert(
+                    edge,
+                    EdgeFeature {
+                        type_name: type_name.clone(),
+                    },
+                );
+            } else {
+                // Erase mode: remove the edge feature.
+                edge_registry.remove(&edge);
+            }
+            selected_edge.edge = Some(edge);
+        }
+        // Reset first_hex regardless (even if not adjacent — treat as a miss).
+        selected_edge.first_hex = None;
+    } else {
+        // First click — store the position.
+        selected_edge.first_hex = Some(pos);
+        selected_edge.edge = None;
     }
 }
 

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 
-use hexorder_contracts::editor_ui::Selection;
+use hexorder_contracts::editor_ui::{ActiveEdgeType, SelectedEdge, Selection};
 use hexorder_contracts::hex_grid::{
     HexGridConfig, HexPosition, HexSelectedEvent, HexTile, MoveOverlay, MoveOverlayState,
     SelectedHex,
@@ -27,6 +27,10 @@ fn test_app() -> App {
     app.init_resource::<bevy::input::mouse::AccumulatedMouseMotion>();
     app.init_resource::<ButtonInput<KeyCode>>();
     app.init_resource::<Selection>();
+    app.init_resource::<SelectedEdge>();
+    app.init_resource::<ActiveEdgeType>();
+    app.init_resource::<hexorder_contracts::editor_ui::EditorTool>();
+    app.init_resource::<hexorder_contracts::hex_grid::HexEdgeRegistry>();
     app
 }
 

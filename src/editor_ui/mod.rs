@@ -60,6 +60,8 @@ impl Plugin for EditorUiPlugin {
         // `pointer_over_ui_panel` run condition on consumer systems.
 
         app.insert_resource(EditorTool::default());
+        app.init_resource::<hexorder_contracts::editor_ui::SelectedEdge>();
+        app.init_resource::<hexorder_contracts::editor_ui::ActiveEdgeType>();
         app.init_resource::<ViewportMargins>();
         app.insert_resource(components::EditorState::default());
         app.init_resource::<Selection>();
@@ -188,6 +190,7 @@ fn handle_editor_ui_command(
         "tool.select" => *tool = EditorTool::Select,
         "tool.paint" => *tool = EditorTool::Paint,
         "tool.place" => *tool = EditorTool::Place,
+        "tool.edge_paint" => *tool = EditorTool::EdgePaint,
         "mode.editor" => next_state.set(AppScreen::Editor),
         "mode.close" => commands.trigger(CloseProjectEvent),
         "edit.delete" => {
@@ -331,6 +334,14 @@ fn register_shortcuts(registry: &mut ShortcutRegistry) {
         name: "Place Tool".to_string(),
         description: "Switch to place mode".to_string(),
         bindings: vec![KeyBinding::new(KeyCode::Digit3, Modifiers::NONE)],
+        category: CommandCategory::Tool,
+        continuous: false,
+    });
+    registry.register(CommandEntry {
+        id: CommandId("tool.edge_paint"),
+        name: "Edge Paint Tool".to_string(),
+        description: "Switch to edge paint mode".to_string(),
+        bindings: vec![KeyBinding::new(KeyCode::Digit4, Modifiers::NONE)],
         category: CommandCategory::Tool,
         continuous: false,
     });

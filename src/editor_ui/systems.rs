@@ -47,8 +47,8 @@ pub(super) use super::render_ontology::{
     render_concepts_tab, render_constraints_tab, render_relations_tab,
 };
 pub(super) use super::render_panels::{
-    render_about_panel, render_cell_palette, render_tool_mode, render_unit_palette,
-    render_workspace_header,
+    render_about_panel, render_cell_palette, render_edge_palette, render_tool_mode,
+    render_unit_palette, render_workspace_header,
 };
 pub(super) use super::render_rules::{render_mechanics_tab, render_validation_tab};
 
@@ -130,6 +130,7 @@ pub(crate) struct PaletteData<'a> {
     pub(crate) editor_tool: &'a mut EditorTool,
     pub(crate) active_board: &'a mut ActiveBoardType,
     pub(crate) active_token: &'a mut ActiveTokenType,
+    pub(crate) active_edge: &'a mut hexorder_contracts::editor_ui::ActiveEdgeType,
     pub(crate) project_workspace: &'a Workspace,
     pub(crate) project_game_system: &'a GameSystem,
 }
@@ -238,6 +239,9 @@ pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut Edit
             }
             if *viewer.palette.editor_tool == EditorTool::Place {
                 render_unit_palette(ui, viewer.design.registry, viewer.palette.active_token);
+            }
+            if *viewer.palette.editor_tool == EditorTool::EdgePaint {
+                render_edge_palette(ui, viewer.design.registry, viewer.palette.active_edge);
             }
         }
         DockTab::Design => {
@@ -573,6 +577,7 @@ pub(crate) fn render_status_bar_content(
             EditorTool::Select => "Select",
             EditorTool::Paint => "Paint",
             EditorTool::Place => "Place",
+            EditorTool::EdgePaint => "Edge Paint",
         };
         ui.label(
             egui::RichText::new(tool_label)
@@ -1055,6 +1060,7 @@ pub fn editor_dock_system(
             editor_tool: &mut selection.editor_tool,
             active_board: &mut selection.active_board,
             active_token: &mut selection.active_token,
+            active_edge: &mut selection.active_edge,
             project_workspace: &project.workspace,
             project_game_system: &project.game_system,
         },

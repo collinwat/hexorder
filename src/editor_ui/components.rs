@@ -494,6 +494,7 @@ pub(super) struct SelectionParams<'w> {
     pub(super) editor_tool: ResMut<'w, hexorder_contracts::editor_ui::EditorTool>,
     pub(super) active_board: ResMut<'w, ActiveBoardType>,
     pub(super) active_token: ResMut<'w, ActiveTokenType>,
+    pub(super) active_edge: ResMut<'w, hexorder_contracts::editor_ui::ActiveEdgeType>,
     pub(super) selected_unit: ResMut<'w, SelectedUnit>,
     pub(super) multi: Res<'w, hexorder_contracts::editor_ui::Selection>,
     pub(super) selected_hex: Res<'w, SelectedHex>,

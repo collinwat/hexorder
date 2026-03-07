@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 
-use hexorder_contracts::editor_ui::{EditorTool, ToastKind};
+use hexorder_contracts::editor_ui::{ActiveEdgeType, EditorTool, ToastKind};
 use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, EntityTypeRegistry, GameSystem,
 };
@@ -458,6 +458,13 @@ pub(crate) fn render_tool_mode(ui: &mut egui::Ui, editor_tool: &mut EditorTool) 
         {
             *editor_tool = EditorTool::Place;
         }
+        if ui
+            .selectable_label(*editor_tool == EditorTool::EdgePaint, "Edge")
+            .on_hover_text("Click two adjacent hexes to assign edge features (4)")
+            .clicked()
+        {
+            *editor_tool = EditorTool::EdgePaint;
+        }
     });
     ui.separator();
 }
@@ -499,6 +506,65 @@ pub(crate) fn render_cell_palette(
             }
             if ui.selectable_label(is_active, &et_name).clicked() {
                 active_board.entity_type_id = Some(et_id);
+            }
+        });
+    }
+
+    ui.separator();
+}
+
+pub(crate) fn render_edge_palette(
+    ui: &mut egui::Ui,
+    registry: &EntityTypeRegistry,
+    active_edge: &mut ActiveEdgeType,
+) {
+    ui.label(
+        egui::RichText::new("Edge Palette")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new("Click hex, then adjacent hex")
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+    ui.add_space(8.0);
+
+    // "Erase" option to remove edge features.
+    let erase_active = active_edge.type_name.is_none();
+    if ui.selectable_label(erase_active, "🗑 Erase").clicked() {
+        active_edge.type_name = None;
+    }
+
+    // List all entity types as potential edge feature types.
+    for et in &registry.types {
+        let is_active = active_edge
+            .type_name
+            .as_ref()
+            .is_some_and(|n| *n == et.name);
+        let color = bevy_color_to_egui(et.color);
+        let et_name = et.name.clone();
+
+        ui.horizontal(|ui| {
+            let (rect, response) =
+                ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
+            if ui.is_rect_visible(rect) {
+                ui.painter().rect_filled(rect, 2.0, color);
+                if is_active {
+                    ui.painter().rect_stroke(
+                        rect,
+                        2.0,
+                        egui::Stroke::new(2.0, BrandTheme::ACCENT_AMBER),
+                        egui::StrokeKind::Outside,
+                    );
+                }
+            }
+            if response.clicked() {
+                active_edge.type_name = Some(et_name.clone());
+            }
+            if ui.selectable_label(is_active, &et_name).clicked() {
+                active_edge.type_name = Some(et_name);
             }
         });
     }

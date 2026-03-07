@@ -13,6 +13,10 @@ pub enum EditorTool {
     Paint,
     /// Click to place unit tokens on hex tiles.
     Place,
+    /// Two-click flow to assign edge annotations between adjacent hexes.
+    /// First click selects a hex, second click on an adjacent hex assigns
+    /// the active edge feature type to the shared boundary.
+    EdgePaint,
 }
 
 /// Holds the material handle for the currently active paint color.
@@ -47,6 +51,28 @@ impl Default for ViewportMargins {
             bottom: 0.0,
         }
     }
+}
+
+/// Tracks the currently selected hex edge, if any.
+/// Used by the inspector to show edge feature details and by the edge paint
+/// tool as a visual indicator of the first click in the two-click flow.
+#[derive(Resource, Debug, Default, Reflect)]
+pub struct SelectedEdge {
+    /// The first hex clicked in the two-click edge selection flow.
+    /// Set after the first click, cleared after the second click completes
+    /// or when switching tools.
+    pub first_hex: Option<super::hex_grid::HexPosition>,
+    /// The fully selected edge (after both clicks).
+    #[reflect(ignore)]
+    pub edge: Option<super::hex_grid::HexEdge>,
+}
+
+/// Tracks which edge feature type the user is currently painting with.
+/// Analogous to `ActiveBoardType` for cell painting.
+#[derive(Resource, Debug, Default)]
+pub struct ActiveEdgeType {
+    /// Name of the edge feature type to assign (e.g., "River", "Road").
+    pub type_name: Option<String>,
 }
 
 /// Multi-selection set for bulk operations (Shift+click, Cmd+A).
@@ -115,6 +141,22 @@ mod tests {
         assert_ne!(EditorTool::Select, EditorTool::Paint);
         assert_ne!(EditorTool::Paint, EditorTool::Place);
         assert_ne!(EditorTool::Select, EditorTool::Place);
+        assert_ne!(EditorTool::Select, EditorTool::EdgePaint);
+        assert_ne!(EditorTool::Paint, EditorTool::EdgePaint);
+        assert_ne!(EditorTool::Place, EditorTool::EdgePaint);
+    }
+
+    #[test]
+    fn selected_edge_default_is_none() {
+        let se = SelectedEdge::default();
+        assert!(se.first_hex.is_none());
+        assert!(se.edge.is_none());
+    }
+
+    #[test]
+    fn active_edge_type_default_is_none() {
+        let aet = ActiveEdgeType::default();
+        assert!(aet.type_name.is_none());
     }
 
     #[test]

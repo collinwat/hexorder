@@ -11528,6 +11528,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
             editor_tool: &mut editor_tool,
             active_board: &mut active_board,
             active_token: &mut active_token,
+            active_edge: &mut hexorder_contracts::editor_ui::ActiveEdgeType::default(),
             project_workspace: &workspace,
             project_game_system: &game_system,
         },
