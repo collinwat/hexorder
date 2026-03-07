@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
-use crate::hex_grid::{HexEdgeRegistry, HexPosition, InfluenceRuleRegistry};
+use crate::hex_grid::{HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, StackingRule};
 use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
@@ -150,6 +150,9 @@ pub struct GameSystemFile {
     /// Spatial influence rules (v6+).
     #[serde(default)]
     pub influence_rules: InfluenceRuleRegistry,
+    /// Stacking constraint (v6+).
+    #[serde(default)]
+    pub stacking_rule: StackingRule,
 }
 
 fn default_font_size() -> f32 {

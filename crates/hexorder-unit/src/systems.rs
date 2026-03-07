@@ -60,8 +60,10 @@ pub fn handle_unit_placement(
     active_unit: Res<ActiveTokenType>,
     registry: Res<EntityTypeRegistry>,
     config: Res<HexGridConfig>,
+    stacking_rule: Res<hexorder_contracts::hex_grid::StackingRule>,
     unit_materials: Res<UnitMaterials>,
     unit_mesh: Res<UnitMesh>,
+    existing_units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
     mut undo_stack: ResMut<UndoStack>,
     mut commands: Commands,
 ) {
@@ -84,6 +86,17 @@ pub fn handle_unit_placement(
     let hex = pos.to_hex();
     if hex.unsigned_distance_to(hexx::Hex::ZERO) > config.map_radius {
         return;
+    }
+
+    // Check stacking limit.
+    if stacking_rule.is_active() {
+        let current_non_exempt = existing_units
+            .iter()
+            .filter(|(p, d)| **p == pos && !stacking_rule.is_exempt(d.entity_type_id))
+            .count() as u32;
+        if stacking_rule.would_exceed(active_id, current_non_exempt) {
+            return;
+        }
     }
 
     // Compute world position from hex coordinates.

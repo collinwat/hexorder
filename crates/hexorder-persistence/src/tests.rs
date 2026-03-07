@@ -9,7 +9,7 @@ use hexorder_contracts::game_system::{
     StructRegistry, TypeId, UnitInstance,
 };
 use hexorder_contracts::hex_grid::{
-    HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceRuleRegistry,
+    HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceRuleRegistry, StackingRule,
 };
 use hexorder_contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
@@ -59,6 +59,7 @@ fn test_app() -> App {
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
     app.init_resource::<HexEdgeRegistry>();
     app.init_resource::<InfluenceRuleRegistry>();
+    app.init_resource::<StackingRule>();
     app.add_plugins(crate::PersistencePlugin);
     app
 }
@@ -105,6 +106,7 @@ fn test_game_system_file() -> GameSystemFile {
         font_size_base: 15.0,
         edge_features: HexEdgeRegistry::default(),
         influence_rules: InfluenceRuleRegistry::default(),
+        stacking_rule: StackingRule::default(),
     }
 }
 
