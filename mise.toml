@@ -110,8 +110,9 @@ description = "Check no unwrap() in production code"
 run = """
 # Find unwrap() calls, excluding dedicated test files and inline #[cfg(test)] modules.
 cfg_test_pat='cfg(test)'
-violations=""
-while IFS=: read -r file line content; do
+tmpfile=$(mktemp)
+trap 'rm -f "$tmpfile"' EXIT
+grep -rn '\\.unwrap()' src/ crates/hexorder-contracts/src/ --include='*.rs' | while IFS=: read -r file line content; do
   # Skip dedicated test files.
   case "$file" in *tests.rs) continue ;; esac
   # Skip if line itself is a test annotation or mod tests.
@@ -121,13 +122,11 @@ while IFS=: read -r file line content; do
   if [ -n "$cfg_line" ] && [ "$line" -gt "$cfg_line" ]; then
     continue
   fi
-  violations="${violations}${file}:${line}:${content}
-"
-done <<< "$(grep -rn '\\.unwrap()' src/ crates/hexorder-contracts/src/ --include='*.rs' || true)"
-violations=$(echo "$violations" | sed '/^$/d')
-if [ -n "$violations" ]; then
+  echo "${file}:${line}:${content}" >> "$tmpfile"
+done
+if [ -s "$tmpfile" ]; then
   echo "ERROR: unwrap() found in production code (test files exempt):"
-  echo "$violations"
+  cat "$tmpfile"
   exit 1
 fi
 echo "No unwrap() in production code."
