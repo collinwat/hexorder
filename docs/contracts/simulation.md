@@ -97,6 +97,12 @@ pub enum TableResult {
     PropertyModifier { property: String, delta: f64 },
 }
 
+impl TableResult {
+    /// Extract a numeric value: `NumericValue` returns its value,
+    /// `PropertyModifier` returns its delta, `Text` returns `None`.
+    pub fn numeric_value(&self) -> Option<f64>;
+}
+
 /// A column shift modifier applied during table resolution.
 pub struct ColumnModifier {
     pub name: String,
