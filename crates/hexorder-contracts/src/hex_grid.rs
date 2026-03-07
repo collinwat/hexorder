@@ -326,8 +326,8 @@ pub struct InfluenceMap {
 impl InfluenceMap {
     /// Returns influence entries for a hex, if any.
     #[must_use]
-    pub fn get(&self, pos: &HexPosition) -> Option<&Vec<InfluenceEntry>> {
-        self.influenced.get(pos)
+    pub fn get(&self, pos: HexPosition) -> Option<&Vec<InfluenceEntry>> {
+        self.influenced.get(&pos)
     }
 
     /// Returns true if the map has no influenced hexes.
@@ -405,7 +405,7 @@ pub struct MovementCostMatrix {
     /// The enum property ID on unit types that provides the classification key.
     /// If `None`, the matrix is inactive and the BFS uses standard costs.
     pub classification_property_id: Option<TypeId>,
-    /// Cost entries: (terrain_type_id, classification_enum_value) → movement cost.
+    /// Cost entries: (`terrain_type_id`, `classification_enum_value`) → movement cost.
     pub entries: HashMap<(TypeId, String), i64>,
 }
 
@@ -772,7 +772,7 @@ mod tests {
             cost_modifier: 2,
         });
         assert!(!map.is_empty());
-        let entries = map.get(&pos).expect("should have entries");
+        let entries = map.get(pos).expect("should have entries");
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].cost_modifier, 2);
     }

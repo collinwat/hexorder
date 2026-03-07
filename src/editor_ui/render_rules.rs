@@ -718,8 +718,8 @@ pub(crate) fn render_stacking_rule(
 /// Renders the movement cost matrix section in the Mechanics tab.
 ///
 /// Shows a classification property picker (enum properties on Token types),
-/// then a 2D matrix grid: rows = BoardPosition entity types (terrain),
-/// columns = enum option values. Each cell is a DragValue for the cost.
+/// then a 2D matrix grid: rows = `BoardPosition` entity types (terrain),
+/// columns = enum option values. Each cell is a `DragValue` for the cost.
 pub(crate) fn render_movement_cost_matrix(
     ui: &mut egui::Ui,
     matrix: &mut MovementCostMatrix,

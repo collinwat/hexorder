@@ -16,6 +16,7 @@ use crate::mechanics::{
 use crate::simulation::{ColumnType, ResolutionTable, TableColumn, TableRow};
 
 /// Creates a new `GameSystem` resource with a fresh UUID and default version.
+#[must_use]
 pub fn create_game_system() -> GameSystem {
     GameSystem {
         id: uuid::Uuid::new_v4().to_string(),
@@ -25,6 +26,7 @@ pub fn create_game_system() -> GameSystem {
 
 /// Creates the default `EntityTypeRegistry` populated with starter entity types.
 /// Includes 5 `BoardPosition` types and 3 `Token` types.
+#[must_use]
 pub fn create_entity_type_registry() -> EntityTypeRegistry {
     EntityTypeRegistry {
         types: vec![
@@ -101,6 +103,7 @@ pub fn create_entity_type_registry() -> EntityTypeRegistry {
 }
 
 /// Creates the default `EnumRegistry` with starter enum definitions.
+#[must_use]
 pub fn create_enum_registry() -> EnumRegistry {
     let mut reg = EnumRegistry::default();
 
@@ -130,6 +133,7 @@ pub fn create_enum_registry() -> EnumRegistry {
 }
 
 /// Creates a default 5-phase turn structure for new game systems.
+#[must_use]
 pub fn create_default_turn_structure() -> TurnStructure {
     TurnStructure {
         phases: vec![
@@ -169,6 +173,7 @@ pub fn create_default_turn_structure() -> TurnStructure {
 }
 
 /// Creates a default CRT with standard odds-ratio columns and 6 rows (1d6).
+#[must_use]
 pub fn create_default_crt() -> CombatResultsTable {
     let columns = vec![
         TableColumn {

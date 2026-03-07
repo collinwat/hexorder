@@ -380,7 +380,7 @@ pub(crate) fn render_dice_panel(
     // Result display.
     if let Some(roll) = &editor_state.last_dice_roll {
         ui.add_space(4.0);
-        let values_str: Vec<String> = roll.values.iter().map(|v| v.to_string()).collect();
+        let values_str: Vec<String> = roll.values.iter().map(ToString::to_string).collect();
         ui.horizontal(|ui| {
             ui.label("Dice:");
             ui.label(

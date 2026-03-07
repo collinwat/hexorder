@@ -3771,16 +3771,16 @@ fn influence_map_is_computed() {
         "Influence map should be populated"
     );
     assert!(
-        influence_map.get(&HexPosition::new(1, 0)).is_some(),
+        influence_map.get(HexPosition::new(1, 0)).is_some(),
         "(1,0) should be influenced by enemy at (0,0)"
     );
     assert!(
-        influence_map.get(&HexPosition::new(0, 1)).is_some(),
+        influence_map.get(HexPosition::new(0, 1)).is_some(),
         "(0,1) should be influenced by enemy at (0,0)"
     );
     // (2,0) is 2 steps away — should NOT be influenced with range 1.
     assert!(
-        influence_map.get(&HexPosition::new(2, 0)).is_none(),
+        influence_map.get(HexPosition::new(2, 0)).is_none(),
         "(2,0) should not be influenced — out of range"
     );
 }

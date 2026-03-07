@@ -414,7 +414,7 @@ fn evaluate_step(
     }
 
     // Check spatial influence on the target hex.
-    if let Some(entries) = ctx.influence_map.get(&target_pos) {
+    if let Some(entries) = ctx.influence_map.get(target_pos) {
         for entry in entries {
             // Don't apply influence from the moving unit's own position.
             if entry.source_pos == ctx.unit_pos {
