@@ -20,6 +20,24 @@ when composed through the ontology.
 
 ## Types
 
+### Dice Pool
+
+```rust
+/// A pool of dice to roll together: count dice of sides sides, plus a flat modifier.
+pub struct DicePool {
+    pub count: u8,
+    pub sides: u8,
+    pub modifier: i8,
+}
+
+/// The result of rolling a DicePool.
+pub struct DiceRoll {
+    pub pool: DicePool,
+    pub values: Vec<u8>,
+    pub total: i16,
+}
+```
+
 ### Seeded RNG
 
 ```rust
@@ -133,6 +151,9 @@ pub fn roll_range(rng: &mut SimulationRng, min: u32, max: u32, context: &str) ->
 
 /// Reset the RNG with a new seed, clearing the roll log.
 pub fn reset_rng(rng: &mut SimulationRng, seed: u64);
+
+/// Roll a DicePool, logging each individual die. Returns a DiceRoll with values and total.
+pub fn roll_pool(rng: &mut SimulationRng, pool: DicePool, context: &str) -> DiceRoll;
 
 /// Replay rolls from a seed — returns the first `count` d6 results.
 pub fn replay_from_seed(seed: u64, count: u64) -> Vec<u32>;

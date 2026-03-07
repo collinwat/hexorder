@@ -34,7 +34,9 @@ use hexorder_contracts::ontology::{
     RelationTrigger,
 };
 use hexorder_contracts::persistence::{AppScreen, Workspace};
-use hexorder_contracts::simulation::{ColumnType, ResolutionTable, TableColumn, TableRow};
+use hexorder_contracts::simulation::{
+    ColumnType, ResolutionTable, SimulationRng, TableColumn, TableRow,
+};
 use hexorder_contracts::validation::{SchemaError, SchemaErrorCategory, SchemaValidation};
 
 use super::actions;
@@ -11391,6 +11393,7 @@ fn play_sidebar_renders_header() {
     let selected_unit = SelectedUnit::default();
     let entity_types = test_registry();
     let mut editor_state = EditorState::default();
+    let mut sim_rng = SimulationRng::new(42);
 
     let harness = Harness::new_ui(|ui| {
         render_play::render_play_sidebar(
@@ -11405,6 +11408,7 @@ fn play_sidebar_renders_header() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &mut sim_rng,
             &|_| None,
         );
     });
@@ -12885,6 +12889,7 @@ fn play_sidebar_no_switch_without_click() {
         selected_unit: SelectedUnit,
         entity_types: EntityTypeRegistry,
         editor_state: EditorState,
+        sim_rng: SimulationRng,
         switch_result: bool,
     }
 
@@ -12905,6 +12910,7 @@ fn play_sidebar_no_switch_without_click() {
         selected_unit: SelectedUnit::default(),
         entity_types: EntityTypeRegistry::default(),
         editor_state: EditorState::default(),
+        sim_rng: SimulationRng::new(42),
         switch_result: false,
     };
 
@@ -12922,6 +12928,7 @@ fn play_sidebar_no_switch_without_click() {
                 &s.selected_unit,
                 &s.entity_types,
                 &mut s.editor_state,
+                &mut s.sim_rng,
                 &|_| None,
             );
         },
@@ -12950,6 +12957,7 @@ fn play_sidebar_shows_editor_button_icon() {
     let selected_unit = SelectedUnit::default();
     let entity_types = EntityTypeRegistry::default();
     let mut editor_state = EditorState::default();
+    let mut sim_rng = SimulationRng::new(42);
 
     let harness = Harness::new_ui(|ui| {
         render_play::render_play_sidebar(
@@ -12964,6 +12972,7 @@ fn play_sidebar_shows_editor_button_icon() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &mut sim_rng,
             &|_| None,
         );
     });
@@ -12989,6 +12998,7 @@ fn play_sidebar_with_phases_shows_turn_tracker() {
     let selected_unit = SelectedUnit::default();
     let entity_types = EntityTypeRegistry::default();
     let mut editor_state = EditorState::default();
+    let mut sim_rng = SimulationRng::new(42);
 
     let harness = Harness::new_ui(|ui| {
         render_play::render_play_sidebar(
@@ -13003,6 +13013,7 @@ fn play_sidebar_with_phases_shows_turn_tracker() {
             &selected_unit,
             &entity_types,
             &mut editor_state,
+            &mut sim_rng,
             &|_| None,
         );
     });

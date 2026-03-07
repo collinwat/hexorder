@@ -12,6 +12,7 @@ use hexorder_contracts::mechanics::{
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
 };
+use hexorder_contracts::simulation::{DicePool, SimulationRng, reset_rng, roll_pool};
 
 use super::components::{BrandTheme, EditorState};
 use super::render_panels::{render_about_panel, render_workspace_header};
@@ -46,6 +47,7 @@ pub fn play_panel_system(
     selected_unit: Res<SelectedUnit>,
     entity_types: Res<EntityTypeRegistry>,
     mut editor_state: ResMut<EditorState>,
+    mut sim_rng: ResMut<SimulationRng>,
     unit_query: Query<&EntityData, With<UnitInstance>>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
@@ -96,6 +98,7 @@ pub fn play_panel_system(
                 &selected_unit,
                 &entity_types,
                 &mut editor_state,
+                &mut sim_rng,
                 &|e| unit_query.get(e).ok(),
             );
         });
@@ -152,6 +155,7 @@ pub(crate) fn render_play_sidebar<'a>(
     selected_unit: &SelectedUnit,
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
+    sim_rng: &mut SimulationRng,
     unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
 ) -> bool {
     // -- Workspace Header --
@@ -174,6 +178,11 @@ pub(crate) fn render_play_sidebar<'a>(
     egui::ScrollArea::vertical().show(ui, |ui| {
         // -- Turn Tracker --
         render_turn_tracker(ui, turn_state, turn_structure);
+
+        ui.separator();
+
+        // -- Dice Panel --
+        render_dice_panel(ui, editor_state, sim_rng);
 
         ui.separator();
 
@@ -289,6 +298,116 @@ pub(crate) fn render_turn_tracker(
             turn_state.current_phase_index = next_index;
         }
     }
+}
+
+/// Renders the dice pool panel: pool configuration, roll button, results, and seed control.
+pub(crate) fn render_dice_panel(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    sim_rng: &mut SimulationRng,
+) {
+    ui.label(
+        egui::RichText::new("Dice")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    // Pool configuration.
+    ui.horizontal(|ui| {
+        let mut count = i32::from(editor_state.dice_count);
+        ui.add(egui::DragValue::new(&mut count).range(1..=255).prefix(""));
+        editor_state.dice_count = count.clamp(1, 255) as u8;
+
+        ui.label("d");
+
+        let mut sides = i32::from(editor_state.dice_sides);
+        ui.add(egui::DragValue::new(&mut sides).range(1..=255).prefix(""));
+        editor_state.dice_sides = sides.clamp(1, 255) as u8;
+
+        let mut modifier = i32::from(editor_state.dice_modifier);
+        ui.add(
+            egui::DragValue::new(&mut modifier)
+                .range(-128..=127)
+                .prefix("+"),
+        );
+        editor_state.dice_modifier = modifier.clamp(-128, 127) as i8;
+    });
+
+    let pool = DicePool::new(
+        editor_state.dice_count,
+        editor_state.dice_sides,
+        editor_state.dice_modifier,
+    );
+    ui.label(
+        egui::RichText::new(format!("Pool: {pool}"))
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
+
+    ui.add_space(4.0);
+
+    // Roll button.
+    if ui.button("Roll \u{1F3B2}").clicked() {
+        let result = roll_pool(sim_rng, pool, "dice panel");
+        editor_state.last_dice_roll = Some(result);
+    }
+
+    // Result display.
+    if let Some(roll) = &editor_state.last_dice_roll {
+        ui.add_space(4.0);
+        let values_str: Vec<String> = roll.values.iter().map(|v| v.to_string()).collect();
+        ui.horizontal(|ui| {
+            ui.label("Dice:");
+            ui.label(
+                egui::RichText::new(format!("[{}]", values_str.join(", ")))
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Total:");
+            ui.label(
+                egui::RichText::new(format!("{}", roll.total))
+                    .strong()
+                    .size(18.0)
+                    .color(BrandTheme::ACCENT_AMBER),
+            );
+            if roll.pool.modifier != 0 {
+                let sum: i16 = roll.values.iter().map(|&v| i16::from(v)).sum();
+                ui.label(
+                    egui::RichText::new(format!("({sum}{:+})", roll.pool.modifier))
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+            }
+        });
+    }
+
+    ui.add_space(4.0);
+
+    // Seed controls.
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(format!("Seed: {}", sim_rng.seed()))
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    });
+    ui.horizontal(|ui| {
+        let response = ui
+            .add(egui::TextEdit::singleline(&mut editor_state.dice_seed_input).desired_width(80.0));
+        let apply_seed = (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+            || ui.button("Set Seed").clicked();
+        if apply_seed && let Ok(seed) = editor_state.dice_seed_input.trim().parse::<u64>() {
+            reset_rng(sim_rng, seed);
+            editor_state.last_dice_roll = None;
+        }
+    });
+    ui.label(
+        egui::RichText::new(format!("Rolls: {}", sim_rng.roll_count()))
+            .small()
+            .color(BrandTheme::TEXT_SECONDARY),
+    );
 }
 
 /// Renders the combat resolution panel in the play panel.

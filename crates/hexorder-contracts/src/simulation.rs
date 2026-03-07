@@ -13,6 +13,67 @@ use serde::{Deserialize, Serialize};
 use crate::game_system::TypeId;
 
 // ---------------------------------------------------------------------------
+// Dice Pool
+// ---------------------------------------------------------------------------
+
+/// A pool of dice to roll together: `count` dice of `sides` sides, plus a flat modifier.
+///
+/// Examples: 2d6+1 = `DicePool { count: 2, sides: 6, modifier: 1 }`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
+pub struct DicePool {
+    /// Number of dice to roll (1-255).
+    pub count: u8,
+    /// Number of sides per die (1-255).
+    pub sides: u8,
+    /// Flat modifier added to the total after summing dice.
+    pub modifier: i8,
+}
+
+impl DicePool {
+    /// Create a new dice pool.
+    #[must_use]
+    pub fn new(count: u8, sides: u8, modifier: i8) -> Self {
+        Self {
+            count,
+            sides,
+            modifier,
+        }
+    }
+
+    /// Shorthand for a single die with no modifier (e.g., `DicePool::single(6)` = 1d6).
+    #[must_use]
+    pub fn single(sides: u8) -> Self {
+        Self {
+            count: 1,
+            sides,
+            modifier: 0,
+        }
+    }
+}
+
+impl std::fmt::Display for DicePool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}d{}", self.count, self.sides)?;
+        match self.modifier.cmp(&0) {
+            std::cmp::Ordering::Greater => write!(f, "+{}", self.modifier),
+            std::cmp::Ordering::Less => write!(f, "{}", self.modifier),
+            std::cmp::Ordering::Equal => Ok(()),
+        }
+    }
+}
+
+/// The result of rolling a [`DicePool`].
+#[derive(Debug, Clone, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub struct DiceRoll {
+    /// The pool that was rolled.
+    pub pool: DicePool,
+    /// Individual die values (each in `[1, pool.sides]`).
+    pub values: Vec<u8>,
+    /// Sum of all die values plus the modifier.
+    pub total: i16,
+}
+
+// ---------------------------------------------------------------------------
 // Seeded RNG
 // ---------------------------------------------------------------------------
 
@@ -158,6 +219,25 @@ pub fn replay_from_seed(seed: u64, count: u64) -> Vec<u32> {
     (0..count)
         .map(|_| roll_die(&mut rng, DieType::D6, ""))
         .collect()
+}
+
+/// Roll a [`DicePool`], logging each individual die roll.
+/// Returns a [`DiceRoll`] with individual values and the total (sum + modifier).
+#[must_use]
+pub fn roll_pool(rng: &mut SimulationRng, pool: DicePool, context: &str) -> DiceRoll {
+    let die = DieType::Custom {
+        sides: u32::from(pool.sides),
+    };
+    let values: Vec<u8> = (0..pool.count)
+        .map(|_| roll_die(rng, die, context) as u8)
+        .collect();
+    let sum: i16 = values.iter().map(|&v| i16::from(v)).sum();
+    let total = sum + i16::from(pool.modifier);
+    DiceRoll {
+        pool,
+        values,
+        total,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -404,6 +484,104 @@ pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- DicePool / DiceRoll tests ---
+
+    #[test]
+    fn dice_pool_display_no_modifier() {
+        assert_eq!(DicePool::new(2, 6, 0).to_string(), "2d6");
+    }
+
+    #[test]
+    fn dice_pool_display_positive_modifier() {
+        assert_eq!(DicePool::new(1, 6, 3).to_string(), "1d6+3");
+    }
+
+    #[test]
+    fn dice_pool_display_negative_modifier() {
+        assert_eq!(DicePool::new(3, 8, -2).to_string(), "3d8-2");
+    }
+
+    #[test]
+    fn dice_pool_single() {
+        let pool = DicePool::single(6);
+        assert_eq!(pool.count, 1);
+        assert_eq!(pool.sides, 6);
+        assert_eq!(pool.modifier, 0);
+    }
+
+    #[test]
+    fn roll_pool_values_in_range() {
+        let mut rng = SimulationRng::new(42);
+        let pool = DicePool::new(3, 6, 0);
+        for _ in 0..50 {
+            let result = roll_pool(&mut rng, pool, "test");
+            assert_eq!(result.values.len(), 3);
+            for &v in &result.values {
+                assert!((1..=6).contains(&v), "die value {v} out of range");
+            }
+            let expected_total: i16 = result.values.iter().map(|&v| i16::from(v)).sum();
+            assert_eq!(result.total, expected_total);
+        }
+    }
+
+    #[test]
+    fn roll_pool_with_modifier() {
+        let mut rng = SimulationRng::new(42);
+        let pool = DicePool::new(2, 6, 3);
+        let result = roll_pool(&mut rng, pool, "test");
+        let sum: i16 = result.values.iter().map(|&v| i16::from(v)).sum();
+        assert_eq!(result.total, sum + 3);
+    }
+
+    #[test]
+    fn roll_pool_deterministic() {
+        let pool = DicePool::new(4, 10, -1);
+        let mut rng1 = SimulationRng::new(99);
+        let mut rng2 = SimulationRng::new(99);
+        let r1 = roll_pool(&mut rng1, pool, "test");
+        let r2 = roll_pool(&mut rng2, pool, "test");
+        assert_eq!(r1.values, r2.values);
+        assert_eq!(r1.total, r2.total);
+    }
+
+    #[test]
+    fn roll_pool_logs_individual_rolls() {
+        let mut rng = SimulationRng::new(42);
+        let pool = DicePool::new(3, 6, 0);
+        let _ = roll_pool(&mut rng, pool, "combat");
+        assert_eq!(rng.roll_count(), 3, "3 dice should produce 3 log entries");
+    }
+
+    #[test]
+    fn roll_pool_records_pool() {
+        let mut rng = SimulationRng::new(42);
+        let pool = DicePool::new(2, 8, 1);
+        let result = roll_pool(&mut rng, pool, "test");
+        assert_eq!(result.pool, pool);
+    }
+
+    #[test]
+    fn dice_pool_ron_round_trip() {
+        let pool = DicePool::new(2, 6, 3);
+        let ron_str = ron::to_string(&pool).expect("serialize");
+        let deserialized: DicePool = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized, pool);
+    }
+
+    #[test]
+    fn dice_roll_ron_round_trip() {
+        let roll = DiceRoll {
+            pool: DicePool::new(2, 6, 1),
+            values: vec![3, 5],
+            total: 9,
+        };
+        let ron_str = ron::to_string(&roll).expect("serialize");
+        let deserialized: DiceRoll = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized, roll);
+    }
+
+    // --- DieType tests ---
 
     #[test]
     fn die_type_sides() {

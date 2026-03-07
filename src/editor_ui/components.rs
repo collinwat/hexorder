@@ -396,6 +396,18 @@ pub struct EditorState {
     /// Selected entity type index for stacking exempt picker.
     pub new_stacking_exempt_idx: Option<usize>,
 
+    // -- Dice panel state --
+    /// Number of dice in the pool (1-255).
+    pub dice_count: u8,
+    /// Sides per die (1-255).
+    pub dice_sides: u8,
+    /// Flat modifier after summing.
+    pub dice_modifier: i8,
+    /// Last dice roll result (None if not yet rolled).
+    pub last_dice_roll: Option<hexorder_contracts::simulation::DiceRoll>,
+    /// Editable seed string (parsed to u64 on apply).
+    pub dice_seed_input: String,
+
     // -- About panel --
     /// Whether the About panel is visible.
     pub about_panel_visible: bool,
@@ -479,6 +491,11 @@ impl Default for EditorState {
             new_influence_range: 1,
             new_influence_cost: 1,
             new_stacking_exempt_idx: None,
+            dice_count: 1,
+            dice_sides: 6,
+            dice_modifier: 0,
+            last_dice_roll: None,
+            dice_seed_input: String::new(),
             about_panel_visible: false,
         }
     }
