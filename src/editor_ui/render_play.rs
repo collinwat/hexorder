@@ -7,8 +7,9 @@ use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, GameSystem, SelectedUnit, UnitInstance,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseAction, PhaseType, TurnState,
-    TurnStructure, execute_phase_action, is_phase_action_legal,
+    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseAction, PhaseType,
+    PostResolutionAction, PostResolutionRule, TurnState, TurnStructure, evaluate_post_resolution,
+    execute_phase_action, is_phase_action_legal,
 };
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
@@ -884,6 +885,39 @@ pub(crate) fn render_combat_panel<'a>(
         }
     }
 
+    // -- Post-resolution movement preview --
+    if let Some(outcome) = &active_combat.outcome
+        && let (Some(atk), Some(def)) = (active_combat.attacker, active_combat.defender)
+    {
+        let default_rules = build_default_post_resolution_rules(outcome);
+        if !default_rules.is_empty() {
+            let pending = evaluate_post_resolution(&default_rules, outcome, atk, def);
+            if !pending.is_empty() {
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new("Post-Resolution Movement")
+                        .small()
+                        .strong()
+                        .color(BrandTheme::ACCENT_TEAL),
+                );
+                for pm in &pending {
+                    let action_text = match pm.action {
+                        PostResolutionAction::Advance => "Attacker advances (1 hex)".to_string(),
+                        PostResolutionAction::Retreat => {
+                            format!("Defender retreats ({} hex)", pm.movement_range)
+                        }
+                        PostResolutionAction::Hold => "No movement".to_string(),
+                    };
+                    ui.label(
+                        egui::RichText::new(format!("  \u{2192} {action_text}"))
+                            .small()
+                            .color(BrandTheme::TEXT_PRIMARY),
+                    );
+                }
+            }
+        }
+    }
+
     ui.add_space(8.0);
 
     // -- Clear button --
@@ -891,6 +925,35 @@ pub(crate) fn render_combat_panel<'a>(
         *active_combat = ActiveCombat::default();
         editor_state.combat_attacker_strength = 0.0;
         editor_state.combat_defender_strength = 0.0;
+    }
+}
+
+/// Builds default post-resolution rules from the combat outcome's effect.
+///
+/// This derives movement rules from the structured effect rather than requiring
+/// designers to define post-resolution rules separately (which is a future scope).
+fn build_default_post_resolution_rules(
+    outcome: &hexorder_contracts::mechanics::CombatOutcome,
+) -> Vec<PostResolutionRule> {
+    let Some(effect) = &outcome.effect else {
+        return Vec::new();
+    };
+    match effect {
+        hexorder_contracts::mechanics::OutcomeEffect::Retreat { hexes } => {
+            vec![PostResolutionRule {
+                action: PostResolutionAction::Retreat,
+                trigger_effects: vec![],
+                movement_range: *hexes,
+            }]
+        }
+        hexorder_contracts::mechanics::OutcomeEffect::DefenderEliminated => {
+            vec![PostResolutionRule {
+                action: PostResolutionAction::Advance,
+                trigger_effects: vec![],
+                movement_range: 1,
+            }]
+        }
+        _ => Vec::new(),
     }
 }
 
