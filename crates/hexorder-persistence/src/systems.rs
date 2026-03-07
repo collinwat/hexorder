@@ -11,7 +11,7 @@ use hexorder_contracts::game_system::{
     UnitInstance,
 };
 use hexorder_contracts::hex_grid::{
-    HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, MoveOverlay,
+    HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceRuleRegistry, MoveOverlay,
 };
 use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierRegistry, CombatResultsTable, TurnState, TurnStructure,
@@ -73,6 +73,7 @@ fn build_game_system_file(
     let combat_modifiers = world.resource::<CombatModifierRegistry>();
     let config = world.resource::<HexGridConfig>();
     let edge_features = world.resource::<HexEdgeRegistry>();
+    let influence_rules = world.resource::<InfluenceRuleRegistry>();
 
     let tile_data: Vec<TileSaveData> = tiles
         .iter()
@@ -111,6 +112,7 @@ fn build_game_system_file(
         workspace_preset: workspace.workspace_preset.clone(),
         font_size_base: workspace.font_size_base,
         edge_features: edge_features.clone(),
+        influence_rules: influence_rules.clone(),
     }
 }
 
@@ -201,6 +203,7 @@ pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool 
     *world.resource_mut::<CombatResultsTable>() = file.combat_results_table;
     *world.resource_mut::<CombatModifierRegistry>() = file.combat_modifiers;
     *world.resource_mut::<HexEdgeRegistry>() = file.edge_features;
+    *world.resource_mut::<InfluenceRuleRegistry>() = file.influence_rules;
     *world.resource_mut::<SchemaValidation>() = SchemaValidation::default();
 
     // Derive workspace name: use file name field if present (v3+),
@@ -275,6 +278,7 @@ fn reset_to_new_project(name: &str, world: &mut World) {
         hexorder_contracts::defaults::create_default_crt();
     *world.resource_mut::<CombatModifierRegistry>() = CombatModifierRegistry::default();
     *world.resource_mut::<HexEdgeRegistry>() = HexEdgeRegistry::default();
+    *world.resource_mut::<InfluenceRuleRegistry>() = InfluenceRuleRegistry::default();
     *world.resource_mut::<TurnState>() = TurnState::default();
     *world.resource_mut::<ActiveCombat>() = ActiveCombat::default();
 
