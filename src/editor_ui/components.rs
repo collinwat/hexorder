@@ -386,6 +386,14 @@ pub struct EditorState {
     /// Cached shortcut entries for the keyboard shortcuts reference panel.
     pub shortcut_entries: Vec<ShortcutDisplayEntry>,
 
+    // -- Influence rules editor --
+    /// Selected entity type index for new influence rule.
+    pub new_influence_type_idx: Option<usize>,
+    /// Range (in hexes) for new influence rule.
+    pub new_influence_range: u32,
+    /// Movement cost modifier for new influence rule.
+    pub new_influence_cost: i32,
+
     // -- About panel --
     /// Whether the About panel is visible.
     pub about_panel_visible: bool,
@@ -465,6 +473,9 @@ impl Default for EditorState {
             theme_names: vec!["Brand".to_string()],
             active_theme_name: "brand".to_string(),
             shortcut_entries: Vec::new(),
+            new_influence_type_idx: None,
+            new_influence_range: 1,
+            new_influence_cost: 1,
             about_panel_visible: false,
         }
     }
@@ -517,6 +528,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) combat_results_table: ResMut<'w, CombatResultsTable>,
     pub(super) combat_modifiers: ResMut<'w, CombatModifierRegistry>,
     pub(super) mechanic_catalog: Res<'w, hexorder_contracts::mechanic_reference::MechanicCatalog>,
+    pub(super) influence_rules: ResMut<'w, hexorder_contracts::hex_grid::InfluenceRuleRegistry>,
 }
 
 /// Bundled system parameter for ontology-related resources.

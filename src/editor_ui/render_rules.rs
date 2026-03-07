@@ -2,10 +2,11 @@
 
 use bevy_egui::egui;
 
+use hexorder_contracts::game_system::TypeId;
 use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, EnumRegistry, PropertyType, PropertyValue, StructRegistry,
 };
-use hexorder_contracts::hex_grid::HexPosition;
+use hexorder_contracts::hex_grid::{HexPosition, InfluenceRule, InfluenceRuleRegistry};
 use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
     TurnStructure,
@@ -491,6 +492,116 @@ pub(crate) fn render_mechanics_tab(
         editor_state.new_modifier_custom_source.clear();
         editor_state.new_modifier_shift = 0;
         editor_state.new_modifier_priority = 0;
+    }
+}
+
+/// Renders the spatial influence rules editor.
+pub(crate) fn render_influence_rules(
+    ui: &mut egui::Ui,
+    influence_rules: &mut InfluenceRuleRegistry,
+    entity_types: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
+) {
+    ui.label(
+        egui::RichText::new("Spatial Influence Rules")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    let mut remove_idx = None;
+    for (i, rule) in influence_rules.rules.iter().enumerate() {
+        let type_name = entity_types
+            .get(rule.entity_type_id)
+            .map_or("Unknown", |et| et.name.as_str());
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(type_name)
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(format!("range {} +{} MP", rule.range, rule.cost_modifier))
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button(egui::RichText::new("x").color(BrandTheme::DANGER))
+                    .clicked()
+                {
+                    remove_idx = Some(i);
+                }
+            });
+        });
+    }
+    if let Some(idx) = remove_idx {
+        influence_rules.rules.remove(idx);
+    }
+
+    // Add rule form.
+    ui.add_space(4.0);
+    let token_types: Vec<_> = entity_types
+        .types
+        .iter()
+        .filter(|et| et.role == hexorder_contracts::game_system::EntityRole::Token)
+        .collect();
+
+    if token_types.is_empty() {
+        ui.label(
+            egui::RichText::new("No token entity types defined")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    } else {
+        ui.horizontal(|ui| {
+            ui.label("Type:");
+            let selected_name = editor_state
+                .new_influence_type_idx
+                .and_then(|idx| token_types.get(idx))
+                .map_or("Select...", |et| et.name.as_str());
+            egui::ComboBox::from_id_salt("influence_type_picker")
+                .selected_text(selected_name)
+                .show_ui(ui, |ui| {
+                    for (idx, et) in token_types.iter().enumerate() {
+                        if ui
+                            .selectable_label(
+                                editor_state.new_influence_type_idx == Some(idx),
+                                &et.name,
+                            )
+                            .clicked()
+                        {
+                            editor_state.new_influence_type_idx = Some(idx);
+                        }
+                    }
+                });
+        });
+        ui.horizontal(|ui| {
+            ui.label("Range:");
+            ui.add(
+                egui::DragValue::new(&mut editor_state.new_influence_range)
+                    .range(1..=5)
+                    .speed(0.1),
+            );
+            ui.label("Cost:");
+            ui.add(
+                egui::DragValue::new(&mut editor_state.new_influence_cost)
+                    .range(1..=20)
+                    .speed(0.1),
+            );
+        });
+        if ui.button("Add Rule").clicked()
+            && let Some(idx) = editor_state.new_influence_type_idx
+            && let Some(et) = token_types.get(idx)
+        {
+            influence_rules.rules.push(InfluenceRule {
+                id: TypeId::new(),
+                entity_type_id: et.id,
+                range: editor_state.new_influence_range,
+                cost_modifier: i64::from(editor_state.new_influence_cost),
+            });
+            editor_state.new_influence_type_idx = None;
+        }
     }
 }
 

@@ -50,7 +50,9 @@ pub(super) use super::render_panels::{
     render_about_panel, render_cell_palette, render_edge_palette, render_tool_mode,
     render_unit_palette, render_workspace_header,
 };
-pub(super) use super::render_rules::{render_mechanics_tab, render_validation_tab};
+pub(super) use super::render_rules::{
+    render_influence_rules, render_mechanics_tab, render_validation_tab,
+};
 
 // Public systems re-exported for plugin registration in mod.rs.
 #[cfg(feature = "inspector")]
@@ -150,6 +152,7 @@ pub(crate) struct RulesData<'a> {
     pub(crate) turn_structure: &'a mut hexorder_contracts::mechanics::TurnStructure,
     pub(crate) combat_results_table: &'a mut CombatResultsTable,
     pub(crate) combat_modifiers: &'a mut hexorder_contracts::mechanics::CombatModifierRegistry,
+    pub(crate) influence_rules: &'a mut hexorder_contracts::hex_grid::InfluenceRuleRegistry,
 }
 
 /// Actions returned by `render_editor_menu_bar` for deferred dispatch.
@@ -332,6 +335,13 @@ pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut Edit
                             viewer.rules.combat_modifiers,
                             viewer.editor_state,
                             viewer.actions,
+                        );
+                        ui.add_space(12.0);
+                        render_influence_rules(
+                            ui,
+                            viewer.rules.influence_rules,
+                            viewer.design.registry,
+                            viewer.editor_state,
                         );
                     }
                     // If user had a Design sub-tab selected, show Constraints as fallback.
@@ -1076,6 +1086,7 @@ pub fn editor_dock_system(
             turn_structure: &mut mechanics.turn_structure,
             combat_results_table: &mut mechanics.combat_results_table,
             combat_modifiers: &mut mechanics.combat_modifiers,
+            influence_rules: &mut mechanics.influence_rules,
         },
         inspector: InspectorData {
             tile_position,

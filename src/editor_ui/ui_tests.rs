@@ -11514,6 +11514,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
     let mut turn_structure = TurnStructure::default();
     let mut combat_results_table = CombatResultsTable::default();
     let mut combat_modifiers = CombatModifierRegistry::default();
+    let mut influence_rules = hexorder_contracts::hex_grid::InfluenceRuleRegistry::default();
     let mut map_gen_params = MapGenParams::default();
 
     let mut viewer = EditorDockViewer {
@@ -11544,6 +11545,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
             turn_structure: &mut turn_structure,
             combat_results_table: &mut combat_results_table,
             combat_modifiers: &mut combat_modifiers,
+            influence_rules: &mut influence_rules,
         },
         inspector: InspectorData {
             tile_position: None,
