@@ -213,6 +213,13 @@ pub struct StackingRule {
     pub max_units: u32,
     pub exempt_type_ids: Vec<TypeId>,
 }
+
+/// 2D movement cost lookup: (terrain type, unit classification) → cost.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct MovementCostMatrix {
+    pub classification_property_id: Option<TypeId>,
+    pub entries: HashMap<(TypeId, String), i64>,
+}
 ```
 
 ## Invariants
@@ -233,6 +240,11 @@ pub struct StackingRule {
   full hexes
 - Exempt types bypass the stacking limit entirely and are not counted toward capacity
 - `StackingRule` is persisted with the game system file (format v6+)
+- `MovementCostMatrix` defaults to inactive (no classification_property_id); when active, overrides
+  terrain cost per unit classification
+- Matrix entries are keyed by (terrain_type_id, classification_enum_value); missing entries fall
+  back to standard terrain cost
+- `MovementCostMatrix` is persisted with the game system file (format v6+)
 
 ## Changelog
 
@@ -246,3 +258,4 @@ pub struct StackingRule {
 | 2026-02-22 | Added HexEdge, EdgeFeature, HexEdgeRegistry                                            | 0.12.0 — hex edge spatial infrastructure for user-defined annotations     |
 | 2026-03-06 | Added InfluenceRule, InfluenceRuleRegistry, InfluenceEntry, InfluenceMap, hex_distance | 0.19.0 — spatial influence evaluator for movement cost modifiers          |
 | 2026-03-07 | Added StackingRule                                                                     | 0.19.0 — hex capacity limits with exempt types                            |
+| 2026-03-07 | Added MovementCostMatrix                                                               | 0.19.0 — 2D terrain×classification cost lookup                            |
