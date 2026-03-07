@@ -207,6 +207,12 @@ pub struct InfluenceEntry {
 pub struct InfluenceMap {
     pub influenced: HashMap<HexPosition, Vec<InfluenceEntry>>,
 }
+/// Stacking capacity constraint for hexes.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct StackingRule {
+    pub max_units: u32,
+    pub exempt_type_ids: Vec<TypeId>,
+}
 ```
 
 ## Invariants
@@ -223,6 +229,10 @@ pub struct InfluenceMap {
 - `InfluenceMap` is ephemeral — rebuilt each time valid moves are computed
 - `InfluenceRule.range` is 1..=5; `cost_modifier` is the movement cost added per influenced hex
 - A unit's own influence is excluded from its movement cost calculation
+- `StackingRule` defaults to inactive (max_units=0); when active, blocks placement and movement to
+  full hexes
+- Exempt types bypass the stacking limit entirely and are not counted toward capacity
+- `StackingRule` is persisted with the game system file (format v6+)
 
 ## Changelog
 
@@ -235,3 +245,4 @@ pub struct InfluenceMap {
 | 2026-02-15 | Added LineOfSightResult, VisibilityRange                                               | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
 | 2026-02-22 | Added HexEdge, EdgeFeature, HexEdgeRegistry                                            | 0.12.0 — hex edge spatial infrastructure for user-defined annotations     |
 | 2026-03-06 | Added InfluenceRule, InfluenceRuleRegistry, InfluenceEntry, InfluenceMap, hex_distance | 0.19.0 — spatial influence evaluator for movement cost modifiers          |
+| 2026-03-07 | Added StackingRule                                                                     | 0.19.0 — hex capacity limits with exempt types                            |
