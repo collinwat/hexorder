@@ -22,11 +22,18 @@ sccache = "latest"
 
 [tasks.start]
 description = "Run the application"
-run = "cargo run --features dev"
+# MallocStackLogging=lite works around a Metal driver race condition on macOS 26
+# that causes 'pointer being freed was not allocated' crashes in debug builds.
+# See GitHub Issue #230 for details.
+run = "MallocStackLogging=lite cargo run --features dev"
+
+[tasks."start:release"]
+description = "Run optimized release build"
+run = "cargo run --release"
 
 [tasks."start:inspector"]
 description = "Run with debug inspector panel"
-run = "cargo run --features dev,inspector"
+run = "MallocStackLogging=lite cargo run --features dev,inspector"
 
 # --- Fix tasks (auto-fix) ---
 
