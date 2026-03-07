@@ -2953,6 +2953,7 @@ fn combat_panel_no_crt_defined() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("No CRT defined");
@@ -2982,6 +2983,7 @@ fn combat_panel_with_crt_shows_strengths() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Combat Resolution");
@@ -3014,6 +3016,7 @@ fn combat_panel_with_modifiers_shows_breakdown() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Modifiers");
@@ -3051,6 +3054,7 @@ fn combat_panel_shows_outcome_result() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Result: DR");
@@ -3088,6 +3092,7 @@ fn combat_panel_shows_outcome_effects() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Defender eliminated");
@@ -3145,6 +3150,7 @@ fn combat_panel_shows_no_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("No effect");
@@ -3166,6 +3172,7 @@ fn combat_panel_shows_retreat_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("retreats 2 hex");
@@ -3187,6 +3194,7 @@ fn combat_panel_shows_step_loss_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Defender loses 1 step");
@@ -3208,6 +3216,7 @@ fn combat_panel_shows_attacker_step_loss_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Attacker loses 2 step");
@@ -3232,6 +3241,7 @@ fn combat_panel_shows_exchange_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Exchange: ATK -1, DEF -2");
@@ -3253,6 +3263,7 @@ fn combat_panel_shows_attacker_eliminated_effect() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Attacker eliminated");
@@ -3286,6 +3297,7 @@ fn combat_panel_shows_below_minimum_threshold() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Below minimum column threshold");
@@ -13064,6 +13076,7 @@ fn combat_panel_odds_display_with_positive_defender() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Odds: 3.00:1");
@@ -13089,6 +13102,7 @@ fn combat_panel_shows_none_when_no_combatants() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Attacker:");
@@ -13121,6 +13135,7 @@ fn combat_panel_modifiers_show_final_column() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Final column:");
@@ -13165,6 +13180,7 @@ fn combat_panel_clear_via_render_function() {
                 &s.entity_types,
                 &mut s.editor_state,
                 &|_| None,
+                true,
             );
         },
         state,
@@ -13212,6 +13228,7 @@ fn combat_panel_shows_base_column_label() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Base column:");
@@ -13447,6 +13464,7 @@ fn combat_panel_shows_die_roll_when_set() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Die roll:");
@@ -13484,6 +13502,7 @@ fn combat_panel_shows_outcome_label() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Result: NE");
@@ -13506,6 +13525,7 @@ fn combat_panel_shows_no_effect_text() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("No effect");
@@ -13529,6 +13549,7 @@ fn combat_panel_shows_attacker_eliminated() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Attacker eliminated");
@@ -13551,6 +13572,7 @@ fn combat_panel_shows_defender_eliminated() {
             &entity_types,
             &mut editor_state,
             &|_| None,
+            true,
         );
     });
     harness.get_by_label_contains("Defender eliminated");

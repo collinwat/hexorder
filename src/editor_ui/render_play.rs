@@ -198,6 +198,10 @@ pub(crate) fn render_play_sidebar<'a>(
         ui.separator();
 
         // -- Combat Panel --
+        let in_combat_phase = turn_structure
+            .phases
+            .get(turn_state.current_phase_index)
+            .is_some_and(|p| p.phase_type == PhaseType::Combat);
         render_combat_panel(
             ui,
             active_combat,
@@ -207,6 +211,7 @@ pub(crate) fn render_play_sidebar<'a>(
             entity_types,
             editor_state,
             unit_lookup,
+            in_combat_phase,
         );
     });
 
@@ -615,6 +620,7 @@ pub(crate) fn render_combat_panel<'a>(
     entity_types: &EntityTypeRegistry,
     editor_state: &mut EditorState,
     unit_lookup: &dyn Fn(Entity) -> Option<&'a EntityData>,
+    in_combat_phase: bool,
 ) {
     use hexorder_contracts::mechanics::resolve_crt;
     use hexorder_contracts::simulation::{
@@ -787,7 +793,15 @@ pub(crate) fn render_combat_panel<'a>(
     ui.add_space(8.0);
 
     // -- Die Roll --
-    let can_resolve = base_column.is_some();
+    if !in_combat_phase {
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new("Advance to a Combat phase to resolve attacks.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    }
+    let can_resolve = base_column.is_some() && in_combat_phase;
     ui.add_enabled_ui(can_resolve, |ui| {
         if ui.button("Roll Die \u{1F3B2}").clicked() {
             let roll = rand_die_roll();
