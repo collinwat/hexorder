@@ -4150,3 +4150,545 @@ fn matrix_fallback_when_no_entry_for_classification() {
         "(2,0) should be reachable with fallback cost 1 and budget 4"
     );
 }
+
+// =========================================================================
+// Canary Validation: Traces of Victory (SC-5)
+// =========================================================================
+//
+// End-to-end integration test exercising all four spatial primitives
+// together with Traces-of-Victory-like data:
+//   1. Hex-side edge features (river crossing cost)
+//   2. Spatial influence (ZOC: +2 MP to enter adjacent enemy hexes)
+//   3. Stacking constraint (max 2 combat units per hex)
+//   4. Movement cost matrix (terrain × classification costs)
+//
+// Grid layout (radius 3, pointy-top):
+//
+//       (-1,0)  (0,-1)
+//          \   /
+//   (-1,1)-(0,0)-(1,-1)
+//          /   \
+//        (0,1)  (1,0)-(2,-1)-(3,-1)
+//                 |
+//               (1,1)-(2,0)-(3,0)
+//                       |
+//                     (2,1)
+//
+// Scenario:
+//   - Terrain: Plains (cost 1) everywhere, Forest at (1,0) (cost 2 for Foot)
+//   - River edge between (0,0) and (0,-1) — crossing cost +1
+//   - Enemy unit at (2,0) projects ZOC range 1, cost +2
+//   - Stacking: max 2 per hex; two allies already at (0,1)
+//   - Infantry (Foot, 4 MP) at origin
+//
+// Expected reachability from (0,0) with budget 4:
+//   - (1,0) Forest: matrix cost 2 → reachable (budget 4-2=2)
+//   - (0,-1): terrain 1 + river 1 = 2 → reachable (budget 4-2=2)
+//   - (1,-1): influenced by enemy at (2,0), terrain 1 + ZOC 2 = 3 → reachable (budget 4-3=1)
+//   - (0,1): stacking full (2/2) → blocked
+//   - (3,0): adjacent to enemy, from (2,0) which is also adjacent → unreachable (budget exhausted)
+
+/// Spawn a single hex tile with the given entity type and optional property.
+fn spawn_tile_at(
+    app: &mut App,
+    q: i32,
+    r: i32,
+    tile_type_id: TypeId,
+    prop_id: Option<TypeId>,
+    prop_value: Option<i64>,
+) {
+    let mut properties = HashMap::new();
+    if let (Some(pid), Some(val)) = (prop_id, prop_value) {
+        properties.insert(pid, PropertyValue::Int(val));
+    }
+    app.world_mut().spawn((
+        HexTile,
+        HexPosition::new(q, r),
+        EntityData {
+            entity_type_id: tile_type_id,
+            properties,
+        },
+    ));
+}
+
+/// Canary: all four spatial primitives interact correctly in a single BFS.
+#[test]
+fn canary_tov_all_primitives_combined() {
+    use hexorder_contracts::hex_grid::{EdgeFeature, HexEdge};
+
+    let mut app = test_app();
+
+    // -- Entity type IDs --
+    let plains_type_id = TypeId::new();
+    let forest_type_id = TypeId::new();
+    let infantry_type_id = TypeId::new();
+    let enemy_type_id = TypeId::new();
+    let river_type_id = TypeId::new();
+
+    let budget_prop_id = TypeId::new();
+    let cost_prop_id = TypeId::new();
+    let class_prop_id = TypeId::new();
+    let enum_id = TypeId::new();
+
+    // -- Concept IDs --
+    let concept_id = TypeId::new();
+    let traveler_role_id = TypeId::new();
+    let terrain_role_id = TypeId::new();
+
+    // -- Register entity types --
+    let mut registry = EntityTypeRegistry::default();
+
+    // Infantry: Token with movement_points and classification enum
+    registry.types.push(EntityType {
+        id: infantry_type_id,
+        name: "Infantry".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::WHITE,
+        properties: vec![
+            PropertyDefinition {
+                id: budget_prop_id,
+                name: "movement_points".to_string(),
+                property_type: PropertyType::Int,
+                default_value: PropertyValue::Int(4),
+            },
+            PropertyDefinition {
+                id: class_prop_id,
+                name: "Movement Mode".to_string(),
+                property_type: PropertyType::Enum(enum_id),
+                default_value: PropertyValue::Enum("Foot".to_string()),
+            },
+        ],
+    });
+
+    // Enemy: Token (projects influence, no movement properties needed)
+    registry.types.push(EntityType {
+        id: enemy_type_id,
+        name: "Enemy".to_string(),
+        role: EntityRole::Token,
+        color: bevy::color::Color::srgb(1.0, 0.0, 0.0),
+        properties: Vec::new(),
+    });
+
+    // Plains: BoardPosition with terrain_cost = 1
+    registry.types.push(EntityType {
+        id: plains_type_id,
+        name: "Plains".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.3, 0.6, 0.2),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(1),
+        }],
+    });
+
+    // Forest: BoardPosition with terrain_cost = 2
+    registry.types.push(EntityType {
+        id: forest_type_id,
+        name: "Forest".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.1, 0.4, 0.1),
+        properties: vec![PropertyDefinition {
+            id: cost_prop_id,
+            name: "terrain_cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(2),
+        }],
+    });
+
+    // River: edge type with cost = 1
+    registry.types.push(EntityType {
+        id: river_type_id,
+        name: "River".to_string(),
+        role: EntityRole::BoardPosition,
+        color: bevy::color::Color::srgb(0.2, 0.4, 0.8),
+        properties: vec![PropertyDefinition {
+            id: TypeId::new(),
+            name: "cost".to_string(),
+            property_type: PropertyType::Int,
+            default_value: PropertyValue::Int(1),
+        }],
+    });
+
+    app.insert_resource(registry);
+
+    // -- Ontology: Motion concept --
+    let concept = Concept {
+        id: concept_id,
+        name: "Motion".to_string(),
+        description: "Movement across terrain".to_string(),
+        role_labels: vec![
+            ConceptRole {
+                id: traveler_role_id,
+                name: "traveler".to_string(),
+                allowed_entity_roles: vec![EntityRole::Token],
+            },
+            ConceptRole {
+                id: terrain_role_id,
+                name: "terrain".to_string(),
+                allowed_entity_roles: vec![EntityRole::BoardPosition],
+            },
+        ],
+    };
+
+    let infantry_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: infantry_type_id,
+        concept_id,
+        concept_role_id: traveler_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: budget_prop_id,
+            concept_local_name: "budget".to_string(),
+        }],
+    };
+    let plains_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: plains_type_id,
+        concept_id,
+        concept_role_id: terrain_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: cost_prop_id,
+            concept_local_name: "cost".to_string(),
+        }],
+    };
+    let forest_binding = ConceptBinding {
+        id: TypeId::new(),
+        entity_type_id: forest_type_id,
+        concept_id,
+        concept_role_id: terrain_role_id,
+        property_bindings: vec![PropertyBinding {
+            property_id: cost_prop_id,
+            concept_local_name: "cost".to_string(),
+        }],
+    };
+
+    app.insert_resource(ConceptRegistry {
+        concepts: vec![concept],
+        bindings: vec![infantry_binding, plains_binding, forest_binding],
+    });
+
+    // Relation: terrain cost subtracts from movement budget.
+    app.insert_resource(RelationRegistry {
+        relations: vec![Relation {
+            id: TypeId::new(),
+            name: "Terrain Movement Cost".to_string(),
+            concept_id,
+            subject_role_id: traveler_role_id,
+            object_role_id: terrain_role_id,
+            trigger: RelationTrigger::OnEnter,
+            effect: RelationEffect::ModifyProperty {
+                target_property: "budget".to_string(),
+                source_property: "cost".to_string(),
+                operation: ModifyOperation::Subtract,
+            },
+        }],
+    });
+
+    // -- Primitive 1: Edge features (River) --
+    // River between (0,0) and (0,-1).
+    let edge =
+        HexEdge::between(HexPosition::new(0, 0), HexPosition::new(0, -1)).expect("adjacent hexes");
+    app.world_mut().resource_mut::<HexEdgeRegistry>().insert(
+        edge,
+        EdgeFeature {
+            type_name: "River".to_string(),
+        },
+    );
+
+    // -- Primitive 2: Spatial influence (ZOC) --
+    // Enemy projects +2 cost into adjacent hexes (range 1).
+    app.insert_resource(InfluenceRuleRegistry {
+        rules: vec![InfluenceRule {
+            id: TypeId::new(),
+            entity_type_id: enemy_type_id,
+            range: 1,
+            cost_modifier: 2,
+        }],
+    });
+
+    // -- Primitive 3: Stacking --
+    // Max 2 combat units per hex.
+    app.insert_resource(StackingRule {
+        max_units: 2,
+        exempt_type_ids: Vec::new(),
+    });
+
+    // -- Primitive 4: Movement cost matrix --
+    // Foot infantry: Plains costs 1, Forest costs 2.
+    app.insert_resource(MovementCostMatrix {
+        classification_property_id: Some(class_prop_id),
+        entries: {
+            let mut m = HashMap::new();
+            m.insert((plains_type_id, "Foot".to_string()), 1);
+            m.insert((forest_type_id, "Foot".to_string()), 2);
+            m
+        },
+    });
+
+    // -- Spawn hex grid: Plains everywhere except Forest at (1,0) --
+    let radius = 3i32;
+    for q in -radius..=radius {
+        for r in -radius..=radius {
+            if (q + r).unsigned_abs() <= 3 {
+                if q == 1 && r == 0 {
+                    spawn_tile_at(&mut app, q, r, forest_type_id, Some(cost_prop_id), Some(2));
+                } else {
+                    spawn_tile_at(&mut app, q, r, plains_type_id, Some(cost_prop_id), Some(1));
+                }
+            }
+        }
+    }
+
+    // -- Spawn units --
+    // Enemy at (2, 0) — projects ZOC.
+    spawn_unit(
+        &mut app,
+        2,
+        0,
+        EntityData {
+            entity_type_id: enemy_type_id,
+            properties: HashMap::new(),
+        },
+    );
+
+    // Two allied infantry at (0, 1) — fills stacking limit.
+    for _ in 0..2 {
+        spawn_unit(
+            &mut app,
+            0,
+            1,
+            EntityData {
+                entity_type_id: infantry_type_id,
+                properties: {
+                    let mut p = HashMap::new();
+                    p.insert(budget_prop_id, PropertyValue::Int(4));
+                    p.insert(class_prop_id, PropertyValue::Enum("Foot".to_string()));
+                    p
+                },
+            },
+        );
+    }
+
+    // Selected infantry at origin (0, 0) with budget 4, classification Foot.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: infantry_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(budget_prop_id, PropertyValue::Int(4));
+                p.insert(class_prop_id, PropertyValue::Enum("Foot".to_string()));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    // -- Run BFS --
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+
+    // === Primitive 4 (Matrix): Forest at (1,0) costs 2 for Foot ===
+    // Budget 4 - 2 = 2 remaining. Reachable.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Forest (1,0) should be reachable: matrix cost 2, budget 4"
+    );
+
+    // === Primitive 1 (Edge): River crossing to (0,-1) ===
+    // Plains cost 1 + river crossing 1 = 2 total. Budget 4 - 2 = 2. Reachable.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(0, -1)),
+        "Plains (0,-1) with river crossing should be reachable: cost 1 + river 1 = 2"
+    );
+
+    // === Primitive 2 (Influence/ZOC): Hex (1,-1) adjacent to enemy at (2,0) ===
+    // Plains cost 1 + ZOC +2 = 3 total. Budget 4 - 3 = 1. Reachable.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, -1)),
+        "(1,-1) adjacent to enemy: plains 1 + ZOC 2 = 3, budget 4 → reachable"
+    );
+
+    // === Primitive 3 (Stacking): Hex (0,1) full with 2 units ===
+    // Blocked by stacking — cannot enter regardless of budget.
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(0, 1)),
+        "(0,1) should be blocked by stacking limit (2/2 units)"
+    );
+    assert!(
+        valid_moves
+            .blocked_explanations
+            .contains_key(&HexPosition::new(0, 1)),
+        "(0,1) should have blocked explanation for stacking"
+    );
+
+    // === Combined: (3,0) unreachable due to accumulated costs ===
+    // Path (0,0)→(1,0)[forest 2]→(2,0)[plains 1 + ZOC 2 = 3] = total 5 > budget 4.
+    // Even the cheapest path through ZOC hexes exhausts the budget.
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0)),
+        "(3,0) should be unreachable: path through forest + ZOC exceeds budget 4"
+    );
+
+    // === Verify continued movement after forest ===
+    // From (1,0) with 2 remaining, hex (1,1) is plains cost 1 and adjacent to
+    // enemy at (2,0), so cost = 1 + 2 = 3 > 2 remaining. Blocked.
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 1)),
+        "(1,1) from forest with 2 remaining + ZOC 2 + plains 1 = 3 > 2"
+    );
+
+    // === Alternative path without ZOC ===
+    // (-1,0) is plains cost 1, not influenced. Budget 4 - 1 = 3.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(-1, 0)),
+        "(-1,0) away from ZOC should be easily reachable"
+    );
+    // (-2,0) is plains cost 1 from (-1,0), remaining 2.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(-2, 0)),
+        "(-2,0) should be reachable (2 plains steps, no ZOC)"
+    );
+    // (-3,0) is plains cost 1 from (-2,0), remaining 1.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(-3, 0)),
+        "(-3,0) should be reachable (3 plains steps away, budget 4)"
+    );
+
+    // === River crossing limits onward movement ===
+    // (0,-1) costs 2 to reach (river), leaving budget 2.
+    // (0,-2) from (0,-1) costs 1 (plains), leaving 1.
+    // (0,-3) from (0,-2) costs 1 (plains), leaving 0. Reachable.
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(0, -2)),
+        "(0,-2) should be reachable through river crossing with remaining budget"
+    );
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(0, -3)),
+        "(0,-3) should be reachable: 3 steps from origin with river costing 2 total on first step"
+    );
+}
+
+/// Canary: movement cost matrix differentiates unit classifications.
+/// Two units with different classifications on the same terrain see different costs.
+#[test]
+fn canary_tov_matrix_differentiates_classifications() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let class_prop_id = TypeId::new();
+    let enum_id = TypeId::new();
+
+    // Add classification enum to unit type.
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .iter_mut()
+        .find(|t| t.id == setup.unit_type_id)
+        .expect("unit type exists")
+        .properties
+        .push(PropertyDefinition {
+            id: class_prop_id,
+            name: "Movement Mode".to_string(),
+            property_type: PropertyType::Enum(enum_id),
+            default_value: PropertyValue::Enum("Foot".to_string()),
+        });
+
+    // Foot costs 1 per hex, Mechanized costs 3 per hex (on Plains).
+    app.insert_resource(MovementCostMatrix {
+        classification_property_id: Some(class_prop_id),
+        entries: {
+            let mut m = HashMap::new();
+            m.insert((setup.tile_type_id, "Foot".to_string()), 1);
+            m.insert((setup.tile_type_id, "Mechanized".to_string()), 3);
+            m
+        },
+    });
+
+    // --- Test Foot infantry: budget 4, cost 1 → reaches 3 hexes (map limit) ---
+    let foot_unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p.insert(class_prop_id, PropertyValue::Enum("Foot".to_string()));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(foot_unit);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(3, 0)),
+        "Foot (cost 1): should reach 3 hexes with budget 4"
+    );
+
+    // --- Test Mechanized: budget 4, cost 3 → reaches only adjacent ---
+    // Despawn foot unit, spawn mechanized at origin.
+    app.world_mut().despawn(foot_unit);
+    let mech_unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p.insert(class_prop_id, PropertyValue::Enum("Mechanized".to_string()));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(mech_unit);
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "Mechanized (cost 3): should reach adjacent hex"
+    );
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, 0)),
+        "Mechanized (cost 3): should NOT reach 2 hexes (cost 6 > budget 4)"
+    );
+}
