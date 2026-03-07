@@ -173,6 +173,42 @@ pub struct HexEdgeRegistry {
 }
 ```
 
+### Spatial Influence (0.19.0)
+
+```rust
+/// Computes the hex distance between two positions.
+pub fn hex_distance(a: HexPosition, b: HexPosition) -> u32;
+
+/// A rule defining how a unit type projects spatial influence.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct InfluenceRule {
+    pub id: TypeId,
+    pub entity_type_id: TypeId,
+    pub range: u32,
+    pub cost_modifier: i64,
+}
+
+/// Registry of spatial influence rules.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct InfluenceRuleRegistry {
+    pub rules: Vec<InfluenceRule>,
+}
+
+/// A single influence entry affecting a hex position.
+#[derive(Debug, Clone, Reflect)]
+pub struct InfluenceEntry {
+    pub source_pos: HexPosition,
+    pub rule_id: TypeId,
+    pub cost_modifier: i64,
+}
+
+/// Cache of influenced hexes, rebuilt each time valid moves are computed.
+#[derive(Resource, Debug, Clone, Default, Reflect)]
+pub struct InfluenceMap {
+    pub influenced: HashMap<HexPosition, Vec<InfluenceEntry>>,
+}
+```
+
 ## Invariants
 
 - `HexPosition` coordinates are always valid axial coordinates
@@ -183,14 +219,19 @@ pub struct HexEdgeRegistry {
 - `HexEdge` is always in canonical form: origin is the lower hex (by q, then r)
 - `HexEdge.direction` is always in range 0..6
 - `HexEdgeRegistry` is inserted as a resource during `Startup` by the hex_grid plugin
+- `InfluenceRuleRegistry` is persisted with the game system file (format v6+)
+- `InfluenceMap` is ephemeral — rebuilt each time valid moves are computed
+- `InfluenceRule.range` is 1..=5; `cost_modifier` is the movement cost added per influenced hex
+- A unit's own influence is excluded from its movement cost calculation
 
 ## Changelog
 
-| Date       | Change                                      | Reason                                                                    |
-| ---------- | ------------------------------------------- | ------------------------------------------------------------------------- |
-| 2026-02-08 | Initial definition                          | Foundation for all hex-based features                                     |
-| 2026-02-08 | Added HexTile, SelectedHex                  | Promoted from hex_grid internals to fix contract boundary violations      |
-| 2026-02-10 | Added TileBaseMaterial component            | Needed so hover/selection ring overlays can coexist with cell type colors |
-| 2026-02-11 | Added MoveOverlay, MoveOverlayState         | M4 — visual feedback for valid/blocked move destinations                  |
-| 2026-02-15 | Added LineOfSightResult, VisibilityRange    | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
-| 2026-02-22 | Added HexEdge, EdgeFeature, HexEdgeRegistry | 0.12.0 — hex edge spatial infrastructure for user-defined annotations     |
+| Date       | Change                                                                                 | Reason                                                                    |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 2026-02-08 | Initial definition                                                                     | Foundation for all hex-based features                                     |
+| 2026-02-08 | Added HexTile, SelectedHex                                                             | Promoted from hex_grid internals to fix contract boundary violations      |
+| 2026-02-10 | Added TileBaseMaterial component                                                       | Needed so hover/selection ring overlays can coexist with cell type colors |
+| 2026-02-11 | Added MoveOverlay, MoveOverlayState                                                    | M4 — visual feedback for valid/blocked move destinations                  |
+| 2026-02-15 | Added LineOfSightResult, VisibilityRange                                               | 0.7.0 — hex grid foundation: LOS algorithm and visibility                 |
+| 2026-02-22 | Added HexEdge, EdgeFeature, HexEdgeRegistry                                            | 0.12.0 — hex edge spatial infrastructure for user-defined annotations     |
+| 2026-03-06 | Added InfluenceRule, InfluenceRuleRegistry, InfluenceEntry, InfluenceMap, hex_distance | 0.19.0 — spatial influence evaluator for movement cost modifiers          |

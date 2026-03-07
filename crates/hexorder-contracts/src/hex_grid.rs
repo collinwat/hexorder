@@ -5,8 +5,16 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::game_system::TypeId;
+
 /// Re-export `hexx::Hex` for coordinate math.
 pub use hexx::Hex;
+
+/// Hex distance between two positions (number of hex steps).
+#[must_use]
+pub fn hex_distance(a: HexPosition, b: HexPosition) -> u32 {
+    a.to_hex().unsigned_distance_to(b.to_hex())
+}
 
 /// Marks an entity as occupying a hex tile position.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
@@ -263,6 +271,74 @@ impl HexEdgeRegistry {
     #[must_use]
     pub fn len(&self) -> usize {
         self.edges.len()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spatial Influence
+// ---------------------------------------------------------------------------
+
+/// A rule defining which entity type projects spatial influence.
+///
+/// When a unit of `entity_type_id` is on the board, all hexes within `range`
+/// steps cost an extra `cost_modifier` movement points to enter.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct InfluenceRule {
+    pub id: TypeId,
+    /// The entity type that projects influence.
+    pub entity_type_id: TypeId,
+    /// Hex distance of influence projection (1 = adjacent hexes only).
+    pub range: u32,
+    /// Extra movement cost to enter an influenced hex.
+    pub cost_modifier: i64,
+}
+
+/// Registry of spatial influence rules. Defines which entity types project
+/// influence and their effects on movement.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+#[reflect(opaque)]
+pub struct InfluenceRuleRegistry {
+    pub rules: Vec<InfluenceRule>,
+}
+
+/// A single influence source affecting a hex position.
+#[derive(Debug, Clone, Reflect)]
+pub struct InfluenceEntry {
+    /// Position of the entity projecting influence.
+    pub source_pos: HexPosition,
+    /// The influence rule that produced this entry.
+    pub rule_id: TypeId,
+    /// Extra movement cost applied when entering this hex.
+    pub cost_modifier: i64,
+}
+
+/// Cached map of hex positions under spatial influence.
+///
+/// Computed from placed units and `InfluenceRuleRegistry`. Invalidated when
+/// units move/are placed or influence rules change.
+#[derive(Resource, Debug, Clone, Default, Reflect)]
+#[reflect(opaque)]
+pub struct InfluenceMap {
+    /// For each influenced hex, the list of influence sources.
+    pub influenced: HashMap<HexPosition, Vec<InfluenceEntry>>,
+}
+
+impl InfluenceMap {
+    /// Returns influence entries for a hex, if any.
+    #[must_use]
+    pub fn get(&self, pos: &HexPosition) -> Option<&Vec<InfluenceEntry>> {
+        self.influenced.get(pos)
+    }
+
+    /// Returns true if the map has no influenced hexes.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.influenced.is_empty()
+    }
+
+    /// Clears all influence entries.
+    pub fn clear(&mut self) {
+        self.influenced.clear();
     }
 }
 
@@ -548,5 +624,83 @@ mod tests {
         let reg = HexEdgeRegistry::default();
         assert!(reg.is_empty());
         assert_eq!(reg.len(), 0);
+    }
+
+    // --- Spatial Influence ---
+
+    #[test]
+    fn hex_distance_adjacent() {
+        let a = HexPosition::new(0, 0);
+        let b = HexPosition::new(1, 0);
+        assert_eq!(hex_distance(a, b), 1);
+    }
+
+    #[test]
+    fn hex_distance_two_steps() {
+        let a = HexPosition::new(0, 0);
+        let b = HexPosition::new(2, 0);
+        assert_eq!(hex_distance(a, b), 2);
+    }
+
+    #[test]
+    fn hex_distance_same_position() {
+        let a = HexPosition::new(3, -2);
+        assert_eq!(hex_distance(a, a), 0);
+    }
+
+    #[test]
+    fn influence_rule_registry_default_is_empty() {
+        let reg = InfluenceRuleRegistry::default();
+        assert!(reg.rules.is_empty());
+    }
+
+    #[test]
+    fn influence_rule_construction() {
+        let rule = InfluenceRule {
+            id: TypeId::new(),
+            entity_type_id: TypeId::new(),
+            range: 2,
+            cost_modifier: 3,
+        };
+        assert_eq!(rule.range, 2);
+        assert_eq!(rule.cost_modifier, 3);
+    }
+
+    #[test]
+    fn influence_map_default_is_empty() {
+        let map = InfluenceMap::default();
+        assert!(map.is_empty());
+        assert!(map.get(&HexPosition::new(0, 0)).is_none());
+    }
+
+    #[test]
+    fn influence_map_insert_and_get() {
+        let mut map = InfluenceMap::default();
+        let pos = HexPosition::new(1, 0);
+        map.influenced.entry(pos).or_default().push(InfluenceEntry {
+            source_pos: HexPosition::new(0, 0),
+            rule_id: TypeId::new(),
+            cost_modifier: 2,
+        });
+        assert!(!map.is_empty());
+        let entries = map.get(&pos).expect("should have entries");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].cost_modifier, 2);
+    }
+
+    #[test]
+    fn influence_map_clear() {
+        let mut map = InfluenceMap::default();
+        map.influenced
+            .entry(HexPosition::new(0, 0))
+            .or_default()
+            .push(InfluenceEntry {
+                source_pos: HexPosition::new(1, 0),
+                rule_id: TypeId::new(),
+                cost_modifier: 1,
+            });
+        assert!(!map.is_empty());
+        map.clear();
+        assert!(map.is_empty());
     }
 }

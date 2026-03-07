@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
-use crate::hex_grid::{HexEdgeRegistry, HexPosition};
+use crate::hex_grid::{HexEdgeRegistry, HexPosition, InfluenceRuleRegistry};
 use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
@@ -147,6 +147,9 @@ pub struct GameSystemFile {
     /// Hex edge feature annotations (v6+).
     #[serde(default)]
     pub edge_features: HexEdgeRegistry,
+    /// Spatial influence rules (v6+).
+    #[serde(default)]
+    pub influence_rules: InfluenceRuleRegistry,
 }
 
 fn default_font_size() -> f32 {
