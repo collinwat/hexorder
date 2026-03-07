@@ -151,7 +151,7 @@ mod tests {
         TypeId,
     };
     use hexorder_contracts::hex_grid::{
-        HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, StackingRule,
+        HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
     };
     use hexorder_contracts::mechanics::{
         CombatModifierRegistry, CombatResultsTable, TurnStructure,
@@ -198,6 +198,7 @@ mod tests {
             edge_features: HexEdgeRegistry::default(),
             influence_rules: InfluenceRuleRegistry::default(),
             stacking_rule: StackingRule::default(),
+            movement_cost_matrix: MovementCostMatrix::default(),
         }
     }
 

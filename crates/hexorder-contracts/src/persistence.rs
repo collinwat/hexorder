@@ -12,7 +12,9 @@ use serde::{Deserialize, Serialize};
 use crate::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
-use crate::hex_grid::{HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, StackingRule};
+use crate::hex_grid::{
+    HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
+};
 use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
@@ -153,6 +155,9 @@ pub struct GameSystemFile {
     /// Stacking constraint (v6+).
     #[serde(default)]
     pub stacking_rule: StackingRule,
+    /// Movement cost matrix — 2D lookup by terrain type and unit classification (v6+).
+    #[serde(default)]
+    pub movement_cost_matrix: MovementCostMatrix,
 }
 
 fn default_font_size() -> f32 {

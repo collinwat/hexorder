@@ -12,7 +12,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{
     HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceRuleRegistry, MoveOverlay,
-    StackingRule,
+    MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::mechanics::{
     ActiveCombat, CombatModifierRegistry, CombatResultsTable, TurnState, TurnStructure,
@@ -76,6 +76,7 @@ fn build_game_system_file(
     let edge_features = world.resource::<HexEdgeRegistry>();
     let influence_rules = world.resource::<InfluenceRuleRegistry>();
     let stacking_rule = world.resource::<StackingRule>();
+    let movement_cost_matrix = world.resource::<MovementCostMatrix>();
 
     let tile_data: Vec<TileSaveData> = tiles
         .iter()
@@ -116,6 +117,7 @@ fn build_game_system_file(
         edge_features: edge_features.clone(),
         influence_rules: influence_rules.clone(),
         stacking_rule: stacking_rule.clone(),
+        movement_cost_matrix: movement_cost_matrix.clone(),
     }
 }
 
@@ -208,6 +210,7 @@ pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool 
     *world.resource_mut::<HexEdgeRegistry>() = file.edge_features;
     *world.resource_mut::<InfluenceRuleRegistry>() = file.influence_rules;
     *world.resource_mut::<StackingRule>() = file.stacking_rule;
+    *world.resource_mut::<MovementCostMatrix>() = file.movement_cost_matrix;
     *world.resource_mut::<SchemaValidation>() = SchemaValidation::default();
 
     // Derive workspace name: use file name field if present (v3+),
@@ -284,6 +287,7 @@ fn reset_to_new_project(name: &str, world: &mut World) {
     *world.resource_mut::<HexEdgeRegistry>() = HexEdgeRegistry::default();
     *world.resource_mut::<InfluenceRuleRegistry>() = InfluenceRuleRegistry::default();
     *world.resource_mut::<StackingRule>() = StackingRule::default();
+    *world.resource_mut::<MovementCostMatrix>() = MovementCostMatrix::default();
     *world.resource_mut::<TurnState>() = TurnState::default();
     *world.resource_mut::<ActiveCombat>() = ActiveCombat::default();
 

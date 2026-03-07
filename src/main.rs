@@ -200,6 +200,7 @@ mod integration_tests {
         app.init_resource::<hexorder_contracts::undo_redo::UndoStack>();
         app.add_plugins(hexorder_cell::CellPlugin);
         app.init_resource::<hexorder_contracts::hex_grid::StackingRule>();
+        app.init_resource::<hexorder_contracts::hex_grid::MovementCostMatrix>();
         app.add_plugins(hexorder_unit::UnitPlugin);
         app
     }
