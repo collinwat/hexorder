@@ -10,7 +10,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{
     HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceMap, InfluenceRule,
-    InfluenceRuleRegistry, StackingRule,
+    InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::ontology::{
     Concept, ConceptBinding, ConceptRegistry, ConceptRole, ConstraintExpr, ConstraintRegistry,
@@ -3980,5 +3980,173 @@ fn stacking_exempt_type_can_enter_full_hex() {
             .valid_positions
             .contains(&HexPosition::new(1, 0)),
         "(1,0) should be reachable for exempt type despite stacking limit"
+    );
+}
+
+/// Movement cost matrix overrides terrain cost per classification.
+#[test]
+fn movement_cost_matrix_overrides_terrain_cost() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Add a classification enum property to the unit type.
+    let class_prop_id = TypeId::new();
+    let enum_id = TypeId::new();
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .iter_mut()
+        .find(|t| t.id == setup.unit_type_id)
+        .expect("unit type exists")
+        .properties
+        .push(PropertyDefinition {
+            id: class_prop_id,
+            name: "Movement Mode".to_string(),
+            property_type: PropertyType::Enum(enum_id),
+            default_value: PropertyValue::Enum("Wheeled".to_string()),
+        });
+
+    // Set up the matrix: Wheeled costs 3 for this terrain type.
+    app.insert_resource(MovementCostMatrix {
+        classification_property_id: Some(class_prop_id),
+        entries: {
+            let mut m = HashMap::new();
+            m.insert((setup.tile_type_id, "Wheeled".to_string()), 3);
+            m
+        },
+    });
+
+    // Spawn a unit with classification "Wheeled" and budget 4.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p.insert(class_prop_id, PropertyValue::Enum("Wheeled".to_string()));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // With matrix cost 3 and budget 4, unit can reach adjacent hexes (cost 3)
+    // but not two hexes away (cost 6 > 4).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(1, 0)),
+        "(1,0) should be reachable at cost 3"
+    );
+    assert!(
+        !valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, 0)),
+        "(2,0) should NOT be reachable at cost 6"
+    );
+}
+
+/// When the matrix is inactive, standard terrain cost is used.
+#[test]
+fn no_matrix_uses_standard_terrain_cost() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    // Matrix is default (inactive).
+    // Standard terrain cost is 1, budget is 4 → can reach up to 4 hexes away.
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // With cost 1 and budget 4, should reach (2,0) (cost 2).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, 0)),
+        "(2,0) should be reachable with standard cost 1 and budget 4"
+    );
+}
+
+/// Matrix falls back to default cost when no entry exists for a classification.
+#[test]
+fn matrix_fallback_when_no_entry_for_classification() {
+    let mut app = test_app();
+    let setup = setup_motion_ontology(&mut app, 4, 1);
+    spawn_hex_grid_with_properties(&mut app, 3, setup.tile_type_id, setup.cost_prop_id, 1);
+
+    let class_prop_id = TypeId::new();
+    let enum_id = TypeId::new();
+    app.world_mut()
+        .resource_mut::<EntityTypeRegistry>()
+        .types
+        .iter_mut()
+        .find(|t| t.id == setup.unit_type_id)
+        .expect("unit type exists")
+        .properties
+        .push(PropertyDefinition {
+            id: class_prop_id,
+            name: "Movement Mode".to_string(),
+            property_type: PropertyType::Enum(enum_id),
+            default_value: PropertyValue::Enum("Foot".to_string()),
+        });
+
+    // Matrix has entries for "Wheeled" but NOT "Foot".
+    app.insert_resource(MovementCostMatrix {
+        classification_property_id: Some(class_prop_id),
+        entries: {
+            let mut m = HashMap::new();
+            m.insert((setup.tile_type_id, "Wheeled".to_string()), 3);
+            m
+        },
+    });
+
+    // Spawn a unit with classification "Foot" (no matrix entry → falls back to cost=1).
+    let unit = spawn_unit(
+        &mut app,
+        0,
+        0,
+        EntityData {
+            entity_type_id: setup.unit_type_id,
+            properties: {
+                let mut p = HashMap::new();
+                p.insert(setup.budget_prop_id, PropertyValue::Int(4));
+                p.insert(class_prop_id, PropertyValue::Enum("Foot".to_string()));
+                p
+            },
+        },
+    );
+    app.world_mut().resource_mut::<SelectedUnit>().entity = Some(unit);
+
+    app.update();
+
+    let valid_moves = app.world().resource::<ValidMoveSet>();
+    // Falls back to standard cost 1, budget 4 → can reach (2,0).
+    assert!(
+        valid_moves
+            .valid_positions
+            .contains(&HexPosition::new(2, 0)),
+        "(2,0) should be reachable with fallback cost 1 and budget 4"
     );
 }

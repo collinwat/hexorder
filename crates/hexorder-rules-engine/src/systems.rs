@@ -9,7 +9,7 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::hex_grid::{
     HexEdge, HexEdgeRegistry, HexGridConfig, HexPosition, HexTile, InfluenceEntry, InfluenceMap,
-    InfluenceRuleRegistry, StackingRule,
+    InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::ontology::{
     ConceptBinding, ConceptRegistry, ConstraintExpr, ConstraintRegistry, ModifyOperation,
@@ -36,6 +36,7 @@ pub fn compute_valid_moves(
     edge_registry: Res<HexEdgeRegistry>,
     influence_rules: Res<InfluenceRuleRegistry>,
     stacking_rule: Res<StackingRule>,
+    movement_cost_matrix: Res<MovementCostMatrix>,
     mut influence_map: ResMut<InfluenceMap>,
     mut valid_moves: ResMut<ValidMoveSet>,
     units: Query<(&HexPosition, &EntityData), With<UnitInstance>>,
@@ -49,6 +50,7 @@ pub fn compute_valid_moves(
         && !edge_registry.is_changed()
         && !influence_rules.is_changed()
         && !stacking_rule.is_changed()
+        && !movement_cost_matrix.is_changed()
     {
         return;
     }
@@ -126,6 +128,15 @@ pub fn compute_valid_moves(
     let initial_budget =
         determine_budget(&unit_bindings, &on_enter_relations, unit_data, &concepts);
 
+    // Resolve the unit's classification for matrix cost lookup.
+    let unit_classification_value: Option<String> = movement_cost_matrix
+        .classification_property_id
+        .and_then(|prop_id| unit_data.properties.get(&prop_id))
+        .and_then(|v| match v {
+            PropertyValue::Enum(s) => Some(s.clone()),
+            _ => None,
+        });
+
     // Gather context needed for step evaluation.
     let ctx = StepContext {
         unit_data,
@@ -138,6 +149,8 @@ pub fn compute_valid_moves(
         unit_pos: *unit_pos,
         stacking_rule: &stacking_rule,
         unit_counts: &unit_counts,
+        movement_cost_matrix: &movement_cost_matrix,
+        unit_classification: unit_classification_value.as_deref(),
     };
 
     // BFS with budget tracking.
@@ -209,6 +222,9 @@ struct StepContext<'a> {
     unit_pos: HexPosition,
     stacking_rule: &'a StackingRule,
     unit_counts: &'a HashMap<HexPosition, u32>,
+    movement_cost_matrix: &'a MovementCostMatrix,
+    /// The unit's classification value for matrix cost lookup.
+    unit_classification: Option<&'a str>,
 }
 
 /// Result of evaluating a single BFS step into a neighbor hex.
@@ -483,9 +499,23 @@ fn evaluate_step(
                     )
                 });
 
-                let source_val = source_value
-                    .and_then(|v| property_value_as_i64(&v))
-                    .unwrap_or(0);
+                // Check the movement cost matrix first: if active and the tile
+                // has an entity type, use the matrix cost for this (terrain, classification)
+                // pair. Fall back to the standard source property cost.
+                let source_val = if *operation == ModifyOperation::Subtract
+                    && ctx.movement_cost_matrix.is_active()
+                    && let Some(classification) = ctx.unit_classification
+                    && let Some(td) = tile_data
+                    && let Some(matrix_cost) = ctx
+                        .movement_cost_matrix
+                        .get_cost(td.entity_type_id, classification)
+                {
+                    matrix_cost
+                } else {
+                    source_value
+                        .and_then(|v| property_value_as_i64(&v))
+                        .unwrap_or(0)
+                };
 
                 match operation {
                     ModifyOperation::Subtract => {
