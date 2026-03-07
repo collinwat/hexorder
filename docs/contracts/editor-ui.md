@@ -10,7 +10,8 @@ check the current tool mode before acting (consumers like cell).
 - cell (checks EditorTool before painting)
 - unit (checks EditorTool before placing or interacting with units)
 - camera (reads ViewportMargins for viewport centering)
-- hex_grid (reads/writes Selection on Shift+click)
+- hex_grid (reads/writes Selection on Shift+click; reads SelectedEdge, ActiveEdgeType, EditorTool
+  for edge painting)
 - persistence (triggers ToastEvent on save/load success and failure)
 - (any future feature that behaves differently based on tool mode or needs toast notifications)
 
@@ -35,6 +36,8 @@ pub enum EditorTool {
     Paint,
     /// Click to place unit tokens on hex tiles.
     Place,
+    /// Two-click edge paint: first click selects hex, second click on adjacent hex assigns/removes edge feature.
+    EdgePaint,
 }
 ```
 
@@ -80,6 +83,25 @@ pub struct Selection {
 /// Used by `pointer_over_ui_panel` and viewport margin calculation.
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct ViewportRect(pub Option<bevy_egui::egui::Rect>);
+```
+
+```rust
+/// Tracks the two-click edge paint interaction state.
+#[derive(Resource, Debug, Default, Reflect)]
+pub struct SelectedEdge {
+    /// First hex clicked (waiting for adjacent hex click).
+    pub first_hex: Option<HexPosition>,
+    /// The resolved edge after second click.
+    pub edge: Option<HexEdge>,
+}
+```
+
+```rust
+/// The currently active edge type for painting. `None` means erase mode.
+#[derive(Resource, Debug, Default)]
+pub struct ActiveEdgeType {
+    pub type_name: Option<String>,
+}
 ```
 
 ### Functions
@@ -148,3 +170,4 @@ pub enum ToastKind {
 | 2026-02-18 | Added ToastEvent and ToastKind                          | Action confirmation toasts for save/load/delete feedback              |
 | 2026-02-18 | Added Selection resource                                | Multi-selection for bulk operations (Shift+click, Cmd+A)              |
 | 2026-02-21 | Added ViewportRect resource and pointer_over_ui_panel   | Dockable panels input passthrough (DockArea covers full window)       |
+| 2026-03-06 | Added EdgePaint variant, SelectedEdge, ActiveEdgeType   | Two-click edge annotation tool for spatial rules                      |

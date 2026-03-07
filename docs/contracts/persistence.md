@@ -14,21 +14,23 @@ Types for saving and loading game system definitions and board state to `.hexord
 
 Top-level container for a saved game system + board state.
 
-| Field              | Type                 | Description                                     |
-| ------------------ | -------------------- | ----------------------------------------------- |
-| `format_version`   | `u32`                | File format version (migration), currently `4`  |
-| `name`             | `String`             | Human-readable project name (v3+, default `""`) |
-| `game_system`      | `GameSystem`         | Game system metadata                            |
-| `entity_types`     | `EntityTypeRegistry` | All entity types                                |
-| `enums`            | `EnumRegistry`       | Enum definitions (0.7.0)                        |
-| `structs`          | `StructRegistry`     | Struct definitions (0.7.0)                      |
-| `concepts`         | `ConceptRegistry`    | Concepts + bindings                             |
-| `relations`        | `RelationRegistry`   | Relations                                       |
-| `constraints`      | `ConstraintRegistry` | Constraints                                     |
-| `map_radius`       | `u32`                | Hex grid radius                                 |
-| `tiles`            | `Vec<TileSaveData>`  | Per-tile cell data                              |
-| `units`            | `Vec<UnitSaveData>`  | Placed unit data                                |
-| `workspace_preset` | `String`             | Active workspace preset ID (v4+, default `""`)  |
+| Field              | Type                 | Description                                      |
+| ------------------ | -------------------- | ------------------------------------------------ |
+| `format_version`   | `u32`                | File format version (migration), currently `6`   |
+| `name`             | `String`             | Human-readable project name (v3+, default `""`)  |
+| `game_system`      | `GameSystem`         | Game system metadata                             |
+| `entity_types`     | `EntityTypeRegistry` | All entity types                                 |
+| `enums`            | `EnumRegistry`       | Enum definitions (0.7.0)                         |
+| `structs`          | `StructRegistry`     | Struct definitions (0.7.0)                       |
+| `concepts`         | `ConceptRegistry`    | Concepts + bindings                              |
+| `relations`        | `RelationRegistry`   | Relations                                        |
+| `constraints`      | `ConstraintRegistry` | Constraints                                      |
+| `map_radius`       | `u32`                | Hex grid radius                                  |
+| `tiles`            | `Vec<TileSaveData>`  | Per-tile cell data                               |
+| `units`            | `Vec<UnitSaveData>`  | Placed unit data                                 |
+| `workspace_preset` | `String`             | Active workspace preset ID (v4+, default `""`)   |
+| `font_size_base`   | `f32`                | Editor font size in points (v5+, default 15.0)   |
+| `edge_features`    | `HexEdgeRegistry`    | Hex edge feature annotations (v6+, default `{}`) |
 
 ### `TileSaveData`
 
@@ -124,4 +126,4 @@ Triggers close of the current project and return to the launcher. No fields.
 - `game_system` contract — `GameSystem`, `EntityTypeRegistry`, `EnumRegistry`, `StructRegistry`,
   `TypeId`, `PropertyValue`
 - `ontology` contract — `ConceptRegistry`, `RelationRegistry`, `ConstraintRegistry`
-- `hex_grid` contract — `HexPosition`
+- `hex_grid` contract — `HexPosition`, `HexEdgeRegistry`

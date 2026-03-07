@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 use crate::game_system::{
     EntityTypeRegistry, EnumRegistry, GameSystem, PropertyValue, StructRegistry, TypeId,
 };
-use crate::hex_grid::HexPosition;
+use crate::hex_grid::{HexEdgeRegistry, HexPosition};
 use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 5;
+pub const FORMAT_VERSION: u32 = 6;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -144,6 +144,9 @@ pub struct GameSystemFile {
     /// Editor font size in points (v5+). Default 15.0.
     #[serde(default = "default_font_size")]
     pub font_size_base: f32,
+    /// Hex edge feature annotations (v6+).
+    #[serde(default)]
+    pub edge_features: HexEdgeRegistry,
 }
 
 fn default_font_size() -> f32 {
@@ -235,7 +238,7 @@ mod tests {
 
     #[test]
     fn format_version_constant() {
-        assert_eq!(FORMAT_VERSION, 5);
+        assert_eq!(FORMAT_VERSION, 6);
     }
 
     #[test]

@@ -150,7 +150,7 @@ mod tests {
         EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem, StructRegistry,
         TypeId,
     };
-    use hexorder_contracts::hex_grid::HexPosition;
+    use hexorder_contracts::hex_grid::{HexEdgeRegistry, HexPosition};
     use hexorder_contracts::mechanics::{
         CombatModifierRegistry, CombatResultsTable, TurnStructure,
     };
@@ -193,6 +193,7 @@ mod tests {
             units: Vec::new(),
             workspace_preset: String::new(),
             font_size_base: 15.0,
+            edge_features: HexEdgeRegistry::default(),
         }
     }
 

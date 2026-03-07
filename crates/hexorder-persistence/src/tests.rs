@@ -8,7 +8,7 @@ use hexorder_contracts::game_system::{
     EntityData, EntityRole, EntityType, EntityTypeRegistry, EnumRegistry, GameSystem,
     StructRegistry, TypeId, UnitInstance,
 };
-use hexorder_contracts::hex_grid::{HexGridConfig, HexPosition, HexTile};
+use hexorder_contracts::hex_grid::{HexEdgeRegistry, HexGridConfig, HexPosition, HexTile};
 use hexorder_contracts::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use hexorder_contracts::persistence::{
@@ -55,6 +55,7 @@ fn test_app() -> App {
     app.init_resource::<hexorder_contracts::validation::SchemaValidation>();
     // ShortcutRegistry must exist before PersistencePlugin (registers shortcuts in build).
     app.init_resource::<hexorder_contracts::shortcuts::ShortcutRegistry>();
+    app.init_resource::<HexEdgeRegistry>();
     app.add_plugins(crate::PersistencePlugin);
     app
 }
@@ -99,6 +100,7 @@ fn test_game_system_file() -> GameSystemFile {
         }],
         workspace_preset: String::new(),
         font_size_base: 15.0,
+        edge_features: HexEdgeRegistry::default(),
     }
 }
 
@@ -511,10 +513,10 @@ fn dispatch_confirm_cancel_does_nothing() {
     assert_eq!(workspace.name, "Original");
 }
 
-/// Format version was bumped to 5 for `font_size_base` field.
+/// Format version was bumped to 6 for `edge_features` field.
 #[test]
-fn format_version_is_5() {
-    assert_eq!(FORMAT_VERSION, 5);
+fn format_version_is_6() {
+    assert_eq!(FORMAT_VERSION, 6);
 }
 
 // ---------------------------------------------------------------------------
