@@ -12,7 +12,12 @@ use hexorder_contracts::mechanics::{
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
 };
-use hexorder_contracts::simulation::{DicePool, SimulationRng, reset_rng, roll_pool};
+use hexorder_contracts::simulation::{
+    ChainRollSource, ChainStep, DicePool, ResolutionChain, SimulationRng, reset_rng, resolve_chain,
+    roll_pool,
+};
+
+use std::collections::HashMap;
 
 use super::components::{BrandTheme, EditorState};
 use super::render_panels::{render_about_panel, render_workspace_header};
@@ -183,6 +188,11 @@ pub(crate) fn render_play_sidebar<'a>(
 
         // -- Dice Panel --
         render_dice_panel(ui, editor_state, sim_rng);
+
+        ui.separator();
+
+        // -- Chain Panel --
+        render_chain_panel(ui, editor_state, sim_rng, crt);
 
         ui.separator();
 
@@ -408,6 +418,176 @@ pub(crate) fn render_dice_panel(
             .small()
             .color(BrandTheme::TEXT_SECONDARY),
     );
+}
+
+/// Renders the resolution chain panel: build a chain from available tables, resolve, show results.
+pub(crate) fn render_chain_panel(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    sim_rng: &mut SimulationRng,
+    crt: &CombatResultsTable,
+) {
+    let header = egui::RichText::new("Resolution Chains")
+        .strong()
+        .color(BrandTheme::ACCENT_AMBER);
+    let expanded = egui::CollapsingHeader::new(header)
+        .default_open(editor_state.chain_panel_expanded)
+        .show(ui, |ui| {
+            if crt.table.columns.is_empty() || crt.table.rows.is_empty() {
+                ui.label(
+                    egui::RichText::new("No tables available. Define a CRT in the Mechanics tab.")
+                        .small()
+                        .color(BrandTheme::TEXT_SECONDARY),
+                );
+                return;
+            }
+
+            ui.label(
+                egui::RichText::new(format!(
+                    "Available: {} ({}×{})",
+                    crt.table.name,
+                    crt.table.columns.len(),
+                    crt.table.rows.len()
+                ))
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+            );
+
+            ui.add_space(4.0);
+
+            // Use combat panel strength values as initial context.
+            ui.label(
+                egui::RichText::new("Context values from combat strengths")
+                    .small()
+                    .color(BrandTheme::TEXT_SECONDARY),
+            );
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "atk={:.1}, def={:.1}",
+                        editor_state.combat_attacker_strength,
+                        editor_state.combat_defender_strength
+                    ))
+                    .small()
+                    .color(BrandTheme::TEXT_PRIMARY),
+                );
+            });
+
+            ui.add_space(4.0);
+
+            // Build a demo 1-step chain from the CRT.
+            if ui.button("Resolve CRT Chain").clicked() {
+                let chain = ResolutionChain {
+                    id: hexorder_contracts::game_system::TypeId::new(),
+                    name: "CRT chain".to_string(),
+                    steps: vec![ChainStep {
+                        table_id: crt.table.id,
+                        input_a_key: "atk".to_string(),
+                        input_b_key: "def".to_string(),
+                        roll_source: ChainRollSource::Pool(DicePool::new(
+                            editor_state.dice_count,
+                            editor_state.dice_sides,
+                            editor_state.dice_modifier,
+                        )),
+                        output_key: "result".to_string(),
+                    }],
+                    max_depth: 10,
+                };
+
+                let mut initial = HashMap::new();
+                initial.insert("atk".to_string(), editor_state.combat_attacker_strength);
+                initial.insert("def".to_string(), editor_state.combat_defender_strength);
+
+                let mut tables = HashMap::new();
+                tables.insert(crt.table.id, crt.table.clone());
+
+                let ctx = resolve_chain(&chain, &initial, &tables, sim_rng);
+                editor_state.last_chain_result = Some(ctx);
+            }
+
+            // Display results.
+            if let Some(ref ctx) = editor_state.last_chain_result {
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new("Chain Results")
+                        .strong()
+                        .color(BrandTheme::TEXT_PRIMARY),
+                );
+
+                for step in &ctx.step_log {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(format!("Step {}:", step.step_index + 1))
+                                .small()
+                                .strong()
+                                .color(BrandTheme::TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(&step.table_name)
+                                .small()
+                                .color(BrandTheme::TEXT_SECONDARY),
+                        );
+                    });
+
+                    if let Some(ref res) = step.resolution {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "  Col: {} Row: {}",
+                                    res.column_label, res.row_label
+                                ))
+                                .small()
+                                .color(BrandTheme::TEXT_PRIMARY),
+                            );
+                        });
+                        let result_text = match &res.result {
+                            hexorder_contracts::simulation::TableResult::Text(s) => s.clone(),
+                            hexorder_contracts::simulation::TableResult::NumericValue(v) => {
+                                format!("{v:.1}")
+                            }
+                            hexorder_contracts::simulation::TableResult::PropertyModifier {
+                                property,
+                                delta,
+                            } => format!("{property} {delta:+.1}"),
+                        };
+                        ui.label(
+                            egui::RichText::new(format!("  Result: {result_text}"))
+                                .strong()
+                                .color(BrandTheme::ACCENT_TEAL),
+                        );
+                    } else {
+                        ui.label(
+                            egui::RichText::new("  (no match)")
+                                .small()
+                                .color(BrandTheme::TEXT_SECONDARY),
+                        );
+                    }
+                }
+
+                // Show final context values.
+                if !ctx.values.is_empty() {
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new("Context")
+                            .small()
+                            .color(BrandTheme::TEXT_SECONDARY),
+                    );
+                    let mut keys: Vec<&String> = ctx.values.keys().collect();
+                    keys.sort();
+                    for key in keys {
+                        if let Some(&val) = ctx.values.get(key) {
+                            ui.label(
+                                egui::RichText::new(format!("  {key} = {val:.2}"))
+                                    .small()
+                                    .color(BrandTheme::TEXT_PRIMARY),
+                            );
+                        }
+                    }
+                }
+            }
+        });
+
+    editor_state.chain_panel_expanded = expanded.fully_open();
 }
 
 /// Renders the combat resolution panel in the play panel.

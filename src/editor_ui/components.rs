@@ -408,6 +408,12 @@ pub struct EditorState {
     /// Editable seed string (parsed to u64 on apply).
     pub dice_seed_input: String,
 
+    // -- Chain panel state --
+    /// Whether the chain editor section is expanded.
+    pub chain_panel_expanded: bool,
+    /// Last chain resolution context (None if not yet resolved).
+    pub last_chain_result: Option<hexorder_contracts::simulation::ChainContext>,
+
     // -- About panel --
     /// Whether the About panel is visible.
     pub about_panel_visible: bool,
@@ -496,6 +502,8 @@ impl Default for EditorState {
             dice_modifier: 0,
             last_dice_roll: None,
             dice_seed_input: String::new(),
+            chain_panel_expanded: false,
+            last_chain_result: None,
             about_panel_visible: false,
         }
     }

@@ -4,6 +4,8 @@
 //! Defines seeded RNG, die types, roll logging, lookup tables, and
 //! resolution tables. These are generic simulation primitives per ADR-005.
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use rand::Rng;
 use rand::SeedableRng;
@@ -288,6 +290,19 @@ pub enum TableResult {
     PropertyModifier { property: String, delta: f64 },
 }
 
+impl TableResult {
+    /// Extract a numeric value for chaining. Returns the value for
+    /// `NumericValue`, the delta for `PropertyModifier`, or `None` for `Text`.
+    #[must_use]
+    pub fn numeric_value(&self) -> Option<f64> {
+        match self {
+            Self::NumericValue(v) => Some(*v),
+            Self::PropertyModifier { delta, .. } => Some(*delta),
+            Self::Text(_) => None,
+        }
+    }
+}
+
 /// A column shift modifier applied during table resolution.
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub struct ColumnModifier {
@@ -371,7 +386,81 @@ pub struct TableResolution {
 }
 
 // ---------------------------------------------------------------------------
-// Table Resolution Functions (stubs — implementations in next task)
+// Resolution Chains
+// ---------------------------------------------------------------------------
+
+/// How a chain step obtains its die roll value.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub enum ChainRollSource {
+    /// Roll a dice pool (most common).
+    Pool(DicePool),
+    /// Read the roll value from a named context key (must be numeric, cast to u32).
+    ContextKey(String),
+    /// Use a fixed value (for testing or deterministic chains).
+    Fixed(u32),
+}
+
+/// A single step in a resolution chain.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct ChainStep {
+    /// Which resolution table to look up.
+    pub table_id: TypeId,
+    /// Context key supplying `input_a` (e.g., `"attacker_strength"`).
+    pub input_a_key: String,
+    /// Context key supplying `input_b` (e.g., `"defender_strength"`).
+    pub input_b_key: String,
+    /// How this step gets its die roll.
+    pub roll_source: ChainRollSource,
+    /// Context key to write the numeric result to (if the result is numeric).
+    pub output_key: String,
+}
+
+/// Accumulator carrying named values between chain steps.
+#[derive(Debug, Clone, Default)]
+pub struct ChainContext {
+    /// Named numeric values (inputs and accumulated outputs).
+    pub values: HashMap<String, f64>,
+    /// Log of each step's resolution.
+    pub step_log: Vec<ChainStepResult>,
+}
+
+/// The result of resolving a single chain step.
+#[derive(Debug, Clone)]
+pub struct ChainStepResult {
+    /// Zero-based index of this step in the chain.
+    pub step_index: usize,
+    /// Name of the table that was resolved.
+    pub table_name: String,
+    /// The resolution result (None if the table lookup failed).
+    pub resolution: Option<TableResolution>,
+}
+
+/// A sequence of resolution table lookups where each step's output feeds the next.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct ResolutionChain {
+    /// Unique identifier.
+    pub id: TypeId,
+    /// Display name (e.g., "Combat → Morale chain").
+    pub name: String,
+    /// Ordered steps to resolve.
+    pub steps: Vec<ChainStep>,
+    /// Maximum steps to execute (safety valve against cycles). Default 10.
+    pub max_depth: u8,
+}
+
+impl Default for ResolutionChain {
+    fn default() -> Self {
+        Self {
+            id: TypeId::new(),
+            name: "Resolution Chain".to_string(),
+            steps: Vec::new(),
+            max_depth: 10,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Table Resolution Functions
 // ---------------------------------------------------------------------------
 
 /// Resolve a 1D lookup: find the rightmost entry whose threshold
@@ -479,6 +568,68 @@ pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -
     }
     let shifted = base_column as i32 + shift;
     shifted.clamp(0, (column_count - 1) as i32) as usize
+}
+
+/// Resolve a chain of table lookups, feeding each step's output into the next.
+///
+/// Walks the chain's steps in order. For each step:
+/// 1. Reads `input_a` and `input_b` from the context.
+/// 2. Obtains a die roll (from pool, context key, or fixed value).
+/// 3. Resolves the referenced table.
+/// 4. Writes any numeric result to the output key in the context.
+///
+/// Stops early if `max_depth` is exceeded (returns partial results).
+#[allow(clippy::implicit_hasher)]
+pub fn resolve_chain(
+    chain: &ResolutionChain,
+    initial_values: &HashMap<String, f64>,
+    tables: &HashMap<TypeId, ResolutionTable>,
+    rng: &mut SimulationRng,
+) -> ChainContext {
+    let mut ctx = ChainContext {
+        values: initial_values.clone(),
+        step_log: Vec::with_capacity(chain.steps.len()),
+    };
+
+    let depth_limit = usize::from(chain.max_depth);
+
+    for (i, step) in chain.steps.iter().enumerate() {
+        if i >= depth_limit {
+            break;
+        }
+
+        let input_a = ctx.values.get(&step.input_a_key).copied().unwrap_or(0.0);
+        let input_b = ctx.values.get(&step.input_b_key).copied().unwrap_or(0.0);
+
+        let roll: u32 = match &step.roll_source {
+            ChainRollSource::Pool(pool) => {
+                let dice_roll = roll_pool(rng, *pool, &chain.name);
+                dice_roll.total.max(0) as u32
+            }
+            ChainRollSource::ContextKey(key) => {
+                ctx.values.get(key).copied().unwrap_or(0.0).max(0.0) as u32
+            }
+            ChainRollSource::Fixed(v) => *v,
+        };
+
+        let table = tables.get(&step.table_id);
+        let resolution = table.and_then(|t| resolve_table(t, input_a, input_b, roll));
+
+        // Write numeric result to context.
+        if let Some(ref res) = resolution
+            && let Some(num) = res.result.numeric_value()
+        {
+            ctx.values.insert(step.output_key.clone(), num);
+        }
+
+        ctx.step_log.push(ChainStepResult {
+            step_index: i,
+            table_name: table.map_or_else(|| "(missing)".to_string(), |t| t.name.clone()),
+            resolution,
+        });
+    }
+
+    ctx
 }
 
 #[cfg(test)]
@@ -979,5 +1130,296 @@ mod tests {
         let ron_str = ron::to_string(&table).expect("serialize");
         let deserialized: LookupTable = ron::from_str(&ron_str).expect("deserialize");
         assert_eq!(deserialized.entries.len(), 3);
+    }
+
+    // --- TableResult::numeric_value tests ---
+
+    #[test]
+    fn table_result_numeric_value_variants() {
+        assert_eq!(TableResult::NumericValue(3.5).numeric_value(), Some(3.5));
+        assert_eq!(
+            TableResult::PropertyModifier {
+                property: "morale".to_string(),
+                delta: -2.0
+            }
+            .numeric_value(),
+            Some(-2.0)
+        );
+        assert_eq!(TableResult::Text("NE".to_string()).numeric_value(), None);
+    }
+
+    // --- Resolution chain tests ---
+
+    fn test_tables_map() -> HashMap<TypeId, ResolutionTable> {
+        let table = test_resolution_table();
+        let mut map = HashMap::new();
+        map.insert(table.id, table);
+        map
+    }
+
+    #[test]
+    fn resolve_chain_single_step_fixed_roll() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "test chain".to_string(),
+            steps: vec![ChainStep {
+                table_id,
+                input_a_key: "atk".to_string(),
+                input_b_key: "def".to_string(),
+                roll_source: ChainRollSource::Fixed(3),
+                output_key: "result".to_string(),
+            }],
+            max_depth: 10,
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("atk".to_string(), 6.0);
+        initial.insert("def".to_string(), 2.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 1);
+        assert!(ctx.step_log[0].resolution.is_some());
+        // 6/2=3:1 -> col 2, roll 3 -> row 1 -> "DE" (Text, no numeric)
+        assert!(ctx.values.get("result").is_none());
+    }
+
+    #[test]
+    fn resolve_chain_numeric_output_propagates() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "test chain".to_string(),
+            steps: vec![ChainStep {
+                table_id,
+                input_a_key: "atk".to_string(),
+                input_b_key: "def".to_string(),
+                roll_source: ChainRollSource::Fixed(5),
+                output_key: "damage".to_string(),
+            }],
+            max_depth: 10,
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("atk".to_string(), 6.0);
+        initial.insert("def".to_string(), 2.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        // 6/2=3:1 -> col 2, roll 5 -> row 2 -> NumericValue(3.0)
+        assert_eq!(ctx.values.get("damage"), Some(&3.0));
+    }
+
+    #[test]
+    fn resolve_chain_two_steps_output_feeds_input() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "two-step chain".to_string(),
+            steps: vec![
+                ChainStep {
+                    table_id,
+                    input_a_key: "atk".to_string(),
+                    input_b_key: "def".to_string(),
+                    roll_source: ChainRollSource::Fixed(5),
+                    output_key: "step1_result".to_string(),
+                },
+                ChainStep {
+                    table_id,
+                    input_a_key: "step1_result".to_string(),
+                    input_b_key: "def".to_string(),
+                    roll_source: ChainRollSource::Fixed(1),
+                    output_key: "step2_result".to_string(),
+                },
+            ],
+            max_depth: 10,
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("atk".to_string(), 6.0);
+        initial.insert("def".to_string(), 2.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 2);
+        // Step 1: 6/2=3:1 -> col 2, roll 5 -> row 2 -> NumericValue(3.0)
+        assert_eq!(ctx.values.get("step1_result"), Some(&3.0));
+        // Step 2: 3.0/2.0=1.5 -> col 1 (1:1), roll 1 -> row 0 -> "NE" (Text)
+        assert!(ctx.step_log[1].resolution.is_some());
+    }
+
+    #[test]
+    fn resolve_chain_with_dice_pool() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "dice chain".to_string(),
+            steps: vec![ChainStep {
+                table_id,
+                input_a_key: "atk".to_string(),
+                input_b_key: "def".to_string(),
+                roll_source: ChainRollSource::Pool(DicePool::single(6)),
+                output_key: "result".to_string(),
+            }],
+            max_depth: 10,
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("atk".to_string(), 6.0);
+        initial.insert("def".to_string(), 2.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 1);
+        assert!(ctx.step_log[0].resolution.is_some());
+        // The roll is deterministic with seed 42, so resolution should succeed
+        assert!(rng.roll_count() > 0);
+    }
+
+    #[test]
+    fn resolve_chain_context_key_roll_source() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "context roll chain".to_string(),
+            steps: vec![ChainStep {
+                table_id,
+                input_a_key: "atk".to_string(),
+                input_b_key: "def".to_string(),
+                roll_source: ChainRollSource::ContextKey("die_value".to_string()),
+                output_key: "result".to_string(),
+            }],
+            max_depth: 10,
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("atk".to_string(), 6.0);
+        initial.insert("def".to_string(), 2.0);
+        initial.insert("die_value".to_string(), 4.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 1);
+        // roll=4, 6/2=3:1 -> col 2, row 1 (3-4) -> "DE" (Text)
+        assert!(ctx.step_log[0].resolution.is_some());
+        assert_eq!(rng.roll_count(), 0); // No RNG rolls used
+    }
+
+    #[test]
+    fn resolve_chain_max_depth_limits_steps() {
+        let tables = test_tables_map();
+        let table_id = *tables.keys().next().expect("has a table");
+
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "deep chain".to_string(),
+            steps: vec![
+                ChainStep {
+                    table_id,
+                    input_a_key: "a".to_string(),
+                    input_b_key: "b".to_string(),
+                    roll_source: ChainRollSource::Fixed(1),
+                    output_key: "r1".to_string(),
+                },
+                ChainStep {
+                    table_id,
+                    input_a_key: "a".to_string(),
+                    input_b_key: "b".to_string(),
+                    roll_source: ChainRollSource::Fixed(1),
+                    output_key: "r2".to_string(),
+                },
+                ChainStep {
+                    table_id,
+                    input_a_key: "a".to_string(),
+                    input_b_key: "b".to_string(),
+                    roll_source: ChainRollSource::Fixed(1),
+                    output_key: "r3".to_string(),
+                },
+            ],
+            max_depth: 2, // Only allow 2 steps
+        };
+
+        let mut initial = HashMap::new();
+        initial.insert("a".to_string(), 6.0);
+        initial.insert("b".to_string(), 2.0);
+
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 2); // Third step skipped
+    }
+
+    #[test]
+    fn resolve_chain_missing_table() {
+        let tables = HashMap::new(); // No tables available
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "missing table chain".to_string(),
+            steps: vec![ChainStep {
+                table_id: TypeId::new(),
+                input_a_key: "a".to_string(),
+                input_b_key: "b".to_string(),
+                roll_source: ChainRollSource::Fixed(3),
+                output_key: "result".to_string(),
+            }],
+            max_depth: 10,
+        };
+
+        let initial = HashMap::new();
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert_eq!(ctx.step_log.len(), 1);
+        assert!(ctx.step_log[0].resolution.is_none());
+        assert_eq!(ctx.step_log[0].table_name, "(missing)");
+    }
+
+    #[test]
+    fn resolve_chain_empty_steps() {
+        let tables = HashMap::new();
+        let chain = ResolutionChain::default();
+        let initial = HashMap::new();
+        let mut rng = SimulationRng::new(42);
+        let ctx = resolve_chain(&chain, &initial, &tables, &mut rng);
+
+        assert!(ctx.step_log.is_empty());
+        assert!(ctx.values.is_empty());
+    }
+
+    #[test]
+    fn resolution_chain_ron_round_trip() {
+        let chain = ResolutionChain {
+            id: TypeId::new(),
+            name: "test chain".to_string(),
+            steps: vec![ChainStep {
+                table_id: TypeId::new(),
+                input_a_key: "atk".to_string(),
+                input_b_key: "def".to_string(),
+                roll_source: ChainRollSource::Pool(DicePool::single(6)),
+                output_key: "result".to_string(),
+            }],
+            max_depth: 5,
+        };
+        let ron_str = ron::to_string(&chain).expect("serialize");
+        let deserialized: ResolutionChain = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.name, "test chain");
+        assert_eq!(deserialized.steps.len(), 1);
+        assert_eq!(deserialized.max_depth, 5);
     }
 }

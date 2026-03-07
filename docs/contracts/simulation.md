@@ -3,9 +3,9 @@
 ## Purpose
 
 Defines generic simulation primitives per ADR-005: seeded RNG with deterministic replay, die types,
-roll logging, 1D lookup tables, 2D resolution tables, and column modifiers. These primitives are
-domain-agnostic — they pass the space-game test and can express any tabletop resolution mechanic
-when composed through the ontology.
+roll logging, dice pools, 1D lookup tables, 2D resolution tables, column modifiers, and resolution
+chains. These primitives are domain-agnostic — they pass the space-game test and can express any
+tabletop resolution mechanic when composed through the ontology.
 
 ## Consumers
 
@@ -138,6 +138,47 @@ pub struct TableResolution {
 }
 ```
 
+### Resolution Chains
+
+```rust
+/// How a chain step obtains its die roll value.
+pub enum ChainRollSource {
+    Pool(DicePool),
+    ContextKey(String),
+    Fixed(u32),
+}
+
+/// A single step in a resolution chain.
+pub struct ChainStep {
+    pub table_id: TypeId,
+    pub input_a_key: String,
+    pub input_b_key: String,
+    pub roll_source: ChainRollSource,
+    pub output_key: String,
+}
+
+/// Accumulator carrying named values between chain steps.
+pub struct ChainContext {
+    pub values: HashMap<String, f64>,
+    pub step_log: Vec<ChainStepResult>,
+}
+
+/// The result of resolving a single chain step.
+pub struct ChainStepResult {
+    pub step_index: usize,
+    pub table_name: String,
+    pub resolution: Option<TableResolution>,
+}
+
+/// A sequence of resolution table lookups where each step's output feeds the next.
+pub struct ResolutionChain {
+    pub id: TypeId,
+    pub name: String,
+    pub steps: Vec<ChainStep>,
+    pub max_depth: u8,
+}
+```
+
 ## Functions
 
 ### RNG
@@ -183,6 +224,12 @@ pub fn evaluate_column_modifiers(
 
 /// Apply a column shift to a base index, clamping to bounds.
 pub fn apply_column_shift(base_column: usize, shift: i32, column_count: usize) -> usize;
+
+/// Resolve a chain of table lookups, feeding each step's output into the next.
+pub fn resolve_chain(
+    chain: &ResolutionChain, initial_values: &HashMap<String, f64>,
+    tables: &HashMap<TypeId, ResolutionTable>, rng: &mut SimulationRng,
+) -> ChainContext;
 ```
 
 ## Source
