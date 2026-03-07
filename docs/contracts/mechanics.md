@@ -68,6 +68,22 @@ pub struct TurnState {
     pub turn_number: u32,
     pub current_phase_index: usize,
     pub is_active: bool,
+    pub phase_actions_remaining: Option<u32>,
+}
+
+/// An action the user can take to control phase progression.
+pub enum PhaseAction {
+    Advance,
+    Rewind,
+    Skip,
+}
+
+/// The result of a phase transition attempt.
+pub struct PhaseTransitionResult {
+    pub turn_changed: bool,
+    pub from_phase: usize,
+    pub to_phase: usize,
+    pub turn_number: u32,
 }
 ```
 
@@ -206,6 +222,23 @@ pub fn resolve_crt(crt: &CombatResultsTable, atk: f64, def: f64, die_roll: u32)
     -> Option<CrtResolution>;
 ```
 
+### Phase Sequencer Functions
+
+```rust
+/// Check whether a phase action is legal given the current turn state.
+pub fn is_phase_action_legal(
+    action: PhaseAction, turn_state: &TurnState, turn_structure: &TurnStructure,
+) -> bool;
+
+/// Execute a phase action, updating turn state. Returns None if illegal.
+pub fn execute_phase_action(
+    action: PhaseAction, turn_state: &mut TurnState, turn_structure: &TurnStructure,
+) -> Option<PhaseTransitionResult>;
+
+/// Get the current phase from the turn structure, if valid.
+pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> Option<&Phase>;
+```
+
 **Removed functions** (now in `simulation` contract as generic equivalents):
 
 - `calculate_odds_ratio` / `calculate_differential` — inlined at call sites or use column thresholds
@@ -226,7 +259,8 @@ pub fn resolve_crt(crt: &CombatResultsTable, atk: f64, def: f64, die_roll: u32)
 
 ## Changelog
 
-| Date       | Change                           | Reason                               |
-| ---------- | -------------------------------- | ------------------------------------ |
-| 2026-03-05 | CRT → ResolutionTable delegation | 0.17.0 CRT migration (#225)          |
-| 2026-02-16 | Initial definition               | 0.9.0 Core mechanic primitives (#77) |
+| Date       | Change                            | Reason                               |
+| ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Phase sequencer types + functions | 0.20.0 Simulation runtime (#234)     |
+| 2026-03-05 | CRT → ResolutionTable delegation  | 0.17.0 CRT migration (#225)          |
+| 2026-02-16 | Initial definition                | 0.9.0 Core mechanic primitives (#77) |

@@ -75,6 +75,32 @@ pub struct TurnState {
     pub current_phase_index: usize,
     /// Whether the turn is actively running (Play mode is active).
     pub is_active: bool,
+    /// Actions remaining in the current phase (None = unlimited).
+    pub phase_actions_remaining: Option<u32>,
+}
+
+/// An action the user can take to control phase progression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum PhaseAction {
+    /// Advance to the next phase (or next turn if at the last phase).
+    Advance,
+    /// Go back to the previous phase (or previous turn if at the first phase).
+    Rewind,
+    /// Skip the current phase without executing it.
+    Skip,
+}
+
+/// The result of a phase transition attempt.
+#[derive(Debug, Clone)]
+pub struct PhaseTransitionResult {
+    /// Whether the turn number changed.
+    pub turn_changed: bool,
+    /// The phase index before the transition.
+    pub from_phase: usize,
+    /// The phase index after the transition.
+    pub to_phase: usize,
+    /// The turn number after the transition.
+    pub turn_number: u32,
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +312,86 @@ pub fn resolve_crt(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Phase Sequencer Functions
+// ---------------------------------------------------------------------------
+
+/// Check whether a phase action is legal given the current turn state.
+#[must_use]
+pub fn is_phase_action_legal(
+    action: PhaseAction,
+    turn_state: &TurnState,
+    turn_structure: &TurnStructure,
+) -> bool {
+    if !turn_state.is_active || turn_structure.phases.is_empty() {
+        return false;
+    }
+    match action {
+        PhaseAction::Advance | PhaseAction::Skip => true,
+        PhaseAction::Rewind => {
+            // Can rewind if not at the very start (turn 1, phase 0).
+            turn_state.turn_number > 1 || turn_state.current_phase_index > 0
+        }
+    }
+}
+
+/// Execute a phase action, updating turn state and returning the transition result.
+/// Returns `None` if the action is not legal.
+pub fn execute_phase_action(
+    action: PhaseAction,
+    turn_state: &mut TurnState,
+    turn_structure: &TurnStructure,
+) -> Option<PhaseTransitionResult> {
+    if !is_phase_action_legal(action, turn_state, turn_structure) {
+        return None;
+    }
+
+    let from_phase = turn_state.current_phase_index;
+    let phase_count = turn_structure.phases.len();
+    let mut turn_changed = false;
+
+    match action {
+        PhaseAction::Advance | PhaseAction::Skip => {
+            let next = turn_state.current_phase_index + 1;
+            if next >= phase_count {
+                turn_state.turn_number += 1;
+                turn_state.current_phase_index = 0;
+                turn_changed = true;
+            } else {
+                turn_state.current_phase_index = next;
+            }
+        }
+        PhaseAction::Rewind => {
+            if turn_state.current_phase_index > 0 {
+                turn_state.current_phase_index -= 1;
+            } else if turn_state.turn_number > 1 {
+                turn_state.turn_number -= 1;
+                turn_state.current_phase_index = phase_count - 1;
+                turn_changed = true;
+            }
+        }
+    }
+
+    // Reset actions remaining for the new phase.
+    turn_state.phase_actions_remaining = None;
+
+    Some(PhaseTransitionResult {
+        turn_changed,
+        from_phase,
+        to_phase: turn_state.current_phase_index,
+        turn_number: turn_state.turn_number,
+    })
+}
+
+/// Get the current phase from the turn structure, if valid.
+#[must_use]
+pub fn current_phase<'a>(
+    turn_state: &TurnState,
+    turn_structure: &'a TurnStructure,
+) -> Option<&'a Phase> {
+    turn_structure.phases.get(turn_state.current_phase_index)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,5 +574,209 @@ mod tests {
         assert_eq!(deserialized.table.columns.len(), 3);
         assert_eq!(deserialized.table.rows.len(), 3);
         assert_eq!(deserialized.outcomes.len(), 3);
+    }
+
+    // --- Phase sequencer tests ---
+
+    fn three_phase_structure() -> TurnStructure {
+        TurnStructure {
+            phases: vec![
+                Phase {
+                    id: TypeId::new(),
+                    name: "Movement".to_string(),
+                    phase_type: PhaseType::Movement,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Combat".to_string(),
+                    phase_type: PhaseType::Combat,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Supply".to_string(),
+                    phase_type: PhaseType::Admin,
+                    description: String::new(),
+                },
+            ],
+            player_order: PlayerOrder::Alternating,
+        }
+    }
+
+    #[test]
+    fn advance_phase_within_turn() {
+        let structure = three_phase_structure();
+        let mut state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let result = execute_phase_action(PhaseAction::Advance, &mut state, &structure);
+        assert!(result.is_some());
+        let r = result.expect("result");
+        assert!(!r.turn_changed);
+        assert_eq!(r.from_phase, 0);
+        assert_eq!(r.to_phase, 1);
+        assert_eq!(state.current_phase_index, 1);
+        assert_eq!(state.turn_number, 1);
+    }
+
+    #[test]
+    fn advance_past_last_phase_wraps_turn() {
+        let structure = three_phase_structure();
+        let mut state = TurnState {
+            turn_number: 1,
+            current_phase_index: 2,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let result = execute_phase_action(PhaseAction::Advance, &mut state, &structure);
+        let r = result.expect("result");
+        assert!(r.turn_changed);
+        assert_eq!(r.to_phase, 0);
+        assert_eq!(state.turn_number, 2);
+    }
+
+    #[test]
+    fn rewind_phase_within_turn() {
+        let structure = three_phase_structure();
+        let mut state = TurnState {
+            turn_number: 1,
+            current_phase_index: 2,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let result = execute_phase_action(PhaseAction::Rewind, &mut state, &structure);
+        let r = result.expect("result");
+        assert!(!r.turn_changed);
+        assert_eq!(r.to_phase, 1);
+    }
+
+    #[test]
+    fn rewind_past_first_phase_wraps_turn() {
+        let structure = three_phase_structure();
+        let mut state = TurnState {
+            turn_number: 2,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let result = execute_phase_action(PhaseAction::Rewind, &mut state, &structure);
+        let r = result.expect("result");
+        assert!(r.turn_changed);
+        assert_eq!(r.to_phase, 2);
+        assert_eq!(state.turn_number, 1);
+    }
+
+    #[test]
+    fn rewind_at_start_of_game_illegal() {
+        let structure = three_phase_structure();
+        let state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        assert!(!is_phase_action_legal(
+            PhaseAction::Rewind,
+            &state,
+            &structure
+        ));
+    }
+
+    #[test]
+    fn actions_illegal_when_inactive() {
+        let structure = three_phase_structure();
+        let state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: false,
+            phase_actions_remaining: None,
+        };
+
+        assert!(!is_phase_action_legal(
+            PhaseAction::Advance,
+            &state,
+            &structure
+        ));
+        assert!(!is_phase_action_legal(
+            PhaseAction::Rewind,
+            &state,
+            &structure
+        ));
+        assert!(!is_phase_action_legal(
+            PhaseAction::Skip,
+            &state,
+            &structure
+        ));
+    }
+
+    #[test]
+    fn actions_illegal_with_no_phases() {
+        let structure = TurnStructure::default();
+        let state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        assert!(!is_phase_action_legal(
+            PhaseAction::Advance,
+            &state,
+            &structure
+        ));
+    }
+
+    #[test]
+    fn skip_behaves_like_advance() {
+        let structure = three_phase_structure();
+        let mut state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let result = execute_phase_action(PhaseAction::Skip, &mut state, &structure);
+        let r = result.expect("result");
+        assert_eq!(r.to_phase, 1);
+        assert!(!r.turn_changed);
+    }
+
+    #[test]
+    fn current_phase_returns_correct_phase() {
+        let structure = three_phase_structure();
+        let state = TurnState {
+            turn_number: 1,
+            current_phase_index: 1,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        let phase = current_phase(&state, &structure);
+        assert!(phase.is_some());
+        assert_eq!(phase.expect("phase").name, "Combat");
+        assert_eq!(phase.expect("phase").phase_type, PhaseType::Combat);
+    }
+
+    #[test]
+    fn current_phase_out_of_bounds_returns_none() {
+        let structure = three_phase_structure();
+        let state = TurnState {
+            turn_number: 1,
+            current_phase_index: 99,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        assert!(current_phase(&state, &structure).is_none());
     }
 }

@@ -2028,7 +2028,7 @@ fn turn_tracker_advance_button_present() {
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut turn_state, &structure);
     });
-    harness.get_by_label_contains("Next Phase");
+    harness.get_by_label_contains("Next");
 }
 
 // ---------------------------------------------------------------------------
@@ -3303,6 +3303,7 @@ fn turn_tracker_pre_initialized_state() {
         turn_number: 3,
         current_phase_index: 1,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut turn_state, &structure);
@@ -3318,6 +3319,7 @@ fn turn_tracker_shows_combat_phase_badge() {
         turn_number: 1,
         current_phase_index: 1,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut turn_state, &structure);
@@ -3333,6 +3335,7 @@ fn turn_tracker_shows_admin_phase_badge() {
         turn_number: 1,
         current_phase_index: 2,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut turn_state, &structure);
@@ -4807,6 +4810,7 @@ fn turn_tracker_next_phase_advances_within_turn() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let turn_structure = test_turn_structure();
     let state = TurnTrackerState {
@@ -4821,7 +4825,7 @@ fn turn_tracker_next_phase_advances_within_turn() {
         state,
     );
 
-    harness.get_by_label_contains("Next Phase").click();
+    harness.get_by_label_contains("Next").click();
     harness.run();
 
     assert_eq!(harness.state().turn_state.current_phase_index, 1);
@@ -4840,6 +4844,7 @@ fn turn_tracker_next_phase_wraps_to_next_turn() {
         turn_number: 1,
         current_phase_index: 2, // last phase (index 2 of 3)
         is_active: true,
+        phase_actions_remaining: None,
     };
     let turn_structure = test_turn_structure();
     let state = TurnTrackerState {
@@ -4854,7 +4859,7 @@ fn turn_tracker_next_phase_wraps_to_next_turn() {
         state,
     );
 
-    harness.get_by_label_contains("Next Phase").click();
+    harness.get_by_label_contains("Next").click();
     harness.run();
 
     assert_eq!(harness.state().turn_state.current_phase_index, 0);
@@ -6309,6 +6314,7 @@ fn turn_tracker_next_phase_click_advances_phase() {
             turn_number: 1,
             current_phase_index: 0,
             is_active: true,
+            phase_actions_remaining: None,
         },
         turn: test_turn_structure(),
     };
@@ -6318,7 +6324,7 @@ fn turn_tracker_next_phase_click_advances_phase() {
         },
         s,
     );
-    harness.get_by_label_contains("Next Phase").click();
+    harness.get_by_label_contains("Next").click();
     harness.run();
     assert_eq!(harness.state().ts.current_phase_index, 1);
     assert_eq!(harness.state().ts.turn_number, 1);
@@ -6336,6 +6342,7 @@ fn turn_tracker_next_phase_wraps_turn() {
             turn_number: 1,
             current_phase_index: 2, // last phase (Admin)
             is_active: true,
+            phase_actions_remaining: None,
         },
         turn: test_turn_structure(),
     };
@@ -6345,7 +6352,7 @@ fn turn_tracker_next_phase_wraps_turn() {
         },
         s,
     );
-    harness.get_by_label_contains("Next Phase").click();
+    harness.get_by_label_contains("Next").click();
     harness.run();
     assert_eq!(harness.state().ts.current_phase_index, 0);
     assert_eq!(harness.state().ts.turn_number, 2);
@@ -6358,6 +6365,7 @@ fn turn_tracker_no_phases_shows_message() {
         turn_number: 0,
         current_phase_index: 0,
         is_active: false,
+        phase_actions_remaining: None,
     };
     let empty = TurnStructure {
         player_order: PlayerOrder::Alternating,
@@ -6381,6 +6389,7 @@ fn turn_tracker_initializes_from_zero() {
             turn_number: 0,
             current_phase_index: 0,
             is_active: false,
+            phase_actions_remaining: None,
         },
         turn: test_turn_structure(),
     };
@@ -7763,6 +7772,7 @@ fn turn_tracker_init_turn_number() {
         turn_number: 0,
         current_phase_index: 0,
         is_active: false,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
@@ -7778,6 +7788,7 @@ fn turn_tracker_movement_label() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
@@ -7793,6 +7804,7 @@ fn turn_tracker_combat_label() {
         turn_number: 1,
         current_phase_index: 1,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
@@ -7809,6 +7821,7 @@ fn turn_tracker_admin_label() {
         turn_number: 1,
         current_phase_index: 2,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
@@ -7825,11 +7838,12 @@ fn turn_tracker_wrap_increments_turn() {
         turn_number: 1,
         current_phase_index: 2,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let mut harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
     });
-    harness.get_by_label("Next Phase \u{23E9}").click();
+    harness.get_by_label("Next \u{23E9}").click();
     harness.run();
     harness.get_by_label_contains("Turn 2");
 }
@@ -7842,11 +7856,12 @@ fn turn_tracker_advance_within_turn() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let mut harness = Harness::new_ui(|ui| {
         render_play::render_turn_tracker(ui, &mut s, &ts);
     });
-    harness.get_by_label("Next Phase \u{23E9}").click();
+    harness.get_by_label("Next \u{23E9}").click();
     harness.run();
     harness.get_by_label_contains("Phase 2 of 3");
 }

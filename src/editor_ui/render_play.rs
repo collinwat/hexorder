@@ -7,7 +7,8 @@ use hexorder_contracts::game_system::{
     EntityData, EntityTypeRegistry, GameSystem, SelectedUnit, UnitInstance,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseType, TurnState, TurnStructure,
+    ActiveCombat, CombatModifierRegistry, CombatResultsTable, PhaseAction, PhaseType, TurnState,
+    TurnStructure, execute_phase_action, is_phase_action_legal,
 };
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
@@ -298,16 +299,29 @@ pub(crate) fn render_turn_tracker(
 
     ui.add_space(8.0);
 
-    // Advance phase button.
-    if ui.button("Next Phase \u{23E9}").clicked() {
-        let next_index = turn_state.current_phase_index + 1;
-        if next_index >= turn_structure.phases.len() {
-            turn_state.turn_number += 1;
-            turn_state.current_phase_index = 0;
-        } else {
-            turn_state.current_phase_index = next_index;
-        }
-    }
+    // Phase action buttons.
+    ui.horizontal(|ui| {
+        let can_rewind = is_phase_action_legal(PhaseAction::Rewind, turn_state, turn_structure);
+        ui.add_enabled_ui(can_rewind, |ui| {
+            if ui.button("\u{23EA} Prev").clicked() {
+                execute_phase_action(PhaseAction::Rewind, turn_state, turn_structure);
+            }
+        });
+
+        let can_advance = is_phase_action_legal(PhaseAction::Advance, turn_state, turn_structure);
+        ui.add_enabled_ui(can_advance, |ui| {
+            if ui.button("Next \u{23E9}").clicked() {
+                execute_phase_action(PhaseAction::Advance, turn_state, turn_structure);
+            }
+        });
+
+        let can_skip = is_phase_action_legal(PhaseAction::Skip, turn_state, turn_structure);
+        ui.add_enabled_ui(can_skip, |ui| {
+            if ui.button("Skip \u{23ED}").clicked() {
+                execute_phase_action(PhaseAction::Skip, turn_state, turn_structure);
+            }
+        });
+    });
 }
 
 /// Renders the dice pool panel: pool configuration, roll button, results, and seed control.

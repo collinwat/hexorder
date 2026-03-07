@@ -1356,6 +1356,7 @@ fn advance_phase_increments_index() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let structure = test_turn_structure();
 
@@ -1375,6 +1376,7 @@ fn advance_phase_wraps_to_next_turn() {
         turn_number: 1,
         current_phase_index: 2, // Last phase (Supply, index 2 of 3)
         is_active: true,
+        phase_actions_remaining: None,
     };
     let structure = test_turn_structure();
 
@@ -1395,6 +1397,7 @@ fn advance_phase_multiple_turns() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let structure = test_turn_structure();
 
@@ -1416,6 +1419,7 @@ fn advance_phase_empty_structure_returns_none() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let structure = TurnStructure {
         phases: Vec::new(),
@@ -1441,6 +1445,7 @@ fn advance_phase_single_phase_wraps_every_advance() {
         turn_number: 1,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
 
     let event = advance_phase(&mut state, &structure);
@@ -2823,6 +2828,7 @@ fn advance_phase_initializes_turn_number_from_zero() {
         turn_number: 0,
         current_phase_index: 0,
         is_active: true,
+        phase_actions_remaining: None,
     };
     let structure = test_turn_structure();
 
