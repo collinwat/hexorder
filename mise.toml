@@ -2,6 +2,9 @@
 # sccache wrapper — see scripts/cargo-env.sh for history.
 _.source = "scripts/cargo-env.sh"
 RUSTC_WRAPPER = "sccache"
+# Each worktree uses its own target/ directory (cargo default).
+# Explicitly false to clear any cached shared CARGO_TARGET_DIR.
+CARGO_TARGET_DIR = false
 
 [tools]
 gitleaks = "latest"

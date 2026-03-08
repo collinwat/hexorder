@@ -7,3 +7,4 @@
 # switching between worktrees with different code. Each worktree now gets its
 # own target/ directory (cargo default). The extra disk and first-build cost
 # is minor compared to the debugging cost of cross-worktree contamination.
+unset CARGO_TARGET_DIR
