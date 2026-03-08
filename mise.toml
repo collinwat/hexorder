@@ -1,5 +1,5 @@
 [env]
-# Shared target dir and sccache wrapper — see scripts/cargo-env.sh for details.
+# sccache wrapper — see scripts/cargo-env.sh for history.
 _.source = "scripts/cargo-env.sh"
 RUSTC_WRAPPER = "sccache"
 

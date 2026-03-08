@@ -91,22 +91,21 @@ Report which flag triggers the failure before proceeding.
 
 ## 4. Clean Stale Artifacts
 
-Git worktrees share a single `target/` directory by default. Stale build artifacts from one worktree
-can contaminate builds in another.
+Stale incremental compilation artifacts can cause runtime crashes that don't reproduce on a clean
+build.
 
 ```bash
 cargo clean -p hexorder
 cargo build --features dev
 ```
 
-If the crash disappears after cleaning, the cause was stale artifacts from the shared target
-directory. Document this in the pitch issue comment.
+If the crash disappears after cleaning, the cause was stale artifacts. Document this in the pitch
+issue comment.
 
-> **Shared target directory risk**: All worktrees under the same repository share
-> `<repo-root>/target/`. When one worktree builds with different features or dependency versions,
-> incremental compilation artifacts may become invalid for other worktrees.
-> `cargo clean -p hexorder` removes only the project's own artifacts, forcing a rebuild without
-> wiping the entire dependency cache.
+> **Note**: Each worktree now uses its own `target/` directory (cargo default). The previous shared
+> `CARGO_TARGET_DIR` was removed because it caused cross-worktree contamination. If you see a panic
+> referencing types that don't exist in the current branch, stale artifacts from the old shared
+> directory may still be cached — run `cargo clean` to clear them.
 
 ## 5. Source Code Bisection
 
