@@ -16,7 +16,7 @@ Top-level container for a saved game system + board state.
 
 | Field              | Type                 | Description                                      |
 | ------------------ | -------------------- | ------------------------------------------------ |
-| `format_version`   | `u32`                | File format version (migration), currently `6`   |
+| `format_version`   | `u32`                | File format version (migration), currently `7`   |
 | `name`             | `String`             | Human-readable project name (v3+, default `""`)  |
 | `game_system`      | `GameSystem`         | Game system metadata                             |
 | `entity_types`     | `EntityTypeRegistry` | All entity types                                 |
@@ -31,6 +31,7 @@ Top-level container for a saved game system + board state.
 | `workspace_preset` | `String`             | Active workspace preset ID (v4+, default `""`)   |
 | `font_size_base`   | `f32`                | Editor font size in points (v5+, default 15.0)   |
 | `edge_features`    | `HexEdgeRegistry`    | Hex edge feature annotations (v6+, default `{}`) |
+| `spawn_schedule`   | `SpawnSchedule`      | Scheduled entity spawning (v7+, default `{}`)    |
 
 ### `TileSaveData`
 

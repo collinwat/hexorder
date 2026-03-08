@@ -15,11 +15,11 @@ use crate::game_system::{
 use crate::hex_grid::{
     HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
-use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, TurnStructure};
+use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, SpawnSchedule, TurnStructure};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 6;
+pub const FORMAT_VERSION: u32 = 7;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -158,6 +158,9 @@ pub struct GameSystemFile {
     /// Movement cost matrix — 2D lookup by terrain type and unit classification (v6+).
     #[serde(default)]
     pub movement_cost_matrix: MovementCostMatrix,
+    /// Scheduled entity spawning for scenarios (v7+).
+    #[serde(default)]
+    pub spawn_schedule: SpawnSchedule,
 }
 
 fn default_font_size() -> f32 {
@@ -249,7 +252,7 @@ mod tests {
 
     #[test]
     fn format_version_constant() {
-        assert_eq!(FORMAT_VERSION, 6);
+        assert_eq!(FORMAT_VERSION, 7);
     }
 
     #[test]

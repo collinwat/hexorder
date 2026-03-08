@@ -110,6 +110,7 @@ fn test_game_system_file() -> GameSystemFile {
         influence_rules: InfluenceRuleRegistry::default(),
         stacking_rule: StackingRule::default(),
         movement_cost_matrix: MovementCostMatrix::default(),
+        spawn_schedule: hexorder_contracts::mechanics::SpawnSchedule::default(),
     }
 }
 
