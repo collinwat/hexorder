@@ -42,7 +42,7 @@ lefthook install    # installs git hooks into .git/hooks/
 | Hook         | What it checks                                                                                                                                                                            |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `commit-msg` | Message matches `<type>(<scope>): <summary>` with valid types and scopes. Subject line max 72 characters. Notices when `Cargo.lock` is staged without a dependency update commit message. |
-| `pre-commit` | No secrets staged (`.env`, credentials, keys). Code compiles (`cargo check`). Formatting is correct.                                                                                      |
+| `pre-commit` | No secrets staged (`.env`, credentials, keys). Code compiles (`cargo check`). Formatting is correct. No spelling errors (`typos`).                                                        |
 
 These hooks are the automated enforcement of the Pre-Commit Checklist. If a hook rejects your
 commit, fix the issue — do not bypass with `--no-verify`.

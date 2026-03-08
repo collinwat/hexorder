@@ -64,3 +64,5 @@ pre-commit:
       run: cargo fmt --all -- --check
     prettier:
       run: prettier --check .
+    typos:
+      run: mise exec -- typos
