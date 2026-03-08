@@ -5,6 +5,31 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.21.0] — 2026-03-08
+
+### Added
+
+- add design experience design document (project)
+- add design experience implementation plan (project)
+- add live preview to table editor grid (editor_ui)
+- add CombatSelect tool mode with click-to-assign (unit)
+- add post-resolution movement types and evaluation (contracts)
+- show post-resolution movement preview after combat (editor_ui)
+- add area-effect modifiers with combat integration (contracts)
+
+### Changed
+
+- set up feature branch (project)
+- bump version to 0.21.0 (project)
+
+### Fixed
+
+- enable hex interaction systems in Play mode (hex_grid)
+- show hex grid in Play mode by updating viewport margins (editor_ui)
+- preserve entities when transitioning to Play mode (persistence)
+- gate editor-only observers to prevent actions in Play mode (unit)
+- set Play state in combat select tests (unit)
+
 ## [0.20.0] — 2026-03-07
 
 ### Added
@@ -21,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - set up feature branch (simulation)
 - bump version to 0.20.0 (project)
+- update changelog for 0.20.0 (project)
 
 ### Fixed
 
