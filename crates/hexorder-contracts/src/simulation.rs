@@ -1185,7 +1185,7 @@ mod tests {
         assert_eq!(ctx.step_log.len(), 1);
         assert!(ctx.step_log[0].resolution.is_some());
         // 6/2=3:1 -> col 2, roll 3 -> row 1 -> "DE" (Text, no numeric)
-        assert!(ctx.values.get("result").is_none());
+        assert!(!ctx.values.contains_key("result"));
     }
 
     #[test]
