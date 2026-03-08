@@ -23,7 +23,7 @@ Thumbs.db
 /.worktrees/
 
 # Development state (project-local save directory)
-/.state/
+.state/
 
 # Wiki (separate git repo, cloned locally)
 /.wiki/
