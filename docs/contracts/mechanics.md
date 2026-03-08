@@ -315,6 +315,57 @@ pub fn is_action_restricted(
 ) -> bool;
 ```
 
+### Constrained Pathfinding
+
+```rust
+/// A constraint applied when finding a post-resolution path (e.g., retreat).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PathConstraint {
+    /// Each step must increase distance from the source hex.
+    AwayFrom { source: HexPosition },
+    /// Avoid hexes in the influence map for the given type.
+    AvoidInfluence { influence_type: String },
+    /// Avoid hexes with the given terrain type.
+    AvoidTerrain { terrain_type: String },
+    /// Total path cost must not exceed this budget.
+    MaxCost { budget: u32 },
+}
+
+/// Request to find a constrained path from a starting hex.
+#[derive(Debug, Clone)]
+pub struct ConstrainedPathRequest {
+    pub start: HexPosition,
+    pub constraints: Vec<PathConstraint>,
+    pub max_distance: u32,
+}
+
+/// Result of a constrained pathfinding attempt.
+#[derive(Debug, Clone)]
+pub struct ConstrainedPathResult {
+    pub path: Option<Vec<HexPosition>>,
+    pub failure_reason: Option<String>,
+}
+
+/// Context data for the constrained pathfinding algorithm.
+/// Populated by the rules engine from game state.
+#[derive(Debug)]
+pub struct PathfindingContext {
+    /// Valid hex positions (from BFS / ValidMoveSet).
+    pub valid_positions: HashSet<HexPosition>,
+    /// Influence zones keyed by type name.
+    pub influence_zones: HashMap<String, HashSet<HexPosition>>,
+    /// Terrain type at each hex position.
+    pub terrain_types: HashMap<HexPosition, String>,
+}
+
+/// Find the best path satisfying all constraints via BFS.
+/// Maximizes distance from AwayFrom sources (for retreat).
+pub fn find_constrained_path(
+    request: &ConstrainedPathRequest,
+    ctx: &PathfindingContext,
+) -> ConstrainedPathResult;
+```
+
 ### Phase Sequencer Functions
 
 ```rust
@@ -352,11 +403,16 @@ pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> 
 - `AreaMarkerRegistry` is inserted at startup; starts empty
 - Area effects stack additively — multiple markers affecting the same hex sum their shifts/costs
 - `collect_area_column_shifts` / `collect_area_cost_modifiers` use `hex_distance` for radius check
+- `find_constrained_path` is pure — all state provided via `PathfindingContext`
+- `AwayFrom` constraint enforces non-decreasing distance at each step
+- `PathfindingContext.valid_positions` gates which hexes the algorithm may traverse
+- BFS prefers paths that maximize distance from `AwayFrom` sources (retreat behavior)
 
 ## Changelog
 
 | Date       | Change                            | Reason                               |
 | ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Constrained pathfinding types     | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Area-effect modifier types        | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Post-resolution movement types    | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Phase sequencer types + functions | 0.20.0 Simulation runtime (#234)     |

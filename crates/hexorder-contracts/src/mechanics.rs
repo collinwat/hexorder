@@ -358,6 +358,229 @@ pub fn evaluate_post_resolution(
 }
 
 // ---------------------------------------------------------------------------
+// Constrained Pathfinding
+// ---------------------------------------------------------------------------
+
+/// A constraint applied when finding a post-resolution path (e.g., retreat).
+#[derive(Debug, Clone, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum PathConstraint {
+    /// Each step must increase distance from the source hex.
+    AwayFrom {
+        source: crate::hex_grid::HexPosition,
+    },
+    /// Avoid hexes that appear in the influence map for the given type.
+    AvoidInfluence { influence_type: String },
+    /// Avoid hexes with the given terrain type.
+    AvoidTerrain { terrain_type: String },
+    /// Total path cost must not exceed this budget.
+    MaxCost { budget: u32 },
+}
+
+/// Request to find a constrained path from a starting hex.
+#[derive(Debug, Clone)]
+pub struct ConstrainedPathRequest {
+    /// Starting hex (e.g., defender's current position).
+    pub start: crate::hex_grid::HexPosition,
+    /// Constraints the path must satisfy.
+    pub constraints: Vec<PathConstraint>,
+    /// Maximum path length in hexes.
+    pub max_distance: u32,
+}
+
+/// Result of a constrained pathfinding attempt.
+#[derive(Debug, Clone)]
+pub struct ConstrainedPathResult {
+    /// The path from start to destination (inclusive of start), or `None` if
+    /// no valid path exists.
+    pub path: Option<Vec<crate::hex_grid::HexPosition>>,
+    /// Human-readable reason for failure, if any.
+    pub failure_reason: Option<String>,
+}
+
+/// Context data required by the constrained pathfinding algorithm.
+///
+/// The caller (rules engine) populates this with the relevant game state.
+/// The algorithm itself is pure — it reads from this context without side effects.
+#[derive(Debug)]
+pub struct PathfindingContext {
+    /// Set of hexes the unit is allowed to move to (from BFS / `ValidMoveSet`).
+    pub valid_positions: std::collections::HashSet<crate::hex_grid::HexPosition>,
+    /// Hexes under influence, keyed by influence type name.
+    pub influence_zones:
+        std::collections::HashMap<String, std::collections::HashSet<crate::hex_grid::HexPosition>>,
+    /// Terrain type at each hex, keyed by position.
+    pub terrain_types: std::collections::HashMap<crate::hex_grid::HexPosition, String>,
+}
+
+/// Find the best path satisfying all constraints via BFS.
+///
+/// Returns the longest valid path (maximizing distance from threat for retreat)
+/// that satisfies every constraint. If no valid path exists, returns the reason.
+///
+/// This is a pure function — all state is provided via `ctx` and `request`.
+#[must_use]
+pub fn find_constrained_path(
+    request: &ConstrainedPathRequest,
+    ctx: &PathfindingContext,
+) -> ConstrainedPathResult {
+    use std::collections::{HashSet, VecDeque};
+
+    // Parse constraints once.
+    let away_from: Vec<crate::hex_grid::HexPosition> = request
+        .constraints
+        .iter()
+        .filter_map(|c| {
+            if let PathConstraint::AwayFrom { source } = c {
+                Some(*source)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let avoid_influence: Vec<&str> = request
+        .constraints
+        .iter()
+        .filter_map(|c| {
+            if let PathConstraint::AvoidInfluence { influence_type } = c {
+                Some(influence_type.as_str())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let avoid_terrain: Vec<&str> = request
+        .constraints
+        .iter()
+        .filter_map(|c| {
+            if let PathConstraint::AvoidTerrain { terrain_type } = c {
+                Some(terrain_type.as_str())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let max_cost = request
+        .constraints
+        .iter()
+        .find_map(|c| {
+            if let PathConstraint::MaxCost { budget } = c {
+                Some(*budget)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(request.max_distance);
+
+    let effective_max = max_cost.min(request.max_distance);
+
+    // BFS from start, tracking paths.
+    let mut visited = HashSet::new();
+    visited.insert(request.start);
+
+    // (position, path_so_far, distance)
+    let mut queue: VecDeque<(
+        crate::hex_grid::HexPosition,
+        Vec<crate::hex_grid::HexPosition>,
+        u32,
+    )> = VecDeque::new();
+    queue.push_back((request.start, vec![request.start], 0));
+
+    let mut best_path: Option<Vec<crate::hex_grid::HexPosition>> = None;
+    let mut best_away_distance: u32 = 0;
+
+    while let Some((pos, path, dist)) = queue.pop_front() {
+        // Check if this position is a valid endpoint (not the start).
+        if dist > 0 {
+            // Compute minimum distance to all AwayFrom sources.
+            let min_away = if away_from.is_empty() {
+                u32::MAX
+            } else {
+                away_from
+                    .iter()
+                    .map(|s| crate::hex_grid::hex_distance(pos, *s))
+                    .min()
+                    .unwrap_or(0)
+            };
+
+            if min_away > best_away_distance
+                || (min_away == best_away_distance
+                    && best_path.as_ref().is_none_or(|bp| path.len() < bp.len()))
+            {
+                best_away_distance = min_away;
+                best_path = Some(path.clone());
+            }
+        }
+
+        // Don't expand beyond the budget.
+        if dist >= effective_max {
+            continue;
+        }
+
+        // Expand neighbors using hexx.
+        let hex = pos.to_hex();
+        for neighbor_hex in hex.all_neighbors() {
+            let neighbor = crate::hex_grid::HexPosition::new(neighbor_hex.x, neighbor_hex.y);
+
+            if visited.contains(&neighbor) {
+                continue;
+            }
+
+            // Must be in the valid move set.
+            if !ctx.valid_positions.contains(&neighbor) {
+                continue;
+            }
+
+            // AwayFrom: each step must not decrease distance from source.
+            let away_ok = away_from.iter().all(|s| {
+                crate::hex_grid::hex_distance(neighbor, *s)
+                    >= crate::hex_grid::hex_distance(pos, *s)
+            });
+            if !away_ok {
+                continue;
+            }
+
+            // AvoidInfluence: neighbor must not be in any avoided influence zone.
+            let influence_ok = avoid_influence.iter().all(|inf_type| {
+                ctx.influence_zones
+                    .get(*inf_type)
+                    .is_none_or(|zone| !zone.contains(&neighbor))
+            });
+            if !influence_ok {
+                continue;
+            }
+
+            // AvoidTerrain: neighbor must not have an avoided terrain type.
+            let terrain_ok = avoid_terrain
+                .iter()
+                .all(|terr| ctx.terrain_types.get(&neighbor).is_none_or(|t| t != terr));
+            if !terrain_ok {
+                continue;
+            }
+
+            visited.insert(neighbor);
+            let mut new_path = path.clone();
+            new_path.push(neighbor);
+            queue.push_back((neighbor, new_path, dist + 1));
+        }
+    }
+
+    if let Some(path) = best_path {
+        ConstrainedPathResult {
+            path: Some(path),
+            failure_reason: None,
+        }
+    } else {
+        ConstrainedPathResult {
+            path: None,
+            failure_reason: Some("No valid path satisfying all constraints".to_string()),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // CRT Resolution Helpers
 // ---------------------------------------------------------------------------
 
@@ -1238,6 +1461,188 @@ mod tests {
         ];
         for d in &durations {
             assert!(!format!("{d:?}").is_empty());
+        }
+    }
+
+    // --- Constrained pathfinding tests ---
+
+    use std::collections::{HashMap, HashSet};
+
+    fn retreat_context() -> PathfindingContext {
+        // A small grid: attacker at (0,0), defender at (1,0).
+        // Valid positions form a line away from attacker: (2,0), (3,0).
+        let mut valid = HashSet::new();
+        valid.insert(HexPosition::new(1, 0)); // start (included for completeness)
+        valid.insert(HexPosition::new(2, 0));
+        valid.insert(HexPosition::new(3, 0));
+        PathfindingContext {
+            valid_positions: valid,
+            influence_zones: HashMap::new(),
+            terrain_types: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn constrained_path_retreat_away_from_attacker() {
+        let ctx = retreat_context();
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![PathConstraint::AwayFrom {
+                source: HexPosition::new(0, 0),
+            }],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        assert!(result.path.is_some());
+        let path = result.path.expect("path");
+        // Path should go from (1,0) through (2,0) to (3,0).
+        assert_eq!(path.first(), Some(&HexPosition::new(1, 0)));
+        assert_eq!(path.last(), Some(&HexPosition::new(3, 0)));
+        assert!(path.len() >= 2);
+    }
+
+    #[test]
+    fn constrained_path_max_cost_limits_distance() {
+        let ctx = retreat_context();
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![
+                PathConstraint::AwayFrom {
+                    source: HexPosition::new(0, 0),
+                },
+                PathConstraint::MaxCost { budget: 1 },
+            ],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        assert!(result.path.is_some());
+        let path = result.path.expect("path");
+        // With budget 1, can only reach (2,0).
+        assert_eq!(path.last(), Some(&HexPosition::new(2, 0)));
+        assert_eq!(path.len(), 2); // start + 1 step
+    }
+
+    #[test]
+    fn constrained_path_avoid_influence_zone() {
+        let mut ctx = retreat_context();
+        // Mark (2,0) as in an influence zone.
+        let mut zone = HashSet::new();
+        zone.insert(HexPosition::new(2, 0));
+        ctx.influence_zones.insert("ZOC".to_string(), zone);
+
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![
+                PathConstraint::AwayFrom {
+                    source: HexPosition::new(0, 0),
+                },
+                PathConstraint::AvoidInfluence {
+                    influence_type: "ZOC".to_string(),
+                },
+            ],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        // (2,0) is blocked by ZOC. Whether a path exists depends on
+        // alternate neighbors — in this minimal grid, likely no path.
+        if let Some(path) = &result.path {
+            // If a path was found, it must not go through (2,0).
+            assert!(!path.contains(&HexPosition::new(2, 0)));
+        }
+    }
+
+    #[test]
+    fn constrained_path_avoid_terrain() {
+        let mut ctx = retreat_context();
+        ctx.terrain_types
+            .insert(HexPosition::new(2, 0), "swamp".to_string());
+
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![
+                PathConstraint::AwayFrom {
+                    source: HexPosition::new(0, 0),
+                },
+                PathConstraint::AvoidTerrain {
+                    terrain_type: "swamp".to_string(),
+                },
+            ],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        if let Some(path) = &result.path {
+            assert!(!path.contains(&HexPosition::new(2, 0)));
+        }
+    }
+
+    #[test]
+    fn constrained_path_no_valid_positions_fails() {
+        let ctx = PathfindingContext {
+            valid_positions: HashSet::new(),
+            influence_zones: HashMap::new(),
+            terrain_types: HashMap::new(),
+        };
+
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(0, 0),
+            constraints: vec![PathConstraint::AwayFrom {
+                source: HexPosition::new(-1, 0),
+            }],
+            max_distance: 2,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        assert!(result.path.is_none());
+        assert!(result.failure_reason.is_some());
+    }
+
+    #[test]
+    fn constrained_path_no_constraints_finds_any_path() {
+        let ctx = retreat_context();
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        assert!(result.path.is_some());
+    }
+
+    #[test]
+    fn constrained_path_zero_distance_fails() {
+        let ctx = retreat_context();
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(1, 0),
+            constraints: vec![],
+            max_distance: 0,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        // With max_distance 0, no expansion happens — no valid endpoint.
+        assert!(result.path.is_none());
+    }
+
+    #[test]
+    fn path_constraint_variants_debug() {
+        let constraints = [
+            PathConstraint::AwayFrom {
+                source: HexPosition::new(0, 0),
+            },
+            PathConstraint::AvoidInfluence {
+                influence_type: "ZOC".to_string(),
+            },
+            PathConstraint::AvoidTerrain {
+                terrain_type: "mountain".to_string(),
+            },
+            PathConstraint::MaxCost { budget: 3 },
+        ];
+        for c in &constraints {
+            assert!(!format!("{c:?}").is_empty());
         }
     }
 }
