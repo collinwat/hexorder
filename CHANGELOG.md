@@ -5,6 +5,41 @@ All notable changes to Hexorder are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.22.0] — 2026-03-08
+
+### Added
+
+- add wiki plan audit step to cool-down workflow (project)
+- add constrained pathfinding for post-resolution moves (contracts)
+- wire retreat path preview into combat panel (editor_ui)
+- add scheduled spawning types for reinforcements (contracts)
+- wire spawn schedule into save/load pipeline (persistence)
+- add spawn schedule editor panel (editor_ui)
+- add accumulation tracker and victory condition types (contracts)
+- add accumulator and victory condition editor panels (editor_ui)
+- add canary integration tests for scenario primitives (contracts)
+- add hex-uat skill for managing UAT test plans (editor_ui)
+
+### Changed
+
+- add typos spell check to pre-commit hook (project)
+- set up feature branch (project)
+- bump version to 0.22.0 (project)
+
+### Fixed
+
+- correct typo in design experience plan (project)
+- replace deprecated get-then-check pattern (contracts)
+- add missing resources to test_app helper (persistence)
+- remove shared CARGO_TARGET_DIR across worktrees (project)
+- ignore .state directories in all locations (project)
+- reset scenario resources on new project (persistence)
+- prevent CARGO_TARGET_DIR contamination across worktrees (project)
+- validate dock layout on restore to prevent render freeze (editor_ui)
+- hide 3D scene when viewport tab is not active (editor_ui)
+- revert camera deactivation that blocked tab switching (editor_ui)
+- update TODO reference from #236 to #255 (editor_ui)
+
 ## [0.21.0] — 2026-03-08
 
 ### Added
@@ -21,6 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - set up feature branch (project)
 - bump version to 0.21.0 (project)
+- update changelog for 0.21.0 (project)
 
 ### Fixed
 
