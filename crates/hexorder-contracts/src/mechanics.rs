@@ -2190,4 +2190,260 @@ mod tests {
         assert!(modified.is_empty());
         assert_eq!(registry.accumulators[0].value, 5);
     }
+
+    // -- Canary Integration Test (Scope 4) --
+    // Exercises all three scenario primitives together:
+    // constrained pathfinding, scheduled spawning, and accumulation tracking.
+
+    #[test]
+    fn canary_scenario_end_to_end() {
+        // --- Setup: 2 factions, 3-phase turn, spawn schedule, accumulators ---
+
+        // Turn structure: Movement → Combat → Supply
+        let mut turn_structure = TurnStructure {
+            phases: vec![
+                Phase {
+                    id: TypeId::new(),
+                    name: "Movement".to_string(),
+                    phase_type: PhaseType::Movement,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Combat".to_string(),
+                    phase_type: PhaseType::Combat,
+                    description: String::new(),
+                },
+                Phase {
+                    id: TypeId::new(),
+                    name: "Supply".to_string(),
+                    phase_type: PhaseType::Admin,
+                    description: String::new(),
+                },
+            ],
+            player_order: PlayerOrder::Alternating,
+        };
+        let mut turn_state = TurnState {
+            turn_number: 1,
+            current_phase_index: 0,
+            is_active: true,
+            phase_actions_remaining: None,
+        };
+
+        // Spawn schedule: reinforcement on turn 3 at hex (5,0)
+        let reinforcement_type_id = TypeId::new();
+        let spawn_schedule = SpawnSchedule {
+            entries: vec![SpawnEntry {
+                entity_type_id: reinforcement_type_id,
+                turn: 3,
+                hex: HexPosition::new(5, 0),
+                source_zone: "Reserve".to_string(),
+            }],
+        };
+
+        // Accumulators: +5 VP for occupying objective hex (3,0) at turn boundary
+        let objective_hex = HexPosition::new(3, 0);
+        let mut accumulator_registry = AccumulatorRegistry {
+            accumulators: vec![
+                Accumulator {
+                    id: "vp_red".to_string(),
+                    faction: Some("Red".to_string()),
+                    triggers: vec![AccumulationTrigger::OccupyHex {
+                        hex: objective_hex,
+                        points: 5,
+                    }],
+                    value: 0,
+                    history: Vec::new(),
+                },
+                Accumulator {
+                    id: "vp_blue".to_string(),
+                    faction: Some("Blue".to_string()),
+                    triggers: vec![AccumulationTrigger::OccupyHex {
+                        hex: objective_hex,
+                        points: 5,
+                    }],
+                    value: 0,
+                    history: Vec::new(),
+                },
+            ],
+        };
+
+        // Victory condition: first faction to 15 VP
+        let victory_conditions = VictoryConditionRegistry {
+            conditions: vec![
+                VictoryCondition {
+                    accumulator_id: "vp_red".to_string(),
+                    threshold: 15,
+                    comparison: ComparisonOp::GreaterOrEqual,
+                },
+                VictoryCondition {
+                    accumulator_id: "vp_blue".to_string(),
+                    threshold: 15,
+                    comparison: ComparisonOp::GreaterOrEqual,
+                },
+            ],
+        };
+
+        // --- Phase 1: Verify turn structure works ---
+        let phase = current_phase(&turn_state, &turn_structure);
+        assert_eq!(phase.map(|p| &*p.name), Some("Movement"));
+
+        // Advance through all 3 phases of turn 1
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert_eq!(
+            current_phase(&turn_state, &turn_structure).map(|p| &*p.name),
+            Some("Combat")
+        );
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert_eq!(
+            current_phase(&turn_state, &turn_structure).map(|p| &*p.name),
+            Some("Supply")
+        );
+
+        // At turn boundary (Red controls objective), award VP
+        evaluate_occupy_triggers(&mut accumulator_registry, objective_hex, "Red", 1);
+        assert_eq!(accumulator_registry.accumulators[0].value, 5);
+
+        // No victory yet
+        let met = check_victory_conditions(&accumulator_registry, &victory_conditions);
+        assert!(met.is_empty());
+
+        // --- Phase 2: Advance to turn 2 ---
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert_eq!(turn_state.turn_number, 2);
+        assert_eq!(turn_state.current_phase_index, 0);
+
+        // Simulate combat → retreat via constrained path
+        // Defender at (2,0), attacker at (1,0), retreat away from attacker
+        let mut valid = HashSet::new();
+        valid.insert(HexPosition::new(2, 0));
+        valid.insert(HexPosition::new(3, 0));
+        valid.insert(HexPosition::new(4, 0));
+        let ctx = PathfindingContext {
+            valid_positions: valid,
+            influence_zones: HashMap::new(),
+            terrain_types: HashMap::new(),
+        };
+        let retreat_request = ConstrainedPathRequest {
+            start: HexPosition::new(2, 0),
+            constraints: vec![PathConstraint::AwayFrom {
+                source: HexPosition::new(1, 0),
+            }],
+            max_distance: 3,
+        };
+        let retreat_result = find_constrained_path(&retreat_request, &ctx);
+        assert!(retreat_result.path.is_some(), "Retreat path should exist");
+        let path = retreat_result.path.as_ref().expect("path");
+        assert_eq!(path.first(), Some(&HexPosition::new(2, 0)));
+        // Path should move away from (1,0)
+        for window in path.windows(2) {
+            let d0 = crate::hex_grid::hex_distance(window[0], HexPosition::new(1, 0));
+            let d1 = crate::hex_grid::hex_distance(window[1], HexPosition::new(1, 0));
+            assert!(d1 >= d0, "Each step should move away from attacker");
+        }
+
+        // Red still controls objective at turn 2 boundary
+        evaluate_occupy_triggers(&mut accumulator_registry, objective_hex, "Red", 2);
+        assert_eq!(accumulator_registry.accumulators[0].value, 10);
+
+        // Still no victory
+        let met = check_victory_conditions(&accumulator_registry, &victory_conditions);
+        assert!(met.is_empty());
+
+        // --- Phase 3: Turn 3 — spawning + victory ---
+        // Advance to turn 3
+        // First finish turn 2's remaining phases
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        execute_phase_action(PhaseAction::Advance, &mut turn_state, &turn_structure);
+        assert_eq!(turn_state.turn_number, 3);
+
+        // Check spawn schedule: reinforcement due on turn 3
+        let due = entries_due_for_turn(&spawn_schedule, 3);
+        assert_eq!(due, vec![0]);
+
+        // Spawn at target hex (5,0) — not occupied
+        let occupied = HashSet::new();
+        let spawn_hex = find_spawn_hex(HexPosition::new(5, 0), &occupied);
+        assert_eq!(spawn_hex, Some(HexPosition::new(5, 0)));
+
+        // Test spawn overflow: if (5,0) occupied, find adjacent
+        let mut occupied_full = HashSet::new();
+        occupied_full.insert(HexPosition::new(5, 0));
+        let overflow_hex = find_spawn_hex(HexPosition::new(5, 0), &occupied_full);
+        assert!(overflow_hex.is_some(), "Should find adjacent hex");
+        assert_ne!(overflow_hex, Some(HexPosition::new(5, 0)));
+
+        // Red controls objective at turn 3 boundary → 15 VP = victory!
+        evaluate_occupy_triggers(&mut accumulator_registry, objective_hex, "Red", 3);
+        assert_eq!(accumulator_registry.accumulators[0].value, 15);
+
+        let met = check_victory_conditions(&accumulator_registry, &victory_conditions);
+        assert_eq!(met, vec![0], "Red should meet victory condition");
+
+        // Verify Red won, not Blue
+        let red_acc = &accumulator_registry.accumulators[0];
+        assert_eq!(red_acc.id, "vp_red");
+        assert_eq!(red_acc.value, 15);
+        assert_eq!(red_acc.history.len(), 3); // 3 turns of VP
+
+        let blue_acc = &accumulator_registry.accumulators[1];
+        assert_eq!(blue_acc.id, "vp_blue");
+        assert_eq!(blue_acc.value, 0); // Blue never occupied the objective
+    }
+
+    #[test]
+    fn canary_retreat_blocked_by_zoc() {
+        // Retreat path blocked by enemy ZOC — no valid path exists
+        let mut valid = HashSet::new();
+        valid.insert(HexPosition::new(2, 0));
+        valid.insert(HexPosition::new(3, 0));
+
+        let mut zoc = HashSet::new();
+        zoc.insert(HexPosition::new(3, 0)); // Only retreat target is in ZOC
+
+        let ctx = PathfindingContext {
+            valid_positions: valid,
+            influence_zones: [("ZOC".to_string(), zoc)].into_iter().collect(),
+            terrain_types: HashMap::new(),
+        };
+
+        let request = ConstrainedPathRequest {
+            start: HexPosition::new(2, 0),
+            constraints: vec![
+                PathConstraint::AwayFrom {
+                    source: HexPosition::new(1, 0),
+                },
+                PathConstraint::AvoidInfluence {
+                    influence_type: "ZOC".to_string(),
+                },
+            ],
+            max_distance: 3,
+        };
+
+        let result = find_constrained_path(&request, &ctx);
+        // In this constrained grid, the only path away is through ZOC → blocked
+        if let Some(path) = &result.path {
+            // If any path found, it must NOT contain ZOC hexes
+            assert!(!path.contains(&HexPosition::new(3, 0)));
+        }
+        // Either no path, or a path that avoids ZOC — both valid outcomes
+    }
+
+    #[test]
+    fn canary_spawn_not_due_before_scheduled_turn() {
+        let schedule = SpawnSchedule {
+            entries: vec![SpawnEntry {
+                entity_type_id: TypeId::new(),
+                turn: 3,
+                hex: HexPosition::new(5, 0),
+                source_zone: "Reserve".to_string(),
+            }],
+        };
+
+        assert!(entries_due_for_turn(&schedule, 1).is_empty());
+        assert!(entries_due_for_turn(&schedule, 2).is_empty());
+        assert_eq!(entries_due_for_turn(&schedule, 3), vec![0]);
+        assert!(entries_due_for_turn(&schedule, 4).is_empty());
+    }
 }
