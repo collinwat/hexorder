@@ -52,7 +52,7 @@ pub(super) use super::render_panels::{
 };
 pub(super) use super::render_rules::{
     render_influence_rules, render_mechanics_tab, render_movement_cost_matrix,
-    render_stacking_rule, render_validation_tab,
+    render_spawn_schedule, render_stacking_rule, render_validation_tab,
 };
 
 // Public systems re-exported for plugin registration in mod.rs.
@@ -156,6 +156,7 @@ pub(crate) struct RulesData<'a> {
     pub(crate) influence_rules: &'a mut hexorder_contracts::hex_grid::InfluenceRuleRegistry,
     pub(crate) stacking_rule: &'a mut hexorder_contracts::hex_grid::StackingRule,
     pub(crate) movement_cost_matrix: &'a mut hexorder_contracts::hex_grid::MovementCostMatrix,
+    pub(crate) spawn_schedule: &'a mut hexorder_contracts::mechanics::SpawnSchedule,
 }
 
 /// Actions returned by `render_editor_menu_bar` for deferred dispatch.
@@ -359,6 +360,14 @@ pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut Edit
                             viewer.rules.movement_cost_matrix,
                             viewer.design.registry,
                             viewer.design.enum_registry,
+                        );
+                        ui.add_space(12.0);
+                        render_spawn_schedule(
+                            ui,
+                            viewer.rules.spawn_schedule,
+                            viewer.design.registry,
+                            viewer.editor_state,
+                            viewer.actions,
                         );
                     }
                     // If user had a Design sub-tab selected, show Constraints as fallback.
@@ -1107,6 +1116,7 @@ pub fn editor_dock_system(
             influence_rules: &mut mechanics.influence_rules,
             stacking_rule: &mut mechanics.stacking_rule,
             movement_cost_matrix: &mut mechanics.movement_cost_matrix,
+            spawn_schedule: &mut mechanics.spawn_schedule,
         },
         inspector: InspectorData {
             tile_position,
@@ -1152,6 +1162,7 @@ pub fn editor_dock_system(
         &mut mechanics.combat_results_table,
         &mut mechanics.combat_modifiers,
         &mechanics.mechanic_catalog,
+        &mut mechanics.spawn_schedule,
     );
 }
 

@@ -69,7 +69,8 @@ use hexorder_contracts::game_system::{
 use hexorder_contracts::hex_grid::SelectedHex;
 use hexorder_contracts::map_gen;
 use hexorder_contracts::mechanics::{
-    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, TurnStructure,
+    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, SpawnSchedule,
+    TurnStructure,
 };
 use hexorder_contracts::ontology::{
     ConceptRegistry, ConstraintExpr, ConstraintRegistry, RelationEffect, RelationRegistry,
@@ -223,6 +224,16 @@ pub(crate) enum EditorAction {
     },
     RemoveCombatModifier {
         id: TypeId,
+    },
+    // -- Spawn Schedule --
+    AddSpawnEntry {
+        entity_type_id: TypeId,
+        turn: u32,
+        hex: hexorder_contracts::hex_grid::HexPosition,
+        source_zone: String,
+    },
+    RemoveSpawnEntry {
+        index: usize,
     },
     // -- Mechanic Reference --
     ApplyTemplate {
@@ -425,6 +436,18 @@ pub struct EditorState {
     // -- About panel --
     /// Whether the About panel is visible.
     pub about_panel_visible: bool,
+
+    // -- Spawn schedule editor --
+    /// Selected entity type index for new spawn entry.
+    pub new_spawn_type_idx: Option<usize>,
+    /// Turn number for new spawn entry.
+    pub new_spawn_turn: u32,
+    /// Hex Q coordinate for new spawn entry.
+    pub new_spawn_q: i32,
+    /// Hex R coordinate for new spawn entry.
+    pub new_spawn_r: i32,
+    /// Source zone name for new spawn entry.
+    pub new_spawn_zone: String,
 }
 
 impl Default for EditorState {
@@ -516,6 +539,11 @@ impl Default for EditorState {
             chain_panel_expanded: false,
             last_chain_result: None,
             about_panel_visible: false,
+            new_spawn_type_idx: None,
+            new_spawn_turn: 1,
+            new_spawn_q: 0,
+            new_spawn_r: 0,
+            new_spawn_zone: String::new(),
         }
     }
 }
@@ -570,6 +598,7 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) influence_rules: ResMut<'w, hexorder_contracts::hex_grid::InfluenceRuleRegistry>,
     pub(super) stacking_rule: ResMut<'w, hexorder_contracts::hex_grid::StackingRule>,
     pub(super) movement_cost_matrix: ResMut<'w, hexorder_contracts::hex_grid::MovementCostMatrix>,
+    pub(super) spawn_schedule: ResMut<'w, SpawnSchedule>,
 }
 
 /// Bundled system parameter for ontology-related resources.

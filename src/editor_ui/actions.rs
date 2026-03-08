@@ -12,7 +12,7 @@ use hexorder_contracts::map_gen::GenerateMap;
 use hexorder_contracts::mechanic_reference::{MechanicCatalog, ScaffoldAction};
 use hexorder_contracts::mechanics::{
     CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable,
-    ModifierSource, Phase, PhaseType, TurnStructure,
+    ModifierSource, Phase, PhaseType, SpawnEntry, SpawnSchedule, TurnStructure,
 };
 use hexorder_contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -45,6 +45,7 @@ pub(super) fn apply_actions(
     combat_results_table: &mut CombatResultsTable,
     combat_modifiers: &mut CombatModifierRegistry,
     mechanic_catalog: &MechanicCatalog,
+    spawn_schedule: &mut SpawnSchedule,
 ) {
     for action in actions {
         match action {
@@ -474,6 +475,25 @@ pub(super) fn apply_actions(
             }
             EditorAction::RemoveCombatModifier { id } => {
                 combat_modifiers.modifiers.retain(|m| m.id != id);
+            }
+            // -- Spawn Schedule --
+            EditorAction::AddSpawnEntry {
+                entity_type_id,
+                turn,
+                hex,
+                source_zone,
+            } => {
+                spawn_schedule.entries.push(SpawnEntry {
+                    entity_type_id,
+                    turn,
+                    hex,
+                    source_zone,
+                });
+            }
+            EditorAction::RemoveSpawnEntry { index } => {
+                if index < spawn_schedule.entries.len() {
+                    spawn_schedule.entries.remove(index);
+                }
             }
             // -- Mechanic Reference --
             EditorAction::ApplyTemplate { template_id } => {

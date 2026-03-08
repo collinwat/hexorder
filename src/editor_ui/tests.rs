@@ -2316,6 +2316,7 @@ fn run_apply_actions(
         ResMut<hexorder_contracts::mechanics::CombatModifierRegistry>,
         Res<hexorder_contracts::mechanic_reference::MechanicCatalog>,
     ),
+    mut spawn_schedule: ResMut<hexorder_contracts::mechanics::SpawnSchedule>,
 ) {
     let actions = std::mem::take(&mut test_actions.0);
     super::systems::apply_actions(
@@ -2336,6 +2337,7 @@ fn run_apply_actions(
         &mut combat_results_table,
         &mut combat_modifiers,
         &mechanic_catalog,
+        &mut spawn_schedule,
     );
 }
 
@@ -2348,7 +2350,7 @@ fn actions_app(actions: Vec<super::components::EditorAction>) -> App {
     };
     use hexorder_contracts::mechanic_reference::MechanicCatalog;
     use hexorder_contracts::mechanics::{
-        CombatModifierRegistry, CombatResultsTable, TurnStructure,
+        CombatModifierRegistry, CombatResultsTable, SpawnSchedule, TurnStructure,
     };
     use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
@@ -2368,6 +2370,7 @@ fn actions_app(actions: Vec<super::components::EditorAction>) -> App {
     app.init_resource::<CombatResultsTable>();
     app.init_resource::<CombatModifierRegistry>();
     app.init_resource::<MechanicCatalog>();
+    app.init_resource::<SpawnSchedule>();
     app.insert_resource(TestActions(actions));
     app.add_systems(Update, run_apply_actions);
     app.update();
@@ -2432,6 +2435,7 @@ fn apply_actions_delete_entity_type_board_position_with_fallback() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::DeleteEntityType { id: id_to_delete },
     ]));
@@ -2487,6 +2491,7 @@ fn apply_actions_delete_entity_type_token_with_fallback() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::DeleteEntityType { id: id_to_delete },
     ]));
@@ -2531,6 +2536,7 @@ fn apply_actions_add_property_simple_types() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::AddProperty {
             type_id,
@@ -2587,6 +2593,7 @@ fn apply_actions_add_property_enum_creates_enum_def() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::AddProperty {
             type_id,
@@ -2642,6 +2649,7 @@ fn apply_actions_add_property_int_range_and_float_range() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::AddProperty {
             type_id,
@@ -2709,6 +2717,7 @@ fn apply_actions_add_property_list_and_map_and_struct() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::AddProperty {
             type_id,
@@ -2783,6 +2792,7 @@ fn apply_actions_add_property_entity_ref() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::AddProperty {
             type_id,
@@ -2851,6 +2861,7 @@ fn apply_actions_remove_property() {
     app.init_resource::<hexorder_contracts::mechanics::CombatResultsTable>();
     app.init_resource::<hexorder_contracts::mechanics::CombatModifierRegistry>();
     app.init_resource::<hexorder_contracts::mechanic_reference::MechanicCatalog>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
     app.insert_resource(TestActions(vec![
         super::components::EditorAction::RemoveProperty { type_id, prop_id },
     ]));

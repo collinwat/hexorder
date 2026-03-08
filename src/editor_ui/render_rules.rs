@@ -11,7 +11,7 @@ use hexorder_contracts::hex_grid::{
 };
 use hexorder_contracts::mechanics::{
     CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
-    TurnStructure,
+    SpawnSchedule, TurnStructure,
 };
 use hexorder_contracts::simulation::{ColumnType, find_table_column, find_table_row};
 use hexorder_contracts::validation::SchemaValidation;
@@ -560,6 +560,145 @@ pub(crate) fn render_mechanics_tab(
         editor_state.new_modifier_shift = 0;
         editor_state.new_modifier_priority = 0;
     }
+}
+
+/// Renders the spawn schedule editor — a table of scheduled entity spawns.
+pub(crate) fn render_spawn_schedule(
+    ui: &mut egui::Ui,
+    spawn_schedule: &mut SpawnSchedule,
+    entity_types: &EntityTypeRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label(
+        egui::RichText::new("Spawn Schedule")
+            .strong()
+            .color(BrandTheme::ACCENT_AMBER),
+    );
+    ui.add_space(4.0);
+
+    // Collect Token types for the entity type picker.
+    let token_types: Vec<(usize, &str)> = entity_types
+        .types
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| t.role == hexorder_contracts::game_system::EntityRole::Token)
+        .map(|(i, t)| (i, t.name.as_str()))
+        .collect();
+
+    if token_types.is_empty() {
+        ui.label(
+            egui::RichText::new("No Token types defined. Create a unit type first.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+        return;
+    }
+
+    // Existing entries table.
+    if spawn_schedule.entries.is_empty() {
+        ui.label(
+            egui::RichText::new("No spawn entries. Add one below.")
+                .small()
+                .color(BrandTheme::TEXT_SECONDARY),
+        );
+    } else {
+        let mut remove_idx = None;
+        egui::Grid::new("spawn_schedule_grid")
+            .num_columns(5)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label(egui::RichText::new("Type").strong());
+                ui.label(egui::RichText::new("Turn").strong());
+                ui.label(egui::RichText::new("Hex").strong());
+                ui.label(egui::RichText::new("Zone").strong());
+                ui.label("");
+                ui.end_row();
+
+                for (i, entry) in spawn_schedule.entries.iter().enumerate() {
+                    let type_name = entity_types
+                        .get(entry.entity_type_id)
+                        .map_or("(unknown)", |t| t.name.as_str());
+                    ui.label(type_name);
+                    ui.label(format!("{}", entry.turn));
+                    ui.label(format!("({},{})", entry.hex.q, entry.hex.r));
+                    ui.label(&entry.source_zone);
+                    if ui
+                        .button(egui::RichText::new("×").color(BrandTheme::DANGER))
+                        .clicked()
+                    {
+                        remove_idx = Some(i);
+                    }
+                    ui.end_row();
+                }
+            });
+
+        if let Some(idx) = remove_idx {
+            actions.push(EditorAction::RemoveSpawnEntry { index: idx });
+        }
+    }
+
+    ui.add_space(8.0);
+
+    // Add entry form.
+    ui.horizontal(|ui| {
+        ui.label("Type:");
+        let selected_label = editor_state
+            .new_spawn_type_idx
+            .and_then(|idx| entity_types.types.get(idx))
+            .map_or("(select)", |t| t.name.as_str());
+        egui::ComboBox::from_id_salt("spawn_type_picker")
+            .selected_text(selected_label)
+            .show_ui(ui, |ui| {
+                for &(idx, name) in &token_types {
+                    if ui
+                        .selectable_label(editor_state.new_spawn_type_idx == Some(idx), name)
+                        .clicked()
+                    {
+                        editor_state.new_spawn_type_idx = Some(idx);
+                    }
+                }
+            });
+    });
+    ui.horizontal(|ui| {
+        ui.label("Turn:");
+        ui.add(egui::DragValue::new(&mut editor_state.new_spawn_turn).range(1..=999));
+        ui.label("Hex:");
+        ui.add(
+            egui::DragValue::new(&mut editor_state.new_spawn_q)
+                .prefix("q:")
+                .range(-50..=50),
+        );
+        ui.add(
+            egui::DragValue::new(&mut editor_state.new_spawn_r)
+                .prefix("r:")
+                .range(-50..=50),
+        );
+    });
+    ui.horizontal(|ui| {
+        ui.label("Zone:");
+        ui.text_edit_singleline(&mut editor_state.new_spawn_zone);
+    });
+
+    let can_add = editor_state.new_spawn_type_idx.is_some();
+    ui.add_enabled_ui(can_add, |ui| {
+        if ui.button("Add Entry").clicked()
+            && let Some(idx) = editor_state.new_spawn_type_idx
+            && let Some(et) = entity_types.types.get(idx)
+        {
+            actions.push(EditorAction::AddSpawnEntry {
+                entity_type_id: et.id,
+                turn: editor_state.new_spawn_turn,
+                hex: HexPosition::new(editor_state.new_spawn_q, editor_state.new_spawn_r),
+                source_zone: if editor_state.new_spawn_zone.is_empty() {
+                    "Default".to_string()
+                } else {
+                    editor_state.new_spawn_zone.clone()
+                },
+            });
+            editor_state.new_spawn_zone.clear();
+        }
+    });
 }
 
 /// Renders the spatial influence rules editor.

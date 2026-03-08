@@ -11575,6 +11575,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
     let mut influence_rules = hexorder_contracts::hex_grid::InfluenceRuleRegistry::default();
     let mut stacking_rule = hexorder_contracts::hex_grid::StackingRule::default();
     let mut movement_cost_matrix = hexorder_contracts::hex_grid::MovementCostMatrix::default();
+    let mut spawn_schedule = hexorder_contracts::mechanics::SpawnSchedule::default();
     let mut map_gen_params = MapGenParams::default();
 
     let mut viewer = EditorDockViewer {
@@ -11608,6 +11609,7 @@ fn with_test_viewer(f: impl FnOnce(&mut EditorDockViewer<'_>)) {
             influence_rules: &mut influence_rules,
             stacking_rule: &mut stacking_rule,
             movement_cost_matrix: &mut movement_cost_matrix,
+            spawn_schedule: &mut spawn_schedule,
         },
         inspector: InspectorData {
             tile_position: None,
