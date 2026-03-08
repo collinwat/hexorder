@@ -1357,9 +1357,27 @@ pub fn restore_dock_layout(mut dock_layout: ResMut<DockLayoutState>) {
 
     match ron::from_str::<super::components::DockLayoutFile>(&contents) {
         Ok(file) => {
+            // Validate: a usable dock state must contain at least one tab.
+            let tab_count: usize = file
+                .dock_state
+                .main_surface()
+                .iter()
+                .filter_map(|node| node.tabs())
+                .map(<[super::components::DockTab]>::len)
+                .sum();
+            if tab_count == 0 {
+                warn!(
+                    "Dock layout at {} has no tabs — discarding stale layout",
+                    path.display()
+                );
+                return;
+            }
             dock_layout.dock_state = file.dock_state;
             dock_layout.active_preset = file.preset;
-            info!("Restored dock layout from {}", path.display());
+            info!(
+                "Restored dock layout ({tab_count} tabs) from {}",
+                path.display()
+            );
         }
         Err(e) => {
             warn!("Failed to parse dock layout config {}: {e}", path.display());
