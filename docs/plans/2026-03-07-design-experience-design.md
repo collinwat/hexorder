@@ -493,7 +493,7 @@ appear:
 
 ### Feature 8: Lens Filters
 
-**What ships**: Togglable analytical overlays on the hex grid in both surfaces.
+**What ships**: Toggleable analytical overlays on the hex grid in both surfaces.
 
 **Built-in lenses**:
 
