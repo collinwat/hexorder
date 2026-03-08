@@ -122,24 +122,19 @@ impl Plugin for EditorUiPlugin {
         );
         // Restore workspace preset, dock layout, and font size on editor entry.
         // Runs after SettingsReady so SettingsRegistry has the merged project layer.
-        // restore_dock_layout runs after restore_workspace_preset to override
-        // the preset with the user's saved panel arrangement (if any).
+        // Dock layout persistence disabled — saved DockState causes render
+        // pipeline freezes on reload.  Preset defaults are used instead.
+        // TODO(#236): investigate egui_dock RON round-trip render crash
         app.add_systems(
             OnEnter(AppScreen::Editor),
             (
                 systems::restore_workspace_preset,
-                systems::restore_dock_layout,
                 systems::restore_font_size,
                 systems::restore_theme,
                 systems::restore_shortcuts,
             )
                 .chain()
                 .after(SettingsReady),
-        );
-        // Persist dock layout changes to config file.
-        app.add_systems(
-            PostUpdate,
-            systems::save_dock_layout.run_if(in_state(AppScreen::Editor)),
         );
         // Play panel shown only in Play state.
         app.add_systems(

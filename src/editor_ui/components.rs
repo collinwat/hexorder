@@ -822,6 +822,7 @@ impl DockLayoutState {
 }
 
 /// Serializable snapshot of the dock layout for file persistence.
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 pub(crate) struct DockLayoutFile {
     pub(crate) preset: WorkspacePreset,

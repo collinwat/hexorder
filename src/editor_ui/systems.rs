@@ -82,14 +82,29 @@ pub(super) use super::render_panels::rgb;
 
 /// Updates `ViewportMargins` from the `ViewportRect` set by `editor_dock_system`.
 /// Runs after the dock system so `viewport_rect` has been populated for this frame.
+///
+/// When the Viewport tab is not the active tab (`viewport_rect` is `None`), the 3D
+/// camera is deactivated to prevent the scene from rendering behind other panels.
 pub fn update_viewport_margins(
     mut contexts: EguiContexts,
     mut margins: ResMut<ViewportMargins>,
     viewport_rect: Res<ViewportRect>,
+    mut cameras: Query<&mut Camera, With<Camera3d>>,
 ) {
     let Some(rect) = viewport_rect.0 else {
+        // Viewport tab is not visible — deactivate the 3D camera so the scene
+        // does not bleed through behind other dock tabs.
+        for mut cam in &mut cameras {
+            cam.is_active = false;
+        }
         return;
     };
+
+    // Viewport tab is visible — ensure the 3D camera is active.
+    for mut cam in &mut cameras {
+        cam.is_active = true;
+    }
+
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
@@ -1009,6 +1024,12 @@ pub fn editor_dock_system(
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
+
+    // Clear viewport rect each frame — it will be re-set only if the Viewport
+    // tab is actually visible.  When it stays None, the camera system knows
+    // the 3D scene is hidden behind another tab.
+    viewport_rect.0 = None;
+
     let is_generating = map_gen.generate.is_some();
 
     // Menu bar as native TopBottomPanel (above dock area).
@@ -1288,6 +1309,7 @@ pub fn restore_shortcuts(registry: Res<ShortcutRegistry>, mut editor_state: ResM
 // ---------------------------------------------------------------------------
 
 /// Returns the path to the dock layout config file.
+#[allow(dead_code)]
 pub(super) fn dock_layout_config_path() -> std::path::PathBuf {
     #[cfg(feature = "macos-app")]
     {
@@ -1303,6 +1325,7 @@ pub(super) fn dock_layout_config_path() -> std::path::PathBuf {
 
 /// Saves the dock layout to a RON config file when it changes.
 /// Uses Bevy change detection on `DockLayoutState`.
+#[allow(dead_code)]
 pub fn save_dock_layout(dock_layout: Res<DockLayoutState>) {
     if !dock_layout.is_changed() {
         return;
@@ -1337,6 +1360,7 @@ pub fn save_dock_layout(dock_layout: Res<DockLayoutState>) {
 /// Restores the dock layout from a RON config file on editor entry.
 /// Runs once via `OnEnter(AppScreen::Editor)`, after `restore_workspace_preset`.
 /// If a saved layout exists, it overrides the preset-based layout.
+#[allow(dead_code)]
 pub fn restore_dock_layout(mut dock_layout: ResMut<DockLayoutState>) {
     let path = dock_layout_config_path();
 
