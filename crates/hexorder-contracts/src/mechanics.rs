@@ -581,6 +581,105 @@ pub fn find_constrained_path(
 }
 
 // ---------------------------------------------------------------------------
+// Scheduled Entity Spawning
+// ---------------------------------------------------------------------------
+
+/// A single scheduled spawn: place an entity of a given type at a given hex on a given turn.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct SpawnEntry {
+    /// The entity type to spawn (references `EntityTypeRegistry`).
+    pub entity_type_id: TypeId,
+    /// The turn number on which this entity should appear (1-indexed).
+    pub turn: u32,
+    /// The target hex position for spawning.
+    pub hex: crate::hex_grid::HexPosition,
+    /// The source zone name (for designer organization, e.g. "North Reinforcements").
+    pub source_zone: String,
+}
+
+/// The designer-defined spawn schedule for a scenario.
+/// Evaluated at each turn boundary to spawn entities whose turn has arrived.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct SpawnSchedule {
+    pub entries: Vec<SpawnEntry>,
+}
+
+/// A named staging zone for off-grid entities awaiting spawn.
+/// Minimal representation — no spatial layout, just a name and a list of staged entity types.
+#[derive(Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct SpawnZone {
+    pub name: String,
+    /// Entity types staged in this zone (not yet on the board).
+    pub staged_entities: Vec<TypeId>,
+}
+
+/// Fired when an entity is spawned from the schedule.
+#[derive(Event, Debug, Clone)]
+pub struct SpawnTriggered {
+    /// The entity type that was spawned.
+    pub entity_type_id: TypeId,
+    /// The turn on which the spawn occurred.
+    pub turn: u32,
+    /// The hex position where the entity was placed.
+    pub hex: crate::hex_grid::HexPosition,
+    /// The source zone name.
+    pub source_zone: String,
+}
+
+/// Result of attempting to spawn a single entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpawnResult {
+    /// Entity was placed at the target hex.
+    Placed { hex: crate::hex_grid::HexPosition },
+    /// Target hex was full; entity was placed at an adjacent hex.
+    Displaced {
+        target: crate::hex_grid::HexPosition,
+        actual: crate::hex_grid::HexPosition,
+    },
+    /// All candidate hexes were full; spawn deferred to next turn.
+    Deferred { reason: String },
+}
+
+/// Evaluate which spawn entries should fire for the given turn number.
+///
+/// Returns the indices of entries in `schedule.entries` that match the turn.
+/// The caller is responsible for actually placing entities and checking stacking.
+#[must_use]
+pub fn entries_due_for_turn(schedule: &SpawnSchedule, turn: u32) -> Vec<usize> {
+    schedule
+        .entries
+        .iter()
+        .enumerate()
+        .filter(|(_, entry)| entry.turn == turn)
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// Given a target hex and a set of occupied positions (hexes at stacking capacity),
+/// find the best hex for placement: the target if available, otherwise the first
+/// available adjacent hex in ring order.
+///
+/// Returns `None` if the target and all adjacent hexes are occupied.
+#[must_use]
+pub fn find_spawn_hex<S: std::hash::BuildHasher>(
+    target: crate::hex_grid::HexPosition,
+    occupied: &std::collections::HashSet<crate::hex_grid::HexPosition, S>,
+) -> Option<crate::hex_grid::HexPosition> {
+    if !occupied.contains(&target) {
+        return Some(target);
+    }
+    // Try adjacent hexes in ring-1 order.
+    let hex = target.to_hex();
+    for neighbor in hex.all_neighbors() {
+        let pos = crate::hex_grid::HexPosition::new(neighbor.x, neighbor.y);
+        if !occupied.contains(&pos) {
+            return Some(pos);
+        }
+    }
+    None
+}
+
+// ---------------------------------------------------------------------------
 // CRT Resolution Helpers
 // ---------------------------------------------------------------------------
 
@@ -1462,6 +1561,139 @@ mod tests {
         for d in &durations {
             assert!(!format!("{d:?}").is_empty());
         }
+    }
+
+    // --- Scheduled spawning tests ---
+
+    #[test]
+    fn entries_due_for_turn_filters_correctly() {
+        let schedule = SpawnSchedule {
+            entries: vec![
+                SpawnEntry {
+                    entity_type_id: TypeId::new(),
+                    turn: 1,
+                    hex: HexPosition::new(5, 0),
+                    source_zone: "North".to_string(),
+                },
+                SpawnEntry {
+                    entity_type_id: TypeId::new(),
+                    turn: 3,
+                    hex: HexPosition::new(5, 1),
+                    source_zone: "North".to_string(),
+                },
+                SpawnEntry {
+                    entity_type_id: TypeId::new(),
+                    turn: 3,
+                    hex: HexPosition::new(-5, 0),
+                    source_zone: "South".to_string(),
+                },
+            ],
+        };
+
+        assert_eq!(entries_due_for_turn(&schedule, 1), vec![0]);
+        assert_eq!(entries_due_for_turn(&schedule, 3), vec![1, 2]);
+        assert!(entries_due_for_turn(&schedule, 2).is_empty());
+    }
+
+    #[test]
+    fn entries_due_for_turn_empty_schedule() {
+        let schedule = SpawnSchedule::default();
+        assert!(entries_due_for_turn(&schedule, 1).is_empty());
+    }
+
+    #[test]
+    fn find_spawn_hex_target_available() {
+        let occupied = HashSet::new();
+        let target = HexPosition::new(3, 0);
+        assert_eq!(find_spawn_hex(target, &occupied), Some(target));
+    }
+
+    #[test]
+    fn find_spawn_hex_target_occupied_uses_neighbor() {
+        let mut occupied = HashSet::new();
+        let target = HexPosition::new(3, 0);
+        occupied.insert(target);
+        let result = find_spawn_hex(target, &occupied);
+        assert!(result.is_some());
+        let placed = result.expect("placed");
+        // Must be adjacent to target.
+        assert_eq!(crate::hex_grid::hex_distance(placed, target), 1);
+    }
+
+    #[test]
+    fn find_spawn_hex_all_occupied_returns_none() {
+        let target = HexPosition::new(0, 0);
+        let hex = target.to_hex();
+        let mut occupied = HashSet::new();
+        occupied.insert(target);
+        for neighbor in hex.all_neighbors() {
+            occupied.insert(HexPosition::new(neighbor.x, neighbor.y));
+        }
+        assert!(find_spawn_hex(target, &occupied).is_none());
+    }
+
+    #[test]
+    fn spawn_schedule_default_is_empty() {
+        let schedule = SpawnSchedule::default();
+        assert!(schedule.entries.is_empty());
+    }
+
+    #[test]
+    fn spawn_zone_default_is_empty() {
+        let zone = SpawnZone::default();
+        assert!(zone.name.is_empty());
+        assert!(zone.staged_entities.is_empty());
+    }
+
+    #[test]
+    fn spawn_result_variants_debug() {
+        let results = [
+            SpawnResult::Placed {
+                hex: HexPosition::new(0, 0),
+            },
+            SpawnResult::Displaced {
+                target: HexPosition::new(0, 0),
+                actual: HexPosition::new(1, 0),
+            },
+            SpawnResult::Deferred {
+                reason: "full".to_string(),
+            },
+        ];
+        for r in &results {
+            assert!(!format!("{r:?}").is_empty());
+        }
+    }
+
+    #[test]
+    fn spawn_entry_ron_round_trip() {
+        let entry = SpawnEntry {
+            entity_type_id: TypeId::new(),
+            turn: 5,
+            hex: HexPosition::new(3, -2),
+            source_zone: "East Flank".to_string(),
+        };
+        let ron_str = ron::to_string(&entry).expect("serialize");
+        let deserialized: SpawnEntry = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.turn, 5);
+        assert_eq!(deserialized.hex.q, 3);
+        assert_eq!(deserialized.hex.r, -2);
+        assert_eq!(deserialized.source_zone, "East Flank");
+    }
+
+    #[test]
+    fn spawn_schedule_ron_round_trip() {
+        let schedule = SpawnSchedule {
+            entries: vec![SpawnEntry {
+                entity_type_id: TypeId::new(),
+                turn: 3,
+                hex: HexPosition::new(0, 0),
+                source_zone: "HQ".to_string(),
+            }],
+        };
+        let ron_str = ron::to_string(&schedule).expect("serialize");
+        let deserialized: SpawnSchedule = ron::from_str(&ron_str).expect("deserialize");
+        assert_eq!(deserialized.entries.len(), 1);
+        assert_eq!(deserialized.entries[0].turn, 3);
     }
 
     // --- Constrained pathfinding tests ---

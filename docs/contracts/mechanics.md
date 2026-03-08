@@ -17,7 +17,8 @@ turns are structured and how combat is resolved.
 ## Producers
 
 - `game_system` — inserts `TurnStructure`, `TurnState`, `CombatResultsTable`,
-  `CombatModifierRegistry`, `ActiveCombat`, `AreaMarkerRegistry` resources at startup
+  `CombatModifierRegistry`, `ActiveCombat`, `AreaMarkerRegistry`, `SpawnSchedule` resources at
+  startup
 
 ## Types
 
@@ -366,6 +367,59 @@ pub fn find_constrained_path(
 ) -> ConstrainedPathResult;
 ```
 
+### Scheduled Entity Spawning
+
+```rust
+/// A single scheduled spawn: place an entity at a hex on a given turn.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct SpawnEntry {
+    pub entity_type_id: TypeId,
+    pub turn: u32,
+    pub hex: HexPosition,
+    pub source_zone: String,
+}
+
+/// The designer-defined spawn schedule for a scenario.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct SpawnSchedule {
+    pub entries: Vec<SpawnEntry>,
+}
+
+/// A named staging zone for off-grid entities awaiting spawn.
+#[derive(Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct SpawnZone {
+    pub name: String,
+    pub staged_entities: Vec<TypeId>,
+}
+
+/// Fired when an entity is spawned from the schedule.
+#[derive(Event, Debug, Clone)]
+pub struct SpawnTriggered {
+    pub entity_type_id: TypeId,
+    pub turn: u32,
+    pub hex: HexPosition,
+    pub source_zone: String,
+}
+
+/// Result of attempting to spawn a single entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpawnResult {
+    Placed { hex: HexPosition },
+    Displaced { target: HexPosition, actual: HexPosition },
+    Deferred { reason: String },
+}
+
+/// Get indices of spawn entries due for the given turn.
+pub fn entries_due_for_turn(schedule: &SpawnSchedule, turn: u32) -> Vec<usize>;
+
+/// Find the best hex for placement: target if available, otherwise first
+/// available adjacent hex. Returns None if all candidates are occupied.
+pub fn find_spawn_hex(
+    target: HexPosition,
+    occupied: &HashSet<HexPosition>,
+) -> Option<HexPosition>;
+```
+
 ### Phase Sequencer Functions
 
 ```rust
@@ -407,11 +461,15 @@ pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> 
 - `AwayFrom` constraint enforces non-decreasing distance at each step
 - `PathfindingContext.valid_positions` gates which hexes the algorithm may traverse
 - BFS prefers paths that maximize distance from `AwayFrom` sources (retreat behavior)
+- `SpawnSchedule` is inserted at startup; starts empty; persisted with scenario
+- `entries_due_for_turn` is pure — returns indices, caller handles placement
+- `find_spawn_hex` tries target first, then ring-1 neighbors; returns `None` if all full
 
 ## Changelog
 
 | Date       | Change                            | Reason                               |
 | ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Scheduled spawning types          | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Constrained pathfinding types     | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Area-effect modifier types        | 0.21.0 Combat & Resolution (#235)    |
 | 2026-03-07 | Post-resolution movement types    | 0.21.0 Combat & Resolution (#235)    |

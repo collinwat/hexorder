@@ -548,3 +548,19 @@ fn area_marker_registry_defaults_empty() {
         "Default area marker registry should be empty"
     );
 }
+
+#[test]
+fn plugin_inserts_spawn_schedule_resource() {
+    let mut app = test_app();
+    app.update();
+
+    let schedule = app
+        .world()
+        .get_resource::<hexorder_contracts::mechanics::SpawnSchedule>()
+        .expect("SpawnSchedule should exist");
+
+    assert!(
+        schedule.entries.is_empty(),
+        "Default spawn schedule should be empty"
+    );
+}
