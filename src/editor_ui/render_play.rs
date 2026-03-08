@@ -9,9 +9,10 @@ use hexorder_contracts::game_system::{
 };
 use hexorder_contracts::mechanics::{
     ActiveCombat, AreaEffect, AreaMarker, AreaMarkerRegistry, CombatModifierRegistry,
-    CombatResultsTable, MarkerDuration, PhaseAction, PhaseType, PostResolutionAction,
-    PostResolutionRule, TurnState, TurnStructure, collect_area_column_shifts,
-    evaluate_post_resolution, execute_phase_action, is_phase_action_legal,
+    CombatResultsTable, ConstrainedPathRequest, MarkerDuration, PathConstraint, PathfindingContext,
+    PhaseAction, PhaseType, PostResolutionAction, PostResolutionRule, TurnState, TurnStructure,
+    collect_area_column_shifts, evaluate_post_resolution, execute_phase_action,
+    find_constrained_path, is_phase_action_legal,
 };
 use hexorder_contracts::persistence::{
     AppScreen, CloseProjectEvent, LoadRequestEvent, SaveRequestEvent, Workspace,
@@ -21,7 +22,7 @@ use hexorder_contracts::simulation::{
     roll_pool,
 };
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::components::{BrandTheme, EditorState};
 use super::render_panels::{render_about_panel, render_workspace_header};
@@ -991,6 +992,44 @@ pub(crate) fn render_combat_panel<'a>(
                             .small()
                             .color(BrandTheme::TEXT_PRIMARY),
                     );
+
+                    // Compute retreat path preview using constrained pathfinding.
+                    if pm.action == PostResolutionAction::Retreat
+                        && let (Some(atk_pos), Some(def_pos)) =
+                            (position_lookup(atk), position_lookup(def))
+                    {
+                        let path_result =
+                            compute_retreat_path(*def_pos, *atk_pos, pm.movement_range);
+                        match &path_result.path {
+                            Some(path) if path.len() > 1 => {
+                                let steps: Vec<_> = path
+                                    .iter()
+                                    .skip(1)
+                                    .map(|p| format!("({},{})", p.q, p.r))
+                                    .collect();
+                                ui.label(
+                                    egui::RichText::new(format!(
+                                        "    Path: {} ({} steps)",
+                                        steps.join(" \u{2192} "),
+                                        steps.len(),
+                                    ))
+                                    .small()
+                                    .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                            }
+                            _ => {
+                                let reason = path_result
+                                    .failure_reason
+                                    .as_deref()
+                                    .unwrap_or("No valid retreat path");
+                                ui.label(
+                                    egui::RichText::new(format!("    {reason}"))
+                                        .small()
+                                        .color(BrandTheme::TEXT_SECONDARY),
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1092,6 +1131,49 @@ pub(crate) fn render_area_markers_panel(ui: &mut egui::Ui, area_markers: &mut Ar
             duration: MarkerDuration::Permanent,
         });
     }
+}
+
+/// Computes a retreat path for the defender moving away from the attacker.
+///
+/// Builds a `PathfindingContext` using all hex neighbors within retreat range
+/// as valid positions, then uses `find_constrained_path` with `AwayFrom`.
+fn compute_retreat_path(
+    defender_pos: hexorder_contracts::hex_grid::HexPosition,
+    attacker_pos: hexorder_contracts::hex_grid::HexPosition,
+    movement_range: u32,
+) -> hexorder_contracts::mechanics::ConstrainedPathResult {
+    use hexorder_contracts::hex_grid::HexPosition;
+
+    // Build valid positions: all hex neighbors within retreat range.
+    let def_hex = defender_pos.to_hex();
+    let mut valid_positions = HashSet::new();
+    for ring_radius in 0..=movement_range {
+        for hex in hexx::Hex::ZERO.ring(ring_radius) {
+            let candidate = hexx::Hex::new(def_hex.x + hex.x, def_hex.y + hex.y);
+            valid_positions.insert(HexPosition::new(candidate.x, candidate.y));
+        }
+    }
+
+    let ctx = PathfindingContext {
+        valid_positions,
+        influence_zones: HashMap::new(),
+        terrain_types: HashMap::new(),
+    };
+
+    let request = ConstrainedPathRequest {
+        start: defender_pos,
+        constraints: vec![
+            PathConstraint::AwayFrom {
+                source: attacker_pos,
+            },
+            PathConstraint::MaxCost {
+                budget: movement_range,
+            },
+        ],
+        max_distance: movement_range,
+    };
+
+    find_constrained_path(&request, &ctx)
 }
 
 /// Builds default post-resolution rules from the combat outcome's effect.
