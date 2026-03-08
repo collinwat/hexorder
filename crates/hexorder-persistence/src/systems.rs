@@ -15,8 +15,8 @@ use hexorder_contracts::hex_grid::{
     MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, CombatModifierRegistry, CombatResultsTable, SpawnSchedule, TurnState,
-    TurnStructure,
+    AccumulatorRegistry, ActiveCombat, CombatModifierRegistry, CombatResultsTable, SpawnSchedule,
+    TurnState, TurnStructure, VictoryConditionRegistry,
 };
 use hexorder_contracts::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 use hexorder_contracts::persistence::{
@@ -79,6 +79,8 @@ fn build_game_system_file(
     let stacking_rule = world.resource::<StackingRule>();
     let movement_cost_matrix = world.resource::<MovementCostMatrix>();
     let spawn_schedule = world.resource::<SpawnSchedule>();
+    let accumulator_registry = world.resource::<AccumulatorRegistry>();
+    let victory_conditions = world.resource::<VictoryConditionRegistry>();
 
     let tile_data: Vec<TileSaveData> = tiles
         .iter()
@@ -121,6 +123,8 @@ fn build_game_system_file(
         stacking_rule: stacking_rule.clone(),
         movement_cost_matrix: movement_cost_matrix.clone(),
         spawn_schedule: spawn_schedule.clone(),
+        accumulator_registry: accumulator_registry.clone(),
+        victory_conditions: victory_conditions.clone(),
     }
 }
 
@@ -215,6 +219,8 @@ pub(crate) fn load_from_path(path: &std::path::Path, world: &mut World) -> bool 
     *world.resource_mut::<StackingRule>() = file.stacking_rule;
     *world.resource_mut::<MovementCostMatrix>() = file.movement_cost_matrix;
     *world.resource_mut::<SpawnSchedule>() = file.spawn_schedule;
+    *world.resource_mut::<AccumulatorRegistry>() = file.accumulator_registry;
+    *world.resource_mut::<VictoryConditionRegistry>() = file.victory_conditions;
     *world.resource_mut::<SchemaValidation>() = SchemaValidation::default();
 
     // Derive workspace name: use file name field if present (v3+),

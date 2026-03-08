@@ -916,6 +916,172 @@ pub fn is_action_restricted(
     false
 }
 
+// ---------------------------------------------------------------------------
+// Accumulation Tracker
+// ---------------------------------------------------------------------------
+
+/// A condition that triggers accumulation of points.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub enum AccumulationTrigger {
+    /// Award points when a faction occupies a specific hex.
+    OccupyHex {
+        hex: crate::hex_grid::HexPosition,
+        points: i32,
+    },
+    /// Award points on a state transition (e.g., phase change).
+    StateTransition {
+        from_state: String,
+        to_state: String,
+        points: i32,
+    },
+    /// Award points at each turn boundary.
+    TurnBoundary { points: i32 },
+    /// Manually awarded by the designer or game system.
+    Manual,
+}
+
+/// A named score accumulator that tracks points for a faction.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct Accumulator {
+    /// Unique identifier for this accumulator.
+    pub id: String,
+    /// Optional faction this accumulator belongs to.
+    pub faction: Option<String>,
+    /// Triggers that can add points to this accumulator.
+    pub triggers: Vec<AccumulationTrigger>,
+    /// Current accumulated value.
+    pub value: i32,
+    /// History of (turn, delta) entries.
+    pub history: Vec<(u32, i32)>,
+}
+
+/// Registry of all accumulators in the scenario.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct AccumulatorRegistry {
+    pub accumulators: Vec<Accumulator>,
+}
+
+/// How to compare an accumulator's value against the threshold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum ComparisonOp {
+    GreaterOrEqual,
+    LessOrEqual,
+    Equal,
+}
+
+/// A victory condition: when an accumulator's value meets a threshold.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct VictoryCondition {
+    /// Which accumulator to check.
+    pub accumulator_id: String,
+    /// The target threshold value.
+    pub threshold: i32,
+    /// How to compare value against threshold.
+    pub comparison: ComparisonOp,
+}
+
+/// Registry of victory conditions for the scenario.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct VictoryConditionRegistry {
+    pub conditions: Vec<VictoryCondition>,
+}
+
+/// Fired when a victory condition is met.
+#[derive(Event, Debug, Clone)]
+pub struct VictoryReached {
+    pub accumulator_id: String,
+    pub faction: Option<String>,
+    pub value: i32,
+    pub threshold: i32,
+}
+
+/// Evaluate turn-boundary triggers for all accumulators at the given turn.
+/// Returns the indices of accumulators that were modified.
+#[must_use]
+pub fn evaluate_turn_boundary_triggers(
+    registry: &mut AccumulatorRegistry,
+    turn: u32,
+) -> Vec<usize> {
+    let mut modified = Vec::new();
+    for (i, acc) in registry.accumulators.iter_mut().enumerate() {
+        let mut delta = 0i32;
+        for trigger in &acc.triggers {
+            if let AccumulationTrigger::TurnBoundary { points } = trigger {
+                delta += points;
+            }
+        }
+        if delta != 0 {
+            acc.value += delta;
+            acc.history.push((turn, delta));
+            modified.push(i);
+        }
+    }
+    modified
+}
+
+/// Evaluate occupy-hex triggers for a specific hex and faction.
+/// Returns the indices of accumulators that were modified.
+#[must_use]
+pub fn evaluate_occupy_triggers(
+    registry: &mut AccumulatorRegistry,
+    hex: crate::hex_grid::HexPosition,
+    faction: &str,
+    turn: u32,
+) -> Vec<usize> {
+    let mut modified = Vec::new();
+    for (i, acc) in registry.accumulators.iter_mut().enumerate() {
+        // Only evaluate for matching faction or faction-less accumulators.
+        if let Some(ref acc_faction) = acc.faction
+            && acc_faction != faction
+        {
+            continue;
+        }
+        let mut delta = 0i32;
+        for trigger in &acc.triggers {
+            if let AccumulationTrigger::OccupyHex {
+                hex: trigger_hex,
+                points,
+            } = trigger
+                && *trigger_hex == hex
+            {
+                delta += points;
+            }
+        }
+        if delta != 0 {
+            acc.value += delta;
+            acc.history.push((turn, delta));
+            modified.push(i);
+        }
+    }
+    modified
+}
+
+/// Check all victory conditions and return indices of those that are met.
+#[must_use]
+pub fn check_victory_conditions(
+    accumulators: &AccumulatorRegistry,
+    conditions: &VictoryConditionRegistry,
+) -> Vec<usize> {
+    let mut met = Vec::new();
+    for (i, cond) in conditions.conditions.iter().enumerate() {
+        if let Some(acc) = accumulators
+            .accumulators
+            .iter()
+            .find(|a| a.id == cond.accumulator_id)
+        {
+            let satisfied = match cond.comparison {
+                ComparisonOp::GreaterOrEqual => acc.value >= cond.threshold,
+                ComparisonOp::LessOrEqual => acc.value <= cond.threshold,
+                ComparisonOp::Equal => acc.value == cond.threshold,
+            };
+            if satisfied {
+                met.push(i);
+            }
+        }
+    }
+    met
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1876,5 +2042,152 @@ mod tests {
         for c in &constraints {
             assert!(!format!("{c:?}").is_empty());
         }
+    }
+
+    // -- Accumulation Tracker tests --
+
+    fn test_accumulator_registry() -> AccumulatorRegistry {
+        AccumulatorRegistry {
+            accumulators: vec![
+                Accumulator {
+                    id: "vp_red".to_string(),
+                    faction: Some("Red".to_string()),
+                    triggers: vec![
+                        AccumulationTrigger::TurnBoundary { points: 2 },
+                        AccumulationTrigger::OccupyHex {
+                            hex: HexPosition::new(3, 0),
+                            points: 5,
+                        },
+                    ],
+                    value: 0,
+                    history: Vec::new(),
+                },
+                Accumulator {
+                    id: "vp_blue".to_string(),
+                    faction: Some("Blue".to_string()),
+                    triggers: vec![AccumulationTrigger::TurnBoundary { points: 1 }],
+                    value: 0,
+                    history: Vec::new(),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn turn_boundary_triggers_update_all_accumulators() {
+        let mut registry = test_accumulator_registry();
+        let modified = evaluate_turn_boundary_triggers(&mut registry, 1);
+        assert_eq!(modified.len(), 2);
+        assert_eq!(registry.accumulators[0].value, 2);
+        assert_eq!(registry.accumulators[1].value, 1);
+        assert_eq!(registry.accumulators[0].history, vec![(1, 2)]);
+        assert_eq!(registry.accumulators[1].history, vec![(1, 1)]);
+    }
+
+    #[test]
+    fn turn_boundary_triggers_accumulate_over_turns() {
+        let mut registry = test_accumulator_registry();
+        evaluate_turn_boundary_triggers(&mut registry, 1);
+        evaluate_turn_boundary_triggers(&mut registry, 2);
+        assert_eq!(registry.accumulators[0].value, 4);
+        assert_eq!(registry.accumulators[0].history.len(), 2);
+    }
+
+    #[test]
+    fn occupy_hex_trigger_awards_points() {
+        let mut registry = test_accumulator_registry();
+        let modified = evaluate_occupy_triggers(&mut registry, HexPosition::new(3, 0), "Red", 1);
+        assert_eq!(modified, vec![0]);
+        assert_eq!(registry.accumulators[0].value, 5);
+    }
+
+    #[test]
+    fn occupy_hex_trigger_wrong_faction_no_effect() {
+        let mut registry = test_accumulator_registry();
+        let modified = evaluate_occupy_triggers(&mut registry, HexPosition::new(3, 0), "Blue", 1);
+        assert!(modified.is_empty());
+        assert_eq!(registry.accumulators[0].value, 0);
+    }
+
+    #[test]
+    fn occupy_hex_trigger_wrong_hex_no_effect() {
+        let mut registry = test_accumulator_registry();
+        let modified = evaluate_occupy_triggers(&mut registry, HexPosition::new(0, 0), "Red", 1);
+        assert!(modified.is_empty());
+    }
+
+    #[test]
+    fn victory_condition_greater_or_equal_met() {
+        let mut registry = test_accumulator_registry();
+        registry.accumulators[0].value = 15;
+        let conditions = VictoryConditionRegistry {
+            conditions: vec![VictoryCondition {
+                accumulator_id: "vp_red".to_string(),
+                threshold: 15,
+                comparison: ComparisonOp::GreaterOrEqual,
+            }],
+        };
+        let met = check_victory_conditions(&registry, &conditions);
+        assert_eq!(met, vec![0]);
+    }
+
+    #[test]
+    fn victory_condition_not_met() {
+        let mut registry = test_accumulator_registry();
+        registry.accumulators[0].value = 10;
+        let conditions = VictoryConditionRegistry {
+            conditions: vec![VictoryCondition {
+                accumulator_id: "vp_red".to_string(),
+                threshold: 15,
+                comparison: ComparisonOp::GreaterOrEqual,
+            }],
+        };
+        let met = check_victory_conditions(&registry, &conditions);
+        assert!(met.is_empty());
+    }
+
+    #[test]
+    fn victory_condition_equal_comparison() {
+        let mut registry = test_accumulator_registry();
+        registry.accumulators[0].value = 10;
+        let conditions = VictoryConditionRegistry {
+            conditions: vec![VictoryCondition {
+                accumulator_id: "vp_red".to_string(),
+                threshold: 10,
+                comparison: ComparisonOp::Equal,
+            }],
+        };
+        let met = check_victory_conditions(&registry, &conditions);
+        assert_eq!(met, vec![0]);
+    }
+
+    #[test]
+    fn victory_condition_unknown_accumulator_ignored() {
+        let registry = test_accumulator_registry();
+        let conditions = VictoryConditionRegistry {
+            conditions: vec![VictoryCondition {
+                accumulator_id: "nonexistent".to_string(),
+                threshold: 0,
+                comparison: ComparisonOp::GreaterOrEqual,
+            }],
+        };
+        let met = check_victory_conditions(&registry, &conditions);
+        assert!(met.is_empty());
+    }
+
+    #[test]
+    fn no_triggers_no_modifications() {
+        let mut registry = AccumulatorRegistry {
+            accumulators: vec![Accumulator {
+                id: "empty".to_string(),
+                faction: None,
+                triggers: vec![AccumulationTrigger::Manual],
+                value: 5,
+                history: Vec::new(),
+            }],
+        };
+        let modified = evaluate_turn_boundary_triggers(&mut registry, 1);
+        assert!(modified.is_empty());
+        assert_eq!(registry.accumulators[0].value, 5);
     }
 }

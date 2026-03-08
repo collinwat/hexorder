@@ -564,3 +564,35 @@ fn plugin_inserts_spawn_schedule_resource() {
         "Default spawn schedule should be empty"
     );
 }
+
+#[test]
+fn plugin_inserts_accumulator_registry_resource() {
+    let mut app = test_app();
+    app.update();
+
+    let registry = app
+        .world()
+        .get_resource::<hexorder_contracts::mechanics::AccumulatorRegistry>()
+        .expect("AccumulatorRegistry should exist");
+
+    assert!(
+        registry.accumulators.is_empty(),
+        "Default accumulator registry should be empty"
+    );
+}
+
+#[test]
+fn plugin_inserts_victory_condition_registry_resource() {
+    let mut app = test_app();
+    app.update();
+
+    let registry = app
+        .world()
+        .get_resource::<hexorder_contracts::mechanics::VictoryConditionRegistry>()
+        .expect("VictoryConditionRegistry should exist");
+
+    assert!(
+        registry.conditions.is_empty(),
+        "Default victory condition registry should be empty"
+    );
+}

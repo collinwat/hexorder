@@ -14,24 +14,26 @@ Types for saving and loading game system definitions and board state to `.hexord
 
 Top-level container for a saved game system + board state.
 
-| Field              | Type                 | Description                                      |
-| ------------------ | -------------------- | ------------------------------------------------ |
-| `format_version`   | `u32`                | File format version (migration), currently `7`   |
-| `name`             | `String`             | Human-readable project name (v3+, default `""`)  |
-| `game_system`      | `GameSystem`         | Game system metadata                             |
-| `entity_types`     | `EntityTypeRegistry` | All entity types                                 |
-| `enums`            | `EnumRegistry`       | Enum definitions (0.7.0)                         |
-| `structs`          | `StructRegistry`     | Struct definitions (0.7.0)                       |
-| `concepts`         | `ConceptRegistry`    | Concepts + bindings                              |
-| `relations`        | `RelationRegistry`   | Relations                                        |
-| `constraints`      | `ConstraintRegistry` | Constraints                                      |
-| `map_radius`       | `u32`                | Hex grid radius                                  |
-| `tiles`            | `Vec<TileSaveData>`  | Per-tile cell data                               |
-| `units`            | `Vec<UnitSaveData>`  | Placed unit data                                 |
-| `workspace_preset` | `String`             | Active workspace preset ID (v4+, default `""`)   |
-| `font_size_base`   | `f32`                | Editor font size in points (v5+, default 15.0)   |
-| `edge_features`    | `HexEdgeRegistry`    | Hex edge feature annotations (v6+, default `{}`) |
-| `spawn_schedule`   | `SpawnSchedule`      | Scheduled entity spawning (v7+, default `{}`)    |
+| Field                  | Type                       | Description                                      |
+| ---------------------- | -------------------------- | ------------------------------------------------ |
+| `format_version`       | `u32`                      | File format version (migration), currently `8`   |
+| `name`                 | `String`                   | Human-readable project name (v3+, default `""`)  |
+| `game_system`          | `GameSystem`               | Game system metadata                             |
+| `entity_types`         | `EntityTypeRegistry`       | All entity types                                 |
+| `enums`                | `EnumRegistry`             | Enum definitions (0.7.0)                         |
+| `structs`              | `StructRegistry`           | Struct definitions (0.7.0)                       |
+| `concepts`             | `ConceptRegistry`          | Concepts + bindings                              |
+| `relations`            | `RelationRegistry`         | Relations                                        |
+| `constraints`          | `ConstraintRegistry`       | Constraints                                      |
+| `map_radius`           | `u32`                      | Hex grid radius                                  |
+| `tiles`                | `Vec<TileSaveData>`        | Per-tile cell data                               |
+| `units`                | `Vec<UnitSaveData>`        | Placed unit data                                 |
+| `workspace_preset`     | `String`                   | Active workspace preset ID (v4+, default `""`)   |
+| `font_size_base`       | `f32`                      | Editor font size in points (v5+, default 15.0)   |
+| `edge_features`        | `HexEdgeRegistry`          | Hex edge feature annotations (v6+, default `{}`) |
+| `spawn_schedule`       | `SpawnSchedule`            | Scheduled entity spawning (v7+, default `{}`)    |
+| `accumulator_registry` | `AccumulatorRegistry`      | Score accumulators (v8+, default `{}`)           |
+| `victory_conditions`   | `VictoryConditionRegistry` | Victory conditions (v8+, default `{}`)           |
 
 ### `TileSaveData`
 

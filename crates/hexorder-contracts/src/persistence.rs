@@ -15,11 +15,14 @@ use crate::game_system::{
 use crate::hex_grid::{
     HexEdgeRegistry, HexPosition, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
-use crate::mechanics::{CombatModifierRegistry, CombatResultsTable, SpawnSchedule, TurnStructure};
+use crate::mechanics::{
+    AccumulatorRegistry, CombatModifierRegistry, CombatResultsTable, SpawnSchedule, TurnStructure,
+    VictoryConditionRegistry,
+};
 use crate::ontology::{ConceptRegistry, ConstraintRegistry, RelationRegistry};
 
 /// Current file format version. Increment when the schema changes.
-pub const FORMAT_VERSION: u32 = 7;
+pub const FORMAT_VERSION: u32 = 8;
 
 // ---------------------------------------------------------------------------
 // Application State
@@ -161,6 +164,12 @@ pub struct GameSystemFile {
     /// Scheduled entity spawning for scenarios (v7+).
     #[serde(default)]
     pub spawn_schedule: SpawnSchedule,
+    /// Accumulation tracker registry (v8+).
+    #[serde(default)]
+    pub accumulator_registry: AccumulatorRegistry,
+    /// Victory conditions (v8+).
+    #[serde(default)]
+    pub victory_conditions: VictoryConditionRegistry,
 }
 
 fn default_font_size() -> f32 {

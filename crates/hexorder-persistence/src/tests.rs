@@ -111,6 +111,8 @@ fn test_game_system_file() -> GameSystemFile {
         stacking_rule: StackingRule::default(),
         movement_cost_matrix: MovementCostMatrix::default(),
         spawn_schedule: hexorder_contracts::mechanics::SpawnSchedule::default(),
+        accumulator_registry: hexorder_contracts::mechanics::AccumulatorRegistry::default(),
+        victory_conditions: hexorder_contracts::mechanics::VictoryConditionRegistry::default(),
     }
 }
 
@@ -523,10 +525,10 @@ fn dispatch_confirm_cancel_does_nothing() {
     assert_eq!(workspace.name, "Original");
 }
 
-/// Format version was bumped to 6 for `edge_features` field.
+/// Format version was bumped to 8 for accumulator/victory types.
 #[test]
-fn format_version_is_6() {
-    assert_eq!(FORMAT_VERSION, 6);
+fn format_version_is_8() {
+    assert_eq!(FORMAT_VERSION, 8);
 }
 
 // ---------------------------------------------------------------------------

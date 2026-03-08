@@ -420,6 +420,81 @@ pub fn find_spawn_hex(
 ) -> Option<HexPosition>;
 ```
 
+### Accumulation Tracker
+
+```rust
+/// A condition that triggers accumulation of points.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub enum AccumulationTrigger {
+    OccupyHex { hex: HexPosition, points: i32 },
+    StateTransition { from_state: String, to_state: String, points: i32 },
+    TurnBoundary { points: i32 },
+    Manual,
+}
+
+/// A named score accumulator that tracks points for a faction.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct Accumulator {
+    pub id: String,
+    pub faction: Option<String>,
+    pub triggers: Vec<AccumulationTrigger>,
+    pub value: i32,
+    pub history: Vec<(u32, i32)>,
+}
+
+/// Registry of all accumulators in the scenario.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct AccumulatorRegistry {
+    pub accumulators: Vec<Accumulator>,
+}
+
+/// How to compare an accumulator's value against the threshold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum ComparisonOp {
+    GreaterOrEqual,
+    LessOrEqual,
+    Equal,
+}
+
+/// A victory condition: when an accumulator's value meets a threshold.
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub struct VictoryCondition {
+    pub accumulator_id: String,
+    pub threshold: i32,
+    pub comparison: ComparisonOp,
+}
+
+/// Registry of victory conditions for the scenario.
+#[derive(Resource, Debug, Clone, Default, Reflect, Serialize, Deserialize)]
+pub struct VictoryConditionRegistry {
+    pub conditions: Vec<VictoryCondition>,
+}
+
+/// Fired when a victory condition is met.
+#[derive(Event, Debug, Clone)]
+pub struct VictoryReached {
+    pub accumulator_id: String,
+    pub faction: Option<String>,
+    pub value: i32,
+    pub threshold: i32,
+}
+
+/// Evaluate turn-boundary triggers for all accumulators at the given turn.
+pub fn evaluate_turn_boundary_triggers(
+    registry: &mut AccumulatorRegistry, turn: u32,
+) -> Vec<usize>;
+
+/// Evaluate occupy-hex triggers for a specific hex and faction.
+pub fn evaluate_occupy_triggers(
+    registry: &mut AccumulatorRegistry, hex: HexPosition, faction: &str, turn: u32,
+) -> Vec<usize>;
+
+/// Check all victory conditions and return indices of those that are met.
+pub fn check_victory_conditions(
+    accumulators: &AccumulatorRegistry, conditions: &VictoryConditionRegistry,
+) -> Vec<usize>;
+```
+
 ### Phase Sequencer Functions
 
 ```rust
@@ -464,11 +539,18 @@ pub fn current_phase(turn_state: &TurnState, turn_structure: &TurnStructure) -> 
 - `SpawnSchedule` is inserted at startup; starts empty; persisted with scenario
 - `entries_due_for_turn` is pure — returns indices, caller handles placement
 - `find_spawn_hex` tries target first, then ring-1 neighbors; returns `None` if all full
+- `AccumulatorRegistry` is inserted at startup; starts empty; persisted with scenario
+- `VictoryConditionRegistry` is inserted at startup; starts empty; persisted with scenario
+- Triggers evaluate simple conditions only — no compound boolean logic
+- `evaluate_turn_boundary_triggers` and `evaluate_occupy_triggers` are pure — caller decides when to
+  invoke
+- `check_victory_conditions` skips conditions referencing unknown accumulator IDs
 
 ## Changelog
 
 | Date       | Change                            | Reason                               |
 | ---------- | --------------------------------- | ------------------------------------ |
+| 2026-03-07 | Accumulation tracker types        | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Scheduled spawning types          | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Constrained pathfinding types     | 0.22.0 Scenario Primitives (#236)    |
 | 2026-03-07 | Area-effect modifier types        | 0.21.0 Combat & Resolution (#235)    |

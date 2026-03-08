@@ -10,7 +10,8 @@ use hexorder_contracts::game_system::{
     ActiveBoardType, ActiveTokenType, EntityRole, SelectedUnit, StructRegistry,
 };
 use hexorder_contracts::mechanics::{
-    ActiveCombat, AreaMarkerRegistry, CombatModifierRegistry, SpawnSchedule, TurnState,
+    AccumulatorRegistry, ActiveCombat, AreaMarkerRegistry, CombatModifierRegistry, SpawnSchedule,
+    TurnState, VictoryConditionRegistry,
 };
 
 mod systems;
@@ -52,5 +53,7 @@ impl Plugin for GameSystemPlugin {
         app.insert_resource(ActiveCombat::default());
         app.insert_resource(AreaMarkerRegistry::default());
         app.insert_resource(SpawnSchedule::default());
+        app.insert_resource(AccumulatorRegistry::default());
+        app.insert_resource(VictoryConditionRegistry::default());
     }
 }

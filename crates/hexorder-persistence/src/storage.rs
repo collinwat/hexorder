@@ -200,6 +200,8 @@ mod tests {
             stacking_rule: StackingRule::default(),
             movement_cost_matrix: MovementCostMatrix::default(),
             spawn_schedule: hexorder_contracts::mechanics::SpawnSchedule::default(),
+            accumulator_registry: hexorder_contracts::mechanics::AccumulatorRegistry::default(),
+            victory_conditions: hexorder_contracts::mechanics::VictoryConditionRegistry::default(),
         }
     }
 
