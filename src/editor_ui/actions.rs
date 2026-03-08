@@ -11,8 +11,9 @@ use hexorder_contracts::game_system::{
 use hexorder_contracts::map_gen::GenerateMap;
 use hexorder_contracts::mechanic_reference::{MechanicCatalog, ScaffoldAction};
 use hexorder_contracts::mechanics::{
-    CombatModifierDefinition, CombatModifierRegistry, CombatOutcome, CombatResultsTable,
-    ModifierSource, Phase, PhaseType, SpawnEntry, SpawnSchedule, TurnStructure,
+    Accumulator, AccumulatorRegistry, CombatModifierDefinition, CombatModifierRegistry,
+    CombatOutcome, CombatResultsTable, ModifierSource, Phase, PhaseType, SpawnEntry, SpawnSchedule,
+    TurnStructure, VictoryCondition, VictoryConditionRegistry,
 };
 use hexorder_contracts::ontology::{
     CompareOp, ConceptBinding, ConceptRegistry, ConceptRole, Constraint, ConstraintExpr,
@@ -46,6 +47,8 @@ pub(super) fn apply_actions(
     combat_modifiers: &mut CombatModifierRegistry,
     mechanic_catalog: &MechanicCatalog,
     spawn_schedule: &mut SpawnSchedule,
+    accumulator_registry: &mut AccumulatorRegistry,
+    victory_conditions: &mut VictoryConditionRegistry,
 ) {
     for action in actions {
         match action {
@@ -493,6 +496,56 @@ pub(super) fn apply_actions(
             EditorAction::RemoveSpawnEntry { index } => {
                 if index < spawn_schedule.entries.len() {
                     spawn_schedule.entries.remove(index);
+                }
+            }
+            // -- Accumulators --
+            EditorAction::AddAccumulator { id, faction } => {
+                accumulator_registry.accumulators.push(Accumulator {
+                    id,
+                    faction,
+                    triggers: Vec::new(),
+                    value: 0,
+                    history: Vec::new(),
+                });
+            }
+            EditorAction::RemoveAccumulator { index } => {
+                if index < accumulator_registry.accumulators.len() {
+                    accumulator_registry.accumulators.remove(index);
+                }
+            }
+            EditorAction::AddAccumulatorTrigger {
+                accumulator_index,
+                trigger,
+            } => {
+                if let Some(acc) = accumulator_registry.accumulators.get_mut(accumulator_index) {
+                    acc.triggers.push(trigger);
+                }
+            }
+            EditorAction::RemoveAccumulatorTrigger {
+                accumulator_index,
+                trigger_index,
+            } => {
+                if let Some(acc) = accumulator_registry.accumulators.get_mut(accumulator_index)
+                    && trigger_index < acc.triggers.len()
+                {
+                    acc.triggers.remove(trigger_index);
+                }
+            }
+            // -- Victory Conditions --
+            EditorAction::AddVictoryCondition {
+                accumulator_id,
+                threshold,
+                comparison,
+            } => {
+                victory_conditions.conditions.push(VictoryCondition {
+                    accumulator_id,
+                    threshold,
+                    comparison,
+                });
+            }
+            EditorAction::RemoveVictoryCondition { index } => {
+                if index < victory_conditions.conditions.len() {
+                    victory_conditions.conditions.remove(index);
                 }
             }
             // -- Mechanic Reference --

@@ -10,8 +10,9 @@ use hexorder_contracts::hex_grid::{
     HexPosition, InfluenceRule, InfluenceRuleRegistry, MovementCostMatrix, StackingRule,
 };
 use hexorder_contracts::mechanics::{
-    CombatModifierRegistry, CombatResultsTable, ModifierSource, PhaseType, PlayerOrder,
-    SpawnSchedule, TurnStructure,
+    AccumulationTrigger, AccumulatorRegistry, CombatModifierRegistry, CombatResultsTable,
+    ComparisonOp, ModifierSource, PhaseType, PlayerOrder, SpawnSchedule, TurnStructure,
+    VictoryConditionRegistry,
 };
 use hexorder_contracts::simulation::{ColumnType, find_table_column, find_table_row};
 use hexorder_contracts::validation::SchemaValidation;
@@ -1441,4 +1442,207 @@ pub(crate) fn render_property_value_editor(
             }
         }
     }
+}
+
+/// Renders the accumulator registry and victory conditions editor.
+pub(crate) fn render_accumulators(
+    ui: &mut egui::Ui,
+    accumulator_registry: &mut AccumulatorRegistry,
+    victory_conditions: &mut VictoryConditionRegistry,
+    editor_state: &mut EditorState,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.heading("Accumulators");
+    ui.separator();
+
+    // -- Existing accumulators --
+    let mut remove_idx = None;
+    for (i, acc) in accumulator_registry.accumulators.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(&acc.id);
+            if let Some(ref faction) = acc.faction {
+                ui.label(format!("({faction})"));
+            }
+            ui.label(format!("Value: {}", acc.value));
+            ui.label(format!("Triggers: {}", acc.triggers.len()));
+            if ui.small_button("✕").clicked() {
+                remove_idx = Some(i);
+            }
+        });
+
+        // Show triggers
+        let mut remove_trigger = None;
+        for (ti, trigger) in acc.triggers.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add_space(20.0);
+                let desc = match trigger {
+                    AccumulationTrigger::OccupyHex { hex, points } => {
+                        format!("Occupy ({},{}) → {points:+}", hex.q, hex.r)
+                    }
+                    AccumulationTrigger::StateTransition {
+                        from_state,
+                        to_state,
+                        points,
+                    } => {
+                        format!("{from_state} → {to_state}: {points:+}")
+                    }
+                    AccumulationTrigger::TurnBoundary { points } => {
+                        format!("Turn boundary: {points:+}")
+                    }
+                    AccumulationTrigger::Manual => "Manual".to_string(),
+                };
+                ui.label(desc);
+                if ui.small_button("✕").clicked() {
+                    remove_trigger = Some(ti);
+                }
+            });
+        }
+        if let Some(ti) = remove_trigger {
+            actions.push(EditorAction::RemoveAccumulatorTrigger {
+                accumulator_index: i,
+                trigger_index: ti,
+            });
+        }
+
+        // Quick-add a turn boundary trigger.
+        ui.horizontal(|ui| {
+            ui.add_space(20.0);
+            if ui.small_button("+ Turn Boundary").clicked() {
+                actions.push(EditorAction::AddAccumulatorTrigger {
+                    accumulator_index: i,
+                    trigger: AccumulationTrigger::TurnBoundary { points: 1 },
+                });
+            }
+        });
+    }
+    if let Some(idx) = remove_idx {
+        actions.push(EditorAction::RemoveAccumulator { index: idx });
+    }
+
+    // -- Add accumulator form --
+    ui.add_space(8.0);
+    ui.label("Add Accumulator:");
+    egui::Grid::new("add_accumulator_form")
+        .num_columns(2)
+        .show(ui, |ui| {
+            ui.label("ID:");
+            ui.text_edit_singleline(&mut editor_state.new_accumulator_id);
+            ui.end_row();
+
+            ui.label("Faction:");
+            ui.text_edit_singleline(&mut editor_state.new_accumulator_faction);
+            ui.end_row();
+        });
+
+    let can_add = !editor_state.new_accumulator_id.is_empty();
+    ui.add_enabled_ui(can_add, |ui| {
+        if ui.button("Add Accumulator").clicked() {
+            let faction = if editor_state.new_accumulator_faction.is_empty() {
+                None
+            } else {
+                Some(editor_state.new_accumulator_faction.clone())
+            };
+            actions.push(EditorAction::AddAccumulator {
+                id: editor_state.new_accumulator_id.clone(),
+                faction,
+            });
+            editor_state.new_accumulator_id.clear();
+            editor_state.new_accumulator_faction.clear();
+        }
+    });
+
+    // -- Victory Conditions --
+    ui.add_space(12.0);
+    ui.heading("Victory Conditions");
+    ui.separator();
+
+    let mut remove_vc = None;
+    for (i, cond) in victory_conditions.conditions.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let cmp = match cond.comparison {
+                ComparisonOp::GreaterOrEqual => ">=",
+                ComparisonOp::LessOrEqual => "<=",
+                ComparisonOp::Equal => "==",
+            };
+            ui.label(format!(
+                "{} {} {}",
+                cond.accumulator_id, cmp, cond.threshold
+            ));
+            if ui.small_button("✕").clicked() {
+                remove_vc = Some(i);
+            }
+        });
+    }
+    if let Some(idx) = remove_vc {
+        actions.push(EditorAction::RemoveVictoryCondition { index: idx });
+    }
+
+    // -- Add victory condition form --
+    ui.add_space(8.0);
+    ui.label("Add Victory Condition:");
+    egui::Grid::new("add_victory_form")
+        .num_columns(2)
+        .show(ui, |ui| {
+            ui.label("Accumulator:");
+            egui::ComboBox::from_id_salt("victory_acc_picker")
+                .selected_text(if editor_state.new_victory_accumulator_id.is_empty() {
+                    "(select)"
+                } else {
+                    &editor_state.new_victory_accumulator_id
+                })
+                .show_ui(ui, |ui| {
+                    for acc in &accumulator_registry.accumulators {
+                        ui.selectable_value(
+                            &mut editor_state.new_victory_accumulator_id,
+                            acc.id.clone(),
+                            &acc.id,
+                        );
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Comparison:");
+            egui::ComboBox::from_id_salt("victory_cmp_picker")
+                .selected_text(match editor_state.new_victory_comparison {
+                    ComparisonOp::GreaterOrEqual => ">=",
+                    ComparisonOp::LessOrEqual => "<=",
+                    ComparisonOp::Equal => "==",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut editor_state.new_victory_comparison,
+                        ComparisonOp::GreaterOrEqual,
+                        ">=",
+                    );
+                    ui.selectable_value(
+                        &mut editor_state.new_victory_comparison,
+                        ComparisonOp::LessOrEqual,
+                        "<=",
+                    );
+                    ui.selectable_value(
+                        &mut editor_state.new_victory_comparison,
+                        ComparisonOp::Equal,
+                        "==",
+                    );
+                });
+            ui.end_row();
+
+            ui.label("Threshold:");
+            ui.add(egui::DragValue::new(
+                &mut editor_state.new_victory_threshold,
+            ));
+            ui.end_row();
+        });
+
+    let can_add_vc = !editor_state.new_victory_accumulator_id.is_empty();
+    ui.add_enabled_ui(can_add_vc, |ui| {
+        if ui.button("Add Victory Condition").clicked() {
+            actions.push(EditorAction::AddVictoryCondition {
+                accumulator_id: editor_state.new_victory_accumulator_id.clone(),
+                threshold: editor_state.new_victory_threshold,
+                comparison: editor_state.new_victory_comparison,
+            });
+            editor_state.new_victory_accumulator_id.clear();
+        }
+    });
 }

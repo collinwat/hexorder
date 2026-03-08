@@ -51,7 +51,7 @@ pub(super) use super::render_panels::{
     render_unit_palette, render_workspace_header,
 };
 pub(super) use super::render_rules::{
-    render_influence_rules, render_mechanics_tab, render_movement_cost_matrix,
+    render_accumulators, render_influence_rules, render_mechanics_tab, render_movement_cost_matrix,
     render_spawn_schedule, render_stacking_rule, render_validation_tab,
 };
 
@@ -157,6 +157,8 @@ pub(crate) struct RulesData<'a> {
     pub(crate) stacking_rule: &'a mut hexorder_contracts::hex_grid::StackingRule,
     pub(crate) movement_cost_matrix: &'a mut hexorder_contracts::hex_grid::MovementCostMatrix,
     pub(crate) spawn_schedule: &'a mut hexorder_contracts::mechanics::SpawnSchedule,
+    pub(crate) accumulator_registry: &'a mut hexorder_contracts::mechanics::AccumulatorRegistry,
+    pub(crate) victory_conditions: &'a mut hexorder_contracts::mechanics::VictoryConditionRegistry,
 }
 
 /// Actions returned by `render_editor_menu_bar` for deferred dispatch.
@@ -366,6 +368,14 @@ pub(crate) fn render_dock_tab(ui: &mut egui::Ui, tab: DockTab, viewer: &mut Edit
                             ui,
                             viewer.rules.spawn_schedule,
                             viewer.design.registry,
+                            viewer.editor_state,
+                            viewer.actions,
+                        );
+                        ui.add_space(12.0);
+                        render_accumulators(
+                            ui,
+                            viewer.rules.accumulator_registry,
+                            viewer.rules.victory_conditions,
                             viewer.editor_state,
                             viewer.actions,
                         );
@@ -1117,6 +1127,8 @@ pub fn editor_dock_system(
             stacking_rule: &mut mechanics.stacking_rule,
             movement_cost_matrix: &mut mechanics.movement_cost_matrix,
             spawn_schedule: &mut mechanics.spawn_schedule,
+            accumulator_registry: &mut mechanics.accumulator_registry,
+            victory_conditions: &mut mechanics.victory_conditions,
         },
         inspector: InspectorData {
             tile_position,
@@ -1163,6 +1175,8 @@ pub fn editor_dock_system(
         &mut mechanics.combat_modifiers,
         &mechanics.mechanic_catalog,
         &mut mechanics.spawn_schedule,
+        &mut mechanics.accumulator_registry,
+        &mut mechanics.victory_conditions,
     );
 }
 

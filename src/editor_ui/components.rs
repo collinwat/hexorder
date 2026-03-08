@@ -235,6 +235,31 @@ pub(crate) enum EditorAction {
     RemoveSpawnEntry {
         index: usize,
     },
+    // -- Accumulators --
+    AddAccumulator {
+        id: String,
+        faction: Option<String>,
+    },
+    RemoveAccumulator {
+        index: usize,
+    },
+    AddAccumulatorTrigger {
+        accumulator_index: usize,
+        trigger: hexorder_contracts::mechanics::AccumulationTrigger,
+    },
+    RemoveAccumulatorTrigger {
+        accumulator_index: usize,
+        trigger_index: usize,
+    },
+    // -- Victory Conditions --
+    AddVictoryCondition {
+        accumulator_id: String,
+        threshold: i32,
+        comparison: hexorder_contracts::mechanics::ComparisonOp,
+    },
+    RemoveVictoryCondition {
+        index: usize,
+    },
     // -- Mechanic Reference --
     ApplyTemplate {
         template_id: String,
@@ -448,6 +473,17 @@ pub struct EditorState {
     pub new_spawn_r: i32,
     /// Source zone name for new spawn entry.
     pub new_spawn_zone: String,
+    // -- Accumulator form state --
+    /// ID for new accumulator.
+    pub new_accumulator_id: String,
+    /// Faction for new accumulator.
+    pub new_accumulator_faction: String,
+    /// ID for new victory condition accumulator.
+    pub new_victory_accumulator_id: String,
+    /// Threshold for new victory condition.
+    pub new_victory_threshold: i32,
+    /// Comparison for new victory condition.
+    pub new_victory_comparison: hexorder_contracts::mechanics::ComparisonOp,
 }
 
 impl Default for EditorState {
@@ -544,6 +580,11 @@ impl Default for EditorState {
             new_spawn_q: 0,
             new_spawn_r: 0,
             new_spawn_zone: String::new(),
+            new_accumulator_id: String::new(),
+            new_accumulator_faction: String::new(),
+            new_victory_accumulator_id: String::new(),
+            new_victory_threshold: 10,
+            new_victory_comparison: hexorder_contracts::mechanics::ComparisonOp::GreaterOrEqual,
         }
     }
 }
@@ -599,6 +640,9 @@ pub(super) struct MechanicsParams<'w> {
     pub(super) stacking_rule: ResMut<'w, hexorder_contracts::hex_grid::StackingRule>,
     pub(super) movement_cost_matrix: ResMut<'w, hexorder_contracts::hex_grid::MovementCostMatrix>,
     pub(super) spawn_schedule: ResMut<'w, SpawnSchedule>,
+    pub(super) accumulator_registry: ResMut<'w, hexorder_contracts::mechanics::AccumulatorRegistry>,
+    pub(super) victory_conditions:
+        ResMut<'w, hexorder_contracts::mechanics::VictoryConditionRegistry>,
 }
 
 /// Bundled system parameter for ontology-related resources.
