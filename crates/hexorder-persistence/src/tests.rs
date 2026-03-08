@@ -62,6 +62,9 @@ fn test_app() -> App {
     app.init_resource::<InfluenceRuleRegistry>();
     app.init_resource::<StackingRule>();
     app.init_resource::<MovementCostMatrix>();
+    app.init_resource::<hexorder_contracts::mechanics::SpawnSchedule>();
+    app.init_resource::<hexorder_contracts::mechanics::AccumulatorRegistry>();
+    app.init_resource::<hexorder_contracts::mechanics::VictoryConditionRegistry>();
     app.add_plugins(crate::PersistencePlugin);
     app
 }

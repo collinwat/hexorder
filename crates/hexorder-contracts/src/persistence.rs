@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn format_version_constant() {
-        assert_eq!(FORMAT_VERSION, 7);
+        assert_eq!(FORMAT_VERSION, 8);
     }
 
     #[test]
