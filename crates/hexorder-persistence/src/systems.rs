@@ -300,6 +300,9 @@ fn reset_to_new_project(name: &str, world: &mut World) {
     *world.resource_mut::<MovementCostMatrix>() = MovementCostMatrix::default();
     *world.resource_mut::<TurnState>() = TurnState::default();
     *world.resource_mut::<ActiveCombat>() = ActiveCombat::default();
+    *world.resource_mut::<SpawnSchedule>() = SpawnSchedule::default();
+    *world.resource_mut::<AccumulatorRegistry>() = AccumulatorRegistry::default();
+    *world.resource_mut::<VictoryConditionRegistry>() = VictoryConditionRegistry::default();
 
     {
         let mut workspace = world.resource_mut::<Workspace>();
