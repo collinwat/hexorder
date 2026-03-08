@@ -28,6 +28,8 @@ project structure changes, update them here.
 | `research_skill` | `/hex-research`                              | Research skill                                 |
 | `pitch_skill`    | `/hex-pitch`                                 | Pitch shaping skill                            |
 | `bet_skill`      | `/hex-bet`                                   | Betting table skill                            |
+| `wiki_skill`     | `/hex-wiki`                                  | Wiki operations skill                          |
+| `wiki_home`      | `.wiki/Home.md`                              | Wiki landing page with Plans & Designs section |
 
 ## Determine Ceremony Type
 
@@ -65,6 +67,29 @@ Then proceed directly to the next cycle's kickoff. No triage, shaping, or bettin
 
 Run `{{ retro_skill }}` to reflect on the completed cycle. This surfaces learnings and captures new
 ideas as GitHub Issues.
+
+### Phase 1b: Wiki Plan Audit
+
+Scan wiki plan and design pages for untracked future work. These pages persist across cycles and may
+contain deferred phases, "Future Directions" sections, or implementation plan tasks that don't yet
+have GitHub Issues.
+
+1. Use `{{ wiki_skill }}` to read `{{ wiki_home }}` and identify pages in the "Plans & Designs"
+   section
+2. For each plan/design page, scan for:
+    - **Future Directions / Future Work** sections — items not yet tracked as issues
+    - **Deferred implementation phases** — phases listed as "depends on" work not yet bet
+    - **Rabbit holes or risks** called out but not tracked
+3. For each untracked item, search existing issues first:
+    ```bash
+    gh issue list --search "<keywords>" --state all
+    ```
+4. Create issues for genuinely new items (use appropriate template — feature, tech-debt, or
+   research). Tag with `status:triage` so they enter the triage pool.
+5. Report a summary: how many pages scanned, how many new issues created, how many items already
+   tracked.
+
+This step feeds newly discovered items into the triage pool before Phase 2 processes them.
 
 ### Phase 2: Triage
 
