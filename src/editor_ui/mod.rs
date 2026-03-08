@@ -124,7 +124,7 @@ impl Plugin for EditorUiPlugin {
         // Runs after SettingsReady so SettingsRegistry has the merged project layer.
         // Dock layout persistence disabled — saved DockState causes render
         // pipeline freezes on reload.  Preset defaults are used instead.
-        // TODO(#236): investigate egui_dock RON round-trip render crash
+        // TODO(#255): investigate egui_dock RON round-trip render crash
         app.add_systems(
             OnEnter(AppScreen::Editor),
             (
