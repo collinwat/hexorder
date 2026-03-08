@@ -82,29 +82,14 @@ pub(super) use super::render_panels::rgb;
 
 /// Updates `ViewportMargins` from the `ViewportRect` set by `editor_dock_system`.
 /// Runs after the dock system so `viewport_rect` has been populated for this frame.
-///
-/// When the Viewport tab is not the active tab (`viewport_rect` is `None`), the 3D
-/// camera is deactivated to prevent the scene from rendering behind other panels.
 pub fn update_viewport_margins(
     mut contexts: EguiContexts,
     mut margins: ResMut<ViewportMargins>,
     viewport_rect: Res<ViewportRect>,
-    mut cameras: Query<&mut Camera, With<Camera3d>>,
 ) {
     let Some(rect) = viewport_rect.0 else {
-        // Viewport tab is not visible — deactivate the 3D camera so the scene
-        // does not bleed through behind other dock tabs.
-        for mut cam in &mut cameras {
-            cam.is_active = false;
-        }
         return;
     };
-
-    // Viewport tab is visible — ensure the 3D camera is active.
-    for mut cam in &mut cameras {
-        cam.is_active = true;
-    }
-
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
@@ -1024,11 +1009,6 @@ pub fn editor_dock_system(
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
-
-    // Clear viewport rect each frame — it will be re-set only if the Viewport
-    // tab is actually visible.  When it stays None, the camera system knows
-    // the 3D scene is hidden behind another tab.
-    viewport_rect.0 = None;
 
     let is_generating = map_gen.generate.is_some();
 
